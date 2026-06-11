@@ -1,256 +1,173 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Arimo:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Base styles */
 @layer base {
-  :root {
-    /* New Luxury Color Palette */
-    --color-ivory: #FBF9F6;
-    --color-misty-stone: #E9E5DF;
-    --color-espresso: #2E2623;
-    --color-gold: #C6A46C;
-    --color-ocean: #243746;
-    --color-sunset: #D9B08C;
-    
-    --background: 40 20% 97%;
-    --foreground: 25 14% 16%;
-    --card: 40 20% 97%;
-    --card-foreground: 25 14% 16%;
-    --popover: 40 20% 97%;
-    --popover-foreground: 25 14% 16%;
-    --primary: 25 14% 16%;
-    --primary-foreground: 40 20% 97%;
-    --secondary: 36 14% 90%;
-    --secondary-foreground: 25 14% 16%;
-    --muted: 36 14% 90%;
-    --muted-foreground: 25 8% 45%;
-    --accent: 40 38% 60%;
-    --accent-foreground: 40 20% 97%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 36 14% 85%;
-    --input: 36 14% 85%;
-    --ring: 40 38% 60%;
-    --radius: 0.625rem;
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-  
-  html {
-    scroll-behavior: smooth;
-  }
-  
   body {
-    @apply bg-[#FBF9F6] text-[#2E2623] antialiased;
-    font-family: 'Arimo', sans-serif;
-    font-weight: 400;
-    font-size: 18px;
-    line-height: 1.6;
+    font-family: 'Arimo', sans-serif !important;
+    background-color: #FBF9F6;
+    color: rgba(46, 38, 35, 0.85);
   }
-  
-  /* Ultra-fast button feedback */
-  button:active {
-    transform: scale(0.98);
-    transition: transform 0.05s ease-out;
-  }
-  
+
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Playfair Display', serif;
+    font-family: 'Playfair Display', serif !important;
     font-weight: 500;
     letter-spacing: -0.01em;
     line-height: 1.1;
+    color: rgba(46, 38, 35, 0.9);
   }
-  
-  h1 {
-    font-size: clamp(2.5rem, 5vw, 4rem);
-  }
-  
+
   h2 {
     font-size: clamp(2rem, 3.6vw, 2.75rem);
-    line-height: 1.15;
   }
-  
+
   h3 {
-    font-size: clamp(1.5rem, 2.2vw, 2rem);
-    line-height: 1.2;
+    font-size: clamp(1.4rem, 2vw, 1.8rem);
+  }
+
+  p {
+    color: rgba(46, 38, 35, 0.65);
   }
 }
+
 
 @layer components {
-  .label-uppercase {
-    font-family: 'Arimo', sans-serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-  }
-  
-  /* Fast hover transitions */
   .btn-primary {
-    @apply inline-flex items-center justify-center px-8 py-4 bg-[#2E2623] text-[#FBF9F6] rounded-full font-medium text-base transition-all;
-    transition-duration: 0.18s;
-    transition-timing-function: ease-out;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 2rem;
+    background-color: #2E2623;
+    color: #FBF9F6;
+    border-radius: 9999px;
+    font-weight: 500;
+    transition: all 0.2s;
   }
-  
+
   .btn-primary:hover {
-    @apply bg-[#C6A46C] text-[#2E2623];
+    background-color: #C6A46C;
+    color: #2E2623;
     transform: translateY(-2px);
-  }
-  
-  .btn-secondary {
-    @apply inline-flex items-center justify-center px-8 py-4 border border-[#2E2623] text-[#2E2623] rounded-full font-medium text-base transition-all;
-    transition-duration: 0.18s;
-    transition-timing-function: ease-out;
-  }
-  
-  .btn-secondary:hover {
-    @apply bg-[#2E2623] text-[#FBF9F6];
-    transform: translateY(-2px);
-  }
-  
-  .card-luxury {
-    @apply bg-white rounded-2xl overflow-hidden;
-    box-shadow: 0 12px 40px rgba(46, 38, 35, 0.06);
-    transition: all 0.18s ease-out;
-  }
-  
-  .card-luxury:hover {
-    box-shadow: 0 20px 50px rgba(46, 38, 35, 0.1);
-    transform: translateY(-4px);
-  }
-  
-  .hairline {
-    @apply h-px;
-    background: rgba(46, 38, 35, 0.1);
-  }
-  
-  .hairline-light {
-    @apply h-px;
-    background: rgba(251, 249, 246, 0.15);
-  }
-  
-  .text-balance {
-    text-wrap: balance;
-  }
-  
-  /* Fast scroll reveal animation */
-  .reveal-up {
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
-  }
-  
-  .reveal-up.revealed {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  
-  /* Grain overlay - subtle */
-  .grain-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 9999;
-    opacity: 0.025;
-    mix-blend-mode: multiply;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  }
-  
-  /* Fast link hover */
-  .link-hover {
-    position: relative;
-  }
-  
-  .link-hover::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
-    width: 0;
-    height: 1px;
-    background: #C6A46C;
-    transition: width 0.18s ease-out;
-  }
-  
-  .link-hover:hover::after {
-    width: 100%;
   }
 }
 
-@layer utilities {
-  .animation-delay-100 { animation-delay: 100ms; }
-  .animation-delay-200 { animation-delay: 200ms; }
-  .animation-delay-300 { animation-delay: 300ms; }
-  
-  /* Hide scrollbar but allow scrolling */
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+.card-luxury {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 12px 40px rgba(46, 38, 35, 0.06);
+  transition: all 0.2s ease;
 }
 
-/* Custom scrollbar - minimal */
+.card-luxury:hover {
+  box-shadow: 0 20px 50px rgba(46, 38, 35, 0.1);
+  transform: scale(1.02);
+}
+
+.grain-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.03;
+  background-image: radial-gradient(#000 1px, transparent 1px);
+  background-size: 4px 4px;
+}
+
+* {
+  backface-visibility: hidden;
+}
+
+/* ===== Scrollbar Styling ===== */
+
+/* Chrome, Safari */
 ::-webkit-scrollbar {
-  width: 6px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #FBF9F6;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #C6A46C;
-  border-radius: 3px;
+  background-color: rgba(46, 38, 35, 0.25); /* soft gray */
+  border-radius: 9999px;
+  transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #2E2623;
+  background-color: rgba(46, 38, 35, 0.45);
 }
 
-/* Selection */
+/* Force neutral scrollbar everywhere */
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(46, 38, 35, 0.25);
+}
+
+/* Text selection */
 ::selection {
   background: rgba(198, 164, 108, 0.25);
   color: #2E2623;
 }
 
-/* Focus states */
-*:focus-visible {
+/* Focus outlines */
+body :focus-visible {
   outline: 2px solid rgba(198, 164, 108, 0.5);
   outline-offset: 2px;
 }
 
-.testimonials-scroll::-webkit-scrollbar {
-  height: 6px;
-}
-
-.testimonials-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.testimonials-scroll::-webkit-scrollbar-thumb {
-  background: #c6a16e;
-  border-radius: 10px;
-}
-
+/* Extra UI */
 .luxury-button-light {
   background: white;
   color: #8f6b3d;
   border: 1px solid rgba(255,255,255,0.4);
 }
-
 .luxury-button-light:hover {
   background: #f8f5f0;
   transform: translateY(-1px);
+}
+
+/* Animations */
+@keyframes heroZoom { from { transform: scale(1.05); } to { transform: scale(1.15); } }
+.animate-heroZoom { animation: heroZoom 18s ease-in-out infinite alternate; }
+
+@keyframes goldPulse {
+  0% {
+    box-shadow: 0 0 0px rgba(198, 164, 108, 0.25);
+  }
+  25% {
+    box-shadow: 0 0 25px rgba(198, 164, 108, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 45px rgba(198, 164, 108, 0.65);
+  }
+  75% {
+    box-shadow: 0 0 25px rgba(198, 164, 108, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0px rgba(198, 164, 108, 0.25);
+  }
+}
+
+.gold-pulse {
+  animation: goldPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes wave {
+  0%, 100% {
+    height: 6px;
+    opacity: 0.6;
+  }
+  50% {
+    height: 20px;
+    opacity: 1;
+  }
+}
+
+.animate-wave {
+  animation: wave 1s ease-in-out infinite;
 }

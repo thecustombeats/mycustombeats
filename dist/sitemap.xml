@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <url>
+    <loc>https://mycustombeats.com/</loc>
+    <lastmod>2026-03-23</lastmod>
+  </url>
+
+  <url>
+    <loc>https://mycustombeats.com/products</loc>
+    <lastmod>2026-03-23</lastmod>
+  </url>
+
+  <url>
+    <loc>https://mycustombeats.com/occasions</loc>
+    <lastmod>2026-03-23</lastmod>
+  </url>
+
+  <url>
+    <loc>https://mycustombeats.com/artists</loc>
+    <lastmod>2026-03-23</lastmod>
+  </url>
+
+  <url>
+    <loc>https://mycustombeats.com/partners</loc>
+    <lastmod>2026-03-23</lastmod>
+  </url>
+
+  <url>
+    <loc>https://mycustombeats.com/press</loc>
+    <lastmod>2026-03-23</lastmod>
+  </url>
+
+  <!-- ADD THESE -->
+  <url>
+    <loc>https://mycustombeats.com/about</loc>
+    <lastmod>2026-03-23</lastmod>
+  </url>
+
+  <url>
+    <loc>https://mycustombeats.com/faq</loc>
+    <lastmod>2026-03-23</lastmod>
+  </url>
+
+  <url>
+    <loc>https://mycustombeats.com/legal/terms</loc>
+    <lastmod>2026-03-23</lastmod>
+  </url>
+
+  <url>
+    <loc>https://mycustombeats.com/legal/privacy</loc>
+    <lastmod>2026-03-23</lastmod>
+  </url>
+
+  <url>
+    <loc>https://mycustombeats.com/legal/refund</loc>
+    <lastmod>2026-03-23</lastmod>
+  </url>
+
+</urlset>

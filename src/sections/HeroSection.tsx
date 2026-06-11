@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import PersonalizationModal from '../components/PersonalizationModal';
 import { gsap } from 'gsap';
-import { ArrowRight } from 'lucide-react';
+import { Helmet } from "react-helmet-async";
 
 const HeroSection = () => {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -9,6 +10,32 @@ const HeroSection = () => {
   const ctaRef = useRef<HTMLButtonElement>(null);
   const imagesRef = useRef<HTMLDivElement>(null);
 
+  // ✅ STATE
+  const [showModal, setShowModal] = useState(false);
+  const [userType, setUserType] = useState<string | null>(null);
+
+  // ✅ Load saved user type
+  useEffect(() => {
+    const savedType = localStorage.getItem("userType");
+    if (savedType) {
+      setUserType(savedType);
+    }
+  }, []);
+
+  // ✅ Modal timing logic
+  useEffect(() => {
+    const seen = localStorage.getItem("personalizationSeen");
+
+    if (!seen) {
+      const timer = setTimeout(() => {
+        setShowModal(true);
+      }, 4500);
+
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // ✅ GSAP Animations
   useEffect(() => {
     const headline = headlineRef.current;
     const subheadline = subheadlineRef.current;
@@ -17,144 +44,191 @@ const HeroSection = () => {
 
     if (!headline || !subheadline || !cta || !images) return;
 
-    // Fast load animation
     const tl = gsap.timeline({ delay: 0.2 });
 
-    // Images fade in
-    const imageElements = images.querySelectorAll('.hero-image');
     tl.fromTo(
-      imageElements,
-      { opacity: 0, scale: 1.05 },
-      { opacity: 1, scale: 1, duration: 0.5, stagger: 0.08, ease: 'power2.out' }
-    );
-
-    // Headline words
-    const words = headline.querySelectorAll('.word');
-    tl.fromTo(
-      words,
+      headline,
       { y: 30, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.4, stagger: 0.04, ease: 'power2.out' },
-      '-=0.3'
+      { y: 0, opacity: 1, duration: 0.6, ease: 'power2.out' }
     );
 
-    // Subheadline
     tl.fromTo(
       subheadline,
       { y: 20, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.35, ease: 'power2.out' },
-      '-=0.2'
+      { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' },
+      '-=0.3'
     );
 
-    // CTA
     tl.fromTo(
       cta,
       { y: 15, opacity: 0 },
       { y: 0, opacity: 1, duration: 0.3, ease: 'power2.out' },
-      '-=0.15'
+      '-=0.2'
     );
   }, []);
 
-  const scrollToOrder = () => {
-    const element = document.querySelector('#order');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+  // ✅ Dynamic Headline
+  const getHeadline = () => {
+    switch (userType) {
+      case "partner":
+        return "Turn your love story into a song you'll keep forever";
+      case "gift":
+        return "Create the most unforgettable gift they'll ever receive";
+      case "family":
+        return "Preserve your family memories in a song";
+      case "friends":
+        return "Turn your best moments into a song";
+      case "solo":
+        return "Tell your story through music";
+      default:
+        return "Turn your story into a song you'll keep forever";
     }
   };
 
+  // ✅ Dynamic Subheadline
+  const getSubheadline = () => {
+    switch (userType) {
+      case "partner":
+        return "A deeply personal song crafted from your love story.";
+      case "gift":
+        return "A one-of-a-kind gift they'll never forget.";
+      case "family":
+        return "Celebrate the moments that matter most.";
+      case "friends":
+        return "Capture the fun, laughter, and memories.";
+      case "solo":
+        return "A song that reflects your journey.";
+      default:
+        return "A personalised, professionally produced song crafted from your memories.";
+    }
+  };
+
+  const getCTA = () => {
+  switch (userType) {
+    case "partner":
+      return "Create My Love Song";
+    case "gift":
+      return "Create My Gift";
+    case "family":
+      return "Create My Family Song";
+    case "friends":
+      return "Create My Memory Song";
+    case "solo":
+      return "Create My Story Song";
+    default:
+      return "Create My Custom Song";
+  }
+};
+
+const getSecondaryCTA = () => {
+  return "Begin Your Composition";
+};
+
+const scrollToOrder = () => {
+  if (window.location.pathname !== "/") {
+    window.location.href = "/#order";
+    return;
+  }
+
+  const el = document.querySelector("#order");
+  if (el) el.scrollIntoView({ behavior: "smooth" });
+};
+
+
   return (
-    <div
-      ref={sectionRef}
-      className="relative w-full min-h-screen bg-ivory overflow-hidden"
-    >
-      {/* Background Image Collage - Luxury Travel Focus */}
-      <div 
-        ref={imagesRef}
-        className="absolute inset-0 grid grid-cols-4 gap-2 p-2"
+    <>
+      <Helmet>
+        <title>Custom Songs for Weddings, Birthdays & Luxury Gifts | My Custom Beats</title>
+        <meta
+          name="description"
+          content="Create personalised songs for weddings, birthdays, anniversaries and luxury gifting. Professionally produced music crafted from your story."
+        />
+      </Helmet>
+
+      <div
+        ref={sectionRef}
+        className="relative w-full min-h-screen bg-ivory overflow-hidden"
       >
-        <div className="hero-image relative overflow-hidden rounded-2xl">
-          <img
-            src="/images/hero-flight.jpg"
-            alt="Luxury charter flight celebration"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-espresso/30 to-transparent" />
+        {/* Background Video */}
+        <div ref={imagesRef} className="absolute inset-0 overflow-hidden">
+          <video
+            className="w-full h-full object-cover scale-[1.05] animate-heroZoom"
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="none"
+            poster="/images/hero-poster.jpg"
+          >
+            <source src="/videos/hero-luxury.mp4" type="video/mp4" />
+          </video>
         </div>
-        <div className="hero-image relative overflow-hidden rounded-2xl">
-          <img
-            src="/images/hero-yacht.jpg"
-            alt="Friends celebrating on luxury yacht"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-espresso/30 to-transparent" />
-        </div>
-        <div className="hero-image relative overflow-hidden rounded-2xl">
-          <img
-            src="/images/hero-cruise.jpg"
-            alt="Couple dancing on cruise ship deck"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-espresso/30 to-transparent" />
-        </div>
-        <div className="hero-image relative overflow-hidden rounded-2xl">
-          <img
-            src="/images/hero-champagne.jpg"
-            alt="Champagne toast on private jet"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-espresso/30 to-transparent" />
+
+        {/* Overlays */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_40%,rgba(0,0,0,0.45)_100%)]"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-espresso/80 via-espresso/50 to-espresso/30 backdrop-blur-[2px]" />
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6 text-center">
+
+          <span className="label-uppercase text-ivory/60 mb-6 tracking-[0.2em]">
+            Featured on BBC Radio • Trusted by global clients
+          </span>
+
+          <h1
+            ref={headlineRef}
+            className="font-serif text-ivory mb-10 max-w-4xl leading-[1.05]"
+            style={{ fontSize: 'clamp(2.5rem, 6vw, 4.5rem)' }}
+          >
+            {getHeadline()}
+          </h1>
+
+          <p
+            ref={subheadlineRef}
+            className="text-xl text-ivory/85 mb-10 max-w-2xl"
+          >
+            {getSubheadline()}
+          </p>
+
+          <div className="flex flex-col items-center gap-4">
+
+  {/* Primary CTA */}
+  <button
+    ref={ctaRef}
+    onClick={() => window.location.href = "/anniversary-song"}
+    className="px-10 py-4 bg-gold text-espresso rounded-full text-lg hover:bg-ivory transition"
+  >
+    {getCTA()}
+  </button>
+
+  {/* Secondary CTA (Luxury subtle style) */}
+  <button
+    onClick={scrollToOrder}
+    className="text-ivory/80 text-sm tracking-wide underline underline-offset-4 hover:text-ivory transition"
+  >
+    {getSecondaryCTA()}
+  </button>
+
+</div>
+
         </div>
       </div>
 
-      {/* Dark Overlay for text readability */}
-      <div className="absolute inset-0 bg-gradient-to-t from-espresso/70 via-espresso/40 to-espresso/20" />
-
-      {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6 text-center">
-        {/* Label */}
-        <span className="label-uppercase text-ivory/60 mb-6 tracking-[0.2em]">
-          BBC Radio Featured Musicians
-        </span>
-
-        {/* Headline */}
-        <h1
-          ref={headlineRef}
-          className="font-serif text-ivory mb-10 max-w-4xl leading-[1.05]"
-          style={{ fontSize: 'clamp(2.5rem, 6vw, 4.5rem)' }}
-        >
-          <span className="word inline-block">Turn</span>{' '}
-          <span className="word inline-block">your</span>{' '}
-          <span className="word inline-block">journey</span>{' '}
-          <span className="word inline-block">into</span>{' '}
-          <span className="word inline-block">a</span>{' '}
-          <span className="word inline-block">song.</span>
-        </h1>
-
-        {/* Subheadline */}
-        <p
-          ref={subheadlineRef}
-          className="text-xl lg:text-2xl text-ivory/85 mb-10 max-w-2xl leading-relaxed"
-          style={{ fontFamily: 'Arimo, sans-serif' }}
-        >
-          Tell us your story. We will craft it into a personalised track you can keep forever.
-        </p>
-
-        {/* CTA Button */}
-        <button
-          ref={ctaRef}
-          onClick={scrollToOrder}
-          className="group px-10 py-4 bg-gold text-espresso rounded-full font-medium text-lg transition-all duration-fast hover:bg-ivory hover:scale-[1.02] flex items-center gap-3"
-          style={{ fontFamily: 'Arimo, sans-serif' }}
-        >
-          Start Your Custom Beat
-          <ArrowRight size={20} className="transition-transform duration-fast group-hover:translate-x-1" />
-        </button>
-
-        {/* Micro note */}
-        <p className="mt-6 text-sm text-ivory/60" style={{ fontFamily: 'Arimo, sans-serif' }}>
-          Crafted by real musicians. Delivered in days.
-        </p>
-      </div>
-    </div>
+      {/* ✅ Modal */}
+      <PersonalizationModal
+        isOpen={showModal}
+        onClose={() => {
+          localStorage.setItem("personalizationSeen", "true");
+          setShowModal(false);
+        }}
+        onSelect={(type) => {
+          localStorage.setItem("userType", type);
+          localStorage.setItem("personalizationSeen", "true");
+          setUserType(type);
+          setShowModal(false);
+        }}
+      />
+    </>
   );
 };
 

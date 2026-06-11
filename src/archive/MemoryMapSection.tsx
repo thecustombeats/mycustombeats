@@ -1,3 +1,8 @@
+// MemoryMapSection.tsx
+// Archived on March 2026
+// Reason: Not aligned with current luxury positioning
+
+
 import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -155,7 +160,7 @@ const MemoryMapSection = () => {
                   </span>
 
                   {/* Icon */}
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${getColorClass(step.color)}`}>
+                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 ${getColorClass(step.color)}`}>
                     <Icon size={22} />
                   </div>
 

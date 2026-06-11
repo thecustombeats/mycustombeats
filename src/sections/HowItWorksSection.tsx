@@ -9,22 +9,22 @@ const steps = [
   {
     icon: MessageSquare,
     title: 'Share your story',
-    description: 'Cruise, celebration, or milestone.',
+    description: 'Tell us about your moment, memories, and the person it’s for.',
   },
   {
     icon: Heart,
     title: 'Choose the mood',
-    description: 'Romantic, nostalgic, upbeat, calm.',
+    description: 'Pick the emotion and style — romantic, nostalgic, upbeat or calm.',
   },
   {
     icon: Music,
     title: 'We compose & produce',
-    description: 'Real musicians. Real instruments.',
+    description: 'Professional musicians write, record, and produce your custom song.',
   },
   {
     icon: Package,
     title: 'Receive your keepsake',
-    description: 'Song + artwork + lyrics.',
+    description: 'Get your song, artwork, and lyrics ready to gift or share.',
   },
 ];
 
@@ -92,9 +92,17 @@ const HowItWorksSection = () => {
           <span className="label-uppercase text-gold mb-4 block tracking-[0.15em]">
             The Process
           </span>
+
           <h2 className="font-serif text-espresso">
-            How we turn your journey into music
-          </h2>
+From your story to a professionally produced song
+</h2>
+<p className="text-espresso/60 mt-4 max-w-2xl mx-auto">
+Created by professional musicians with experience performing on global stages and luxury venues.
+</p>
+
+<p className="text-center text-sm text-gold mb-8 tracking-wide">
+4 Simple Steps • Delivered in Days • Made Just for You
+</p>
         </div>
 
         {/* Cards */}
@@ -111,7 +119,7 @@ const HowItWorksSection = () => {
                 </span>
 
                 <div className="w-16 h-16 rounded-xl bg-gold/10 flex items-center justify-center mb-6">
-                  <Icon size={28} className="text-gold" />
+                  <Icon size={30} className="text-gold" />
                 </div>
 
                 <h3 className="font-serif text-xl text-espresso mb-3">
@@ -121,10 +129,15 @@ const HowItWorksSection = () => {
                 <p className="text-espresso/60 leading-relaxed" style={{ fontFamily: 'Arimo, sans-serif' }}>
                   {step.description}
                 </p>
+
               </div>
             );
           })}
         </div>
+
+<p className="text-center text-espresso/60 mb-6">
+Each song is carefully refined by real musicians to ensure a personal and emotional experience.
+</p>
 
         {/* CTA */}
         <div className="text-center">
@@ -132,8 +145,9 @@ const HowItWorksSection = () => {
             onClick={scrollToOrder}
             className="group px-8 py-4 bg-espresso text-ivory rounded-full font-medium transition-all duration-fast hover:bg-gold hover:text-espresso flex items-center gap-3 mx-auto"
             style={{ fontFamily: 'Arimo, sans-serif' }}
+            
           >
-            Start Your Story
+            Create My Custom Song
             <ArrowRight size={18} className="transition-transform duration-fast group-hover:translate-x-1" />
           </button>
         </div>

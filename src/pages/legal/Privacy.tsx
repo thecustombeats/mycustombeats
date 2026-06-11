@@ -1,77 +1,75 @@
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 
 export default function Privacy() {
   return (
-    <div className="min-h-screen bg-espresso text-ivory px-6 py-20">
-      <div className="max-w-4xl mx-auto space-y-10">
+    <>
+    <Helmet>
+  <title>Privacy Policy | My Custom Beats</title>
+  <meta
+    name="description"
+    content="Your privacy matters to us. Your information is secure and handled with complete confidentiality."
+  />
+</Helmet>
 
-        {/* Title */}
-        <h1 className="text-3xl font-light tracking-wide text-gold">
+    <div className="min-h-screen bg-[#FBF9F6] text-black px-6 py-28">
+      <div className="max-w-3xl mx-auto">
+
+        <h1 className="text-5xl font-light mb-6">
           Privacy Policy
         </h1>
 
-        {/* Intro */}
-        <p className="text-ivory/70 leading-relaxed">
-          My Custom Beats respects your privacy and is committed to protecting
-          your personal information.
+        <p className="text-black/50 mb-16 text-sm">
+          Your privacy matters to us.
         </p>
 
-        {/* Content */}
-        <div className="space-y-8 text-ivory/70 leading-relaxed">
+        <div className="space-y-16">
 
-          <div>
-            <h3 className="text-gold mb-3">
-              1. Information We Collect
-            </h3>
-            <p>
-              We may collect your name, email address, project details, and
-              payment information when you place an order.
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-gold mb-3">
-              2. How We Use Your Information
-            </h3>
-            <p>
-              Your information is used solely to create and deliver your custom
-              music project and to communicate with you regarding your order.
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-gold mb-3">
-              3. Data Protection
-            </h3>
-            <p>
-              We do not sell, trade, or share your personal data with third
-              parties except as necessary for secure payment processing.
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-gold mb-3">
-              4. Contact
-            </h3>
-            <p>
-              If you have any questions regarding your privacy, please contact
-              us at hello@custombeats.studio.
-            </p>
-          </div>
+          {[
+            {
+              title: "Information We Collect",
+              text: "We collect your name, contact details, and project information necessary to create your custom experience.",
+            },
+            {
+              title: "How We Use Your Data",
+              text: "Your information is used solely to create, deliver, and communicate your order.",
+            },
+            {
+              title: "Data Protection",
+              text: "We do not sell or share your data. Secure systems are used for all transactions.",
+            },
+            {
+              title: "Your Rights",
+              text: "You may request deletion of your data after your project is completed.",
+            },
+            {
+              title: "Contact",
+              text: "For any privacy concerns, contact us directly.",
+            },
+          ].map((section, i) => (
+            <div key={i}>
+              <h2 className="text-xl font-medium mb-3">
+                {section.title}
+              </h2>
+              <p className="text-black/60 leading-relaxed">
+                {section.text}
+              </p>
+            </div>
+          ))}
 
         </div>
 
-        {/* Back Button */}
-        <div className="pt-6">
+        <div className="mt-24 text-center">
           <Link
             to="/"
-            className="inline-block px-6 py-3 border border-gold text-gold hover:bg-gold hover:text-espresso transition-all duration-300 text-sm tracking-wide"
+            className="px-8 py-3 border border-black/20 rounded-full text-sm hover:bg-black hover:text-white transition"
           >
-            ← Back to Home
+            Back to Home
           </Link>
         </div>
 
       </div>
     </div>
+    </>
   );
 }

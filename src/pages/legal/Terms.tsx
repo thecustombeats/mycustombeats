@@ -1,130 +1,104 @@
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 
 export default function Terms() {
   return (
-    <div className="min-h-screen bg-espresso text-ivory px-6 py-20">
-      <div className="max-w-4xl mx-auto space-y-10">
 
-        <h1 className="text-3xl font-light tracking-wide text-gold">
+    <>
+    <Helmet>
+  <title>Terms & Conditions | My Custom Beats</title>
+  <meta
+    name="description"
+    content="Each project with MyCustomBeats crafted uniquely for you, these terms ensure clarity,
+          fairness, and a seamless experience."
+  />
+</Helmet>
+
+
+    <div className="min-h-screen bg-[#FBF9F6] text-black px-6 py-28">
+      <div className="max-w-3xl mx-auto">
+
+        {/* HEADER */}
+        <h1 className="text-5xl font-light mb-6">
           Terms & Conditions
         </h1>
 
-        <p className="text-ivory/70 leading-relaxed">
-          By placing an order with My Custom Beats, you agree to the following
-          terms and conditions. Please read them carefully before proceeding.
+        <p className="text-black/50 mb-16 text-sm">
+          Last updated: {new Date().getFullYear()}
         </p>
 
-        <div className="space-y-8 text-ivory/70 leading-relaxed">
+        {/* INTRO */}
+        <p className="text-lg text-black/70 leading-relaxed mb-16">
+          By placing an order with MyCustomBeats, you agree to the following terms.
+          Each project is crafted uniquely for you, and these terms ensure clarity,
+          fairness, and a seamless experience.
+        </p>
 
-          {/* 1 */}
-          <div>
-            <h3 className="text-gold mb-3">1. Nature of Service</h3>
-            <p>
-              My Custom Beats provides personalised digital music experiences created
-              based on information submitted by the customer. All products are
-              digital, bespoke, and made-to-order. No physical items are shipped.
-            </p>
-          </div>
+        {/* SECTIONS */}
+        <div className="space-y-16">
 
-          {/* 2 */}
-          <div>
-            <h3 className="text-gold mb-3">2. Payment & Refund Policy</h3>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Full payment is required before production begins.</li>
-              <li>No refunds are available once production has started.</li>
-              <li>Chargebacks or disputes after delivery may result in access suspension.</li>
-            </ul>
-          </div>
-
-          {/* 3 */}
-          <div>
-            <h3 className="text-gold mb-3">3. Revisions</h3>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Each order includes up to two reasonable revisions.</li>
-              <li>Revisions must stay within the original concept.</li>
-              <li>Major changes or additional songs may incur extra fees.</li>
-            </ul>
-          </div>
-
-          {/* 4 */}
-          <div>
-            <h3 className="text-gold mb-3">4. Content Guidelines</h3>
-            <p>By submitting information, you confirm your content does not include:</p>
-            <ul className="list-disc pl-5 space-y-1 mt-2">
-              <li>Offensive or hateful language</li>
-              <li>Political messaging</li>
-              <li>Abusive, defamatory, or illegal content</li>
-              <li>Explicit or inappropriate material</li>
-            </ul>
-            <p className="mt-3">
-              My Custom Beats reserves the right to refuse or modify content
-              that violates these guidelines without refund.
-            </p>
-          </div>
-
-          {/* 5 */}
-          <div>
-            <h3 className="text-gold mb-3">5. Intellectual Property</h3>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Customer receives a personal-use licence upon final delivery.</li>
-              <li>My Custom Beats retains full production and master rights.</li>
-              <li>Commercial use or redistribution requires written consent.</li>
-            </ul>
-          </div>
-
-          {/* 6 */}
-          <div>
-            <h3 className="text-gold mb-3">6. Delivery</h3>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Delivery timelines vary by package and workload.</li>
-              <li>Timelines are estimates, not guarantees.</li>
-              <li>Delays due to incomplete information are not our responsibility.</li>
-            </ul>
-          </div>
-
-          {/* 7 */}
-          <div>
-            <h3 className="text-gold mb-3">7. Liability Limitation</h3>
-            <p>
-              My Custom Beats is not liable for emotional dissatisfaction,
-              subjective interpretation of music, or technical playback issues
-              on third-party platforms. Maximum liability is limited to the
-              amount paid for the service.
-            </p>
-          </div>
-
-          {/* 8 */}
-          <div>
-            <h3 className="text-gold mb-3">8. Privacy & Data</h3>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Customer data is used solely for order fulfillment.</li>
-              <li>Data is not sold or shared with third parties.</li>
-              <li>Customers may request data deletion after completion.</li>
-            </ul>
-          </div>
-
-          {/* 9 */}
-          <div>
-            <h3 className="text-gold mb-3">9. Acceptance</h3>
-            <p>
-              By completing payment, you acknowledge that you have read,
-              understood, and agreed to these Terms & Conditions.
-            </p>
-          </div>
+          {[
+            {
+              title: "1. Nature of Service",
+              text: "All products are bespoke, made-to-order experiences including custom songs and physical keepsakes. Each project is uniquely created based on your submission.",
+            },
+            {
+              title: "2. Payment & Refunds",
+              text: "Full payment is required before production begins. Due to the personalised nature of our work, refunds are not available once production has started.",
+            },
+            {
+              title: "3. Revisions",
+              text: "Revisions are included depending on your selected package. Changes must remain within the original concept.",
+            },
+            {
+              title: "4. Content Guidelines",
+              text: "We reserve the right to refuse or modify content that is offensive, inappropriate, or violates our guidelines.",
+            },
+            {
+              title: "5. Intellectual Property",
+              text: "You receive a personal-use licence. All production rights remain with MyCustomBeats unless agreed otherwise.",
+            },
+            {
+              title: "6. Delivery",
+              text: "Delivery timelines are estimates and may vary depending on project complexity and communication speed.",
+            },
+            {
+              title: "7. Liability",
+              text: "Our liability is limited to the amount paid for the service. We are not responsible for subjective interpretation.",
+            },
+            {
+              title: "8. Privacy",
+              text: "Your data is used solely for order fulfilment and is never sold or shared.",
+            },
+            {
+              title: "9. Acceptance",
+              text: "By placing an order, you confirm that you have read and agreed to these terms.",
+            },
+          ].map((section, i) => (
+            <div key={i}>
+              <h2 className="text-xl font-medium mb-3">
+                {section.title}
+              </h2>
+              <p className="text-black/60 leading-relaxed">
+                {section.text}
+              </p>
+            </div>
+          ))}
 
         </div>
 
-        {/* Back Button */}
-        <div className="pt-6">
+        {/* CTA */}
+        <div className="mt-24 text-center">
           <Link
             to="/"
-            className="inline-block px-6 py-3 border border-gold text-gold hover:bg-gold hover:text-espresso transition-all duration-300 text-sm tracking-wide"
+            className="px-8 py-3 border border-black/20 rounded-full text-sm hover:bg-black hover:text-white transition"
           >
-            ← Back to Home
+            Back to Home
           </Link>
         </div>
 
       </div>
     </div>
+    </>
   );
 }

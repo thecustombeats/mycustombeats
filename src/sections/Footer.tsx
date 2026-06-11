@@ -1,156 +1,93 @@
-import { Instagram, Youtube, Facebook, MessageCircle } from "lucide-react";
+import { Instagram, Youtube, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Footer = () => {
-
-  const scrollToSection = (href: string) => {
-    const element = document.querySelector(href);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth" });
-    }
-  };
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
-    <footer className="w-full bg-espresso pt-20 pb-10">
-      <div className="max-w-7xl mx-auto px-[7vw]">
+    <footer className="w-full bg-gradient-to-b from-[#1a1412] to-black text-ivory pt-24 pb-10">
+      
+<div className="max-w-3xl mx-auto px-6 text-center flex flex-col items-center">
 
-        {/* MAIN GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 
-                gap-y-14 lg:gap-y-0 
-                gap-x-8 lg:gap-x-12">
+        {/* ===== LOGO ===== */}
+        <button
+  onClick={scrollToTop}
+  className="flex items-center justify-center gap-3 mb-10 mx-auto hover:opacity-80 transition"
+>
+  {/* Logo */}
+  <img
+    src="/logo-light.png"
+    alt="My Custom Beats"
+    className="h-16 lg:h-40 w-auto object-contain"
+  />
 
+</button>
 
-          {/* ===== BRAND ===== */}
-          <div className="space-y-6">
-            <button
-              onClick={scrollToTop}
-              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-            >
-              <img
-                src="/logo-light.png"
-                alt="My Custom Beats"
-                className="h-14 w-auto"
-              />
+        {/* ===== TAGLINE ===== */}
+        <p className="text-ivory/60 text-sm tracking-wide mb-10 text-center">
+          Transform your most meaningful moments into timeless music and keepsakes.
+        </p>
 
-              <div className="hidden sm:flex flex-col leading-tight">
-                <span className="text-[12px] tracking-[0.12em] text-gold">
-                  MY
-                </span>
-                <span className="text-[16px] font-semibold tracking-[0.10em] text-gold">
-                  CUSTOM
-                </span>
-                <span className="text-[12px] tracking-[0.12em] text-gold">
-                  BEATS
-                </span>
-              </div>
-            </button>
-
-            <p className="text-ivory/60 text-sm leading-relaxed max-w-xs">
-              Your journey deserves more than photos. We transform your memories into music you can relive forever.
-            </p>
-
-            <div className="flex items-center gap-3">
-              <a
-                href="https://wa.me/447340742009"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-9 h-9 rounded-full bg-ivory/5 flex items-center justify-center text-ivory/60 hover:bg-gold hover:text-espresso transition-all duration-300"
-              >
-                <MessageCircle size={16} />
-              </a>
-
-              <a
-                href="https://instagram.com/djrinaldiofficial"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-9 h-9 rounded-full bg-ivory/5 flex items-center justify-center text-ivory/60 hover:bg-gold hover:text-espresso transition-all duration-300"
-              >
-                <Instagram size={16} />
-              </a>
-
-              <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-9 h-9 rounded-full bg-ivory/5 flex items-center justify-center text-ivory/60 hover:bg-gold hover:text-espresso transition-all duration-300"
-              >
-                <Facebook size={16} />
-              </a>
-
-              <a
-                href="https://youtube.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-9 h-9 rounded-full bg-ivory/5 flex items-center justify-center text-ivory/60 hover:bg-gold hover:text-espresso transition-all duration-300"
-              >
-                <Youtube size={16} />
-              </a>
-            </div>
-          </div>
-
-          {/* ===== QUICK LINKS ===== */}
-          <div>
-            <h4 className="text-gold uppercase text-xs tracking-widest mb-6">
-              Quick Links
-            </h4>
-            <ul className="space-y-4 text-sm text-ivory/60">
-              <li><button onClick={() => scrollToSection("#how-it-works")} className="hover:text-ivory transition-colors">How it Works</button></li>
-              <li><button onClick={() => scrollToSection("#samples")} className="hover:text-ivory transition-colors">Samples</button></li>
-              <li><button onClick={() => scrollToSection("#packages")} className="hover:text-ivory transition-colors">Packages</button></li>
-              <li><button onClick={() => scrollToSection("#order")} className="hover:text-ivory transition-colors">Order</button></li>
-            </ul>
-          </div>
-
-          {/* ===== COMPANY ===== */}
-          <div>
-            <h4 className="text-gold uppercase text-xs tracking-widest mb-6">
-              Company
-            </h4>
-            <ul className="space-y-4 text-sm text-ivory/60">
-              <li><button onClick={() => scrollToSection("#about")} className="hover:text-ivory transition-colors">About Us</button></li>
-              <li><button onClick={() => scrollToSection("#faq")} className="hover:text-ivory transition-colors">FAQ</button></li>
-              <li><button onClick={() => scrollToSection("#contact")} className="hover:text-ivory transition-colors">Contact</button></li>
-            </ul>
-          </div>
-
-          {/* ===== LEGAL ===== */}
-          <div>
-            <h4 className="text-gold uppercase text-xs tracking-widest mb-6">
-              Legal
-            </h4>
-            <ul className="space-y-4 text-sm text-ivory/60">
-              <li>
-                <Link to="/legal/terms" className="hover:text-ivory transition-colors">
-                  Terms & Conditions
-                </Link>
-              </li>
-              <li>
-                <Link to="/legal/privacy" className="hover:text-ivory transition-colors">
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link to="/legal/refund" className="hover:text-ivory transition-colors">
-                  Refund Policy
-                </Link>
-              </li>
-            </ul>
-          </div>
-
+        {/* ===== NAVIGATION (SIMPLE ROW) ===== */}
+        <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-ivory/70 mb-8">
+          <Link to="/products" className="hover:text-gold transition">Products</Link>
+          <Link to="/occasions" className="hover:text-gold transition">Occasions</Link>
+          <Link to="/artists" className="hover:text-gold transition">Artists</Link>
+          <Link to="/partners" className="hover:text-gold transition">Partners</Link>
+          <Link to="/about" className="hover:text-gold transition">Our Story</Link>
+          <Link to="/faq" className="hover:text-gold transition">FAQ</Link>
+          <Link to="/press" className="hover:text-gold transition">Press</Link>
+          <Link to="/affiliate" className="hover:text-gold transition">Affiliate</Link>
+          <a
+            href="/luxury/index.html"
+            className="hover:text-gold transition"
+          >
+            Hospitality Showcase
+          </a>
         </div>
 
-        {/* ===== BOTTOM BAR ===== */}
-        <div className="mt-16 pt-8 border-t border-ivory/10 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-ivory/40 text-sm">
-            © My Custom Beats. All rights reserved.
-          </p>
-          <p className="text-ivory/40 text-sm">
-            Crafted with <span className="text-gold">♥</span> for your journey
-          </p>
+        {/* ===== TRUST LINE ===== */}
+        <p className="text-ivory/40 text-xs tracking-wide mb-6">
+          Crafted by professional artists worldwide • Trusted by private clients, event planners & luxury guests worldwide
+        </p>
+
+        {/* ===== SOCIALS ===== */}
+        <div className="flex justify-center gap-4 mb-8">
+          {[ 
+            { icon: MessageCircle, link: "https://wa.me/447340742009" },
+            { icon: Instagram, link: "https://instagram.com/djrinaldiofficial" },
+            { icon: Youtube, link: "https://www.youtube.com/@MyCustomBeats" },
+          ].map((item, i) => {
+            const Icon = item.icon;
+            return (
+              <a
+                key={i}
+                href={item.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 flex items-center justify-center rounded-full bg-ivory/5 text-ivory/60 
+                hover:bg-gold hover:text-espresso transition-all duration-300"
+              >
+                <Icon size={16} />
+              </a>
+            );
+          })}
+        </div>
+
+        {/* ===== LEGAL ===== */}
+        <div className="flex justify-center gap-6 text-xs text-ivory/50 mb-6">
+          <Link to="/legal/terms" className="hover:text-gold transition">Terms</Link>
+          <Link to="/legal/privacy" className="hover:text-gold transition">Privacy</Link>
+          <Link to="/legal/refund" className="hover:text-gold transition">Refund</Link>
+        </div>
+
+        {/* ===== BOTTOM ===== */}
+        <div className="border-t border-ivory/10 pt-6 text-xs text-ivory/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p>© My Custom Beats. All rights reserved.</p>
+          <p>Crafted with <span className="text-gold">♥</span></p>
         </div>
 
       </div>

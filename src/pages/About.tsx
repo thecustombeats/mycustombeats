@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Instagram, Youtube, Facebook, MessageCircle, Music } from 'lucide-react';
+import { Helmet } from "react-helmet-async";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -64,10 +65,23 @@ const AboutSection = () => {
       );
     }, section);
 
+    
+
     return () => ctx.revert();
   }, []);
 
   return (
+
+    <>
+    <Helmet>
+  <title>Custom Song Packages & Pricing | My Custom Beats</title>
+  <meta
+    name="description"
+    content="Explore our custom song packages designed for every occasion. Premium music production tailored to your story and budget."
+  />
+</Helmet>
+
+
     <div ref={sectionRef} id="about" className="relative w-full bg-ivory py-24 overflow-hidden">
       {/* Trust Strip */}
       <div className="about-trust text-center mb-20 px-[7vw]">
@@ -86,10 +100,10 @@ const AboutSection = () => {
       {/* Heading */}
       <div className="text-center mb-16 px-[7vw]">
         <span className="label-uppercase text-gold mb-4 block tracking-[0.15em]">
-          The Team
+          Our Founders
         </span>
         <h2 className="font-serif text-espresso">
-          Meet the founders
+          The Vision Behind My Custom Beats
         </h2>
       </div>
 
@@ -98,14 +112,33 @@ const AboutSection = () => {
         {/* Rinaldi */}
         <div className="founder-card flex-1 max-w-lg bg-white rounded-2xl shadow-luxury overflow-hidden transition-all duration-fast hover:-translate-y-1 hover:shadow-luxury-hover">
           <div className="aspect-[16/10] overflow-hidden">
-            <img src="/images/founder1-rinaldi.jpg" alt="Rinaldi - Founder & Lead Producer" className="w-full h-full object-cover" />
+            <img src="/images/founder1-rinaldi.jpg" 
+            alt="Rinaldi - Founder and Executive Producer at My Custom Beats" 
+            loading="lazy"
+            className="w-full h-full object-cover" />
           </div>
-          <div className="p-8">
-            <h3 className="font-serif text-2xl text-espresso mb-1">Rinaldi</h3>
-            <p className="text-gold text-sm uppercase tracking-wider mb-4">Founder & Lead Producer</p>
-            <p className="text-espresso/70 text-sm leading-relaxed mb-6" style={{ fontFamily: 'Arimo, sans-serif' }}>
-              BBC Radio–featured professional DJ, producer, and songwriter with over a decade of international experience across global stages, luxury cruise ships, private events, and high-profile productions.
-            </p>
+
+<div className="p-8">
+  <h3 className="font-serif text-2xl text-espresso mb-1">Rinaldi</h3>
+  <p className="text-gold text-sm uppercase tracking-wider mb-4">
+    Founder & Executive Producer
+  </p>
+
+<div className="inline-block text-xs uppercase tracking-wider text-gold mb-3">
+  BBC Radio Featured Artist
+</div>
+
+  <p className="text-espresso/70 text-sm leading-relaxed mb-4" style={{ fontFamily: 'Arimo, sans-serif' }}>
+    Rinaldi is the driving force behind the musical excellence of My Custom Beats, bringing over a decade of international experience as a DJ, producer, and songwriter.
+  </p>
+
+  <p className="text-espresso/70 text-sm leading-relaxed mb-4" style={{ fontFamily: 'Arimo, sans-serif' }}>
+    Having performed across global stages, luxury cruise lines, and private events, his work has been featured on <span className="text-gold font-medium">BBC Radio</span> and trusted by discerning audiences worldwide.
+  </p>
+
+  <p className="text-espresso/70 text-sm leading-relaxed mb-6" style={{ fontFamily: 'Arimo, sans-serif' }}>
+    As Executive Producer, he leads the musical vision, ensuring every composition meets the highest standards of quality, emotion, and production.
+  </p>
             <div className="flex items-center gap-4">
               <a href="https://wa.me/447340742009" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-misty-stone flex items-center justify-center text-espresso hover:bg-gold hover:text-espresso transition-colors duration-fast" aria-label="WhatsApp">
                 <MessageCircle size={18} />
@@ -121,26 +154,37 @@ const AboutSection = () => {
               </a>
             </div>
           </div>
+          
         </div>
 
         {/* Lady Lakh */}
         <div className="founder-card flex-1 max-w-lg bg-white rounded-2xl shadow-luxury overflow-hidden transition-all duration-fast hover:-translate-y-1 hover:shadow-luxury-hover">
           <div className="aspect-[16/10] overflow-hidden">
-            <img src="/images/founder2-lakh.jpg" alt="DJ Lady Lakh - Co-Founder & Producer" className="w-full h-full object-cover" />
+            <img 
+            src="/images/founder2-lakh.jpg" 
+            alt="Lady Lakh - Creative Director & Co-Founder at My Custom Beats" 
+            loading="lazy"
+            className="w-full h-full object-cover" />
           </div>
-          <div className="p-8">
-            <h3 className="font-serif text-2xl text-espresso mb-1"> Lady Lakh</h3>
-            <p className="text-gold text-sm uppercase tracking-wider mb-4">Co-Founder & Producer</p>
-            <p className="text-espresso/70 text-sm leading-relaxed mb-6" style={{ fontFamily: 'Arimo, sans-serif' }}>
-              Internationally experienced DJ and producer known for her dynamic musical range and intuitive crowd connection. Specialist in mood, flow, and celebration across luxury events worldwide.
-            </p>
-            <div className="flex items-center gap-4">
-              <a href="https://instagram.com/djladylakh" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-misty-stone flex items-center justify-center text-espresso hover:bg-gold hover:text-espresso transition-colors duration-fast" aria-label="Instagram">
-                <Instagram size={18} />
-              </a>
-            </div>
-          </div>
-        </div>
+<div className="p-8">
+  <h3 className="font-serif text-2xl text-espresso mb-1">Lady Lakh</h3>
+  <p className="text-gold text-sm uppercase tracking-wider mb-4">
+    Creative Director & Co-Founder
+  </p>
+
+  <p className="text-espresso/70 text-sm leading-relaxed mb-4" style={{ fontFamily: 'Arimo, sans-serif' }}>
+    A creative force behind My Custom Beats, Lady Lakh leads the artistic direction and end-to-end production of every project.
+  </p>
+
+  <p className="text-espresso/70 text-sm leading-relaxed mb-4" style={{ fontFamily: 'Arimo, sans-serif' }}>
+    With a background rooted in both corporate structure and creative passion, she brings a refined balance of precision, storytelling, and emotional depth to each composition.
+  </p>
+
+  <p className="text-espresso/70 text-sm leading-relaxed mb-6" style={{ fontFamily: 'Arimo, sans-serif' }}>
+    From client collaboration to final delivery, she personally oversees the entire creative journey — ensuring every piece is thoughtfully crafted, deeply personal, and delivered to the highest standard.
+  </p>
+</div>      
+  </div>
       </div>
 
       {/* Global Collective */}
@@ -213,6 +257,7 @@ const AboutSection = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

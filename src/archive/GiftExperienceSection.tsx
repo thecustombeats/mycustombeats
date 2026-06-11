@@ -1,3 +1,7 @@
+// GiftExperienceSection.tsx
+// Archived on March 2026
+// Reason: Not aligned with current luxury positioning
+
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';

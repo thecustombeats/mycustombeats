@@ -15,6 +15,7 @@ const moodsList = [
 ];
 
 const stripeLinks: Record<string, string> = {
+   moment: "https://buy.stripe.com/fZu28qcHWdPV3KO6qmbsc0a",
   keepsake: "https://buy.stripe.com/7sY00i8rG5jpa9caGCbsc06",
   journey: "https://buy.stripe.com/14A9AS23ibHNftwcOKbsc07",
   heirloom: "https://buy.stripe.com/6oUaEWbDSfY39586qmbsc08",
@@ -22,6 +23,7 @@ const stripeLinks: Record<string, string> = {
 };
 
 const packageOptions = [
+  { id: 'moment', name: 'Moment', price: '£29' },
   { id: "keepsake", name: "Keepsake", price: "£79" },
   { id: "journey", name: "Journey", price: "£199" },
   { id: "heirloom", name: "Heirloom", price: "£349" },
@@ -53,6 +55,13 @@ interface OrderFormSectionProps {
 }
 
 const OrderFormSection = ({ selectedPackage }: OrderFormSectionProps) => {
+
+  const getRef = () => {
+  return document.cookie
+    .split("; ")
+    .find(row => row.startsWith("ref="))
+    ?.split("=")[1] || "";
+};
   const sectionRef = useRef<HTMLDivElement>(null);
 
   const [showOtherMood, setShowOtherMood] = useState(false);
@@ -73,6 +82,7 @@ const OrderFormSection = ({ selectedPackage }: OrderFormSectionProps) => {
   artwork: null,
   agreeTerms: false,
 });
+
 
 const [errors, setErrors] = useState<FormErrors>({});
 const [isSubmitting, setIsSubmitting] = useState(false);
@@ -224,6 +234,8 @@ const handleChange = <K extends keyof FormDataType>(
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault();
+  const ref = getRef();
+console.log("Referral detected:", ref);
 
   if (isSubmitting) return;
 
@@ -274,6 +286,7 @@ if (formData.artwork) {
   // ZAPIER 
   const zapierData = new FormData();
 
+  zapierData.append("referral", ref);
   zapierData.append("firstName", formData.firstName);
   zapierData.append("lastName", formData.lastName);
   zapierData.append("email", formData.email);
@@ -301,8 +314,18 @@ if (formData.artwork) {
   console.log("Sending price:", finalPrice);
 
   try {
+    // Primary: Local OpenClaw Bridge
     await fetch(
-      "https://hooks.zapier.com/hooks/catch/26625054/u05zwp6/",
+      "http://localhost:18888/webhook/order",
+      {
+        method: "POST",
+        body: zapierData,
+      }
+    );
+
+    // Fallback/Legacy: Make.com
+    await fetch(
+      "https://hook.eu1.make.com/yrw2uhttk8p3kpjxsy5pks3wgwjpc7ru",
       {
         method: "POST",
         body: zapierData,
@@ -318,7 +341,11 @@ if (formData.artwork) {
   const stripeUrl = stripeLinks[formData.package];
 
 if (stripeUrl) {
-  window.location.href = stripeUrl;
+  const referral = localStorage.getItem("referral") || "direct";
+
+const finalUrl = `${stripeUrl}?client_reference_id=${referral}`;
+
+window.location.href = finalUrl;
 }
 };
 
@@ -334,13 +361,21 @@ if (stripeUrl) {
     className="order-heading text-4xl md:text-5xl text-espresso mb-4"
     style={{ fontFamily: 'Playfair Display, serif' }}
   >
-    Tell us your story.
+    Tell us your story — we’ll turn it into something unforgettable
   </h2>
   <p 
     className="order-heading text-espresso/60"
     style={{ fontFamily: 'Arimo, sans-serif' }}
   >
-    We will reply within 24 hours with next steps and a short creative brief.
+    Most clients hear back within 12 hours with a concept & pricing.
+ </p>
+
+    <p 
+    className="order-heading text-espresso/60"
+    style={{ fontFamily: 'Arimo, sans-serif' }}
+  >
+    Your information is secure and handled with complete confidentiality.
+
   </p>
 </div>
 
@@ -351,9 +386,9 @@ if (stripeUrl) {
 
  {/* CONTACT */}
 <div className="order-form-field space-y-4">
-  <h3 className="label-uppercase text-gold">
+  <h1 className="label-uppercase text-gold">
     Step 1 — Contact Details
-  </h3>
+  </h1>
 
   {/* First + Last Name */}
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -450,9 +485,9 @@ if (stripeUrl) {
  
 
   {/* Step 2 — Package Selection */}
-<h3 className="label-uppercase text-gold">
+<h1 className="label-uppercase text-gold">
   Step 2 — Package Selection
-</h3>
+</h1>
 
 <div
   data-field="package"
@@ -495,9 +530,9 @@ if (stripeUrl) {
 
 {/* MOOD */}
 <div className="order-form-field space-y-4">
-  <h3 className="label-uppercase text-gold">
+  <h1 className="label-uppercase text-gold">
     Step 3 — Mood
-  </h3>
+  </h1>
 
   <div
     data-field="moods"
@@ -541,9 +576,9 @@ if (stripeUrl) {
 
             {/* Genre */}
 <div className="order-form-field space-y-4">
-  <h3 className="label-uppercase text-gold">
+  <h1 className="label-uppercase text-gold">
     Step 4 — Genre
-  </h3>
+  </h1>
 
   <select
     value={formData.genre}
@@ -584,9 +619,9 @@ if (stripeUrl) {
 
             {/* Step 4: Personal Touches */}
 <div className="order-form-field space-y-4">
-  <h3 className="label-uppercase text-gold">
+  <h1 className="label-uppercase text-gold">
     Step 5 — Personal Touches (Optional)
-  </h3>
+  </h1>
 
   <input
     type="text"
@@ -636,9 +671,9 @@ if (stripeUrl) {
 
             {/* STORY */}
             <div className="order-form-field space-y-4">
-  <h3 className="label-uppercase text-gold">
+  <h1 className="label-uppercase text-gold">
     Step 6 — Your Words Matter
-  </h3>
+  </h1>
 
   <p 
     className="order-heading text-sm text-espresso/60"
@@ -663,13 +698,13 @@ if (stripeUrl) {
             </div>
 
   {/* TERMS */}
-<h3 className="label-uppercase text-gold">
+<h1 className="label-uppercase text-gold">
   Step 7 — Confirmation
-</h3>
+</h1>
 
 <div className="order-form-field" data-field="agreeTerms">
-  <div
-    className={`flex items-start gap-3 ${
+  <label
+    className={`flex items-start gap-3 cursor-pointer ${
       errors.agreeTerms
         ? "border border-red-500 p-4 rounded-xl"
         : ""
@@ -681,22 +716,21 @@ if (stripeUrl) {
       onChange={(e) =>
         handleChange("agreeTerms", e.target.checked)
       }
-      className="mt-1"
+      className="mt-1 w-5 h-5 md:w-6 md:h-6 accent-gold cursor-pointer"
     />
 
-    <span className="order-heading text-sm leading-relaxed">
-      I confirm that I have read and agree to{" "}
-      <Link
-        to="/legal/terms"
-        target="_blank"
-        className="text-gold underline hover:opacity-80"
-      >
-        My Custom Beats Terms & Conditions
-      </Link>{" "}
-      and understand that this is a personalised digital product
-      with no refunds once production begins.
-
-      <br />
+    <span className="order-heading text-sm md:text-base leading-relaxed">
+      I confirm that I have read and agree to the{" "}
+<Link to="/legal/terms" target="_blank" className="text-gold underline">
+  Terms & Conditions
+</Link>,{" "}
+<Link to="/legal/privacy" target="_blank" className="text-gold underline">
+  Privacy Policy
+</Link>, and{" "}
+<Link to="/legal/refund" target="_blank" className="text-gold underline">
+  Refund Policy
+</Link>{" "}
+of My Custom Beats, and understand that this is a personalised, made-to-order digital product.
 
       <span className="text-xs text-ivory/50 block mt-2">
         By proceeding, you also confirm that your submission
@@ -704,10 +738,10 @@ if (stripeUrl) {
         or inappropriate content.
       </span>
     </span>
-  </div>
+  </label>
 
   {errors.agreeTerms && (
-    <p className="text-red-500 text-xs mt-1">
+    <p className="text-red-500 text-xs mt-2">
       {errors.agreeTerms}
     </p>
   )}
@@ -724,6 +758,9 @@ if (stripeUrl) {
                 <>Proceed to Secure Payment</>
               )}
             </button>
+<p className="text-sm text-black/50 mt-2">
+  Limited production slots each week
+</p>
 
             <p className="order-heading text-sm text-center text-espresso/50">
               <Info size={14} className="inline mr-1" />

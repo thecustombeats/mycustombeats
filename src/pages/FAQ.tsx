@@ -7,6 +7,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { Helmet } from "react-helmet-async";
+
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -30,10 +32,6 @@ const faqs = [
   {
     question: 'Can I upload photos for album artwork?',
     answer: 'Yes. Photo uploads are optional and used solely for artwork creation. We can create custom artwork inspired by your photos or based on your story.',
-  },
-  {
-    question: 'Is this AI-generated music?',
-    answer: 'Each Custom Beat is professionally curated and refined by experienced producers. Real musicians, real instruments, real emotion.',
   },
   {
     question: 'Can I get a refund?',
@@ -99,10 +97,47 @@ const FAQSection = () => {
       );
     }, section);
 
+    
+
     return () => ctx.revert();
   }, []);
 
   return (
+<>
+
+<Helmet>
+  <title>FAQs | Custom Songs, Pricing & Process</title>
+  <meta
+    name="description"
+    content="Find answers about custom songs, delivery time, pricing, revisions and how My Custom Beats works."
+  />
+  <script type="application/ld+json">
+{JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How long does it take to create a custom song?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Typically 3–7 days depending on the package."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I request revisions?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, revisions are included based on your selected package."
+      }
+    }
+  ]
+})}
+</script>
+</Helmet>
+
+
     <div ref={sectionRef} id="faq" className="relative w-full bg-misty-stone py-24 overflow-hidden">
       <div className="px-[7vw]">
         {/* Heading */}
@@ -136,6 +171,7 @@ const FAQSection = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

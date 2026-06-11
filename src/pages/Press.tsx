@@ -1,30 +1,44 @@
-import React from "react";
+import { Helmet } from "react-helmet-async";
 
-export default function Press(){
+export default function Press() {
 
-return(
+  return (
+    <>
+    <Helmet>
+  <title>For press inquiries | My Custom Beats</title>
+  <meta
+    name="description"
+    content="MyCustomBeats collaborates with media outlets, music networks
+          and lifestyle publications around the world."
+  />
+</Helmet>
 
-<section className="py-20 bg-black text-white text-center">
+    <div className="bg-[#FBF9F6] text-black">
 
-<h1 className="text-4xl font-bold mb-8">
-Media & Affiliations
-</h1>
+      {/* HERO */}
+      <section className="pt-40 pb-24 text-center px-6">
+        <h1 className="text-5xl md:text-7xl font-light mb-6">
+          Media & Affiliations
+        </h1>
 
-<p className="max-w-2xl mx-auto mb-8">
-MyCustomBeats collaborates with media outlets, music networks
-and lifestyle publications.
-</p>
+        <p className="text-black/60 max-w-2xl mx-auto mb-10 leading-relaxed">
+          MyCustomBeats collaborates with media outlets, music networks
+          and lifestyle publications around the world.
+        </p>
+      </section>
 
-<p>
-For press inquiries please contact:
-</p>
+      {/* CONTACT */}
+      <section className="text-center pb-24">
+        <p className="text-black/60 mb-4">
+          For press inquiries, please contact:
+        </p>
 
-<p className="mt-4 text-gold">
-hello@mycustombeats.com
-</p>
+        <p className="text-lg font-medium">
+          hello@mycustombeats.com
+        </p>
+      </section>
 
-</section>
-
-)
-
+    </div>
+    </>
+  );
 }
