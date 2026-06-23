@@ -118,10 +118,42 @@ const FAQSection = () => {
   "mainEntity": [
     {
       "@type": "Question",
+      "name": "Can I create a personalized song for a cruise anniversary?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, MyCustomBeats specializes in creating bespoke songs for luxury experiences including cruise anniversaries, private yacht charters, and milestone celebrations. We transform your cruise memories into a professionally produced musical keepsake."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I commission a bespoke song for a luxury gift?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "To commission a bespoke song, simply select a package on our website and share your story, memories, and desired mood. Our team of BBC-featured artists and world-class composers will then craft a unique, hand-crafted musical gift for your special occasion."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What are the benefits of working with world-class composers for a personalized music experience?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Working with world-class composers ensures your song is of the highest artistic quality, with emotion-led storytelling and professional production that AI-generated music cannot replicate. Every MyCustomBeats commission is overseen by artists featured on the BBC."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How much does a customized song cost for a special occasion?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "MyCustomBeats offers a range of packages starting from £29 for a 'Moment' up to £799+ for a fully bespoke 'Heirloom' luxury commission, ensuring a high-quality personalized music experience for every budget."
+      }
+    },
+    {
+      "@type": "Question",
       "name": "How long does it take to create a custom song?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Typically 3–7 days depending on the package."
+        "text": "Typically 3–7 days depending on the package selected. Each song is carefully refined by real musicians to ensure the highest quality before delivery."
       }
     },
     {
@@ -129,7 +161,7 @@ const FAQSection = () => {
       "name": "Can I request revisions?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Yes, revisions are included based on your selected package."
+        "text": "Yes, two revisions are included with every order to ensure the final composition perfectly captures your story and meets your expectations."
       }
     }
   ]

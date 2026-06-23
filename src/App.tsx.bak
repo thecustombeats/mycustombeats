@@ -3,7 +3,6 @@ import { Routes, Route } from "react-router-dom";
 import FloatingCTA from "./components/FloatingCTA";
 import { useLocation } from "react-router-dom";
 import Navigation from "./components/Navigation";
-import { trackPageView } from "./lib/analytics";
 import PersonalizationModal from "./components/PersonalizationModal";
 import HeroSection from "./sections/HeroSection";
 
@@ -263,10 +262,6 @@ function Layout({ children }: { children: React.ReactNode }) {
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
-
-  useEffect(() => {
-    trackPageView(pathname);
-  }, [pathname]);
 
   useEffect(() => {
     if (hash) {

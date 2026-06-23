@@ -1,6 +1,5 @@
 import { Instagram, Youtube, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import { trackWhatsAppClick, trackEvent } from "../lib/analytics";
 
 const Footer = () => {
 
@@ -58,28 +57,15 @@ const Footer = () => {
         {/* ===== SOCIALS ===== */}
         <div className="flex justify-center gap-4 mb-8">
           {[ 
-            { 
-              icon: MessageCircle, 
-              link: "https://wa.me/447340742009?text=Hi%20MyCustomBeats%2C%20I%20clicked%20the%20link%20in%20your%20website%20footer%20and%20would%20like%20to%20learn%20more%20about%20your%20custom%20songs.",
-              onClick: () => trackWhatsAppClick("footer")
-            },
-            { 
-              icon: Instagram, 
-              link: "https://instagram.com/djrinaldiofficial?utm_source=mycustombeats.com&utm_medium=referral&utm_campaign=footer",
-              onClick: () => trackEvent("outbound_social_click", { platform: "instagram", location: "footer" })
-            },
-            { 
-              icon: Youtube, 
-              link: "https://www.youtube.com/@MyCustomBeats?utm_source=mycustombeats.com&utm_medium=referral&utm_campaign=footer",
-              onClick: () => trackEvent("outbound_social_click", { platform: "youtube", location: "footer" })
-            },
+            { icon: MessageCircle, link: "https://wa.me/447340742009" },
+            { icon: Instagram, link: "https://instagram.com/djrinaldiofficial" },
+            { icon: Youtube, link: "https://www.youtube.com/@MyCustomBeats" },
           ].map((item, i) => {
             const Icon = item.icon;
             return (
               <a
                 key={i}
                 href={item.link}
-                onClick={item.onClick}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-9 h-9 flex items-center justify-center rounded-full bg-ivory/5 text-ivory/60 
