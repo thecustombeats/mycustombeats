@@ -1,9 +1,32 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { trackPurchase } from "../lib/analytics";
+
+const packageDetails: Record<string, { name: string; price: number }> = {
+  moment: { name: "Moment", price: 29 },
+  keepsake: { name: "Keepsake", price: 79 },
+  journey: { name: "Journey", price: 199 },
+  heirloom: { name: "Heirloom", price: 349 },
+  bespoke: { name: "Bespoke", price: 799 },
+};
 
 export default function ThankYou() {
-
   const params = new URLSearchParams(window.location.search);
   const orderId = params.get("session_id");
+
+  useEffect(() => {
+    if (!orderId) return;
+
+    // Prevent duplicate purchase tracking per session/refresh
+    const trackedKey = `mcb_tracked_${orderId}`;
+    if (sessionStorage.getItem(trackedKey)) return;
+
+    const lastPackage = localStorage.getItem("last_order_package") || "moment";
+    const packageInfo = packageDetails[lastPackage] || { name: "Custom Song", price: 29 };
+
+    trackPurchase(orderId, packageInfo.price, "GBP", packageInfo.name);
+    sessionStorage.setItem(trackedKey, "true");
+  }, [orderId]);
 
   return (
 

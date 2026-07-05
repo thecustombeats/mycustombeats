@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Mail, MessageCircle, Instagram, ArrowRight } from 'lucide-react';
+import { trackWhatsAppClick, trackEvent } from '../lib/analytics';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -86,7 +87,11 @@ const ContactSection = () => {
             <h3 className="font-serif text-xl text-ivory mb-8">Contact Us</h3>
 
             <div className="space-y-6">
-              <a href="mailto:hello@mycustombeats.com" className="flex items-center gap-4 group">
+              <a 
+                href="mailto:hello@mycustombeats.com" 
+                onClick={() => trackEvent("contact_email_click", { location: "contact_section" })}
+                className="flex items-center gap-4 group"
+              >
                 <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center transition-colors duration-fast group-hover:bg-gold">
                   <Mail size={20} className="text-gold group-hover:text-espresso transition-colors duration-fast" />
                 </div>
@@ -96,7 +101,13 @@ const ContactSection = () => {
                 </div>
               </a>
 
-              <a href="https://wa.me/447340742009" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 group">
+              <a 
+                href="https://wa.me/447340742009?text=Hi%20MyCustomBeats%2C%20I%27m%20writing%20from%20the%20contact%20section%20on%20your%20website%20and%20would%20like%20to%20get%20in%20touch." 
+                onClick={() => trackWhatsAppClick("contact_section")}
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="flex items-center gap-4 group"
+              >
                 <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center transition-colors duration-fast group-hover:bg-gold">
                   <MessageCircle size={20} className="text-gold group-hover:text-espresso transition-colors duration-fast" />
                 </div>
@@ -106,7 +117,13 @@ const ContactSection = () => {
                 </div>
               </a>
 
-              <a href="https://instagram.com/djrinaldiofficial" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 group">
+              <a 
+                href="https://instagram.com/djrinaldiofficial?utm_source=mycustombeats.com&utm_medium=referral&utm_campaign=contact_section" 
+                onClick={() => trackEvent("outbound_social_click", { platform: "instagram", location: "contact_section" })}
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="flex items-center gap-4 group"
+              >
                 <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center transition-colors duration-fast group-hover:bg-gold">
                   <Instagram size={20} className="text-gold group-hover:text-espresso transition-colors duration-fast" />
                 </div>

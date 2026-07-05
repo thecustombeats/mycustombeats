@@ -125,7 +125,7 @@ const AudioPlayer = () => {
                   }`}
                   style={{
                     height: isPlaying
-                      ? `${20 + Math.random() * 60}%`
+                      ? `${20 + ((i * 17) % 60)}%`
                       : `${15 + (i % 3) * 10}%`,
                     animationDelay: `${i * 0.05}s`,
                   }}

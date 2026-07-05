@@ -332,7 +332,7 @@ if (formData.artwork) {
       }
     );
 
-    } catch (error) {
+    } catch {
     setIsSubmitting(false);
     return;
   }
@@ -340,13 +340,15 @@ if (formData.artwork) {
 // STRIPE
   const stripeUrl = stripeLinks[formData.package];
 
-if (stripeUrl) {
-  const referral = localStorage.getItem("referral") || "direct";
+  if (stripeUrl) {
+    const referral = localStorage.getItem("referral") || "direct";
+    
+    // Store selected package for conversion tracking on thank you page
+    localStorage.setItem("last_order_package", formData.package);
 
-const finalUrl = `${stripeUrl}?client_reference_id=${referral}`;
-
-window.location.href = finalUrl;
-}
+    const finalUrl = `${stripeUrl}?client_reference_id=${referral}`;
+    window.location.href = finalUrl;
+  }
 };
 
   return (

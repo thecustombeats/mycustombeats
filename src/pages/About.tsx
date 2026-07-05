@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Instagram, Youtube, Facebook, MessageCircle, Music } from 'lucide-react';
 import { Helmet } from "react-helmet-async";
+import { trackWhatsAppClick, trackEvent } from '../lib/analytics';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -140,16 +141,44 @@ const AboutSection = () => {
     As Executive Producer, he leads the musical vision, ensuring every composition meets the highest standards of quality, emotion, and production.
   </p>
             <div className="flex items-center gap-4">
-              <a href="https://wa.me/447340742009" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-misty-stone flex items-center justify-center text-espresso hover:bg-gold hover:text-espresso transition-colors duration-fast" aria-label="WhatsApp">
+              <a 
+                href="https://wa.me/447340742009?text=Hi%20Rinaldi%2C%20I%27m%20writing%20from%20the%20About%20page%20on%20your%20website%20and%20would%20like%20to%20chat." 
+                onClick={() => trackWhatsAppClick("about_founders")}
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="w-10 h-10 rounded-full bg-misty-stone flex items-center justify-center text-espresso hover:bg-gold hover:text-espresso transition-colors duration-fast" 
+                aria-label="WhatsApp"
+              >
                 <MessageCircle size={18} />
               </a>
-              <a href="https://instagram.com/djrinaldiofficial" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-misty-stone flex items-center justify-center text-espresso hover:bg-gold hover:text-espresso transition-colors duration-fast" aria-label="Instagram">
+              <a 
+                href="https://instagram.com/djrinaldiofficial?utm_source=mycustombeats.com&utm_medium=referral&utm_campaign=about_founders" 
+                onClick={() => trackEvent("outbound_social_click", { platform: "instagram", location: "about_founders" })}
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="w-10 h-10 rounded-full bg-misty-stone flex items-center justify-center text-espresso hover:bg-gold hover:text-espresso transition-colors duration-fast" 
+                aria-label="Instagram"
+              >
                 <Instagram size={18} />
               </a>
-              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-misty-stone flex items-center justify-center text-espresso hover:bg-gold hover:text-espresso transition-colors duration-fast" aria-label="Facebook">
+              <a 
+                href="https://facebook.com?utm_source=mycustombeats.com&utm_medium=referral&utm_campaign=about_founders" 
+                onClick={() => trackEvent("outbound_social_click", { platform: "facebook", location: "about_founders" })}
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="w-10 h-10 rounded-full bg-misty-stone flex items-center justify-center text-espresso hover:bg-gold hover:text-espresso transition-colors duration-fast" 
+                aria-label="Facebook"
+              >
                 <Facebook size={18} />
               </a>
-              <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-misty-stone flex items-center justify-center text-espresso hover:bg-gold hover:text-espresso transition-colors duration-fast" aria-label="YouTube">
+              <a 
+                href="https://youtube.com?utm_source=mycustombeats.com&utm_medium=referral&utm_campaign=about_founders" 
+                onClick={() => trackEvent("outbound_social_click", { platform: "youtube", location: "about_founders" })}
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="w-10 h-10 rounded-full bg-misty-stone flex items-center justify-center text-espresso hover:bg-gold hover:text-espresso transition-colors duration-fast" 
+                aria-label="YouTube"
+              >
                 <Youtube size={18} />
               </a>
             </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Helmet } from "react-helmet-async";
+import { trackFormSubmit } from "../lib/analytics";
 import QRCode from "react-qr-code";
 import emailjs from "emailjs-com";
 import { supabase } from "../lib/supabaseClient";
@@ -122,6 +123,7 @@ if (blockedDomains.includes(domain)) {
 
       localStorage.setItem("affiliate_email", email);
 
+      trackFormSubmit("affiliate_application");
       window.location.href = "/dashboard";
 
     } catch (err) {

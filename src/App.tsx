@@ -48,24 +48,24 @@ const HospitalityCTASection = lazy(() => import("./sections/HospitalityCTASectio
 // 👇 This becomes your homepage
 function MainSite() {
   const [showPersonalization, setShowPersonalization] = useState(false);
-  const [, setVisitorType] = useState<string | null>(null);
+  const [, setVisitorType] = useState<string | null>(() => {
+    return localStorage.getItem("customBeats_visitorType");
+  });
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
 
   useEffect(() => {
-  const seen = sessionStorage.getItem("modalShown");
-  const savedType = localStorage.getItem("customBeats_visitorType");
+    const seen = sessionStorage.getItem("modalShown");
+    const savedType = localStorage.getItem("customBeats_visitorType");
 
-  if (!seen && !savedType) {
-    const timer = setTimeout(() => {
-      setShowPersonalization(true);
-      sessionStorage.setItem("modalShown", "true");
-    }, 1500);
+    if (!seen && !savedType) {
+      const timer = setTimeout(() => {
+        setShowPersonalization(true);
+        sessionStorage.setItem("modalShown", "true");
+      }, 1500);
 
-    return () => clearTimeout(timer);
-  } else if (savedType) {
-    setVisitorType(savedType);
-  }
-}, []);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const handleVisitorSelect = (type: string) => {
   setVisitorType(type);

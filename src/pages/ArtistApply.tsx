@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import type { FormEvent } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
+import { trackFormSubmit } from "../lib/analytics";
 
 const ArtistApply = () => {
 
@@ -14,11 +16,14 @@ const ArtistApply = () => {
   // prevents captcha crash on initial render
   const [captchaReady,setCaptchaReady] = useState(false)
 
-  useEffect(()=>{
-    setCaptchaReady(true)
-  },[])
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCaptchaReady(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
-  const handleSubmit = async (e:any) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
 
     if(!captchaValue){
@@ -45,7 +50,8 @@ const ArtistApply = () => {
   body:JSON.stringify(data)
 })
 
-window.location.href = "/artist-thank-you"
+      trackFormSubmit("artist_application");
+      window.location.href = "/artist-thank-you"
 
       // reset form
       setName("")
@@ -57,6 +63,7 @@ window.location.href = "/artist-thank-you"
       setCaptchaValue(null)
 
     }catch(error){
+      console.error("Artist Application Form Submission Error:", error);
       alert("Something went wrong. Please try again.")
     }
   }

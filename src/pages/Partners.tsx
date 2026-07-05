@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { trackFormSubmit } from "../lib/analytics";
 
 // ─── Inline SVG Icons ───────────────────────────────────────────────────────
 const IconCruise = () => (
@@ -162,6 +163,7 @@ export default function PartnersPage() {
       });
 
       if (response.ok) {
+        trackFormSubmit("partner_application");
         setSubmitted(true);
       } else {
         alert("There was an error submitting the form. Please try again.");
