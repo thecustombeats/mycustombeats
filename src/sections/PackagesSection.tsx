@@ -1,12 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Check, Music } from 'lucide-react';
 import { Sparkles } from "lucide-react";
 import { Helmet } from "react-helmet-async";
-
-
-gsap.registerPlugin(ScrollTrigger);
+import { revealOnScroll } from '../lib/scrollReveal';
 
 /* Packages */
 const packages = [
@@ -127,26 +123,9 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
     const section = sectionRef.current;
     if (!section) return;
 
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        '.package-card',
-        { y: 40, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.4,
-          stagger: 0.1,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 80%',
-          },
-        }
-      );
-    }, section);
-
-
-    return () => ctx.revert();
+    // Reveal is guaranteed to end visible — the price list must never be
+    // hidden by an animation that failed to fire. See lib/scrollReveal.
+    return revealOnScroll(section, '.package-card');
   }, []);
 
   const toggleExpand = (id: string) => {

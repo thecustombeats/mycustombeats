@@ -22,6 +22,47 @@ const stripeLinks: Record<string, string> = {
   bespoke: "https://buy.stripe.com/5kQ8wO9vKcLR3KO3eabsc09"
 };
 
+/**
+ * Order-capture endpoints. These are ANCILLARY: they record the order for
+ * fulfilment and automation. They must never gate the customer's payment.
+ *
+ * The local bridge is a developer convenience only. It is compiled out of
+ * production builds so a machine-local service can never sit in front of
+ * a customer's checkout.
+ */
+const MAKE_WEBHOOK_URL =
+  "https://hook.eu1.make.com/yrw2uhttk8p3kpjxsy5pks3wgwjpc7ru";
+const DEV_BRIDGE_URL = "http://localhost:18888/webhook/order";
+
+/** Abandon an ancillary request rather than leave the customer waiting. */
+const WEBHOOK_TIMEOUT_MS = 8000;
+
+const ancillaryWebhookUrls = (): string[] =>
+  import.meta.env.DEV ? [DEV_BRIDGE_URL, MAKE_WEBHOOK_URL] : [MAKE_WEBHOOK_URL];
+
+/**
+ * Posts order data to one ancillary endpoint. Always resolves — never throws,
+ * never rejects — so no caller can be blocked by an outage here.
+ */
+const postOrderData = async (url: string, data: FormData): Promise<boolean> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      body: data,
+      signal: controller.signal,
+    });
+    return response.ok;
+  } catch {
+    // Swallowed deliberately: order capture is best-effort, checkout is not.
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 const packageOptions = [
   { id: 'moment', name: 'Moment', price: '£29' },
   { id: "keepsake", name: "Keepsake", price: "£79" },
@@ -86,6 +127,8 @@ const OrderFormSection = ({ selectedPackage }: OrderFormSectionProps) => {
 
 const [errors, setErrors] = useState<FormErrors>({});
 const [isSubmitting, setIsSubmitting] = useState(false);
+/** Reserved for genuine purchase-path failures only. */
+const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
   if (selectedPackage) {
@@ -239,6 +282,8 @@ console.log("Referral detected:", ref);
 
   if (isSubmitting) return;
 
+  setSubmitError(null);
+
   const validationErrors = validateForm();
   setErrors(validationErrors);
 
@@ -311,44 +356,37 @@ if (formData.artwork) {
   zapierData.append("artworkUrl", artworkUpload || "");
   zapierData.append("agreeTerms", String(formData.agreeTerms));
 
-  console.log("Sending price:", finalPrice);
+  // ---------------------------------------------------------------
+  // PAYMENT PATH FIRST.
+  // Resolve the checkout destination before contacting any ancillary
+  // service, so a webhook/automation outage can never be mistaken for
+  // — or turn into — a payment failure.
+  // ---------------------------------------------------------------
+  const stripeUrl = stripeLinks[formData.package];
 
-  try {
-    // Primary: Local OpenClaw Bridge
-    await fetch(
-      "http://localhost:18888/webhook/order",
-      {
-        method: "POST",
-        body: zapierData,
-      }
+  if (!stripeUrl) {
+    // A genuine purchase-path failure. Surface it; do not swallow it.
+    setSubmitError(
+      "We couldn't open the secure payment page for that package. Please refresh and try again, or contact us and we'll take your order directly."
     );
-
-    // Fallback/Legacy: Make.com
-    await fetch(
-      "https://hook.eu1.make.com/yrw2uhttk8p3kpjxsy5pks3wgwjpc7ru",
-      {
-        method: "POST",
-        body: zapierData,
-      }
-    );
-
-    } catch {
     setIsSubmitting(false);
     return;
   }
 
-// STRIPE
-  const stripeUrl = stripeLinks[formData.package];
+  // Ancillary order capture. Every attempt is isolated: a rejection here
+  // is recorded and ignored, never propagated to the customer.
+  await Promise.allSettled(
+    ancillaryWebhookUrls().map((url) => postOrderData(url, zapierData))
+  );
 
-  if (stripeUrl) {
-    const referral = localStorage.getItem("referral") || "direct";
-    
-    // Store selected package for conversion tracking on thank you page
-    localStorage.setItem("last_order_package", formData.package);
+  // STRIPE
+  const referral = localStorage.getItem("referral") || "direct";
 
-    const finalUrl = `${stripeUrl}?client_reference_id=${referral}`;
-    window.location.href = finalUrl;
-  }
+  // Store selected package for conversion tracking on thank you page
+  localStorage.setItem("last_order_package", formData.package);
+
+  const finalUrl = `${stripeUrl}?client_reference_id=${encodeURIComponent(referral)}`;
+  window.location.href = finalUrl;
 };
 
   return (
@@ -748,6 +786,15 @@ of My Custom Beats, and understand that this is a personalised, made-to-order di
     </p>
   )}
 </div>
+
+            {submitError && (
+              <p
+                role="alert"
+                className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3"
+              >
+                {submitError}
+              </p>
+            )}
 
              <button
               type="submit"
