@@ -1,4 +1,5 @@
 import { Instagram, Youtube, MessageCircle } from "lucide-react";
+import CruiseMarquee from "../components/CruiseMarquee";
 import { Link } from "react-router-dom";
 import { trackWhatsAppClick, trackEvent } from "../lib/analytics";
 
@@ -9,7 +10,9 @@ const Footer = () => {
   };
 
   return (
-    <footer className="w-full bg-gradient-to-b from-[#1a1412] to-black text-ivory pt-24 pb-10">
+    // Midnight Ink — the one place a large dark field earns its place, per
+    // MVIS colour balance. Replaces an off-palette warm-black gradient.
+    <footer className="w-full bg-ink text-ivory pt-24 pb-10">
       
 <div className="max-w-3xl mx-auto px-6 text-center flex flex-col items-center">
 
@@ -104,6 +107,11 @@ const Footer = () => {
           <p>Crafted with <span className="text-gold">♥</span></p>
         </div>
 
+      </div>
+
+      {/* ===== CRUISE & LUXURY TRAVEL — absolute bottom of the footer ===== */}
+      <div className="mt-12 px-6">
+        <CruiseMarquee />
       </div>
     </footer>
   );

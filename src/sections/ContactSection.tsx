@@ -69,13 +69,12 @@ const ContactSection = () => {
             <h2 className="font-serif text-ivory mb-6">
               Ready to soundtrack your story?
             </h2>
-            <p className="text-lg text-ivory/70 mb-8 leading-relaxed" style={{ fontFamily: 'Arimo, sans-serif' }}>
+            <p className="text-lg text-ivory/70 mb-8 leading-relaxed">
               Tell us where you are headed. We will handle the music.
             </p>
             <button
               onClick={scrollToOrder}
               className="group px-8 py-4 bg-gold text-espresso rounded-full font-medium transition-all duration-fast hover:bg-ivory hover:scale-[1.02] flex items-center gap-3 mx-auto lg:mx-0"
-              style={{ fontFamily: 'Arimo, sans-serif' }}
             >
               Start Your Custom Beat
               <ArrowRight size={18} className="transition-transform duration-fast group-hover:translate-x-1" />

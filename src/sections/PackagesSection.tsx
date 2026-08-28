@@ -3,112 +3,16 @@ import { Check, Music } from 'lucide-react';
 import { Sparkles } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { revealOnScroll } from '../lib/scrollReveal';
+import { PACKAGES, FORMATS, formatPrice } from '../data/packages';
+import { packagesStructuredData } from '../lib/seo';
 
-/* Packages */
-const packages = [
-  { 
-    id: 'moment',
-    name: 'Moment',
-    price: { gbp: '£29', usd: '$39' },
-    description:
-      'A simple, beautiful way to turn a memory into music. Perfect for first-time buyers and quick, meaningful gifts.',
-    features: [
-      '1 personalised mini song (60–90 seconds)',
-      'Lightly customised lyrics from your story',
-      'Choose your mood/style',
-      '1 revision included',
-      'MP3 delivery',
-      'Delivered within 3–5 days'
-    ],
-    popular: false,
-    tag: 'starter'
-  },
-
-  { 
-    id: 'keepsake',
-    name: 'Keepsake',
-    price: { gbp: '£79', usd: '$99' },
-    description:
-      'Perfect for a heartfelt gift, proposal, or meaningful personal moment.',
-    features: [
-      '1 fully personalised song (3–4 minutes)',
-      'Story-driven lyrics crafted from your memories',
-      '2 refinement revisions',
-      'Elegant digital cover artwork',
-      'High-quality MP3 + WAV delivery',
-      'Delivered within 14 days'
-    ],
-    popular: false,
-    tag: null
-  },
-
-  {
-    id: 'journey',
-    name: 'Journey',
-    price: { gbp: '£199', usd: '$249' },
-    description:
-      'Ideal for cruises, anniversaries, romantic escapes, and milestone celebrations.',
-    features: [
-      '3 personalised songs',
-      'Unified musical theme across all tracks',
-      'Structured emotional journey (beginning → middle → finale)',
-      '3 refinements per song',
-      'Priority production handling',
-      'Custom album artwork',
-      '1-page lyric booklet (PDF)',
-      'Deluxe digital delivery package',
-      'Delivered within 10–14 days'
-    ],
-    popular: true,
-    tag: 'bestValue'
-  },
-
-  {
-    id: 'heirloom',
-    name: 'Heirloom',
-    price: { gbp: '£349', usd: '$449' },
-    description:
-      'Designed for weddings, family milestones, and once-in-a-lifetime celebrations.',
-    features: [
-      '6-song cohesive storytelling album',
-      'Narrative-driven emotional arc',
-      'Custom intro and closing theme',
-      '4 refinements per song',
-      'Producer-guided creative review',
-      'Premium custom album artwork',
-      'Multi-page lyric & story booklet (PDF)',
-      'Private streaming link for sharing',
-      'Priority handling',
-      'Delivered within 14 days'
-    ],
-    popular: false,
-    tag: null
-  },
-
-  {
-    id: 'bespoke',
-    name: 'Bespoke',
-    price: { gbp: '£799', usd: '$999' },
-    pricePrefix: 'From',
-    description:
-      'A fully commissioned luxury experience.',
-    features: [
-      'Fully commissioned custom project', 
-      'Private 1:1 creative consultation', 
-      'Dedicated 7-day production window', 
-      'Unlimited refinements during production window', 
-      'Exclusive arrangement usage rights', 
-      'Custom instrumentation & arrangement requests', 
-      'Deluxe album artwork (multiple concepts)', 
-      '5–10 page premium story & lyric booklet', 
-      'Instrumental versions included', 
-      'High-resolution artwork files', 
-      'White-glove delivery experience'
-    ],
-    popular: false,
-    tag: null
-  },
-];
+/**
+ * The four fixed experiences sit in the comparison grid. Bespoke is an
+ * open-ended commission with no fixed format or song count, so it gets its
+ * own band below rather than a fifth column that would never compare fairly.
+ */
+const CORE_PACKAGES = PACKAGES.filter((pkg) => pkg.id !== 'bespoke');
+const BESPOKE_PACKAGE = PACKAGES.find((pkg) => pkg.id === 'bespoke');
 
 interface PackagesSectionProps {
   selectedPackage: string | null;
@@ -147,15 +51,13 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
 
   return (
     <>
-    
+    {/* Product + Offer data for every experience, generated from the same
+        source as the visible cards so markup and page can never disagree. */}
     <Helmet>
-  <title>Custom Song Packages & Pricing | My Custom Beats</title>
-  <meta
-    name="description"
-    content="Explore our custom song packages designed for every occasion. Premium music production tailored to your story and budget."
-  />
-</Helmet>
-
+      <script type="application/ld+json">
+        {JSON.stringify(packagesStructuredData())}
+      </script>
+    </Helmet>
 
     <div
       ref={sectionRef}
@@ -178,104 +80,77 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
         </div>
         
 
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 xl:gap-12">
-    {packages.map((pkg) => {
+<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 xl:gap-10 items-stretch">
+    {CORE_PACKAGES.map((pkg) => {
     const isExpanded = expandedPackages.includes(pkg.id);
     const visibleFeatures = pkg.features.slice(0, 4);
     const hiddenFeatures = pkg.features.slice(4);
+    const isSelected = selectedPackage === pkg.id;
 
     return (
       <div className="flex" key={pkg.id}>
         <div
           onClick={() => handleSelect(pkg.id)}
-          className={`package-card relative group cursor-pointer bg-white rounded-t-xl border p-8 lg:p-9 flex flex-col w-full transition-all duration-300
-
-          ${pkg.popular ? 'lg:scale-105 z-10 border-gold shadow-[0_25px_50px_rgba(0,0,0,0.12)]' : 'border-espresso/10'}
-
-          ${selectedPackage === pkg.id ? 'border-gold shadow-[0_25px_60px_rgba(212,175,55,0.25)] scale-[1.03]' : ''}
-
-          ${pkg.id === 'moment' ? 'opacity-80 scale-[0.95]' : ''}
-          `}
+          className={`package-card relative group cursor-pointer bg-white rounded-2xl border p-8 flex flex-col w-full transition-all duration-300
+          ${pkg.popular ? 'border-gold shadow-[0_20px_50px_rgba(13,27,42,0.10)]' : 'border-espresso/10 hover:border-gold/40'}
+          ${isSelected ? 'border-gold ring-1 ring-gold/40' : ''}`}
         >
-
-          {/* Starter Badge */}
-{pkg.tag === 'starter' && (
-  <div 
-  className="absolute top-4 left-4 text-[10px] tracking-[0.18em] uppercase text-espresso/50">
-   For First-Time Buyers
-  </div>
-)}
-
-{/* Best Value Badge */}
-{pkg.tag === 'bestValue' && (
-  <div className="absolute top-4 left-4 text-[10px] tracking-widest uppercase text-gold border border-gold/30 px-2 py-1 rounded-full bg-gold/5 backdrop-blur-sm">
-    Best Value
-  </div>
-)}
-
           {pkg.popular && (
-            <div className="absolute top-3 right-3 text-gold">
-              <Sparkles size={18} />
+            <div className="absolute top-5 right-5 text-gold" aria-hidden="true">
+              <Sparkles size={16} />
             </div>
           )}
 
           {/* TITLE */}
-          <h3 className="font-serif text-xl text-espresso mb-3 text-center">
+          <h3 className="font-serif text-2xl text-espresso mb-1 text-center">
             {pkg.name}
           </h3>
 
+          {/* Fixed height so a positioning line that wraps to two lines
+              doesn't push its price out of alignment with the other cards. */}
+          <p className="text-[11px] tracking-[0.16em] uppercase text-espresso/45 text-center mb-5 min-h-[2.6em] flex items-center justify-center">
+            {pkg.positioning}
+          </p>
+
           {/* PRICE */}
-          <div className="mb-5">
-            <div className="flex items-end justify-center gap-2">
-              {pkg.pricePrefix && (
-                <span className="text-sm text-espresso/60 mb-1">
-                  {pkg.pricePrefix}
-                </span>
-              )}
-
-              <span className="text-3xl font-serif text-gold">
-                {pkg.price.gbp}
+          <div className="mb-5 text-center">
+            <div className="flex items-baseline justify-center gap-2">
+              <span className="text-4xl font-serif text-espresso">
+                {formatPrice(pkg)}
               </span>
-
-              <span className="text-sm text-espresso/50 mb-1">
-                {pkg.price.usd}
+              <span className="text-sm text-espresso/45">
+                {formatPrice(pkg, 'usd')}
               </span>
             </div>
 
-<p className="text-[11px] text-espresso/50 text-center mt-1">
-  {pkg.id === 'moment' && 'Perfect for first-time buyers'}
-  {pkg.id === 'keepsake' && 'Most popular gift'}
-  {pkg.id === 'journey' && 'Best overall experience'}
-  {pkg.id === 'heirloom' && 'For major life events'}
-  {pkg.id === 'bespoke' && 'Full luxury production'}
-</p>
-
             {pkg.popular && (
-              <p className="text-xs text-gold text-center mt-1 tracking-wide">
+              <p className="text-xs text-gold-deep mt-2 tracking-wide">
                 Most chosen by customers
               </p>
             )}
           </div>
 
+          <div className="h-px w-10 bg-gold/50 mx-auto mb-5" aria-hidden="true" />
+
           {/* DESCRIPTION */}
-          <p className="text-sm text-espresso/70 mb-4">
+          <p className="text-sm text-espresso/70 mb-5 leading-relaxed">
             {pkg.description}
           </p>
 
           {/* FEATURES */}
-          <ul className="space-y-2 mb-5">
+          <ul className="space-y-2.5 mb-4">
             {visibleFeatures.map((feature, index) => (
-              <li key={index} className="flex gap-3">
-                <Check size={18} className="text-gold mt-1" />
-                <span className="text-sm">{feature}</span>
+              <li key={index} className="flex gap-2.5">
+                <Check size={16} className="text-gold mt-1 shrink-0" aria-hidden="true" />
+                <span className="text-sm text-espresso/80 leading-snug">{feature}</span>
               </li>
             ))}
 
             {isExpanded &&
               hiddenFeatures.map((feature, index) => (
-                <li key={index + 4} className="flex gap-3">
-                  <Check size={18} className="text-gold mt-1" />
-                  <span className="text-sm">{feature}</span>
+                <li key={index + 4} className="flex gap-2.5">
+                  <Check size={16} className="text-gold mt-1 shrink-0" aria-hidden="true" />
+                  <span className="text-sm text-espresso/80 leading-snug">{feature}</span>
                 </li>
               ))}
           </ul>
@@ -283,37 +158,90 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
           {/* EXPAND */}
           {hiddenFeatures.length > 0 && (
             <button
+              type="button"
+              aria-expanded={isExpanded}
               onClick={(e) => {
                 e.stopPropagation();
                 toggleExpand(pkg.id);
               }}
-              className="text-sm text-gold mb-6 hover:underline"
+              className="text-sm text-gold-deep mb-5 hover:underline self-start"
             >
-              {isExpanded ? 'Show Less' : 'View Full Experience'}
+              {isExpanded ? 'Show less' : 'View full experience'}
             </button>
           )}
 
+          {/* FORMAT */}
+          <p className="text-[11px] tracking-[0.12em] uppercase text-espresso/45 mt-auto pt-5 border-t border-espresso/10">
+            {pkg.formats.map((f) => FORMATS[f].name.replace('High-quality 12" Black ', '')).join(' · ')}
+          </p>
+
           {/* CTA */}
-          <div className="flex justify-center mt-auto pt-6">
+          <div className="flex justify-center pt-5">
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 handleSelect(pkg.id);
               }}
-className="px-6 py-2 text-[11px] tracking-[0.2em] uppercase text-espresso border border-espresso/30 rounded-full transition-all duration-300 hover:bg-espresso hover:text-ivory hover:border-espresso"            >
-              {pkg.id === 'moment'
-                ? 'Try It Now'
-                : pkg.id === 'journey'
-                ? 'Choose Best Value'
-                : 'Begin This Experience'}
+              className={`px-6 py-2.5 text-[11px] tracking-[0.2em] uppercase rounded-full transition-all duration-300 ${
+                pkg.popular
+                  ? 'bg-gold text-ink hover:bg-gold-dark hover:text-white'
+                  : 'text-espresso border border-espresso/25 hover:bg-ink hover:text-ivory hover:border-ink'
+              }`}
+            >
+              {pkg.cta}
             </button>
           </div>
-
         </div>
       </div>
     );
   })}
       </div>
+
+      {/* ---- Bespoke: a commission, not a package. Presented as its own
+           editorial band so it reads as deliberate rather than a fifth
+           card left over at the end of a four-column grid. ---- */}
+      {BESPOKE_PACKAGE && (
+        <div className="package-card mt-8 xl:mt-10 rounded-2xl bg-ink text-ivory p-8 md:p-12 grid md:grid-cols-[1fr_auto] gap-8 md:gap-12 items-center">
+          <div>
+            <p className="text-[11px] tracking-[0.2em] uppercase text-gold mb-3">
+              {BESPOKE_PACKAGE.positioning}
+            </p>
+            <h3 className="font-serif text-3xl md:text-4xl text-ivory mb-3">
+              {BESPOKE_PACKAGE.name}
+            </h3>
+            <p className="text-ivory/70 max-w-xl leading-relaxed mb-6">
+              A completely unique commission — scored, arranged and produced around
+              a single story, with a private creative consultation and a dedicated
+              production window.
+            </p>
+            <ul className="grid sm:grid-cols-2 gap-x-8 gap-y-2 max-w-2xl">
+              {BESPOKE_PACKAGE.features.slice(0, 6).map((feature, index) => (
+                <li key={index} className="flex gap-2.5">
+                  <Check size={15} className="text-gold mt-1 shrink-0" aria-hidden="true" />
+                  <span className="text-sm text-ivory/75 leading-snug">{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="text-left md:text-right shrink-0">
+            <div className="font-serif text-4xl text-ivory mb-1">
+              {formatPrice(BESPOKE_PACKAGE)}
+            </div>
+            <div className="text-sm text-ivory/50 mb-6">
+              {formatPrice(BESPOKE_PACKAGE, 'usd')}
+            </div>
+            <button
+              type="button"
+              onClick={() => handleSelect(BESPOKE_PACKAGE.id)}
+              className="px-7 py-3 text-[11px] tracking-[0.2em] uppercase rounded-full bg-gold text-ink hover:bg-gold-light transition-all duration-300"
+            >
+              {BESPOKE_PACKAGE.cta}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   </div>
   </>

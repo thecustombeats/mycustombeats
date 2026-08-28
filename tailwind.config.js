@@ -11,10 +11,34 @@ module.exports = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
 
-        ivory: "#FBF9F6",
+        /* ---- MVIS™ palette (authoritative) ---------------------------
+         * Ivory is the dominant canvas. Midnight Ink is for selective dark
+         * fields and strong contrast. Heritage Gold is an accent only —
+         * never a large background, never body copy.
+         * ------------------------------------------------------------- */
+        ivory: "#F8F5F0",   // MVIS Ivory
+        ink: "#0D1B2A",     // MVIS Midnight Ink
+        gold: "#C9A14A",    // MVIS Heritage Gold
+        /* Interaction tints of Heritage Gold, per MVIS Theme Specification. */
+        "gold-light": "#D8B96A",
+        "gold-dark": "#A8842F",
+        /**
+         * Heritage Gold darkened for TEXT ON IVORY only.
+         *
+         * Heritage Gold on Ivory measures 2.22:1 — well below WCAG AA — so it
+         * must not carry small copy on a light field. This shade reaches
+         * 4.83:1 while reading as the same accent. Gold on Midnight Ink is
+         * 7.19:1 and needs no substitute, so dark sections keep `gold`.
+         * MVIS: "Legibility always wins over decorative brand colour."
+         */
+        "gold-deep": "#856823",
+
+        /* ---- Legacy palette (pre-MVIS) -------------------------------
+         * Retained so unmodified routes are not silently repainted.
+         * Migration to `ink` is tracked as outstanding MVIS work.
+         * ------------------------------------------------------------- */
         "misty-stone": "#E9E5DF",
         espresso: "#2E2623",
-        gold: "#C6A46C",
         ocean: "#243746",
         sunset: "#D9B08C",
 
@@ -29,8 +53,9 @@ module.exports = {
       },
 
       fontFamily: {
-        serif: ['Playfair Display', 'serif'],
-        sans: ['Arimo', 'sans-serif'],
+        /* MVIS™: Cormorant Garamond for display, Manrope for body and UI. */
+        serif: ['Cormorant Garamond', 'Georgia', 'serif'],
+        sans: ['Manrope', 'system-ui', 'sans-serif'],
       },
 
       corePlugins: {

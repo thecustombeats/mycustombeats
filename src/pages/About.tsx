@@ -92,7 +92,7 @@ const AboutSection = () => {
         <h3 className="font-serif text-2xl text-espresso mb-3">
           Crafted by Real Musicians
         </h3>
-        <p className="text-espresso/70 max-w-xl mx-auto leading-relaxed" style={{ fontFamily: 'Arimo, sans-serif' }}>
+        <p className="text-espresso/70 max-w-xl mx-auto leading-relaxed">
           Each Custom Beat is crafted by our founders alongside a curated global collective of 200+ professional musicians.
         </p>
         <div className="w-16 h-px bg-gold mx-auto mt-8" />
@@ -129,15 +129,15 @@ const AboutSection = () => {
   BBC Radio Featured Artist
 </div>
 
-  <p className="text-espresso/70 text-sm leading-relaxed mb-4" style={{ fontFamily: 'Arimo, sans-serif' }}>
+  <p className="text-espresso/70 text-sm leading-relaxed mb-4">
     Rinaldi is the driving force behind the musical excellence of My Custom Beats, bringing over a decade of international experience as a DJ, producer, and songwriter.
   </p>
 
-  <p className="text-espresso/70 text-sm leading-relaxed mb-4" style={{ fontFamily: 'Arimo, sans-serif' }}>
+  <p className="text-espresso/70 text-sm leading-relaxed mb-4">
     Having performed across global stages, luxury cruise lines, and private events, his work has been featured on <span className="text-gold font-medium">BBC Radio</span> and trusted by discerning audiences worldwide.
   </p>
 
-  <p className="text-espresso/70 text-sm leading-relaxed mb-6" style={{ fontFamily: 'Arimo, sans-serif' }}>
+  <p className="text-espresso/70 text-sm leading-relaxed mb-6">
     As Executive Producer, he leads the musical vision, ensuring every composition meets the highest standards of quality, emotion, and production.
   </p>
             <div className="flex items-center gap-4">
@@ -201,15 +201,15 @@ const AboutSection = () => {
     Creative Director & Co-Founder
   </p>
 
-  <p className="text-espresso/70 text-sm leading-relaxed mb-4" style={{ fontFamily: 'Arimo, sans-serif' }}>
+  <p className="text-espresso/70 text-sm leading-relaxed mb-4">
     A creative force behind My Custom Beats, Lady Lakh leads the artistic direction and end-to-end production of every project.
   </p>
 
-  <p className="text-espresso/70 text-sm leading-relaxed mb-4" style={{ fontFamily: 'Arimo, sans-serif' }}>
+  <p className="text-espresso/70 text-sm leading-relaxed mb-4">
     With a background rooted in both corporate structure and creative passion, she brings a refined balance of precision, storytelling, and emotional depth to each composition.
   </p>
 
-  <p className="text-espresso/70 text-sm leading-relaxed mb-6" style={{ fontFamily: 'Arimo, sans-serif' }}>
+  <p className="text-espresso/70 text-sm leading-relaxed mb-6">
     From client collaboration to final delivery, she personally oversees the entire creative journey — ensuring every piece is thoughtfully crafted, deeply personal, and delivered to the highest standard.
   </p>
 </div>      
@@ -219,7 +219,7 @@ const AboutSection = () => {
       {/* Global Collective */}
       <div className="text-center mb-20 px-[7vw]">
         <h3 className="font-serif text-xl text-espresso mb-4">Our Global Creative Collective</h3>
-        <p className="text-espresso/70 max-w-3xl mx-auto leading-relaxed" style={{ fontFamily: 'Arimo, sans-serif' }}>
+        <p className="text-espresso/70 max-w-3xl mx-auto leading-relaxed">
           Behind Custom Beats are two internationally experienced artists whose combined expertise spans global stages, luxury events, and professional music production. Supporting them is a curated global collective of over 200 professional musicians — including pianists, violinists, drummers, guitarists, saxophonists, flautists, vocalists, DJs, and specialist instrumentalists.
         </p>
       </div>
@@ -237,7 +237,7 @@ const AboutSection = () => {
           ].map((item, index) => (
             <div key={index} className="flex items-center gap-3 bg-white px-6 py-3 rounded-full">
               <span className="w-2 h-2 rounded-full bg-gold" />
-              <span className="text-sm text-espresso" style={{ fontFamily: 'Arimo, sans-serif' }}>{item}</span>
+              <span className="text-sm text-espresso">{item}</span>
             </div>
           ))}
         </div>

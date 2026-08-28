@@ -79,21 +79,18 @@ const logoSrc = isScrolled
   <div className="hidden sm:flex flex-col items-center text-center leading-tight">
     <span
       className={`text-[13px] font-medium tracking-[0.12em] ${textColor}`}
-      style={{ fontFamily: 'Arimo, sans-serif' }}
     >
       MY
     </span>
 
     <span
       className={`text-[16px] font-medium tracking-[0.12em] ${textColor}`}
-      style={{ fontFamily: 'Arimo, sans-serif' }}
     >
       CUSTOM
     </span>
 
     <span
       className={`text-[13px] font-medium tracking-[0.12em] ${textColor}`}
-      style={{ fontFamily: 'Arimo, sans-serif' }}
     >
       BEATS
     </span>
@@ -108,7 +105,6 @@ const logoSrc = isScrolled
   to={link.href}
   onClick={() => setIsMobileMenuOpen(false)}
   className={`text-base font-medium ${textColor} transition-colors duration-fast relative group`}
-  style={{ fontFamily: 'Arimo, sans-serif' }}
 >
   {link.label}
   <span className="absolute -bottom-1 left-0 w-0 h-px bg-gold transition-all duration-fast group-hover:w-full" />

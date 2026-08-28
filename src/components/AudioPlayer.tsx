@@ -85,7 +85,7 @@ const AudioPlayer = () => {
             </div>
             <div className="hidden sm:block text-left">
               <p className="text-xs text-ivory/60">Now Playing</p>
-              <p className="text-sm font-medium truncate max-w-[120px]" style={{ fontFamily: 'Arimo, sans-serif' }}>
+              <p className="text-sm font-medium truncate max-w-[120px]">
                 {currentTrack.title}
               </p>
             </div>

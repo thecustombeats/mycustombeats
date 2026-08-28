@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://mycustombeats.com/sitemap.xml
+# Customer-specific pages carry no search value.
+Disallow: /thank-you
+Disallow: /artist-thank-you
+Disallow: /partner-thank-you
+Disallow: /dashboard
+
+Sitemap: https://www.mycustombeats.com/sitemap.xml

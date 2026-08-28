@@ -205,7 +205,6 @@ const duplicatedTestimonials = [...testimonials, ...testimonials];
               <div>
                 <p
                   className="font-medium text-espresso text-sm"
-                  style={{ fontFamily: "Arimo, sans-serif" }}
                 >
                   {testimonial.author}
                 </p>

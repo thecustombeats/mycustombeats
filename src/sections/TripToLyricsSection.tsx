@@ -82,7 +82,7 @@ const TripToLyricsSection = () => {
               Turn Your Trip Into Lyrics
             </h2>
             
-            <p className="text-lg text-espresso/70 mb-8 leading-relaxed" style={{ fontFamily: 'Arimo, sans-serif' }}>
+            <p className="text-lg text-espresso/70 mb-8 leading-relaxed">
               Share your ports, dates, and highlights. We'll weave them into a song that feels like your own soundtrack.
             </p>
 
@@ -93,7 +93,7 @@ const TripToLyricsSection = () => {
                   <MapPin size={18} className="text-gold" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-espresso mb-1" style={{ fontFamily: 'Arimo, sans-serif' }}>
+                  <h4 className="font-medium text-espresso mb-1">
                     Every Port Tells a Story
                   </h4>
                   <p className="text-sm text-espresso/60">
@@ -107,7 +107,7 @@ const TripToLyricsSection = () => {
                   <Calendar size={18} className="text-gold" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-espresso mb-1" style={{ fontFamily: 'Arimo, sans-serif' }}>
+                  <h4 className="font-medium text-espresso mb-1">
                     Dates That Matter
                   </h4>
                   <p className="text-sm text-espresso/60">
@@ -121,7 +121,7 @@ const TripToLyricsSection = () => {
                   <Sparkles size={18} className="text-gold" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-espresso mb-1" style={{ fontFamily: 'Arimo, sans-serif' }}>
+                  <h4 className="font-medium text-espresso mb-1">
                     Magical Moments
                   </h4>
                   <p className="text-sm text-espresso/60">
@@ -135,7 +135,6 @@ const TripToLyricsSection = () => {
             <button
               onClick={scrollToOrder}
               className="group px-8 py-4 bg-espresso text-ivory rounded-full font-medium transition-all duration-fast hover:bg-gold hover:text-espresso flex items-center gap-3"
-              style={{ fontFamily: 'Arimo, sans-serif' }}
             >
               Start Your Story
               <ArrowRight size={18} className="transition-transform duration-fast group-hover:translate-x-1" />

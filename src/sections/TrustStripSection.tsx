@@ -62,7 +62,7 @@ const TrustStripSection = () => {
           Crafted by Real Musicians
         </h3>
 
-        <p className="text-espresso/70 max-w-xl mx-auto text-center leading-relaxed" style={{ fontFamily: 'Arimo, sans-serif' }}>
+        <p className="text-espresso/70 max-w-xl mx-auto text-center leading-relaxed">
           Each Custom Beat is crafted by our founders alongside a curated global collective of 200+ professional musicians.
         </p>
 

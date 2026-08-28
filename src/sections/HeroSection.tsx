@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import PersonalizationModal from '../components/PersonalizationModal';
 import { gsap } from 'gsap';
-import { Helmet } from "react-helmet-async";
 
 const HeroSection = () => {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -137,13 +136,6 @@ const scrollToOrder = () => {
 
   return (
     <>
-      <Helmet>
-        <title>Custom Songs for Weddings, Birthdays & Luxury Gifts | My Custom Beats</title>
-        <meta
-          name="description"
-          content="Create personalised songs for weddings, birthdays, anniversaries and luxury gifting. Professionally produced music crafted from your story."
-        />
-      </Helmet>
 
       <div
         ref={sectionRef}

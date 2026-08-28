@@ -1,46 +1,31 @@
 
 import { Helmet } from "react-helmet-async";
+import { KEEPSAKES } from "../data/keepsakes";
+import { canonical, breadcrumbStructuredData } from "../lib/seo";
 
-
-const products = [
-  {
-    id: "vinyl",
-    title: "Personalized Vinyl Records",
-    description: "Your song, pressed onto premium vinyl with bespoke artwork.",
-  },
-  {
-    id: "artwork",
-    title: "Framed Lyric Artwork",
-    description: "Timeless typography designed to live on walls.",
-  },
-  {
-    id: "plaque",
-    title: "Engraved Music Plaques",
-    description: "Crystal or wood with a scannable code to your song.",
-  },
-  {
-    id: "memory-box",
-    title: "Luxury Memory Boxes",
-    description: "Lyrics, photos, and your song in one complete experience.",
-  },
-  {
-    id: "cards",
-    title: "Premium Music Cards",
-    description: "A minimal card that reveals your song with a single tap.",
-  },
-];
 
 const Products = () => {
   
   return (
     <>
       <Helmet>
-  <title>Custom Music Gifts & Keepsakes | My Custom Beats</title>
-  <meta
-    name="description"
-    content="Turn your custom song into luxury keepsakes including vinyl records, artwork, plaques and memory boxes. Designed to last a lifetime."
-  />
-</Helmet>
+        <title>Music Keepsakes — Vinyl, CD, Artwork & Plaques | My Custom Beats</title>
+        <meta
+          name="description"
+          content="Turn your personalised song into something you can hold: 12-inch vinyl, CD, framed lyric artwork, engraved plaques, memory boxes and music cards."
+        />
+        <meta property="og:title" content="Music Keepsakes | My Custom Beats" />
+        <meta
+          property="og:description"
+          content="Vinyl, CD, framed lyric artwork, engraved plaques, memory boxes and music cards — your song, made physical."
+        />
+        <meta property="og:url" content={canonical("/products")} />
+        <script type="application/ld+json">
+          {JSON.stringify(
+            breadcrumbStructuredData([{ name: "Keepsakes", path: "/products" }])
+          )}
+        </script>
+      </Helmet>
 
       <div className="bg-[#FBF9F6] text-black">
         
@@ -88,21 +73,34 @@ const Products = () => {
 
         {/* PRODUCTS */}
         <section className="px-6 max-w-6xl mx-auto py-20 space-y-24">
-          {products.map((product) => (
+          {KEEPSAKES.map((product) => (
             <div
               key={product.id}
               className="grid md:grid-cols-2 gap-12 items-center"
             >
              
-              {/* IMAGE */}
-                  <div className="h-[400px] rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition duration-500">            
-                        <img
-                  src={`/images/products/${product.id}.jpg`}
-                  alt={product.title}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-full object-cover group-hover:scale-105 transition duration-700"
-                />
+              {/* IMAGE — or a typographic panel where no photograph exists.
+                  Never substitute a stand-in image for a real product. */}
+              <div className="h-[400px] rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition duration-500">
+                {product.image ? (
+                  <img
+                    src={product.image}
+                    alt={product.title}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-full object-cover transition duration-700"
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-ivory border border-espresso/10 rounded-2xl px-8 text-center">
+                    <span className="font-serif text-5xl text-espresso/80">
+                      {product.title}
+                    </span>
+                    <span className="h-px w-10 bg-gold/60 my-5" aria-hidden="true" />
+                    <span className="label-uppercase text-espresso/40">
+                      Available at checkout
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* CONTENT */}

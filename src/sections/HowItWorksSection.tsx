@@ -126,7 +126,7 @@ Created by professional musicians with experience performing on global stages an
                   {step.title}
                 </h3>
 
-                <p className="text-espresso/60 leading-relaxed" style={{ fontFamily: 'Arimo, sans-serif' }}>
+                <p className="text-espresso/60 leading-relaxed">
                   {step.description}
                 </p>
 
@@ -144,7 +144,6 @@ Each song is carefully refined by real musicians to ensure a personal and emotio
           <button
             onClick={scrollToOrder}
             className="group px-8 py-4 bg-espresso text-ivory rounded-full font-medium transition-all duration-fast hover:bg-gold hover:text-espresso flex items-center gap-3 mx-auto"
-            style={{ fontFamily: 'Arimo, sans-serif' }}
             
           >
             Create My Custom Song

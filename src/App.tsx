@@ -30,6 +30,9 @@ import AffiliateDashboard from "./pages/AffiliateDashboard";
 
 import { Helmet } from "react-helmet-async";
 import { Package } from "lucide-react";
+import { Link } from "react-router-dom";
+import { KEEPSAKES } from "./data/keepsakes";
+import { siteStructuredData, canonical } from "./lib/seo";
 
 
 
@@ -125,12 +128,20 @@ useEffect(() => {
 
   return (
     <>
+  {/* The homepage's single source of head tags. HeroSection and
+      PackagesSection previously each set their own <title>, and whichever
+      mounted last won — which is why the homepage was serving the packages
+      title. Sections no longer set titles. */}
   <Helmet>
-    <title>Custom Songs for Weddings, Birthdays & Gifts | My Custom Beats</title>
+    <title>Personalised Songs on Vinyl, CD & MP3 | My Custom Beats</title>
     <meta
       name="description"
-      content="Create personalised songs for weddings, birthdays, anniversaries and luxury gifts. Turn your story into music."
+      content="Turn a memory into a personalised song, from £10. Choose vinyl, CD or MP3. Made for cruises, weddings, anniversaries and celebrations."
     />
+    <meta property="og:url" content={canonical("/")} />
+    <script type="application/ld+json">
+      {JSON.stringify(siteStructuredData())}
+    </script>
   </Helmet>
 
     <div className="relative min-h-screen bg-ivory">
@@ -152,68 +163,76 @@ useEffect(() => {
   <TestimonialsSection />
 </Suspense>
 
-{/* ✅ ADD THIS PRODUCTS TEASER HERE */}
-<section className="py-20 px-6 bg-[#FBF9F6] text-center">
-  <h2 className="text-4xl md:text-5xl font-light mb-6">
-    More Than Just a Song
-  </h2>
-
-  <p className="text-black/60 max-w-2xl mx-auto mb-12">
-    Turn your music into something you can hold, display, and relive forever.
-  </p>
-
-  {/* TOP ROW */}
-<div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-8">
-  {[
-    { title: "Vinyl", img: "/images/products/vinyl.jpg" },
-    { title: "Artwork", img: "/images/products/artwork.jpg" },
-    { title: "Plaques", img: "/images/products/plaque.jpg" },
-  ].map((item, i) => (
-    <div key={i} className="group cursor-pointer">
-      <div className="overflow-hidden rounded-xl mb-4">
-        <img
-          src={item.img}
-          alt={item.title}
-          className="w-full h-[250px] object-cover group-hover:scale-105 transition duration-500"
-        />
-      </div>
-      <h3 className="text-lg">{item.title}</h3>
-    </div>
-  ))}
-</div>
-
-{/* BOTTOM ROW (CENTERED) */}
-<div className="flex justify-center gap-8 max-w-4xl mx-auto">
-  {[
-    { title: "Memory Boxes", img: "/images/products/memory-box.jpg" },
-    { title: "Music Cards", img: "/images/products/cards.jpg" },
-  ].map((item, i) => (
-    <div key={i} className="group cursor-pointer w-full max-w-[300px]">
-      <div className="overflow-hidden rounded-xl mb-4">
-        <img
-          src={item.img}
-          alt={item.title}
-          className="w-full h-[250px] object-cover group-hover:scale-105 transition duration-500"
-        />
-      </div>
-      <h3 className="text-lg">{item.title}</h3>
-    </div>
-  ))}
-</div>
-
-<a
-  href="/products"
-  className="group mt-16 md:mt-20 px-10 py-4 bg-gold text-espresso rounded-full font-medium 
-  transition-all duration-300 hover:bg-espresso hover:text-ivory hover:scale-105 shadow-md hover:shadow-xl inline-flex items-center gap-2"
+{/* ---- Make the memory physical ----
+    Connects the music experience to the keepsake ecosystem. Rendered from
+    the shared keepsake data so it can never drift from /products. ---- */}
+<section
+  aria-labelledby="make-physical-heading"
+  className="py-24 px-6 bg-ivory"
 >
-  <Package className="w-5 h-5" />
-  Explore Keepsakes →
-</a>
+  <div className="max-w-6xl mx-auto">
+    <div className="text-center max-w-2xl mx-auto mb-16">
+      <p className="label-uppercase text-gold-deep mb-4">Beyond the music</p>
 
-  <p className="mt-4 text-sm text-black/60 italic">
-    Each piece is custom made — enquire for pricing
-  </p>
+      <h2 id="make-physical-heading" className="text-espresso mb-5">
+        Make the memory physical
+      </h2>
 
+      <p className="text-espresso/65 leading-relaxed">
+        A song holds the feeling. A record, a plaque or a framed lyric puts it
+        somewhere you'll see it — on a shelf, on a wall, in someone's hands.
+      </p>
+    </div>
+
+    <ul className="grid grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 list-none m-0 p-0">
+      {KEEPSAKES.map((item) => (
+        <li key={item.id}>
+          <article className="h-full">
+            <div className="overflow-hidden rounded-2xl mb-4 bg-white border border-espresso/10">
+              {item.image ? (
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-[240px] object-cover"
+                />
+              ) : (
+                <div className="w-full h-[240px] flex flex-col items-center justify-center bg-ivory text-center px-6">
+                  <span className="font-serif text-4xl text-espresso/80">
+                    {item.title}
+                  </span>
+                  <span className="h-px w-8 bg-gold/60 mt-4" aria-hidden="true" />
+                </div>
+              )}
+            </div>
+
+            <h3 className="font-serif text-xl text-espresso mb-1">
+              {item.title}
+            </h3>
+            <p className="text-sm text-espresso/60 leading-relaxed">
+              {item.description}
+            </p>
+          </article>
+        </li>
+      ))}
+    </ul>
+
+    <div className="text-center mt-16">
+      <Link
+        to="/products"
+        className="inline-flex items-center gap-2 px-9 py-4 bg-ink text-ivory rounded-full font-medium transition-colors duration-300 hover:bg-gold hover:text-ink"
+      >
+        <Package className="w-5 h-5" aria-hidden="true" />
+        Explore keepsakes
+      </Link>
+
+      <p className="mt-4 text-sm text-espresso/50">
+        Vinyl and CD are included with your experience. Other keepsakes are
+        made to order — enquire for pricing.
+      </p>
+    </div>
+  </div>
 </section>
 
 
@@ -236,7 +255,6 @@ useEffect(() => {
   <ContactSection />
 </Suspense>
 
-        <FloatingCTA />
       </main>
       </div>
 
@@ -251,8 +269,15 @@ useEffect(() => {
 }
 
 function Layout({ children }: { children: React.ReactNode }) {
+  const { pathname } = useLocation();
+
   return (
     <>
+      {/* One canonical per page, derived from the route. Kept here rather
+          than in each page so no route can be missed or emit two. */}
+      <Helmet>
+        <link rel="canonical" href={canonical(pathname)} />
+      </Helmet>
       <Navigation />
       {children}
       <FloatingCTA />
@@ -333,14 +358,16 @@ function App() {
           } 
         />
         
-        <Route 
-  path="/anniversary-song" 
-  element={
-    <Suspense fallback={<div />}>
-      <AnniversarySong />
-    </Suspense>
-  } 
-/>
+        <Route
+          path="/anniversary-song"
+          element={
+            <Layout>
+              <Suspense fallback={<div className="min-h-screen" />}>
+                <AnniversarySong />
+              </Suspense>
+            </Layout>
+          }
+        />
         <Route path="/about" element={<Layout><About /></Layout>} />
         <Route path="/faq" element={<Layout><FAQ /></Layout>} />
 

@@ -6,25 +6,29 @@
 /* Base styles */
 @layer base {
   body {
-    font-family: 'Arimo', sans-serif !important;
-    background-color: #FBF9F6;
+    /* MVIS™ secondary typeface — body, UI, forms, navigation. */
+    font-family: 'Manrope', system-ui, sans-serif !important;
+    background-color: #F8F5F0; /* MVIS Ivory */
     color: rgba(46, 38, 35, 0.85);
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Playfair Display', serif !important;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    line-height: 1.1;
+    /* MVIS™ primary display typeface. */
+    font-family: 'Cormorant Garamond', Georgia, serif !important;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.12;
     color: rgba(46, 38, 35, 0.9);
   }
 
+  /* Cormorant Garamond has a smaller x-height than the Playfair Display it
+     replaces, so the display scale is nudged up to hold the same presence. */
   h2 {
-    font-size: clamp(2rem, 3.6vw, 2.75rem);
+    font-size: clamp(2.25rem, 4vw, 3.1rem);
   }
 
   h3 {
-    font-size: clamp(1.4rem, 2vw, 1.8rem);
+    font-size: clamp(1.5rem, 2.2vw, 1.95rem);
   }
 
   p {
@@ -34,6 +38,24 @@
 
 
 @layer components {
+  /**
+   * Eyebrow label. Used in 14 components but never defined until now, so
+   * every "THE PROCESS" / "GET STARTED" label across the site had been
+   * rendering as ordinary body text.
+   *
+   * Manrope per MVIS, small and letter-spaced. Sizing and weight live here;
+   * colour stays with the caller so it can sit on ivory or ink.
+   */
+  .label-uppercase {
+    display: inline-block;
+    font-family: 'Manrope', system-ui, sans-serif;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
   .btn-primary {
     display: inline-flex;
     align-items: center;
@@ -131,9 +153,65 @@ body :focus-visible {
   transform: translateY(-1px);
 }
 
+/* ===== Cruise marquee (MVIS motion: slow, linear, continuous) ===== */
+
+/* Track is duplicated in the markup; translating by exactly -50% therefore
+   lands on an identical frame, so the loop has no visible seam or jump. */
+@keyframes mcbMarquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.mcb-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: mcbMarquee 90s linear infinite;
+  will-change: transform;
+}
+
+/* Pause on hover, and on keyboard focus anywhere inside the marquee, so a
+   reader can settle on a name rather than chase it. */
+.mcb-marquee:hover .mcb-marquee-track,
+.mcb-marquee:focus-within .mcb-marquee-track {
+  animation-play-state: paused;
+}
+
+/* Fade the edges so names enter and leave rather than being cut off. */
+.mcb-marquee-mask {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+}
+
 /* Animations */
 @keyframes heroZoom { from { transform: scale(1.05); } to { transform: scale(1.15); } }
 .animate-heroZoom { animation: heroZoom 18s ease-in-out infinite alternate; }
+
+/* ===== Reduced motion =====
+   MVIS motion principles: motion is never required to understand a page.
+   Anything decorative stops; the marquee becomes a static, scrollable list. */
+@media (prefers-reduced-motion: reduce) {
+  .mcb-marquee-track {
+    animation: none;
+    width: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .animate-heroZoom,
+  .gold-pulse,
+  .animate-wave {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 @keyframes goldPulse {
   0% {

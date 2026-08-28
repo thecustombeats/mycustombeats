@@ -1,18 +1,21 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { trackPurchase } from "../lib/analytics";
-
-const packageDetails: Record<string, { name: string; price: number }> = {
-  moment: { name: "Moment", price: 29 },
-  keepsake: { name: "Keepsake", price: 79 },
-  journey: { name: "Journey", price: 199 },
-  heirloom: { name: "Heirloom", price: 349 },
-  bespoke: { name: "Bespoke", price: 799 },
-};
+import { getPackage, FORMATS, type FormatId } from "../data/packages";
 
 export default function ThankYou() {
   const params = new URLSearchParams(window.location.search);
   const orderId = params.get("session_id");
+
+  // What the customer just bought, carried over from the order form.
+  const orderedPackage = getPackage(
+    localStorage.getItem("last_order_package") || ""
+  );
+  const orderedFormat = localStorage.getItem("last_order_format") || "";
+  const formatName =
+    orderedFormat && orderedFormat in FORMATS
+      ? FORMATS[orderedFormat as FormatId].name
+      : null;
 
   useEffect(() => {
     if (!orderId) return;
@@ -21,12 +24,18 @@ export default function ThankYou() {
     const trackedKey = `mcb_tracked_${orderId}`;
     if (sessionStorage.getItem(trackedKey)) return;
 
-    const lastPackage = localStorage.getItem("last_order_package") || "moment";
-    const packageInfo = packageDetails[lastPackage] || { name: "Custom Song", price: 29 };
+    // Price comes from the central package data so the analytics value can
+    // never drift from the amount actually charged.
+    if (!orderedPackage) return;
 
-    trackPurchase(orderId, packageInfo.price, "GBP", packageInfo.name);
+    trackPurchase(
+      orderId,
+      orderedPackage.price.gbp,
+      "GBP",
+      orderedPackage.name
+    );
     sessionStorage.setItem(trackedKey, "true");
-  }, [orderId]);
+  }, [orderId, orderedPackage]);
 
   return (
 
@@ -50,6 +59,16 @@ export default function ThankYou() {
       <p className="text-white/60 text-sm">
         Please save your order number for future communication.
       </p>
+
+      {orderedPackage && (
+        <p className="text-white/80 pt-4">
+          {orderedPackage.name}
+          {formatName && <> — {formatName}</>}
+          <span className="block text-white/50 text-sm mt-1">
+            {orderedPackage.delivery}
+          </span>
+        </p>
+      )}
 
     </div>
 
@@ -110,11 +129,14 @@ export default function ThankYou() {
 you can securely upload them here using your order session.
       </p>
 
+      {/* `/submit-memories` was never a registered route, so this button
+          used to lead nowhere. Point it at the contact section until an
+          upload page exists. */}
       <a
-        href="/submit-memories"
-        className="inline-block bg-gold text-black px-8 py-3 rounded-md font-medium hover:opacity-90 transition"
+        href="/#contact"
+        className="inline-block bg-gold text-ink px-8 py-3 rounded-md font-medium hover:opacity-90 transition"
       >
-        Upload Photos, Memories or Voice Notes
+        Send Photos, Memories or Voice Notes
       </a>
 
     </div>

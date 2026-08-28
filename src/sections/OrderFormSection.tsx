@@ -4,23 +4,24 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Upload, Info } from 'lucide-react';
 import { Link } from "react-router-dom";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  PACKAGES,
+  FORMATS,
+  getPackage,
+  getCheckoutTarget,
+  isFormatAllowed,
+  requiresShippingAddress,
+  formatPrice,
+  type FormatId,
+} from "../data/packages";
 
 gsap.registerPlugin(ScrollTrigger);
-<section id="order-form">
-  
-</section>
+
 const moodsList = [
   'Romantic','Adventurous','Relaxed','Upbeat','Celebration',
   'Nostalgia','Gratitude','Calm','Excitement','Reflection','Cinematic'
 ];
-
-const stripeLinks: Record<string, string> = {
-   moment: "https://buy.stripe.com/fZu28qcHWdPV3KO6qmbsc0a",
-  keepsake: "https://buy.stripe.com/7sY00i8rG5jpa9caGCbsc06",
-  journey: "https://buy.stripe.com/14A9AS23ibHNftwcOKbsc07",
-  heirloom: "https://buy.stripe.com/6oUaEWbDSfY39586qmbsc08",
-  bespoke: "https://buy.stripe.com/5kQ8wO9vKcLR3KO3eabsc09"
-};
 
 /**
  * Order-capture endpoints. These are ANCILLARY: they record the order for
@@ -63,13 +64,15 @@ const postOrderData = async (url: string, data: FormData): Promise<boolean> => {
   }
 };
 
-const packageOptions = [
-  { id: 'moment', name: 'Moment', price: '£29' },
-  { id: "keepsake", name: "Keepsake", price: "£79" },
-  { id: "journey", name: "Journey", price: "£199" },
-  { id: "heirloom", name: "Heirloom", price: "£349" },
-  { id: "bespoke", name: "Bespoke", price: "From £799" },
-];
+/**
+ * Packages with a single format have nothing to choose, so it is selected for
+ * the customer. Packages with several start empty and must be chosen.
+ */
+const defaultFormatFor = (packageId: string): string => {
+  const pkg = getPackage(packageId);
+  if (!pkg) return "";
+  return pkg.formats.length === 1 ? pkg.formats[0] : "";
+};
 
 const contactMethods = ['Email', 'WhatsApp', 'Phone'];
 type FormDataType = {
@@ -79,6 +82,14 @@ type FormDataType = {
   whatsapp: string;
   preferredContact: string;
   package: string;
+  /** One of the selected package's allowed formats. */
+  format: string;
+  /** Collected only when the chosen format is physical. */
+  shippingName: string;
+  shippingAddress: string;
+  shippingCity: string;
+  shippingPostcode: string;
+  shippingCountry: string;
   moods: string[];
   otherMood: string;
   genre: string;
@@ -114,6 +125,12 @@ const OrderFormSection = ({ selectedPackage }: OrderFormSectionProps) => {
   whatsapp: '',
   preferredContact: '',
   package: '',
+  format: '',
+  shippingName: '',
+  shippingAddress: '',
+  shippingCity: '',
+  shippingPostcode: '',
+  shippingCountry: '',
   moods: [],
   otherMood: '',
   genre: '',
@@ -135,9 +152,19 @@ const [submitError, setSubmitError] = useState<string | null>(null);
     setFormData((prev) => ({
       ...prev,
       package: selectedPackage,
+      // A format from a previous package may not be sold with this one.
+      format: defaultFormatFor(selectedPackage),
     }));
   }
 }, [selectedPackage]);
+
+// The package currently being ordered, and everything derived from it.
+const activePackage = getPackage(formData.package);
+const availableFormats = activePackage?.formats ?? [];
+const offersFormatChoice = availableFormats.length > 1;
+const needsShipping = activePackage
+  ? requiresShippingAddress(activePackage, formData.format)
+  : false;
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -195,16 +222,6 @@ const uploadArtwork = async (file: File) => {
   }
 };
 
-const packagePrices: Record<
-  string,
-  { GBP: number; USD: number }
-> = {
-  Keepsake: { GBP: 79, USD: 99 },
-  Journey: { GBP: 199, USD: 249 },
-  Heirloom: { GBP: 349, USD: 449 },
-  Bespoke: { GBP: 799, USD: 999 },
-};
-
 const validateForm = (): FormErrors => {
   const newErrors: FormErrors = {};
   const wordCount = formData.story.trim().split(/\s+/).filter(Boolean).length;
@@ -235,6 +252,31 @@ const validateForm = (): FormErrors => {
  if (!formData.package) {
   newErrors.package = "Please select a package";
 }
+
+  // Format must be one this package actually sells — never trust the value
+  // alone, since it survives a package change until reset.
+  const pkg = getPackage(formData.package);
+  if (pkg && pkg.formats.length > 0) {
+    if (!formData.format) {
+      newErrors.format = "Please choose how you'd like to receive your music";
+    } else if (!isFormatAllowed(pkg, formData.format)) {
+      newErrors.format = `${pkg.name} isn't available in that format`;
+    }
+  }
+
+  // Physical formats have to go somewhere.
+  if (pkg && requiresShippingAddress(pkg, formData.format)) {
+    if (!formData.shippingName.trim())
+      newErrors.shippingName = "Recipient name is required";
+    if (!formData.shippingAddress.trim())
+      newErrors.shippingAddress = "Delivery address is required";
+    if (!formData.shippingCity.trim())
+      newErrors.shippingCity = "Town or city is required";
+    if (!formData.shippingPostcode.trim())
+      newErrors.shippingPostcode = "Postcode or ZIP is required";
+    if (!formData.shippingCountry.trim())
+      newErrors.shippingCountry = "Country is required";
+  }
 
   if (formData.moods.length === 0 && !formData.otherMood.trim())
     newErrors.moods = "Select at least one mood";
@@ -278,7 +320,6 @@ const handleChange = <K extends keyof FormDataType>(
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault();
   const ref = getRef();
-console.log("Referral detected:", ref);
 
   if (isSubmitting) return;
 
@@ -305,21 +346,19 @@ console.log("Referral detected:", ref);
   setIsSubmitting(true);
 
   const selectedPackage = formData.package;
-  console.log("Selected package:", selectedPackage);
-  console.log("Available packages:", Object.keys(packagePrices));
 
-  // ✅ GET PRICES HERE (TOP LEVEL)
-  const normalizedPackage =
-  selectedPackage.charAt(0).toUpperCase() +
-  selectedPackage.slice(1).toLowerCase();
+  // Commercial values come from the central package data — never a local copy.
+  const orderedPackage = getPackage(selectedPackage);
 
-const selectedPrices =
-  packagePrices[normalizedPackage as keyof typeof packagePrices] || {
-    GBP: 0,
-    USD: 0,
-  };
+  if (!orderedPackage) {
+    setSubmitError(
+      "We couldn't identify that package. Please reselect your experience and try again."
+    );
+    setIsSubmitting(false);
+    return;
+  }
 
-const finalPrice = selectedPrices.GBP; // since you want GBP only
+  const finalPrice = orderedPackage.price.gbp;
 
   let artworkUpload = null;
 
@@ -338,7 +377,30 @@ if (formData.artwork) {
   zapierData.append("whatsapp", formData.whatsapp);
   zapierData.append("preferredContact", formData.preferredContact);
   zapierData.append("package", selectedPackage);
+  zapierData.append("packageName", orderedPackage.name);
   zapierData.append("price", String(finalPrice));
+  zapierData.append("priceGBP", String(orderedPackage.price.gbp));
+  zapierData.append("priceUSD", String(orderedPackage.price.usd));
+  zapierData.append("delivery", orderedPackage.delivery);
+
+  // Format must survive through to fulfilment — it determines what gets made.
+  const orderedFormat = formData.format;
+  zapierData.append("format", orderedFormat);
+  zapierData.append(
+    "formatName",
+    orderedFormat ? FORMATS[orderedFormat as FormatId].name : ""
+  );
+
+  const shipping = requiresShippingAddress(orderedPackage, orderedFormat);
+  zapierData.append("requiresShipping", String(shipping));
+
+  if (shipping) {
+    zapierData.append("shippingName", formData.shippingName);
+    zapierData.append("shippingAddress", formData.shippingAddress);
+    zapierData.append("shippingCity", formData.shippingCity);
+    zapierData.append("shippingPostcode", formData.shippingPostcode);
+    zapierData.append("shippingCountry", formData.shippingCountry);
+  }
   zapierData.append(
     "mood",
     formData.otherMood
@@ -362,16 +424,22 @@ if (formData.artwork) {
   // service, so a webhook/automation outage can never be mistaken for
   // — or turn into — a payment failure.
   // ---------------------------------------------------------------
-  const stripeUrl = stripeLinks[formData.package];
+  const checkout = getCheckoutTarget(orderedPackage, orderedFormat);
 
-  if (!stripeUrl) {
-    // A genuine purchase-path failure. Surface it; do not swallow it.
+  if (!checkout?.url) {
+    // Either an unsold combination, or a Payment Link that has not been
+    // created yet. Refuse the sale rather than strand the customer on a
+    // dead checkout page.
     setSubmitError(
-      "We couldn't open the secure payment page for that package. Please refresh and try again, or contact us and we'll take your order directly."
+      `${orderedPackage.name}${
+        orderedFormat ? ` on ${FORMATS[orderedFormat as FormatId].name}` : ""
+      } can't be checked out online just yet. Please contact us and we'll complete your order personally — your details are safe and nothing has been charged.`
     );
     setIsSubmitting(false);
     return;
   }
+
+  const stripeUrl = checkout.url;
 
   // Ancillary order capture. Every attempt is isolated: a rejection here
   // is recorded and ignored, never propagated to the customer.
@@ -382,8 +450,9 @@ if (formData.artwork) {
   // STRIPE
   const referral = localStorage.getItem("referral") || "direct";
 
-  // Store selected package for conversion tracking on thank you page
+  // Carried to the thank-you page for conversion tracking and confirmation.
   localStorage.setItem("last_order_package", formData.package);
+  localStorage.setItem("last_order_format", orderedFormat);
 
   const finalUrl = `${stripeUrl}?client_reference_id=${encodeURIComponent(referral)}`;
   window.location.href = finalUrl;
@@ -396,23 +465,20 @@ if (formData.artwork) {
         <div className="order-form-field max-w-3xl mx-auto">
 
           <div className="order-heading text-center mb-10">
-  <p className="label-uppercase text-gold mb-3">Get Started</p>
+  <p className="label-uppercase text-gold-deep mb-3">Get Started</p>
   <h2 
     className="order-heading text-4xl md:text-5xl text-espresso mb-4"
-    style={{ fontFamily: 'Playfair Display, serif' }}
   >
     Tell us your story — we’ll turn it into something unforgettable
   </h2>
   <p 
     className="order-heading text-espresso/60"
-    style={{ fontFamily: 'Arimo, sans-serif' }}
   >
     Most clients hear back within 12 hours with a concept & pricing.
  </p>
 
     <p 
     className="order-heading text-espresso/60"
-    style={{ fontFamily: 'Arimo, sans-serif' }}
   >
     Your information is secure and handled with complete confidentiality.
 
@@ -426,9 +492,9 @@ if (formData.artwork) {
 
  {/* CONTACT */}
 <div className="order-form-field space-y-4">
-  <h1 className="label-uppercase text-gold">
+  <h3 className="label-uppercase text-gold-deep">
     Step 1 — Contact Details
-  </h1>
+  </h3>
 
   {/* First + Last Name */}
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -525,9 +591,9 @@ if (formData.artwork) {
  
 
   {/* Step 2 — Package Selection */}
-<h1 className="label-uppercase text-gold">
+<h3 className="label-uppercase text-gold-deep">
   Step 2 — Package Selection
-</h1>
+</h3>
 
 <div
   data-field="package"
@@ -536,25 +602,28 @@ if (formData.artwork) {
   }`}
 >
   <div className="flex flex-wrap gap-3">
-    {packageOptions.map((pkg) => (
+    {PACKAGES.map((pkg) => (
       <button
-        key={pkg.name}
+        key={pkg.id}
         type="button"
+        aria-pressed={formData.package === pkg.id}
         onClick={() =>
           setFormData((prev) => ({
             ...prev,
             package: pkg.id,
+            // Reset the format: the previous choice may not be sold here.
+            format: defaultFormatFor(pkg.id),
           }))
         }
         className={`px-5 py-3 rounded-xl transition-all text-left ${
-          formData.package === pkg.name.toLowerCase()
-            ? "bg-gold text-espresso"
+          formData.package === pkg.id
+            ? "bg-gold text-ink"
             : "bg-ivory border border-espresso/10 text-espresso/70 hover:border-gold"
         }`}
       >
         <div className="font-medium">{pkg.name}</div>
-        <div className="order-heading text-sm opacity-70">
-          {pkg.price}
+        <div className="text-sm opacity-70">
+          {formatPrice(pkg)}
         </div>
       </button>
     ))}
@@ -567,12 +636,175 @@ if (formData.artwork) {
   </p>
 )}
 
+{/* ---- Format: only where there is genuinely a choice to make ---- */}
+{activePackage && availableFormats.length > 0 && (
+  <div className="order-form-field space-y-4 pt-2">
+    <div>
+      <h3 className="label-uppercase text-gold-deep">
+        {offersFormatChoice ? "How would you like to receive it?" : "How it arrives"}
+      </h3>
+      {offersFormatChoice && (
+        <p className="text-sm text-espresso/60 mt-2">
+          Every format costs the same — choose whichever you'd rather hold.
+        </p>
+      )}
+    </div>
+
+    {offersFormatChoice ? (
+      <div data-field="format">
+        <RadioGroup
+          value={formData.format}
+          onValueChange={(value) => handleChange("format", value)}
+          aria-label={`Format for ${activePackage.name}`}
+          className={`grid gap-3 ${
+            availableFormats.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3"
+          } ${errors.format ? "p-3 rounded-xl border border-red-500" : ""}`}
+        >
+          {availableFormats.map((formatId) => {
+            const format = FORMATS[formatId];
+            const isSelected = formData.format === formatId;
+            return (
+              <label
+                key={formatId}
+                htmlFor={`format-${formatId}`}
+                className={`flex gap-3 items-start cursor-pointer rounded-xl border p-4 transition-all ${
+                  isSelected
+                    ? "border-gold bg-gold/5"
+                    : "border-espresso/10 bg-ivory hover:border-gold/50"
+                }`}
+              >
+                <RadioGroupItem
+                  value={formatId}
+                  id={`format-${formatId}`}
+                  className="mt-1 border-espresso/30 text-gold"
+                />
+                <span className="flex flex-col gap-1">
+                  <span className="font-medium text-espresso text-sm">
+                    {format.name}
+                  </span>
+                  <span className="text-xs text-espresso/60 leading-relaxed">
+                    {format.summary}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+        </RadioGroup>
+
+        {errors.format && (
+          <p className="text-red-500 text-sm mt-2">{errors.format}</p>
+        )}
+      </div>
+    ) : (
+      <p className="text-sm text-espresso/70 bg-ivory border border-espresso/10 rounded-xl px-4 py-3">
+        {FORMATS[availableFormats[0]].name} — {FORMATS[availableFormats[0]].summary}
+      </p>
+    )}
+  </div>
+)}
+
+{/* ---- Delivery address: physical formats only ---- */}
+{needsShipping && (
+  <div className="order-form-field space-y-4 pt-2">
+    <div>
+      <h3 className="label-uppercase text-gold-deep">Where should we send it?</h3>
+      <p className="text-sm text-espresso/60 mt-2">
+        We only ask for this because you've chosen something we post to you.
+      </p>
+    </div>
+
+    <div className="space-y-4">
+      <div data-field="shippingName">
+        <input
+          name="shippingName"
+          placeholder="Recipient name *"
+          value={formData.shippingName}
+          onChange={(e) => handleChange("shippingName", e.target.value)}
+          autoComplete="name"
+          className={`w-full px-4 py-3 border rounded-xl ${
+            errors.shippingName ? "border-red-500" : "border-espresso/10"
+          }`}
+        />
+        {errors.shippingName && (
+          <p className="text-red-500 text-xs mt-1">{errors.shippingName}</p>
+        )}
+      </div>
+
+      <div data-field="shippingAddress">
+        <input
+          name="shippingAddress"
+          placeholder="Address *"
+          value={formData.shippingAddress}
+          onChange={(e) => handleChange("shippingAddress", e.target.value)}
+          autoComplete="street-address"
+          className={`w-full px-4 py-3 border rounded-xl ${
+            errors.shippingAddress ? "border-red-500" : "border-espresso/10"
+          }`}
+        />
+        {errors.shippingAddress && (
+          <p className="text-red-500 text-xs mt-1">{errors.shippingAddress}</p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div data-field="shippingCity">
+          <input
+            name="shippingCity"
+            placeholder="Town or city *"
+            value={formData.shippingCity}
+            onChange={(e) => handleChange("shippingCity", e.target.value)}
+            autoComplete="address-level2"
+            className={`w-full px-4 py-3 border rounded-xl ${
+              errors.shippingCity ? "border-red-500" : "border-espresso/10"
+            }`}
+          />
+          {errors.shippingCity && (
+            <p className="text-red-500 text-xs mt-1">{errors.shippingCity}</p>
+          )}
+        </div>
+
+        <div data-field="shippingPostcode">
+          <input
+            name="shippingPostcode"
+            placeholder="Postcode or ZIP *"
+            value={formData.shippingPostcode}
+            onChange={(e) => handleChange("shippingPostcode", e.target.value)}
+            autoComplete="postal-code"
+            className={`w-full px-4 py-3 border rounded-xl ${
+              errors.shippingPostcode ? "border-red-500" : "border-espresso/10"
+            }`}
+          />
+          {errors.shippingPostcode && (
+            <p className="text-red-500 text-xs mt-1">{errors.shippingPostcode}</p>
+          )}
+        </div>
+      </div>
+
+      <div data-field="shippingCountry">
+        <input
+          name="shippingCountry"
+          placeholder="Country *"
+          value={formData.shippingCountry}
+          onChange={(e) => handleChange("shippingCountry", e.target.value)}
+          autoComplete="country-name"
+          className={`w-full px-4 py-3 border rounded-xl ${
+            errors.shippingCountry ? "border-red-500" : "border-espresso/10"
+          }`}
+        />
+        {errors.shippingCountry && (
+          <p className="text-red-500 text-xs mt-1">{errors.shippingCountry}</p>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+
 
 {/* MOOD */}
 <div className="order-form-field space-y-4">
-  <h1 className="label-uppercase text-gold">
+  <h3 className="label-uppercase text-gold-deep">
     Step 3 — Mood
-  </h1>
+  </h3>
 
   <div
     data-field="moods"
@@ -616,9 +848,9 @@ if (formData.artwork) {
 
             {/* Genre */}
 <div className="order-form-field space-y-4">
-  <h1 className="label-uppercase text-gold">
+  <h3 className="label-uppercase text-gold-deep">
     Step 4 — Genre
-  </h1>
+  </h3>
 
   <select
     value={formData.genre}
@@ -659,9 +891,9 @@ if (formData.artwork) {
 
             {/* Step 4: Personal Touches */}
 <div className="order-form-field space-y-4">
-  <h1 className="label-uppercase text-gold">
+  <h3 className="label-uppercase text-gold-deep">
     Step 5 — Personal Touches (Optional)
-  </h1>
+  </h3>
 
   <input
     type="text"
@@ -711,13 +943,12 @@ if (formData.artwork) {
 
             {/* STORY */}
             <div className="order-form-field space-y-4">
-  <h1 className="label-uppercase text-gold">
+  <h3 className="label-uppercase text-gold-deep">
     Step 6 — Your Words Matter
-  </h1>
+  </h3>
 
   <p 
     className="order-heading text-sm text-espresso/60"
-    style={{ fontFamily: 'Arimo, sans-serif' }}
   >
     You do not need to write lyrics — simply share memories and feelings. (Up to 2000 words)
   </p>
@@ -738,9 +969,9 @@ if (formData.artwork) {
             </div>
 
   {/* TERMS */}
-<h1 className="label-uppercase text-gold">
+<h3 className="label-uppercase text-gold-deep">
   Step 7 — Confirmation
-</h1>
+</h3>
 
 <div className="order-form-field" data-field="agreeTerms">
   <label
@@ -761,13 +992,13 @@ if (formData.artwork) {
 
     <span className="order-heading text-sm md:text-base leading-relaxed">
       I confirm that I have read and agree to the{" "}
-<Link to="/legal/terms" target="_blank" className="text-gold underline">
+<Link to="/legal/terms" target="_blank" className="text-gold-deep underline">
   Terms & Conditions
 </Link>,{" "}
-<Link to="/legal/privacy" target="_blank" className="text-gold underline">
+<Link to="/legal/privacy" target="_blank" className="text-gold-deep underline">
   Privacy Policy
 </Link>, and{" "}
-<Link to="/legal/refund" target="_blank" className="text-gold underline">
+<Link to="/legal/refund" target="_blank" className="text-gold-deep underline">
   Refund Policy
 </Link>{" "}
 of My Custom Beats, and understand that this is a personalised, made-to-order digital product.
@@ -786,6 +1017,77 @@ of My Custom Beats, and understand that this is a personalised, made-to-order di
     </p>
   )}
 </div>
+
+            {/* ---- Order summary: what am I actually buying? ---- */}
+            {activePackage && (
+              <section
+                aria-labelledby="order-summary-heading"
+                className="order-form-field rounded-2xl border border-gold/30 bg-ivory p-6"
+              >
+                <h3
+                  id="order-summary-heading"
+                  className="font-serif text-2xl text-espresso mb-1"
+                >
+                  Your order
+                </h3>
+                <p className="text-sm text-espresso/60 mb-5">
+                  {activePackage.positioning}
+                </p>
+
+                <dl className="divide-y divide-espresso/10 text-sm">
+                  <div className="flex justify-between gap-6 py-3">
+                    <dt className="text-espresso/60">Experience</dt>
+                    <dd className="text-espresso font-medium text-right">
+                      {activePackage.name}
+                    </dd>
+                  </div>
+
+                  {formData.format && (
+                    <div className="flex justify-between gap-6 py-3">
+                      <dt className="text-espresso/60">Format</dt>
+                      <dd className="text-espresso font-medium text-right">
+                        {FORMATS[formData.format as FormatId].name}
+                      </dd>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between gap-6 py-3">
+                    <dt className="text-espresso/60">Delivery</dt>
+                    <dd className="text-espresso text-right">
+                      {activePackage.delivery}
+                      {needsShipping && (
+                        <span className="block text-xs text-espresso/50 mt-0.5">
+                          Posted to your delivery address
+                        </span>
+                      )}
+                    </dd>
+                  </div>
+
+                  <div className="flex justify-between gap-6 py-3">
+                    <dt className="text-espresso/60">Includes</dt>
+                    <dd className="text-espresso/80 text-right max-w-xs">
+                      {activePackage.songCount
+                        ? `${activePackage.songCount} personalised ${
+                            activePackage.songCount === 1 ? "song" : "songs"
+                          }, ${activePackage.revisions.toLowerCase()}`
+                        : activePackage.revisions}
+                    </dd>
+                  </div>
+
+                  <div className="flex justify-between gap-6 pt-4">
+                    <dt className="text-espresso font-medium">Total</dt>
+                    <dd className="text-right">
+                      <span className="font-serif text-2xl text-espresso">
+                        {formatPrice(activePackage)}
+                      </span>
+                      <span className="text-espresso/50 text-xs ml-2">
+                        {formatPrice(activePackage, "usd")}
+                      </span>
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+            )}
 
             {submitError && (
               <p
