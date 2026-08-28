@@ -23,7 +23,7 @@ const Footer = () => {
 >
   {/* Logo */}
   <img
-    src="/logo-light.png"
+    src="/images/brand/MCB-Logo-Final.png"
     alt="My Custom Beats"
     className="h-16 lg:h-40 w-auto object-contain"
   />

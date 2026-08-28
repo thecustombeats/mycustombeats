@@ -86,7 +86,7 @@ const Products = () => {
                 {product.image ? (
                   <img
                     src={product.image}
-                    alt={product.title}
+                    alt={product.alt ?? product.title}
                     loading="lazy"
                     decoding="async"
                     className="w-full h-full object-cover transition duration-700"

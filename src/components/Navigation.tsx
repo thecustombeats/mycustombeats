@@ -11,9 +11,9 @@ const Navigation = () => {
   ? 'text-espresso'
   : 'text-[rgba(251,249,246,0.85)]';
 
-const logoSrc = isScrolled
-  ? '/logo-dark.png'
-  : '/logo-light.png';
+// The approved MCB logo is a transparent PNG that reads on both the ivory
+// header and the dark hero, so one asset serves every scroll state.
+const logoSrc = '/images/brand/MCB-Logo-Final.png';
 
   const location = useLocation();
  

@@ -6,20 +6,20 @@
  *
  * ASSETS
  * ------
- * `image` is omitted where no photograph exists. Components must render a
- * typographic treatment in that case rather than a broken or borrowed image.
- * CD is currently the only entry without artwork — it became a selectable
- * format for Keepsake, Journey and Heirloom, but no product photograph has
- * been supplied. Nothing here describes manufacturing, materials or
- * specifications that have not been provided.
+ * `image` is omitted where no photograph exists, and components fall back to
+ * an illustrative mark rather than a broken or borrowed image. Every entry
+ * currently has approved artwork. Nothing here describes manufacturing,
+ * materials or specifications that have not been provided.
  */
 
 export interface Keepsake {
   id: string;
   title: string;
   description: string;
-  /** Path under /images/products/. Omitted when no photograph exists yet. */
+  /** Public path to the product photograph. Omitted when none exists yet. */
   image?: string;
+  /** Overrides the default alt text (the title) where more detail helps. */
+  alt?: string;
   /** True when the item is also selectable as a delivery format at checkout. */
   isCheckoutFormat: boolean;
 }
@@ -37,6 +37,8 @@ export const KEEPSAKES: readonly Keepsake[] = [
     title: "CD",
     description:
       "Your music on disc, presented with your custom cover artwork.",
+    image: "/images/brand/CD.png",
+    alt: "MCB CD — personalised music keepsake",
     isCheckoutFormat: true,
   },
   {

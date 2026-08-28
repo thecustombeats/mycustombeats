@@ -195,7 +195,7 @@ useEffect(() => {
               {item.image ? (
                 <img
                   src={item.image}
-                  alt={item.title}
+                  alt={item.alt ?? item.title}
                   loading="lazy"
                   decoding="async"
                   className="w-full h-[240px] object-cover"
