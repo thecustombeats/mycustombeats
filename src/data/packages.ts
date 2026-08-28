@@ -197,12 +197,12 @@ export const KEEPSAKE: McbPackage<"vinyl" | "cd" | "mp3"> = {
       stripeProductName: "MCB Keepsake — MP3",
     },
     vinyl: {
-      url: null,
+      url: "https://buy.stripe.com/dRmfZg4bq6nta9c3eabsc0c",
       requiresShipping: true,
       stripeProductName: "MCB Keepsake — Vinyl",
     },
     cd: {
-      url: null,
+      url: "https://buy.stripe.com/9B66oG37m4fl6X001Ybsc0d",
       requiresShipping: true,
       stripeProductName: "MCB Keepsake — CD",
     },
@@ -236,12 +236,12 @@ export const JOURNEY: McbPackage<"vinyl" | "cd"> = {
   formats: ["vinyl", "cd"],
   checkout: {
     vinyl: {
-      url: null,
+      url: "https://buy.stripe.com/14A9AS23ibHNftwcOKbsc07",
       requiresShipping: true,
       stripeProductName: "MCB Journey — Vinyl",
     },
     cd: {
-      url: null,
+      url: "https://buy.stripe.com/00w3cueQ4bHNa9c162bsc0e",
       requiresShipping: true,
       stripeProductName: "MCB Journey — CD",
     },
@@ -276,12 +276,12 @@ export const HEIRLOOM: McbPackage<"vinyl" | "cd"> = {
   formats: ["vinyl", "cd"],
   checkout: {
     vinyl: {
-      url: null,
+      url: "https://buy.stripe.com/6oUaEWbDSfY39586qmbsc08",
       requiresShipping: true,
       stripeProductName: "MCB Heirloom — Vinyl",
     },
     cd: {
-      url: null,
+      url: "https://buy.stripe.com/14AcN47nC3bhftwaGCbsc0f",
       requiresShipping: true,
       stripeProductName: "MCB Heirloom — CD",
     },
