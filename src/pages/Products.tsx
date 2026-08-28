@@ -1,6 +1,7 @@
 
 import { Helmet } from "react-helmet-async";
 import { KEEPSAKES } from "../data/keepsakes";
+import CdDiscMark from "../components/CdDiscMark";
 import { canonical, breadcrumbStructuredData } from "../lib/seo";
 
 
@@ -91,14 +92,8 @@ const Products = () => {
                     className="w-full h-full object-cover transition duration-700"
                   />
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-ivory border border-espresso/10 rounded-2xl px-8 text-center">
-                    <span className="font-serif text-5xl text-espresso/80">
-                      {product.title}
-                    </span>
-                    <span className="h-px w-10 bg-gold/60 my-5" aria-hidden="true" />
-                    <span className="label-uppercase text-espresso/40">
-                      Available at checkout
-                    </span>
+                  <div className="w-full h-full flex items-center justify-center bg-ivory border border-espresso/10 rounded-2xl p-10">
+                    <CdDiscMark className="w-full h-full max-w-[300px]" />
                   </div>
                 )}
               </div>

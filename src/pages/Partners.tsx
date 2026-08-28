@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { trackFormSubmit } from "../lib/analytics";
+import { Helmet } from "react-helmet-async";
 
 // ─── Inline SVG Icons ───────────────────────────────────────────────────────
 const IconCruise = () => (
@@ -224,6 +225,11 @@ export default function PartnersPage() {
 
 
   return (
+    <>
+      <Helmet>
+        <title>Hospitality &amp; Cruise Partnerships | My Custom Beats</title>
+        <meta name="description" content="Personalised music as a guest experience for hotels, resorts, cruise lines and event partners." />
+      </Helmet>
     <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", color: "#2c2418", background: "#faf8f4" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap');
@@ -884,5 +890,6 @@ export default function PartnersPage() {
         </div>
       </section>
     </div>
+    </>
   );
 }

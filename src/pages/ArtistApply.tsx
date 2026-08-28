@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
 import { trackFormSubmit } from "../lib/analytics";
+import { Helmet } from "react-helmet-async";
 
 const ArtistApply = () => {
 
@@ -69,6 +70,11 @@ const ArtistApply = () => {
   }
 
   return (
+    <>
+      <Helmet>
+        <title>Apply as an Artist | My Custom Beats</title>
+        <meta name="description" content="Join the MCB collective of professional musicians creating personalised songs for clients worldwide." />
+      </Helmet>
     <section className="py-24 px-[7vw] max-w-4xl mx-auto">
 
       <h1 className="text-4xl font-serif text-espresso mb-6">
@@ -146,6 +152,7 @@ const ArtistApply = () => {
       </form>
 
     </section>
+    </>
   )
 }
 

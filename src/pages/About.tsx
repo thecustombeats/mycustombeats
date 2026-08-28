@@ -75,10 +75,10 @@ const AboutSection = () => {
 
     <>
     <Helmet>
-  <title>Custom Song Packages & Pricing | My Custom Beats</title>
+  <title>Our Story — The People Behind My Custom Beats</title>
   <meta
     name="description"
-    content="Explore our custom song packages designed for every occasion. Premium music production tailored to your story and budget."
+    content="Meet the founders and the global collective of professional musicians who turn your memories into personalised songs and keepsakes."
   />
 </Helmet>
 
@@ -100,12 +100,12 @@ const AboutSection = () => {
 
       {/* Heading */}
       <div className="text-center mb-16 px-[7vw]">
-        <span className="label-uppercase text-gold mb-4 block tracking-[0.15em]">
+        <span className="label-uppercase text-gold-deep mb-4 block tracking-[0.15em]">
           Our Founders
         </span>
-        <h2 className="font-serif text-espresso">
+        <h1 className="font-serif text-espresso">
           The Vision Behind My Custom Beats
-        </h2>
+        </h1>
       </div>
 
       {/* Founders Grid */}

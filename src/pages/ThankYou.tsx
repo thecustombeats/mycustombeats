@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { trackPurchase } from "../lib/analytics";
 import { getPackage, FORMATS, type FormatId } from "../data/packages";
+import { Helmet } from "react-helmet-async";
 
 export default function ThankYou() {
   const params = new URLSearchParams(window.location.search);
@@ -38,6 +39,11 @@ export default function ThankYou() {
   }, [orderId, orderedPackage]);
 
   return (
+   <>
+     <Helmet>
+       <title>Order received | My Custom Beats</title>
+       <meta name="description" content="Your order is confirmed and our composers are reviewing your story." />
+     </Helmet>
 
    <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
   <div className="max-w-2xl text-center">
@@ -148,5 +154,6 @@ you can securely upload them here using your order session.
 
   </div>
 </div>
+   </>
   );
 }

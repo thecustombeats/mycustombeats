@@ -32,7 +32,10 @@ import { Helmet } from "react-helmet-async";
 import { Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import { KEEPSAKES } from "./data/keepsakes";
+import CdDiscMark from "./components/CdDiscMark";
 import { siteStructuredData, canonical } from "./lib/seo";
+import RouteErrorBoundary from "./components/RouteErrorBoundary";
+import NotFound from "./pages/NotFound";
 
 
 
@@ -198,11 +201,8 @@ useEffect(() => {
                   className="w-full h-[240px] object-cover"
                 />
               ) : (
-                <div className="w-full h-[240px] flex flex-col items-center justify-center bg-ivory text-center px-6">
-                  <span className="font-serif text-4xl text-espresso/80">
-                    {item.title}
-                  </span>
-                  <span className="h-px w-8 bg-gold/60 mt-4" aria-hidden="true" />
+                <div className="w-full h-[240px] flex items-center justify-center bg-ivory p-6">
+                  <CdDiscMark className="h-full w-auto" />
                 </div>
               )}
             </div>
@@ -310,7 +310,10 @@ function ScrollToTop() {
 // 👇 This handles routing
 function App() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    // A lazy route chunk that fails to load used to unmount the whole tree,
+    // leaving a blank page. The boundary catches it and recovers.
+    <RouteErrorBoundary>
+    <Suspense fallback={<div className="min-h-screen bg-ivory" />}>
       <ScrollToTop />
       <Routes>
 
@@ -384,9 +387,13 @@ function App() {
         <Route path="/artist-thank-you" element={<Layout><ArtistThankYou /></Layout>} />
         <Route path="/partner-thank-you" element={<Layout><PartnerThankYou /></Layout>} />
 
+        {/* Anything unmatched. Without this, a mistyped address rendered
+            nothing and was indistinguishable from a crash. */}
+        <Route path="*" element={<Layout><NotFound /></Layout>} />
 
       </Routes>
     </Suspense>
+    </RouteErrorBoundary>
   );
 }
 
