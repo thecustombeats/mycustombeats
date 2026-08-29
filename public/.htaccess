@@ -20,6 +20,7 @@
   # "Failed to fetch dynamically imported module" — the blank-page symptom —
   # while every automated check saw a healthy 200. Letting these 404 makes a
   # broken or partial upload immediately visible instead of silently fatal.
+  RewriteCond %{REQUEST_FILENAME} !-f
   RewriteRule ^assets/ - [L,R=404]
 
   # Everything else that is not a real file or directory is a client route.
