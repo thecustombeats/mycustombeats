@@ -1,8 +1,73 @@
+# My Custom Beats — Apache / LiteSpeed configuration
+#
+# Copied verbatim into dist/ by the Vite build, so this file is the source of
+# truth. Edit it here, never in dist/.
+
+# ---------------------------------------------------------------------------
+# 1. SPA routing
+# ---------------------------------------------------------------------------
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
+
   RewriteRule ^index\.html$ - [L]
+
+  # Build output must NEVER fall through to index.html.
+  #
+  # Without this, a request for a chunk that is no longer on the server
+  # returned "200 OK" with the HTML shell as its body. The browser then
+  # failed to parse that HTML as a JavaScript module, which surfaced as
+  # "Failed to fetch dynamically imported module" — the blank-page symptom —
+  # while every automated check saw a healthy 200. Letting these 404 makes a
+  # broken or partial upload immediately visible instead of silently fatal.
+  RewriteRule ^assets/ - [L,R=404]
+
+  # Everything else that is not a real file or directory is a client route.
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
+</IfModule>
+
+# ---------------------------------------------------------------------------
+# 2. Caching
+# ---------------------------------------------------------------------------
+<IfModule mod_headers.c>
+
+  # The application shell must always be revalidated.
+  #
+  # It previously carried no Cache-Control at all, so browsers applied
+  # heuristic freshness (roughly a tenth of the time since Last-Modified).
+  # With a shell several weeks old that is days of caching, which is how a
+  # visitor ends up running an old index.html against a newly deployed asset
+  # set: stale chunk names, missing modules, blank pages, and an old logo
+  # from the previously cached bundle.
+  <FilesMatch "\.(html)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+
+  # Build output is content-hashed: a change to the file changes its name,
+  # so these can be cached indefinitely and never go stale.
+  <FilesMatch "\.(js|css)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+
+  # Images, audio, video and fonts under public/ keep stable filenames, so
+  # they are cached for a day and then revalidated rather than pinned.
+  <FilesMatch "\.(png|jpe?g|gif|svg|webp|avif|ico|mp3|mp4|webm|woff2?)$">
+    Header set Cache-Control "public, max-age=86400, must-revalidate"
+  </FilesMatch>
+
+  # Crawler-facing files should not be pinned either.
+  <FilesMatch "^(robots\.txt|sitemap\.xml)$">
+    Header set Cache-Control "public, max-age=3600, must-revalidate"
+  </FilesMatch>
+
+</IfModule>
+
+# ---------------------------------------------------------------------------
+# 3. Compression
+# ---------------------------------------------------------------------------
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/plain text/xml \
+    application/javascript application/json image/svg+xml
 </IfModule>

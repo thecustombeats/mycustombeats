@@ -17,9 +17,9 @@ export default function Occasions() {
   }, []);
 
   const occasions = [
-    { title: "Wedding Songs", hook: "Your love story, told in music.", desc: "From walking down the aisle to your first dance...", type: "video", src: "/videos/wedding.mp4", poster: "/images/occasions/wedding.jpg" },
-    { title: "Anniversary Songs", hook: "Relive every chapter together.", desc: "Celebrate your journey...", type: "video", src: "/videos/anniversary.mp4", poster: "/images/occasions/anniversary.jpg" },
-    { title: "Birthday Songs", hook: "More than a gift — a memory.", desc: "Turn laughter into music...", type: "video", src: "/videos/birthday.mp4", poster: "/images/occasions/birthday.jpg" },
+    { title: "Wedding Songs", hook: "Your love story, told in music.", desc: "From walking down the aisle to your first dance...", type: "video", src: "/videos/wedding.mp4", poster: "/images/moments/wedding.jpg" },
+    { title: "Anniversary Songs", hook: "Relive every chapter together.", desc: "Celebrate your journey...", type: "video", src: "/videos/anniversary.mp4", poster: "/images/moments/anniversary.jpg" },
+    { title: "Birthday Songs", hook: "More than a gift — a memory.", desc: "Turn laughter into music...", type: "video", src: "/videos/birthday.mp4", poster: "/images/moments/birthday.jpg" },
     { title: "Proposal Songs", hook: "Say it in the most unforgettable way.", desc: "Create the perfect moment...", type: "image", src: "/images/occasions/proposal.jpg" },
     { title: "Graduation Songs", hook: "Celebrate the journey and the future.", desc: "Mark this milestone...", type: "image", src: "/images/occasions/graduation.jpg" },
     { title: "Memorial Tributes", hook: "A life remembered through music.", desc: "Honour your loved ones...", type: "image", src: "/images/occasions/memorial.jpg" },
@@ -69,11 +69,11 @@ export default function Occasions() {
             {occasions.map((item, index) => (
               <div key={index} className="border border-black/10 rounded-2xl bg-white overflow-hidden hover:shadow-xl transition">
                 {item.type === "video" ? (
-                  <video autoPlay loop muted playsInline poster={item.poster || "/images/fallback.jpg"} className="w-full h-56 object-cover">
+                  <video autoPlay loop muted playsInline poster={item.poster || "/images/hero-poster.jpg"} className="w-full h-56 object-cover">
                     <source src={item.src} type="video/mp4" />
                   </video>
                 ) : (
-                  <img src={item.src || "/images/fallback.jpg"} alt={`Custom song for ${item.title}. ${item.hook} ${item.desc}`} className="w-full h-56 object-cover" />
+                  <img src={item.src || "/images/hero-poster.jpg"} alt={`Custom song for ${item.title}. ${item.hook} ${item.desc}`} className="w-full h-56 object-cover" />
                 )}
 
                 {/* Card Content */}
