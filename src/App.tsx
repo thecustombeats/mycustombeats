@@ -25,7 +25,6 @@ import ArtistApply from "./pages/ArtistApply";
 import ArtistThankYou from "./pages/ArtistThankYou"
 import PartnerThankYou from "./pages/PartnerThankYou"
 import Affiliate from "./pages/Affiliate";
-import { supabase } from "./lib/supabaseClient";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
 
 import { Helmet } from "react-helmet-async";
@@ -80,53 +79,33 @@ function MainSite() {
   };
 
   useEffect(() => {
-  const trackClick = async () => {
-    const params = new URLSearchParams(window.location.search);
-    const ref = params.get("ref");
-
-    if (!ref) return;
-
-    // prevent duplicate tracking (same user refresh)
-    const alreadyTracked = sessionStorage.getItem(`ref_${ref}`);
-    if (alreadyTracked) return;
-
-    // find affiliate
-    const { data: affiliate } = await supabase
-      .from("affiliates")
-      .select("id")
-      .eq("username", ref)
-      .single();
-
-    if (!affiliate) return;
-
-    // insert click record
-    await supabase.from("clicks").insert([
-      {
-        affiliate_id: affiliate.id,
-        username: ref,
-        user_agent: navigator.userAgent,
-      },
-    ]);
-
-    // increment total clicks
-    await supabase.rpc("increment_clicks", {
-      user_id: affiliate.id,
-    });
-
-    // mark as tracked (avoid duplicates)
-    sessionStorage.setItem(`ref_${ref}`, "true");
-  };
-
-  trackClick();
-}, []);
-
-useEffect(() => {
+  // Capture attribution once per arrival, then tell the server.
+  //
+  // Replaces three Supabase round-trips (resolve username, insert click,
+  // increment counter) with one call to MCB's own endpoint, which does all
+  // three inside a transaction. The browser sends only the string it saw in
+  // the URL; the server resolves who — if anyone — that credits.
   const params = new URLSearchParams(window.location.search);
   const ref = params.get("ref");
+  const partner = params.get("partner");
 
-  if (ref) {
-    localStorage.setItem("referral", ref);
-  }
+  // localStorage is the single authoritative attribution store. It survives
+  // the journey to the order form and on to Stripe.
+  if (ref) localStorage.setItem("referral", ref);
+  if (partner) localStorage.setItem("partner", partner);
+
+  if (!ref) return;
+
+  // One click per referral per session, so a refresh cannot inflate a counter.
+  if (sessionStorage.getItem(`ref_${ref}`)) return;
+  sessionStorage.setItem(`ref_${ref}`, "true");
+
+  // Fire and forget: a click that fails to record must never affect the visit.
+  fetch("/api/affiliate/click", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ref }),
+  }).catch(() => {});
 }, []);
 
   return (

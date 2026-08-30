@@ -1,0 +1,98 @@
+{
+  "_generated": "Do not edit. Generated from src/data/packages.ts by scripts/generate-packages-json.mjs",
+  "formats": {
+    "vinyl": {
+      "name": "High-quality 12\" Black Vinyl",
+      "is_physical": true
+    },
+    "cd": {
+      "name": "CD",
+      "is_physical": true
+    },
+    "mp3": {
+      "name": "MP3",
+      "is_physical": false
+    }
+  },
+  "packages": {
+    "moment": {
+      "name": "Moment",
+      "price_gbp": 10,
+      "price_usd": 14,
+      "price_prefix": null,
+      "song_count": 1,
+      "delivery": "Delivered within 1 hour",
+      "formats": [
+        "mp3"
+      ],
+      "fulfilment": {
+        "mp3": "DIGITAL"
+      },
+      "default_fulfilment": null
+    },
+    "keepsake": {
+      "name": "Keepsake",
+      "price_gbp": 79,
+      "price_usd": 99,
+      "price_prefix": null,
+      "song_count": 1,
+      "delivery": "Delivered within 15 working days",
+      "formats": [
+        "vinyl",
+        "cd",
+        "mp3"
+      ],
+      "fulfilment": {
+        "vinyl": "PHYSICAL",
+        "cd": "PHYSICAL",
+        "mp3": "DIGITAL"
+      },
+      "default_fulfilment": null
+    },
+    "journey": {
+      "name": "Journey",
+      "price_gbp": 199,
+      "price_usd": 249,
+      "price_prefix": null,
+      "song_count": 4,
+      "delivery": "Delivered within 15 working days",
+      "formats": [
+        "vinyl",
+        "cd"
+      ],
+      "fulfilment": {
+        "vinyl": "PHYSICAL",
+        "cd": "PHYSICAL"
+      },
+      "default_fulfilment": null
+    },
+    "heirloom": {
+      "name": "Heirloom",
+      "price_gbp": 349,
+      "price_usd": 449,
+      "price_prefix": null,
+      "song_count": 7,
+      "delivery": "Delivered within 15 working days",
+      "formats": [
+        "vinyl",
+        "cd"
+      ],
+      "fulfilment": {
+        "vinyl": "PHYSICAL",
+        "cd": "PHYSICAL"
+      },
+      "default_fulfilment": null
+    },
+    "bespoke": {
+      "name": "Bespoke",
+      "price_gbp": 799,
+      "price_usd": 999,
+      "price_prefix": "From",
+      "song_count": null,
+      "delivery": "Dedicated 7-day production window",
+      "formats": [],
+      "fulfilment": {},
+      "default_fulfilment": "DIGITAL"
+    }
+  }
+}

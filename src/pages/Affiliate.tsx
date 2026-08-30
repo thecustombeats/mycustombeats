@@ -3,7 +3,6 @@ import { Helmet } from "react-helmet-async";
 import { trackFormSubmit } from "../lib/analytics";
 import QRCode from "react-qr-code";
 import emailjs from "emailjs-com";
-import { supabase } from "../lib/supabaseClient";
 
 export default function Affiliate() {
   const [link, setLink] = useState("");
@@ -32,51 +31,45 @@ export default function Affiliate() {
 
     username = cleanUsername(username || name);
 
-    // ✅ CHECK DUPLICATES IN SUPABASE
-const { data: existing, error: checkError } = await supabase
-  .from("affiliates")
-  .select("*")
-  .or(`email.eq.${email},username.eq.${username}`)
+    // One server-side call. The duplicate check and the insert happen in a
+    // single transaction against UNIQUE constraints, so two people claiming
+    // the same username seconds apart can no longer both succeed — which the
+    // previous select-then-insert from the browser allowed.
+    let registration: { referral_link: string; dashboard_token: string };
 
-if (checkError) {
-  console.error(checkError);
-  setMessage("❌ Error checking existing users");
-  setLoading(false);
-  return;
-}
+    try {
+      const response = await fetch("/api/affiliate/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, username }),
+      });
 
-if (existing && existing.length > 0) {
-  setMessage("❌ Email or username already exists. Try another one.");
-  setLoading(false);
-  return;
-}
+      if (response.status === 409) {
+        setMessage("❌ That email or referral name is already registered. Please try another.");
+        setLoading(false);
+        return;
+      }
 
-if (!email.includes("@") || email.length < 6) {
-  setMessage("Enter a valid email");
-  return;
-}
+      if (!response.ok) {
+        const detail = await response.json().catch(() => null);
+        setMessage(detail?.message ? `❌ ${detail.message}` : "❌ We couldn't complete your registration. Please try again.");
+        setLoading(false);
+        return;
+      }
 
-    const referralLink = `${window.location.origin}/?ref=${username}`;
+      registration = await response.json();
+    } catch {
+      setMessage("❌ We couldn't reach the server. Please check your connection and try again.");
+      setLoading(false);
+      return;
+    }
+
+    const referralLink = registration.referral_link;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${referralLink}`;
 
-    const { error: insertError } = await supabase.from("affiliates").insert([
-  {
-    name,
-    email,
-    username,
-    referral_link: referralLink,
-    clicks: 0,
-    sales: 0,
-    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-  },
-]);
-
-if (insertError) {
-  console.error(insertError);
-  setMessage("❌ Failed to save affiliate");
-  setLoading(false);
-  return;
-}
+    // The token is the affiliate's only credential — the dashboard no longer
+    // trusts an email address in localStorage as proof of identity.
+    localStorage.setItem("affiliate_token", registration.dashboard_token);
 
 const blockedDomains = ["tempmail.com", "10minutemail.com"];
 

@@ -37,6 +37,7 @@ const DEV_BRIDGE_URL = "http://localhost:18888/webhook/order";
 
 /** Abandon an ancillary request rather than leave the customer waiting. */
 const WEBHOOK_TIMEOUT_MS = 8000;
+const CRM_TIMEOUT_MS = 6000;
 
 const ancillaryWebhookUrls = (): string[] =>
   import.meta.env.DEV ? [DEV_BRIDGE_URL, MAKE_WEBHOOK_URL] : [MAKE_WEBHOOK_URL];
@@ -59,6 +60,39 @@ const postOrderData = async (url: string, data: FormData): Promise<boolean> => {
   } catch {
     // Swallowed deliberately: order capture is best-effort, checkout is not.
     return false;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+/**
+ * Records the order in MCB's own CRM and returns its id.
+ *
+ * Best-effort by design, exactly like the fulfilment webhooks: a CRM outage
+ * must never stop someone paying. If the endpoint is not deployed yet, or
+ * fails, this returns null and checkout proceeds precisely as it did before —
+ * `client_reference_id` falls back to the referral string.
+ *
+ * The browser sends what it observed. The server decides what it means:
+ * fulfilment type, attribution, amount and status are all derived there, and
+ * nothing posted from here can nominate an affiliate or mark an order paid.
+ */
+const recordOrderInCrm = async (payload: Record<string, unknown>): Promise<number | null> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CRM_TIMEOUT_MS);
+
+  try {
+    const response = await fetch("/api/order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return typeof data?.order_id === "number" ? data.order_id : null;
+  } catch {
+    return null;
   } finally {
     clearTimeout(timer);
   }
@@ -108,12 +142,16 @@ interface OrderFormSectionProps {
 
 const OrderFormSection = ({ selectedPackage }: OrderFormSectionProps) => {
 
-  const getRef = () => {
-  return document.cookie
-    .split("; ")
-    .find(row => row.startsWith("ref="))
-    ?.split("=")[1] || "";
-};
+  /**
+   * The single authoritative referral source.
+   *
+   * This previously read a `ref` cookie that nothing in the application ever
+   * wrote, so every order reported an empty referral to fulfilment while the
+   * Stripe hand-off used localStorage and worked. One source now, written by
+   * App.tsx when a visitor arrives on ?ref= / ?partner=.
+   */
+  const getRef = () => localStorage.getItem("referral") || "";
+  const getPartner = () => localStorage.getItem("partner") || "";
   const sectionRef = useRef<HTMLDivElement>(null);
 
   const [showOtherMood, setShowOtherMood] = useState(false);
@@ -441,6 +479,35 @@ if (formData.artwork) {
 
   const stripeUrl = checkout.url;
 
+  // MCB's own record first, so the order id can identify this purchase to
+  // Stripe. Non-blocking: null simply means we fall back to today's behaviour.
+  const crmOrderId = await recordOrderInCrm({
+    firstName: formData.firstName,
+    lastName: formData.lastName,
+    email: formData.email,
+    whatsapp: formData.whatsapp,
+    package: selectedPackage,
+    format: orderedFormat,
+    shippingName: formData.shippingName,
+    shippingAddress: formData.shippingAddress,
+    shippingCity: formData.shippingCity,
+    shippingPostcode: formData.shippingPostcode,
+    shippingCountry: formData.shippingCountry,
+    mood: formData.otherMood
+      ? [...formData.moods, formData.otherMood].join(", ")
+      : formData.moods.join(", "),
+    genre: formData.genre === "Other" ? formData.otherGenre : formData.genre,
+    personalTouches: formData.personalTouches,
+    story: formData.story,
+    artworkUrl: artworkUpload || "",
+    referral: ref,
+    partner: getPartner(),
+  });
+
+  if (crmOrderId !== null) {
+    zapierData.append("mcbOrderId", String(crmOrderId));
+  }
+
   // Ancillary order capture. Every attempt is isolated: a rejection here
   // is recorded and ignored, never propagated to the customer.
   await Promise.allSettled(
@@ -454,7 +521,12 @@ if (formData.artwork) {
   localStorage.setItem("last_order_package", formData.package);
   localStorage.setItem("last_order_format", orderedFormat);
 
-  const finalUrl = `${stripeUrl}?client_reference_id=${encodeURIComponent(referral)}`;
+  // The order id is the join between customer, order, attribution, format,
+  // delivery and payment, so Stripe carries it when the CRM recorded one.
+  // Without it, behaviour is unchanged from before the CRM existed.
+  const clientReference = crmOrderId !== null ? String(crmOrderId) : referral;
+
+  const finalUrl = `${stripeUrl}?client_reference_id=${encodeURIComponent(clientReference)}`;
   window.location.href = finalUrl;
 };
 

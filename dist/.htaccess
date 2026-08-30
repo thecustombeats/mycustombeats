@@ -23,6 +23,11 @@
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteRule ^assets/ - [L,R=404]
 
+  # The API is server-side. Without this, an extensionless endpoint such as
+  # /api/order is not a real file, so the SPA catch-all below would answer it
+  # with index.html and the caller would parse a web page as JSON.
+  RewriteRule ^api/ - [L]
+
   # Everything else that is not a real file or directory is a client route.
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d

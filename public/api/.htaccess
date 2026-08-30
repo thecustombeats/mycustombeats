@@ -1,0 +1,48 @@
+# MCB CRM API — access control
+#
+# Sits inside the API directory so it applies regardless of how the parent
+# rules evolve. Deploys with dist/ like every other public/ file.
+
+# ---------------------------------------------------------------------
+# Never serve configuration, data or library files over HTTP.
+# Only the endpoint scripts are reachable; everything they include is not.
+# ---------------------------------------------------------------------
+<FilesMatch "^(config|config\.example)\.php$">
+  Require all denied
+</FilesMatch>
+
+RedirectMatch 403 ^/api/lib/
+RedirectMatch 403 ^/api/data/
+
+# ---------------------------------------------------------------------
+# Endpoints are JSON, never cached.
+# ---------------------------------------------------------------------
+<IfModule mod_headers.c>
+  <FilesMatch "\.php$">
+    Header always set Cache-Control "no-store"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "no-referrer"
+  </FilesMatch>
+</IfModule>
+
+# ---------------------------------------------------------------------
+# Clean URLs: /api/order -> /api/order.php
+#
+# Only rewrites when the extensionless path is not itself a real file, so
+# static files under /api/ are unaffected.
+# ---------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /api/
+
+  # Apache does not pass Authorization to PHP by default, and CGI/FastCGI
+  # hosts drop it entirely. Forward it explicitly so the authenticated
+  # endpoints work regardless of how the host runs PHP.
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{DOCUMENT_ROOT}/api/$1.php -f
+  RewriteRule ^([a-z0-9/_-]+)$ $1.php [L]
+</IfModule>

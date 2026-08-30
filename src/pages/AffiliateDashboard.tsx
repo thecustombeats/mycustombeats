@@ -1,50 +1,47 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
 
 export default function AffiliateDashboard() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
-      const email = localStorage.getItem("affiliate_email");
+      // The token is the credential. The previous version read an email from
+      // localStorage and fetched whoever it named, so anyone who knew an
+      // affiliate's address could open their dashboard.
+      const token = localStorage.getItem("affiliate_token");
 
-      if (!email) {
+      if (!token) {
         window.location.href = "/affiliate";
         return;
       }
 
-      const { data, error } = await supabase
-  .from("affiliates")
-  .select("*")
-  .eq("email", email);
+      try {
+        const response = await fetch("/api/affiliate/dashboard", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-console.log("EMAIL:", email);
-console.log("DATA:", data);
-console.log("ERROR:", error);
+        if (response.status === 401) {
+          // Expired or superseded — send them back to request a new link.
+          localStorage.removeItem("affiliate_token");
+          setError("Your dashboard link has expired. Please sign up again to receive a new one.");
+          setLoading(false);
+          return;
+        }
 
-      if (error) {
-  console.error("Supabase error:", error);
-  setLoading(false);
-  return;
-}
+        if (!response.ok) {
+          setError("We couldn't load your dashboard. Please try again shortly.");
+          setLoading(false);
+          return;
+        }
 
-if (!data || data.length === 0) {
-  console.log("No user found");
-  setLoading(false);
+        setData(await response.json());
+      } catch {
+        setError("We couldn't reach the server. Please check your connection.");
+      }
 
-  if (!data) {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      No affiliate found. Please sign up again.
-    </div>
-  );
-}
-  return;
-}
-
-setData(data[0]);
-setLoading(false);
+      setLoading(false);
     };
 
     loadData();
@@ -54,6 +51,24 @@ setLoading(false);
     return (
       <div className="min-h-screen flex items-center justify-center">
         Loading dashboard...
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="min-h-screen bg-ivory flex items-center justify-center px-6 text-center">
+        <div className="max-w-md">
+          <p className="text-espresso/80 mb-6">
+            {error ?? "No affiliate found. Please sign up again."}
+          </p>
+          <a
+            href="/affiliate"
+            className="inline-block px-7 py-3 text-[11px] tracking-[0.2em] uppercase rounded-full bg-ink text-ivory hover:bg-gold hover:text-ink transition-colors duration-300"
+          >
+            Go to sign up
+          </a>
+        </div>
       </div>
     );
   }
