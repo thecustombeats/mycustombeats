@@ -37,13 +37,20 @@ function mcb_config(): array
         return $config;
     }
 
-    $candidates = [
-        // Preferred: above the web root, untouched by a dist/ redeploy.
-        dirname(__DIR__, 4) . '/mcb-config.php',
-        dirname(__DIR__, 3) . '/mcb-config.php',
-        // Fallback: inside the web root, denied over HTTP by .htaccess.
-        __DIR__ . '/../config.php',
-    ];
+    // Hostinger uses more than one directory layout — some accounts serve
+    // from ~/public_html, others from ~/domains/<site>/public_html — so a
+    // fixed depth cannot find the file on both. Walk up from api/lib looking
+    // for a specifically named file instead, which is layout-independent.
+    //
+    // Bounded to six levels: enough to clear any shared-hosting web root,
+    // short of wandering into the filesystem root.
+    $candidates = [];
+    for ($depth = 2; $depth <= 6; $depth++) {
+        $candidates[] = dirname(__DIR__, $depth) . '/mcb-config.php';
+    }
+    // Last resort: inside the web root, denied over HTTP by .htaccess.
+    // Works everywhere, but must be recreated after a deploy that clears api/.
+    $candidates[] = __DIR__ . '/../config.php';
 
     foreach ($candidates as $path) {
         if (is_readable($path)) {
