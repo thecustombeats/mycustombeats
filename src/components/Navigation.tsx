@@ -11,9 +11,27 @@ const Navigation = () => {
   ? 'text-espresso'
   : 'text-[rgba(251,249,246,0.85)]';
 
-// The approved MCB logo is a transparent PNG that reads on both the ivory
-// header and the dark hero, so one asset serves every scroll state.
-const logoSrc = '/images/brand/MCB-Logo-Final.png';
+/**
+ * Logo variant chosen by background, per MVIS.
+ *
+ *   scrolled    solid ivory bar           -> black mark
+ *   unscrolled  transparent over the hero -> gold mark
+ *
+ * Same approved artwork in both cases; neither file is altered.
+ *
+ * The two carry different amounts of transparent padding — measured, the gold
+ * mark fills 53% of its canvas height and the black one 34% — so rendering
+ * both at a single CSS height would make the black mark look markedly
+ * smaller. The heights below compensate so the visible mark stays the same
+ * size across the scroll transition.
+ */
+const logoSrc = isScrolled
+  ? '/images/brand/MCB-Black-logo.png'
+  : '/images/brand/MCB-Logo-Final.png';
+
+const logoSize = isScrolled
+  ? 'h-[100px] lg:h-[125px]'
+  : 'h-16 lg:h-20';
 
   const location = useLocation();
  
@@ -73,7 +91,7 @@ const logoSrc = '/images/brand/MCB-Logo-Final.png';
   <img
     src={logoSrc}
     alt="My Custom Beats"
-    className="h-16 lg:h-20 w-auto object-contain"
+    className={`${logoSize} w-auto object-contain`}
   />
 
   <div className="hidden sm:flex flex-col items-center text-center leading-tight">
