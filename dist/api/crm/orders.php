@@ -11,6 +11,8 @@
  * the boundary is established before anything depends on it.
  *
  * Query: ?status=PAID&fulfilment=PHYSICAL&since=2026-01-01&limit=50&cursor=123
+ *        ?reference=MCB-2026-000004   — retrieve one order by what the
+ *                                       customer quoted
  *
  * Answers the operational questions the CRM exists for — "which paid orders
  * need shipping?", "which affiliate earned this?" — without exposing the
@@ -43,6 +45,14 @@ if (in_array($fulfilment, ['DIGITAL', 'PHYSICAL'], true)) {
     $params[':ful'] = $fulfilment;
 }
 
+// "A customer just quoted MCB-2026-000004 — pull up their order." Matched
+// exactly against the UNIQUE column, never as a pattern.
+$reference = strtoupper(trim((string) ($_GET['reference'] ?? '')));
+if ($reference !== '' && preg_match('/^MCB-\d{4}-\d{6}$/', $reference)) {
+    $where[] = 'o.mcb_reference = :reference';
+    $params[':reference'] = $reference;
+}
+
 $since = trim((string) ($_GET['since'] ?? ''));
 if ($since !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $since)) {
     $where[] = 'o.created_at >= :since';
@@ -50,7 +60,7 @@ if ($since !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $since)) {
 }
 
 $sql = 'SELECT
-            o.id, o.status, o.package, o.format, o.fulfilment_type,
+            o.id, o.mcb_reference, o.status, o.package, o.format, o.fulfilment_type,
             o.amount_gbp, o.amount_usd, o.currency,
             o.source_type, o.referral_raw,
             o.stripe_session_id, o.created_at, o.updated_at,
@@ -75,6 +85,9 @@ $rows = $stmt->fetchAll();
 
 $orders = array_map(static function (array $r): array {
     $order = [
+        // The reference leads, because it is what a customer will quote when
+        // they get in touch. NULL on anything not yet paid, by design.
+        'mcb_reference'   => $r['mcb_reference'],
         'order_id'        => (int) $r['id'],
         'status'          => $r['status'],
         'package'         => $r['package'],

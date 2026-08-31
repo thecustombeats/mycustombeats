@@ -1,6 +1,6 @@
 # CRM API acceptance tests
 
-83 assertions against a live PHP + MariaDB stack. Everything runs in throwaway
+141 assertions against a live PHP + MariaDB stack. Everything runs in throwaway
 containers — no local PHP or MySQL install, nothing left behind.
 
 ## Run
@@ -40,6 +40,9 @@ which are part of what these tests prove.
 | Dashboard | valid token works; missing, forged, expired and id-swapped tokens rejected; an email address is not accepted as authentication |
 | CRM read | key required; brief and story never exposed; shipping filter works |
 | Stripe | unsigned and badly signed rejected; signed accepted; order marked PAID; sales incremented; **replay does not double-count**; stale timestamp rejected |
+| MCB reference | never issued to a PENDING order; issued on payment as `MCB-YYYY-NNNNNN`; **a replayed event neither reissues it nor consumes a sequence number**; the series counts paid orders, not rows; unique across all orders; one customer holds several orders with different references |
+| Reconciliation | a paid session no order claims is **persisted, not just logged**; buyer identity and amount retained from Stripe; minor units converted; no order invented and no reference issued for it; webhook retry does not duplicate the alarm; a `client_reference_id` naming nothing is filed too; staff list it, attach it to the real order, and the reference is issued **through the same single path**; double reconciliation, moving a payment onto an already-paid order, unknown payment/order and malformed input all refused |
+| Reference lookup | customer retrieves their own by Stripe session id; returns the reference and nothing else; unknown session answers `reference: null` rather than erroring on the webhook race; malformed and injected session ids rejected before the query; staff retrieve the whole order by the quoted reference |
 | Security | config, lib and data denied over HTTP; cross-origin writes rejected; malformed JSON rejected; SQL injection stored literally, tables intact |
 
 ## A bug these tests caught

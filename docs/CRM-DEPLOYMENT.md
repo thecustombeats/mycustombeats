@@ -29,10 +29,29 @@ that user all privileges on it. Note the four values — Hostinger prefixes both
 names with your account id, e.g. `u123456789_mcb_crm`.
 
 Then hPanel → phpMyAdmin → your database → **SQL**, and paste the whole of
-`db/schema.sql`. It creates seven tables and is safe to run twice.
+`db/schema.sql`. It creates nine tables and is safe to run twice.
 
 Confirm afterwards: `affiliates`, `clicks`, `customers`, `delivery_addresses`,
-`orders`, `partners`, `stripe_events`.
+`orders`, `partners`, `reference_sequence`, `stripe_events`,
+`unreconciled_payments`.
+
+### If the database already exists
+
+A database created before the customer reference number was added has none of
+`orders.mcb_reference`, `reference_sequence` or `unreconciled_payments`. Paste
+`db/migrations/2026-08-31-mcb-reference.sql` in the same place. It adds all
+three, modifies no existing row, and is safe to run twice.
+
+Without it the Stripe webhook cannot issue references and every payment fails
+to record — run it **before** step 6.
+
+Confirm afterwards:
+
+```sql
+SHOW COLUMNS FROM orders LIKE 'mcb_reference';        -- varchar(20), YES, UNI
+SHOW TABLES LIKE 'reference_sequence';                -- one row
+SHOW TABLES LIKE 'unreconciled_payments';             -- one row
+```
 
 ## 3. Write the configuration
 
@@ -95,20 +114,67 @@ preferred layout — the file does not exist inside the web root at all, because
 configuration lives at `~/mcb-config.php` above it. Expect **403** there only if
 you chose the fallback location in step 3.
 
+```
+# the customer reference lookup — 400 proves the endpoint is deployed and
+# refuses anything that is not a Stripe session id
+curl -o /dev/null -w '%{http_code}\n' https://www.mycustombeats.com/api/order-reference  # 400
+```
+
 Then place one real order through the website and check `orders` in phpMyAdmin.
 A digital order must have no `delivery_addresses` row; a Vinyl or CD order must
-have exactly one.
+have exactly one. `mcb_reference` stays `NULL` until step 6 is done and a
+payment actually completes — that is correct, not a fault.
 
 ## 6. Stripe conversions (last, and only when ready)
 
-Until this is done, orders stay `PENDING` and affiliate sales stay at zero.
-Everything else works.
+**This is the step that makes MCB live.** Until it is done, orders stay
+`PENDING`, affiliate sales stay at zero, and no customer is ever issued a
+reference number — a paying customer would see the thank-you page with no
+reference on it. Everything else works.
 
 1. Stripe → Developers → Webhooks → **Add endpoint**
    - URL: `https://www.mycustombeats.com/api/stripe/webhook`
    - Event: `checkout.session.completed`
 2. Copy the signing secret (`whsec_…`) into config `stripe.webhook_secret`.
 3. Send a test event from the Dashboard. Expect **200**.
+4. After the first real payment, confirm in phpMyAdmin:
+
+   ```sql
+   SELECT id, customer_id, status, mcb_reference, stripe_payment_intent
+     FROM orders WHERE status = 'PAID';
+   ```
+
+   Every `PAID` row must carry an `MCB-YYYY-NNNNNN` reference. A `PAID` row with
+   a `NULL` reference means the migration above was not run.
+
+---
+
+## 7. Watch the unreconciled ledger
+
+```bash
+curl -H "Authorization: Bearer <crm_api_key>" \
+     https://www.mycustombeats.com/api/crm/unreconciled
+```
+
+`{"open":0}` is the healthy answer and should stay that way.
+
+A non-zero `open` means a customer paid and no order received it — almost
+always because `/api/order` was failing at the time. The row holds the buyer's
+email, name and amount from Stripe. Find or recreate their order, then:
+
+```bash
+curl -X POST -H "Authorization: Bearer <crm_api_key>" \
+     -H 'Content-Type: application/json' \
+     -d '{"session_id":"cs_live_…","order_id":42}' \
+     https://www.mycustombeats.com/api/crm/reconcile
+```
+
+That marks the order paid and issues its MCB reference through the same path
+the webhook uses. **Do not fix these by editing `orders` in phpMyAdmin** — a
+hand-written UPDATE leaves the customer paid with no reference.
+
+Worth checking weekly, and after any period when the site or database was
+unwell.
 
 While the secret is empty the endpoint returns 503 and processes nothing —
 deliberately. An unverified payment webhook would let anyone mark orders paid.
@@ -131,3 +197,4 @@ is unaffected.
 | `mcb-config.php` above the web root | yes |
 | `api/config.php` inside the web root | only if you upload additively |
 | Database contents | yes — schema changes never drop tables |
+| Issued `mcb_reference` values | yes — never regenerated, never reused |

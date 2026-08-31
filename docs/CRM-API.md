@@ -118,7 +118,10 @@ it yet** — it exists so the boundary is established before anything depends on
 it.
 
 `?status=PAID` · `?fulfilment=PHYSICAL` · `?since=2026-01-01` · `?limit=50` ·
-`?cursor=120`
+`?cursor=120` · `?reference=MCB-2026-000004`
+
+`?reference=` is the staff lookup: a customer quotes their number, this returns
+that one order. Matched exactly against the `UNIQUE` column, never as a pattern.
 
 Returns order, attribution, customer name/email, and delivery address for
 physical orders. **The creative brief and the customer's story are never
@@ -132,14 +135,123 @@ Cursor pagination, stable under concurrent inserts.
 
 Stripe only. Verifies the `Stripe-Signature` HMAC with a 5-minute tolerance,
 then on `checkout.session.completed`: marks the order `PAID`, stores the session
-and payment intent, and increments the affiliate's `sales`.
+and payment intent, **issues the customer's MCB reference**, and increments the
+affiliate's `sales` — all in one transaction.
 
-**The only place sales are ever incremented.** Idempotent via `UNIQUE` on
-`stripe_events.event_id` — a replayed event returns 200 with
-`{"outcome":"duplicate"}` and does not double-count.
+**The only place sales are ever incremented, and the only place a customer
+reference is ever issued.** Idempotent via `UNIQUE` on `stripe_events.event_id`
+— a replayed event returns 200 with `{"outcome":"duplicate"}`, does not
+double-count, and does not issue a second reference.
 
 `503` while `stripe.webhook_secret` is unset: an unverified payment webhook
 would let anyone mark orders paid and award commission.
+
+---
+
+## GET /api/order-reference?session_id=cs_…
+
+The customer's own reference, and nothing else.
+
+`200` → `{ "status": "PAID", "reference": "MCB-2026-000004" }`
+
+`200` → `{ "status": null, "reference": null }` while the webhook is still in
+flight. The thank-you page polls for ~12s rather than treating that race as an
+error. `400` for a session id that is not shaped like Stripe's.
+
+Keyed on the Stripe session id because it is unguessable and known only to
+Stripe, MCB and the person who completed that checkout. Keying on `order_id`
+would let anyone walk the book. No name, email, address, brief, amount or
+Stripe identifier is ever returned, so a leaked session id leaks a reference
+and nothing more.
+
+Not `/api/order/reference`: a directory at `api/order/` would make `/api/order`
+a real directory, and the clean-URL rewrite skips real directories — which
+would silently break order submission.
+
+---
+
+## GET /api/crm/unreconciled
+
+Payments no order claims. **An empty list is the expected steady state; a row
+here is money MCB has taken and cannot yet account for.**
+
+`?include_resolved=1` also returns closed rows, as an audit trail.
+
+Returns Stripe's own record of the buyer — email, name, phone, amount — which
+is what staff need to find them and finish the order by hand. That is more
+customer data than `/api/crm/orders` returns, so it sits behind the same CRM
+key and is never exposed to a browser.
+
+---
+
+## POST /api/crm/reconcile
+
+Attaches an orphaned payment to its real order and closes the ledger row.
+
+```json
+{ "session_id": "cs_live_…", "order_id": 42 }
+```
+
+`200` → `{ "reconciled": true, "order_id": 42, "mcb_reference": "MCB-2026-000007" }`
+
+`404` unknown payment or order · `409` already reconciled, or that order is
+already paid by a different session · `422` malformed input.
+
+Runs the **same** transition as the Stripe webhook and calls the **same**
+`assign_mcb_reference()`. There is still exactly one place a reference is ever
+issued; this is a second door into it, not a second mechanism.
+
+Use this rather than editing `orders` in phpMyAdmin. A hand-written `UPDATE`
+is how an order ends up paid but referenceless — someone sets the status and
+session id and forgets `mcb_reference`, or invents one.
+
+---
+
+## Reconciliation — a payment can never be silently lost
+
+`/api/order` is best-effort so a CRM outage cannot stop someone paying. The
+cost is a narrow window where money arrives and no order exists to receive it.
+
+```
+payment succeeds, no client_reference_id (or one naming nothing)
+  → webhook files it in `unreconciled_payments`   (UNIQUE on session id)
+  → GET  /api/crm/unreconciled     staff see it
+  → POST /api/crm/reconcile        attach it to the real order
+  → order PAID → MCB reference issued → CRM complete
+```
+
+The webhook never invents an order and never issues a reference to a payment
+that has none — package, format and the creative brief are not in the Stripe
+payload and cannot be guessed. It records the problem; a human completes it.
+
+Before this table existed such a payment produced one `error_log` line on
+shared hosting and nothing else, so a real sale could rotate out of an unread
+log while Stripe showed it as collected.
+
+---
+
+## Identity — four identifiers, one for the customer
+
+| Identifier | Who it is for | When it exists |
+|---|---|---|
+| `orders.id` | internal only | form submission |
+| `customers.id` | internal only | first order by that email |
+| `stripe_session_id` / `stripe_payment_intent` | reconciling with Stripe | payment confirmed |
+| **`orders.mcb_reference`** | **the customer** | **payment confirmed** |
+
+`MCB-YYYY-NNNNNN`. `UNIQUE`, `NULL` until paid, immutable once issued.
+
+**One customer may hold many orders, so `customers.id` is never `orders.id`.**
+Order 3 and order 4 both belonging to customer 3 is normal and correct; they
+carry two different references.
+
+The running number is allocated from `reference_sequence`, one row per year,
+under `SELECT … FOR UPDATE` inside the webhook's transaction. It counts **paid
+orders**, not rows — so `MCB-2026-000002` really is the second sale of 2026, and
+an abandoned checkout never consumes a number.
+
+Issued after payment on purpose: a number handed out at form submission would
+be quoted by people who never paid.
 
 ---
 
@@ -151,7 +263,7 @@ would let anyone mark orders paid and award commission.
   → POST /api/affiliate/click                (affiliate only)
   → POST /api/order  { referral, partner }   → resolved server-side
   → Stripe client_reference_id = order_id
-  → webhook → order → affiliate credited
+  → webhook → order PAID → MCB reference issued → affiliate credited
 ```
 
 Partner attribution takes precedence over affiliate: a partner relationship is

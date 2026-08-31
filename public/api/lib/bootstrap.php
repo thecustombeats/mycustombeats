@@ -22,6 +22,8 @@ require_once __DIR__ . '/validate.php';
 require_once __DIR__ . '/security.php';
 require_once __DIR__ . '/packages.php';
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/reference.php';
+require_once __DIR__ . '/reconciliation.php';
 
 /**
  * Loads configuration, preferring a location outside the web root.

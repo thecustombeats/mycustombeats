@@ -128,12 +128,15 @@ $sessionId = (string) ($session['id'] ?? '');
 $intent    = (string) ($session['payment_intent'] ?? '');
 
 if ($orderId <= 0 || $sessionId === '') {
+    // Filed, exactly as the live handler files it. A rehearsal that skipped
+    // this would not rehearse the path that matters most.
     error_log('MCB CRM: sandbox checkout.session.completed without a usable client_reference_id.');
-    json_response(200, ['received' => true, 'matched' => false]);
+    $captured = capture_unreconciled_payment(db(), $event, $session, 'NO_ORDER_REFERENCE');
+    json_response(200, ['received' => true, 'matched' => false, 'captured' => $captured]);
 }
 
 try {
-    $outcome = db_transaction(function (PDO $pdo) use ($event, $orderId, $sessionId, $intent): string {
+    $outcome = db_transaction(function (PDO $pdo) use ($event, $session, $orderId, $sessionId, $intent): string {
         // Idempotency gate, in the same position as the live handler. Moving
         // it would change the lock ordering and stop this being a faithful
         // rehearsal of the code that actually ships.
@@ -150,7 +153,7 @@ try {
         // The customer's email is joined in solely to prove this order is a
         // test record. The live handler has no need of it and does not read it.
         $stmt = $pdo->prepare(
-            'SELECT o.id, o.status, o.affiliate_id, c.email
+            'SELECT o.id, o.status, o.affiliate_id, o.mcb_reference, c.email
                FROM orders o
                JOIN customers c ON c.id = o.customer_id
               WHERE o.id = :id
@@ -160,6 +163,7 @@ try {
         $order = $stmt->fetch();
 
         if ($order === false) {
+            capture_unreconciled_payment($pdo, $event, $session, 'ORDER_NOT_FOUND');
             return 'unknown_order';
         }
 
@@ -172,6 +176,7 @@ try {
         }
 
         if ($order['status'] === 'PAID') {
+            assign_mcb_reference($pdo, $orderId, $order['mcb_reference']);
             return 'already_paid';
         }
 
@@ -185,6 +190,12 @@ try {
             ':pi'  => $intent !== '' ? $intent : null,
             ':id'  => $orderId,
         ]);
+
+        // Reference issue, in the same position as the live handler. It draws
+        // from the SAME counter, so a sandbox rehearsal consumes a number out
+        // of the real series — expected while verifying, and the reason this
+        // endpoint is deleted once sign-off is done.
+        assign_mcb_reference($pdo, $orderId, $order['mcb_reference']);
 
         if ($order['affiliate_id'] !== null) {
             $pdo->prepare('UPDATE affiliates SET sales = sales + 1 WHERE id = :id')

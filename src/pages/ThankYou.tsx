@@ -1,12 +1,38 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { trackPurchase } from "../lib/analytics";
 import { getPackage, FORMATS, type FormatId } from "../data/packages";
 import { Helmet } from "react-helmet-async";
 
+/**
+ * How long to wait for the MCB reference to appear.
+ *
+ * The reference is issued by MCB's server when Stripe's webhook confirms the
+ * payment. That call and this redirect race, and the redirect normally wins,
+ * so the number is usually a second or two behind the page. Polling covers
+ * that gap; the delivered order confirmation carries the same number for
+ * anyone who closes the tab first, so this is a convenience, not the only
+ * way a customer ever learns their reference.
+ */
+const REFERENCE_POLL_INTERVAL_MS = 1500;
+const REFERENCE_POLL_ATTEMPTS = 8;   // ~12 seconds
+
 export default function ThankYou() {
   const params = new URLSearchParams(window.location.search);
-  const orderId = params.get("session_id");
+  const sessionId = params.get("session_id");
+
+  /**
+   * The customer-facing MCB reference — MCB-YYYY-NNNNNN.
+   *
+   * Read from the server, never derived here. It used to be built in the
+   * browser as `MCB-` plus the last six characters of the Stripe session id,
+   * which looked like a reference but was not one: nothing stored it, so a
+   * customer who quoted it could not be found, and uppercasing a
+   * case-sensitive id made two different sessions capable of showing the
+   * same number.
+   */
+  const [reference, setReference] = useState<string | null>(null);
+  const [referencePending, setReferencePending] = useState<boolean>(!!sessionId);
 
   // What the customer just bought, carried over from the order form.
   const orderedPackage = getPackage(
@@ -19,10 +45,10 @@ export default function ThankYou() {
       : null;
 
   useEffect(() => {
-    if (!orderId) return;
+    if (!sessionId) return;
 
     // Prevent duplicate purchase tracking per session/refresh
-    const trackedKey = `mcb_tracked_${orderId}`;
+    const trackedKey = `mcb_tracked_${sessionId}`;
     if (sessionStorage.getItem(trackedKey)) return;
 
     // Price comes from the central package data so the analytics value can
@@ -30,13 +56,57 @@ export default function ThankYou() {
     if (!orderedPackage) return;
 
     trackPurchase(
-      orderId,
+      sessionId,
       orderedPackage.price.gbp,
       "GBP",
       orderedPackage.name
     );
     sessionStorage.setItem(trackedKey, "true");
-  }, [orderId, orderedPackage]);
+  }, [sessionId, orderedPackage]);
+
+  // Ask MCB's own record for the reference belonging to this checkout
+  // session, retrying while the payment webhook lands. Aborts on unmount so a
+  // customer who navigates away leaves no timer running.
+  useEffect(() => {
+    if (!sessionId) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const poll = async (attempt: number): Promise<void> => {
+      try {
+        const response = await fetch(
+          `/api/order-reference?session_id=${encodeURIComponent(sessionId)}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          if (cancelled) return;
+          if (typeof data?.reference === "string" && data.reference !== "") {
+            setReference(data.reference);
+            setReferencePending(false);
+            return;
+          }
+        }
+      } catch {
+        // A lookup failure is not a payment failure. Fall through and retry;
+        // giving up simply shows the fallback message below.
+      }
+
+      if (cancelled) return;
+      if (attempt >= REFERENCE_POLL_ATTEMPTS) {
+        setReferencePending(false);
+        return;
+      }
+      timer = setTimeout(() => void poll(attempt + 1), REFERENCE_POLL_INTERVAL_MS);
+    };
+
+    void poll(1);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [sessionId]);
 
   return (
    <>
@@ -56,15 +126,28 @@ export default function ThankYou() {
     {/* Order Section */}
     <div className="mt-8 space-y-2">
 
-      {orderId && (
+      {reference && (
         <p className="text-gold text-lg">
-          Order Number: MCB-{orderId.slice(-6).toUpperCase()}
+          Order Reference: {reference}
         </p>
       )}
 
-      <p className="text-white/60 text-sm">
-        Please save your order number for future communication.
-      </p>
+      {!reference && referencePending && (
+        <p className="text-white/60 text-lg">
+          Confirming your payment and issuing your order reference…
+        </p>
+      )}
+
+      {reference ? (
+        <p className="text-white/60 text-sm">
+          Please save this reference and quote it in any correspondence with us.
+        </p>
+      ) : (
+        <p className="text-white/60 text-sm">
+          Your order reference is on its way — it will be in your confirmation
+          email. Your payment is complete and nothing is outstanding.
+        </p>
+      )}
 
       {orderedPackage && (
         <p className="text-white/80 pt-4">

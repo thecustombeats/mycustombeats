@@ -129,6 +129,11 @@ CREATE TABLE IF NOT EXISTS orders (
   status                 ENUM('PENDING','PAID','ABANDONED','REFUNDED')
                          NOT NULL DEFAULT 'PENDING',
 
+  -- The single customer-facing reference: MCB-YYYY-NNNNNN.
+  -- NULL until Stripe confirms payment, then UNIQUE and immutable. An
+  -- abandoned checkout therefore never consumes a customer-facing number.
+  mcb_reference          VARCHAR(20)   NULL,
+
   source_type            ENUM('DIRECT','AFFILIATE','PARTNER') NOT NULL DEFAULT 'DIRECT',
   affiliate_id           INT UNSIGNED NULL,
   partner_id             INT UNSIGNED NULL,
@@ -149,6 +154,7 @@ CREATE TABLE IF NOT EXISTS orders (
 
   PRIMARY KEY (id),
   UNIQUE KEY uq_orders_stripe_session (stripe_session_id),
+  UNIQUE KEY uq_orders_mcb_reference (mcb_reference),
   KEY idx_orders_customer (customer_id),
   KEY idx_orders_affiliate (affiliate_id),
   KEY idx_orders_partner (partner_id),
@@ -212,6 +218,81 @@ CREATE TABLE IF NOT EXISTS clicks (
   KEY idx_clicks_ratelimit (ip_hash, created_at),
   CONSTRAINT fk_clicks_affiliate FOREIGN KEY (affiliate_id)
     REFERENCES affiliates (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ---------------------------------------------------------------------
+-- reference_sequence
+-- ---------------------------------------------------------------------
+-- Allocates the running number inside MCB-YYYY-NNNNNN, one row per year.
+--
+-- A counter rather than a derivation from orders.id, because the two answer
+-- different questions. orders.id counts every submission including abandoned
+-- ones; this counts PAID orders only, so MCB-2026-000002 really is the second
+-- sale of 2026 and the customer-facing series has no unexplained gaps.
+--
+-- Allocation is `SELECT ... FOR UPDATE` then UPDATE inside the webhook's
+-- existing transaction. The row lock serialises concurrent payments, and
+-- UNIQUE(orders.mcb_reference) is the backstop if that ever fails.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS reference_sequence (
+  year        SMALLINT UNSIGNED NOT NULL,
+  last_value  INT UNSIGNED      NOT NULL DEFAULT 0,
+  updated_at  DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (year)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ---------------------------------------------------------------------
+-- unreconciled_payments
+-- ---------------------------------------------------------------------
+-- Money taken that no order claims. The safety net under /api/order.
+--
+-- /api/order is deliberately best-effort: a CRM outage must never stop
+-- someone paying. The consequence is a narrow window where a customer pays
+-- and no order exists to receive it. That payment used to leave nothing
+-- behind but an error_log line on shared hosting, which rotates away
+-- unread — a real sale, silently lost.
+--
+-- One row per unclaimed paid session, keyed UNIQUE on the session id so a
+-- webhook retry cannot duplicate it. It holds what Stripe itself knows
+-- about the buyer, which is enough to find them and finish the order by
+-- hand. Closed by POST /api/crm/reconcile, which attaches the payment to a
+-- real order and issues the reference through the ONE path that issues
+-- references — never by editing this table.
+--
+-- An empty table is the expected steady state. A row in it is an alarm.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS unreconciled_payments (
+  id                    INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+
+  stripe_session_id     VARCHAR(255)  NOT NULL,
+  stripe_payment_intent VARCHAR(255)  NULL,
+  event_id              VARCHAR(255)  NOT NULL,
+
+  -- NO_ORDER_REFERENCE: checkout carried no client_reference_id, so
+  --                     /api/order almost certainly failed before Stripe.
+  -- ORDER_NOT_FOUND:    it carried one, but no such order exists.
+  reason                ENUM('NO_ORDER_REFERENCE','ORDER_NOT_FOUND') NOT NULL,
+
+  -- What Stripe collected at checkout. The only identity MCB has for this
+  -- buyer when its own record is missing.
+  customer_email        VARCHAR(190)  NULL,
+  customer_name         VARCHAR(160)  NULL,
+  customer_phone        VARCHAR(40)   NULL,
+  amount_total          DECIMAL(10,2) NULL,
+  currency              CHAR(3)       NULL,
+
+  resolved_order_id     INT UNSIGNED  NULL,
+  resolved_at           DATETIME      NULL,
+  created_at            DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_unreconciled_session (stripe_session_id),   -- retry-safe
+  KEY idx_unreconciled_open (resolved_at, created_at),      -- "what is outstanding?"
+  CONSTRAINT fk_unreconciled_order FOREIGN KEY (resolved_order_id)
+    REFERENCES orders (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
