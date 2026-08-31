@@ -81,8 +81,8 @@ const postOrderData = async (url: string, data: FormData): Promise<boolean> => {
  *
  * Best-effort by design, exactly like the fulfilment webhooks: a CRM outage
  * must never stop someone paying. If the endpoint is not deployed yet, or
- * fails, this returns null and checkout proceeds precisely as it did before —
- * `client_reference_id` falls back to the referral string.
+ * fails, this returns null and checkout still proceeds — but Stripe is then
+ * sent no `client_reference_id` at all, rather than a substitute.
  *
  * The browser sends what it observed. The server decides what it means:
  * fulfilment type, attribution, amount and status are all derived there, and
@@ -526,7 +526,6 @@ if (formData.artwork) {
   );
 
   // STRIPE
-  const referral = localStorage.getItem("referral") || "direct";
 
   // Carried to the thank-you page for conversion tracking and confirmation.
   localStorage.setItem("last_order_package", formData.package);
@@ -534,10 +533,18 @@ if (formData.artwork) {
 
   // The order id is the join between customer, order, attribution, format,
   // delivery and payment, so Stripe carries it when the CRM recorded one.
-  // Without it, behaviour is unchanged from before the CRM existed.
-  const clientReference = crmOrderId !== null ? String(crmOrderId) : referral;
+  //
+  // When the CRM did not, the parameter is OMITTED rather than filled with a
+  // substitute. It previously fell back to the referral string, which is read
+  // from localStorage and so is chosen by the visitor: a numeric one casts to
+  // a real order id in the webhook, letting a genuine payment mark someone
+  // else's order PAID and credit that order's affiliate. Sending nothing
+  // leaves the webhook with no match, which it already handles.
+  const finalUrl =
+    crmOrderId !== null
+      ? `${stripeUrl}?client_reference_id=${encodeURIComponent(String(crmOrderId))}`
+      : stripeUrl;
 
-  const finalUrl = `${stripeUrl}?client_reference_id=${encodeURIComponent(clientReference)}`;
   window.location.href = finalUrl;
 };
 
