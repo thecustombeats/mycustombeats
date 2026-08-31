@@ -39,6 +39,17 @@ const DEV_BRIDGE_URL = "http://localhost:18888/webhook/order";
 const WEBHOOK_TIMEOUT_MS = 8000;
 const CRM_TIMEOUT_MS = 6000;
 
+/**
+ * Largest artwork the form accepts — the same limit the upload row advertises.
+ *
+ * Checked here as well as at Cloudinary because the two failures look nothing
+ * alike to a customer. Rejected at the preset, an oversized file uploads in
+ * full, is refused, and the order continues with an empty artworkUrl and no
+ * message — the customer believing their photo was attached. Rejected here, it
+ * never leaves the browser and they are told immediately.
+ */
+const MAX_ARTWORK_BYTES = 10 * 1024 * 1024;
+
 const ancillaryWebhookUrls = (): string[] =>
   import.meta.env.DEV ? [DEV_BRIDGE_URL, MAKE_WEBHOOK_URL] : [MAKE_WEBHOOK_URL];
 
@@ -982,12 +993,31 @@ if (formData.artwork) {
     id="artworkUpload"
     style={{ display: 'none' }}
     onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0] || null;
-  handleChange("artwork", file);
-}}
+      const file = e.target.files?.[0] || null;
+
+      if (file && file.size > MAX_ARTWORK_BYTES) {
+        // Cleared rather than kept, so a rejected file can never reach
+        // uploadArtwork. Resetting the input's value lets the customer pick
+        // the same file again after resizing it — without it, re-selecting
+        // an identical filename fires no change event at all.
+        setFormData((prev) => ({ ...prev, artwork: null }));
+        setErrors((prev) => ({
+          ...prev,
+          artwork: `That image is ${(file.size / (1024 * 1024)).toFixed(1)}MB. Please choose one under 10MB.`,
+        }));
+        e.target.value = "";
+        return;
+      }
+
+      handleChange("artwork", file);
+    }}
   />
 
-  <div className="flex items-center gap-3 p-4 bg-ivory rounded-xl border border-espresso/10">
+  <div
+    className={`flex items-center gap-3 p-4 bg-ivory rounded-xl border ${
+      errors.artwork ? 'border-red-500' : 'border-espresso/10'
+    }`}
+  >
     <Upload size={20} className="order-heading text-gold" />
 
     <div className="flex-1">
@@ -1011,6 +1041,10 @@ if (formData.artwork) {
       Browse
     </button>
   </div>
+
+  {errors.artwork && (
+    <p className="text-red-500 text-xs mt-1">{errors.artwork}</p>
+  )}
 </div>
 
             {/* STORY */}

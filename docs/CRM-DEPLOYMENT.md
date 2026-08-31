@@ -81,10 +81,19 @@ curl -o /dev/null -w '%{http_code}\n' https://www.mycustombeats.com/api/order   
 curl -o /dev/null -w '%{http_code}\n' https://www.mycustombeats.com/api/crm/orders      # 401
 
 # internals are not reachable
-curl -o /dev/null -w '%{http_code}\n' https://www.mycustombeats.com/api/config.php      # 403
+curl -o /dev/null -w '%{http_code}\n' https://www.mycustombeats.com/api/config.example.php # 403
 curl -o /dev/null -w '%{http_code}\n' https://www.mycustombeats.com/api/lib/db.php      # 403
 curl -o /dev/null -w '%{http_code}\n' https://www.mycustombeats.com/api/data/packages.json  # 403
+
+# expected to be ABSENT when configuration lives above the web root
+curl -o /dev/null -w '%{http_code}\n' https://www.mycustombeats.com/api/config.php      # 404
 ```
+
+`config.example.php` is the file that proves the deny rule, because it is
+actually deployed. `config.php` returning **404** is the correct result on the
+preferred layout — the file does not exist inside the web root at all, because
+configuration lives at `~/mcb-config.php` above it. Expect **403** there only if
+you chose the fallback location in step 3.
 
 Then place one real order through the website and check `orders` in phpMyAdmin.
 A digital order must have no `delivery_addresses` row; a Vinyl or CD order must
