@@ -295,6 +295,77 @@ t "reconciling onto an unknown order refused" 404 "$(curl -s -o /dev/null -w '%{
 t "malformed session id refused" 422 "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/crm/reconcile" -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' -d '{"session_id":"nope","order_id":1}')"
 
 echo ""
+echo "================ POST-PAYMENT CUSTOMER EMAIL ================"
+sink()      { docker exec mcb-api sh -c 'cat /tmp/make-sink.log 2>/dev/null'; }
+sink_count() { docker exec mcb-api sh -c 'wc -l < /tmp/make-sink.log 2>/dev/null || echo 0' | tr -d ' '; }
+sink_reset() { docker exec mcb-api sh -c 'rm -f /tmp/make-sink.log; echo ok >/dev/null'; }
+make_mode()  { docker exec mcb-api sh -c "echo '$1' > /tmp/make-mode"; }
+
+make_mode ok
+sink_reset
+
+# A brand-new paid order. The email must go out once, AFTER the commit.
+S=$(post order '{"firstName":"Nadia","lastName":"Okonkwo","email":"nadia@example.com","package":"moment","format":"mp3","story":"For my sister."}')
+NOID=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
+tc "new order starts un-notified" "$([ "$(q "SELECT IFNULL(customer_notified_at,'NULL') FROM orders WHERE id=$NOID")" = "NULL" ] && echo 1 || echo 0)"
+
+NPAY="{\"id\":\"evt_notify_1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_notify_001\",\"client_reference_id\":\"$NOID\",\"payment_intent\":\"pi_notify_001\"}}}"
+CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$NPAY")" -H 'Content-Type: application/json' -d "$NPAY")
+t "payment accepted" 200 "$CODE"
+tc "  → webhook reports the email was sent" "$([ "$(body | grep -c '\"customer_email\":\"notified\"')" = "1" ] && echo 1 || echo 0)"
+tc "  → exactly ONE notification delivered" "$([ "$(sink_count)" = "1" ] && echo 1 || echo 0)"
+NREF=$(q "SELECT mcb_reference FROM orders WHERE id=$NOID")
+tc "  → payload carries the MCB reference ($NREF)" "$([ "$(sink | grep -c "\"mcb_reference\":\"$NREF\"")" = "1" ] && echo 1 || echo 0)"
+tc "  → payload carries the customer's email" "$([ "$(sink | grep -c 'nadia@example.com')" = "1" ] && echo 1 || echo 0)"
+tc "  → payload carries the amount paid" "$([ "$(sink | grep -c '\"value\":10')" = "1" ] && echo 1 || echo 0)"
+tc "  → payload marked event order.paid" "$([ "$(sink | grep -c '\"event\":\"order.paid\"')" = "1" ] && echo 1 || echo 0)"
+tc "  → NO Stripe identifier leaked to Make" "$([ "$(sink | grep -ci 'cs_notify\|pi_notify\|stripe')" = "0" ] && echo 1 || echo 0)"
+tc "  → NO secret leaked to Make" "$([ "$(sink | grep -ci 'whsec\|testpass\|crm_key\|token_secret')" = "0" ] && echo 1 || echo 0)"
+tc "  → NO creative brief/story leaked to Make" "$([ "$(sink | grep -c 'For my sister')" = "0" ] && echo 1 || echo 0)"
+tc "  → order recorded as notified" "$([ "$(q "SELECT customer_notified_at IS NOT NULL FROM orders WHERE id=$NOID")" = "1" ] && echo 1 || echo 0)"
+
+# Stripe retries what it believes failed. The customer must not be emailed twice.
+curl -s -o /dev/null -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$NPAY")" -H 'Content-Type: application/json' -d "$NPAY"
+tc "REPLAYED event sends NO second email" "$([ "$(sink_count)" = "1" ] && echo 1 || echo 0)"
+
+# A different event id for the same, already-paid order.
+NPAY2="{\"id\":\"evt_notify_2\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_notify_001\",\"client_reference_id\":\"$NOID\",\"payment_intent\":\"pi_notify_001\"}}}"
+CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$NPAY2")" -H 'Content-Type: application/json' -d "$NPAY2")
+t "a second event for an already-paid order is accepted" 200 "$CODE"
+tc "  → still only ONE email" "$([ "$(sink_count)" = "1" ] && echo 1 || echo 0)"
+tc "  → and the reference did not change" "$([ "$(q "SELECT mcb_reference FROM orders WHERE id=$NOID")" = "$NREF" ] && echo 1 || echo 0)"
+
+echo ""
+echo "---------------- Make.com outage ----------------"
+make_mode fail
+sink_reset
+S=$(post order '{"firstName":"Ivan","lastName":"Petrov","email":"ivan@example.com","package":"moment","format":"mp3"}')
+FOID=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
+FPAY="{\"id\":\"evt_notify_fail\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_notify_fail\",\"client_reference_id\":\"$FOID\",\"payment_intent\":\"pi_notify_fail\"}}}"
+CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$FPAY")" -H 'Content-Type: application/json' -d "$FPAY")
+t "email outage does NOT fail the payment webhook" 200 "$CODE"
+tc "  → Stripe is not asked to retry" "$([ "$(body | grep -c '\"received\":true')" = "1" ] && echo 1 || echo 0)"
+tc "  → the order is still PAID" "$([ "$(q "SELECT status FROM orders WHERE id=$FOID")" = "PAID" ] && echo 1 || echo 0)"
+tc "  → the reference was still issued" "$([ -n "$(q "SELECT mcb_reference FROM orders WHERE id=$FOID")" ] && echo 1 || echo 0)"
+tc "  → outcome reported as delivery_failed" "$([ "$(body | grep -c 'delivery_failed')" = "1" ] && echo 1 || echo 0)"
+tc "  → claim RELEASED, so the customer still shows as owed an email" "$([ "$(q "SELECT IFNULL(customer_notified_at,'NULL') FROM orders WHERE id=$FOID")" = "NULL" ] && echo 1 || echo 0)"
+
+# Recovery: Make comes back and Stripe's "Resend" (same event id) delivers
+# the outstanding email. This is the only route to an order that was paid
+# before the email existed, or whose email failed during an outage.
+make_mode ok
+sink_reset
+curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$FPAY")" -H 'Content-Type: application/json' -d "$FPAY" > /dev/null
+tc "Stripe Resend DELIVERS the previously-failed email" "$([ "$(sink_count)" = "1" ] && echo 1 || echo 0)"
+tc "  → carrying that order's own reference" "$([ "$(sink | grep -c "$(q "SELECT mcb_reference FROM orders WHERE id=$FOID")")" = "1" ] && echo 1 || echo 0)"
+tc "  → order now recorded as notified" "$([ "$(q "SELECT customer_notified_at IS NOT NULL FROM orders WHERE id=$FOID")" = "1" ] && echo 1 || echo 0)"
+curl -s -o /dev/null -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$FPAY")" -H 'Content-Type: application/json' -d "$FPAY"
+tc "  → a further Resend does NOT email again" "$([ "$(sink_count)" = "1" ] && echo 1 || echo 0)"
+CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' "$BASE/crm/orders?status=PAID" -H "Authorization: Bearer $KEY")
+tc "CRM exposes notification state, so staff can spot who is owed one" "$([ "$(body | grep -c 'customer_notified_at')" -ge 1 ] && echo 1 || echo 0)"
+tc "  → every PAID order here has now been notified" "$([ "$(q "SELECT COUNT(*) FROM orders WHERE status='PAID' AND customer_notified_at IS NULL")" = "0" ] && echo 1 || echo 0)"
+
+echo ""
 echo "================ SECURITY ================"
 t "config.php denied over HTTP" 403 "$(curl -s -o /tmp/r.json -w '%{http_code}' http://localhost:8080/api/config.php)"
 tc "  -> no credentials in the response body" "$([ "$(body | grep -c 'testpass\|test_token_secret')" = "0" ] && echo 1 || echo 0)"

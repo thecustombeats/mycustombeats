@@ -27,6 +27,20 @@ const moodsList = [
  * Order-capture endpoints. These are ANCILLARY: they record the order for
  * fulfilment and automation. They must never gate the customer's payment.
  *
+ * THIS FIRES BEFORE PAYMENT, AND MUST NOT EMAIL THE CUSTOMER.
+ *
+ * It runs at form submission, so at this point the customer has not paid,
+ * the order is PENDING, and no MCB reference exists — the reference is
+ * issued by the Stripe webhook when the money is confirmed. A scenario that
+ * emails from here therefore cannot include the reference, and also mails
+ * everyone who abandons checkout.
+ *
+ * The customer's confirmation email is now sent server-side, after payment,
+ * by the Stripe webhook (see api/lib/notify.php). The payload below carries
+ * `stage: "SUBMITTED"` so the receiving scenario can route on it and keep
+ * its non-email work — logging, operations, fulfilment prep — while leaving
+ * customer correspondence to the post-payment trigger.
+ *
  * The local bridge is a developer convenience only. It is compiled out of
  * production builds so a machine-local service can never sit in front of
  * a customer's checkout.
@@ -518,6 +532,12 @@ if (formData.artwork) {
   if (crmOrderId !== null) {
     zapierData.append("mcbOrderId", String(crmOrderId));
   }
+
+  // Marks this as the PRE-payment capture. The post-payment notification
+  // sends `event: "order.paid"` and carries the MCB reference; nothing sent
+  // from the browser ever does, because at this moment it does not exist.
+  zapierData.append("stage", "SUBMITTED");
+  zapierData.append("paymentConfirmed", "false");
 
   // Ancillary order capture. Every attempt is isolated: a rejection here
   // is recorded and ignored, never propagated to the customer.

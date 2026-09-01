@@ -51,6 +51,22 @@ return [
         'secret_key'     => '',   // sk_live_… — server-side only, never shipped
     ],
 
+    // ---- Customer communication ---------------------------------------
+    // Make.com webhook that sends the POST-PAYMENT customer email — the one
+    // carrying the MCB reference. Fired by the Stripe webhook only after the
+    // paid transaction has committed.
+    //
+    // While this is empty the notification is skipped entirely and logged:
+    // payments, references and the CRM are completely unaffected. Nothing
+    // here can fail a payment.
+    //
+    // This is NOT the order-form webhook in the website bundle. That one
+    // fires at submission, before payment, and must no longer send the
+    // customer a fulfilment email.
+    'make' => [
+        'post_payment_webhook' => '',   // https://hook.eu1.make.com/…
+    ],
+
     // ---- Behaviour ----------------------------------------------------
     'app' => [
         // Origin allowed to call the write endpoints. Requests whose Origin

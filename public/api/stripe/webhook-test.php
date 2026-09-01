@@ -209,4 +209,9 @@ try {
     json_error(500, 'processing_failed', 'Could not process the event.');
 }
 
+// DELIBERATELY does not call notify_customer_of_payment(). This is the one
+// place the sandbox diverges from the live handler on purpose: a rehearsal
+// must never send mail. Test orders belong to @crm-verify.invalid addresses
+// which could not receive it anyway, but the guarantee should not rest on
+// that — it rests on this call not existing.
 json_response(200, ['received' => true, 'outcome' => $outcome, 'sandbox' => true]);

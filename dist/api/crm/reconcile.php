@@ -127,8 +127,14 @@ if (isset($result['error'])) {
         isset($result['order_id']) ? ['order_id' => $result['order_id']] : []);
 }
 
+// Same post-commit notification as the Stripe webhook. An order rescued by
+// hand is owed its reference exactly as much as one Stripe matched itself,
+// and the conditional claim means this cannot double up with the webhook.
+$notified = notify_customer_of_payment(db(), $orderId);
+
 json_response(200, [
-    'reconciled'    => true,
-    'order_id'      => $orderId,
-    'mcb_reference' => $result['reference'],
+    'reconciled'     => true,
+    'order_id'       => $orderId,
+    'mcb_reference'  => $result['reference'],
+    'customer_email' => $notified,
 ]);

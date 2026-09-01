@@ -67,8 +67,25 @@ CREATE TABLE IF NOT EXISTS unreconciled_payments (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
+-- ---------------------------------------------------------------------
+-- Post-payment customer notification.
+--
+-- The MCB email used to be fired from the browser at form submission, which
+-- meant it went out BEFORE payment — so it could not carry the reference
+-- (which does not exist yet) and was also sent to people who abandoned
+-- checkout. It now fires from the Stripe webhook after the paid transaction
+-- commits, and this column is what stops a webhook retry emailing twice.
+-- ---------------------------------------------------------------------
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS customer_notified_at DATETIME NULL AFTER mcb_reference;
+
+ALTER TABLE orders
+  ADD KEY IF NOT EXISTS idx_orders_unnotified (status, customer_notified_at);
+
+
 -- Verify:
 --   SHOW COLUMNS FROM orders LIKE 'mcb_reference';
+--   SHOW COLUMNS FROM orders LIKE 'customer_notified_at';
 --   SHOW INDEX FROM orders WHERE Key_name = 'uq_orders_mcb_reference';
 --   SELECT * FROM reference_sequence;
 --   SHOW TABLES LIKE 'unreconciled_payments';

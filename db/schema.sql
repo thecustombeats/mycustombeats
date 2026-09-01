@@ -134,6 +134,14 @@ CREATE TABLE IF NOT EXISTS orders (
   -- abandoned checkout therefore never consumes a customer-facing number.
   mcb_reference          VARCHAR(20)   NULL,
 
+  -- When the post-payment customer email was handed to Make.com.
+  --
+  -- Claimed with a conditional UPDATE (... WHERE customer_notified_at IS NULL)
+  -- so two concurrent deliveries of the same Stripe event cannot both win it.
+  -- That single row-level claim is the whole duplicate-email guarantee.
+  -- NULL on a PAID order means the customer is still owed their reference.
+  customer_notified_at   DATETIME      NULL,
+
   source_type            ENUM('DIRECT','AFFILIATE','PARTNER') NOT NULL DEFAULT 'DIRECT',
   affiliate_id           INT UNSIGNED NULL,
   partner_id             INT UNSIGNED NULL,
@@ -161,6 +169,7 @@ CREATE TABLE IF NOT EXISTS orders (
   KEY idx_orders_status (status),
   KEY idx_orders_fulfilment (fulfilment_type, status),   -- "what must we ship?"
   KEY idx_orders_created (created_at),
+  KEY idx_orders_unnotified (status, customer_notified_at),   -- "who is owed an email?"
   CONSTRAINT fk_orders_customer FOREIGN KEY (customer_id)
     REFERENCES customers (id) ON DELETE RESTRICT,
   CONSTRAINT fk_orders_affiliate FOREIGN KEY (affiliate_id)

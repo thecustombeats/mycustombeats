@@ -230,6 +230,60 @@ log while Stripe showed it as collected.
 
 ---
 
+## The post-payment customer email
+
+The customer's confirmation email — the one carrying the MCB reference — is
+triggered **server-side by the Stripe webhook, after the paid transaction
+commits**.
+
+```
+webhook: PENDING -> PAID, reference issued, COMMIT
+  -> claim: UPDATE orders SET customer_notified_at = NOW()
+            WHERE id = ? AND status = 'PAID' AND customer_notified_at IS NULL
+  -> POST config `make.post_payment_webhook`   { event: "order.paid", … }
+  -> Make.com sends the email
+```
+
+It was previously fired from the **browser at form submission**, before
+Stripe. That could not carry the reference — which does not exist until
+payment is confirmed — and also emailed everyone who abandoned checkout.
+The order-form webhook still fires for order capture and now carries
+`stage: "SUBMITTED"` so the receiving scenario can route on it.
+
+**Duplicate protection** is the conditional UPDATE above, not a hope that
+Stripe delivers once. Exactly one caller can see `rowCount() === 1`.
+
+**It can never fail a payment.** The call sits outside the transaction, never
+throws, and the webhook returns 200 regardless — a non-2xx would make Stripe
+retry a payment MCB has already banked. A delivery failure *releases* the
+claim, so the order shows as still owed its email rather than being recorded
+as sent.
+
+**Recovery:** Stripe's **Resend** button re-delivers the same event id, which
+returns `outcome: "duplicate"` — and notification is attempted on that path
+too. That is the route to an order paid before this existed, or one whose
+email failed during an outage.
+
+While `make.post_payment_webhook` is empty the notification is skipped and
+logged, and the claim is deliberately **not** taken, so configuring the URL
+later and hitting Resend still delivers.
+
+`GET /api/crm/orders` returns `customer_notified_at`; `null` on a PAID order
+means that customer has not yet been sent their reference.
+
+### Payload
+
+Only what the email needs. No Stripe identifier, no secret, no creative brief.
+
+```json
+{ "event": "order.paid", "mcb_reference": "MCB-2026-000006", "order_id": 12,
+  "customer": { "name": "…", "email": "…" },
+  "order": { "package": "keepsake", "format": "vinyl", "fulfilment_type": "PHYSICAL" },
+  "amount": { "value": 79, "currency": "GBP" } }
+```
+
+---
+
 ## Identity — four identifiers, one for the customer
 
 | Identifier | Who it is for | When it exists |

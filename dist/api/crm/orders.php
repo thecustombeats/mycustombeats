@@ -63,7 +63,7 @@ $sql = 'SELECT
             o.id, o.mcb_reference, o.status, o.package, o.format, o.fulfilment_type,
             o.amount_gbp, o.amount_usd, o.currency,
             o.source_type, o.referral_raw,
-            o.stripe_session_id, o.created_at, o.updated_at,
+            o.stripe_session_id, o.customer_notified_at, o.created_at, o.updated_at,
             c.name  AS customer_name,
             c.email AS customer_email,
             a.username AS affiliate_username,
@@ -103,6 +103,9 @@ $orders = array_map(static function (array $r): array {
         ],
         'customer'        => ['name' => $r['customer_name'], 'email' => $r['customer_email']],
         'stripe_session'  => $r['stripe_session_id'],
+        // NULL on a PAID order means that customer has not yet been sent
+        // their reference — the operational question this column answers.
+        'customer_notified_at' => $r['customer_notified_at'],
         'created_at'      => $r['created_at'],
         'updated_at'      => $r['updated_at'],
     ];

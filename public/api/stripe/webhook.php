@@ -180,4 +180,38 @@ try {
     json_error(500, 'processing_failed', 'Could not process the event.');
 }
 
-json_response(200, ['received' => true, 'outcome' => $outcome]);
+// ---------------------------------------------------------------------
+// POST-PAYMENT CUSTOMER EMAIL — outside the transaction, on purpose.
+//
+// The transaction has committed: the order is PAID and its MCB reference is
+// permanent. Only now is the customer told, so nothing can ever email a
+// reference that a rollback then took away.
+//
+// Deliberately NOT inside db_transaction(): holding a row lock open across a
+// third-party HTTP call would let a Make.com slowdown block the money path.
+//
+// notify_customer_of_payment() never throws and never affects the response
+// code. Stripe gets its 200 whether or not Make.com answered — a non-2xx
+// would make Stripe retry a payment MCB has already banked. The outcome is
+// reported in the body so it is visible in Stripe's own event log.
+//
+// Attempted on every outcome that implies the order is paid — including
+// 'duplicate'.
+//
+// 'duplicate' matters operationally: it is what Stripe's own "Resend" button
+// produces, since a resend carries the SAME event id. Without it, an order
+// that was paid before the email existed — or whose email failed while
+// Make.com was down — could never be sent its reference at all, because
+// every route to it would return here first. Including it makes Resend the
+// recovery mechanism.
+//
+// Safe on all three paths because the claim inside is conditional: it
+// requires status = PAID and customer_notified_at IS NULL, so an unpaid or
+// already-emailed order is silently skipped no matter who asks.
+// ---------------------------------------------------------------------
+$notified = null;
+if ($outcome === 'recorded' || $outcome === 'already_paid' || $outcome === 'duplicate') {
+    $notified = notify_customer_of_payment(db(), $orderId);
+}
+
+json_response(200, ['received' => true, 'outcome' => $outcome, 'customer_email' => $notified]);
