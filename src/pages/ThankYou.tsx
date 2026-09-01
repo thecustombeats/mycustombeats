@@ -10,19 +10,46 @@ import { Helmet } from "react-helmet-async";
  *
  * The reference is issued by MCB's server when Stripe's webhook confirms the
  * payment. That call and this redirect race, and the redirect normally wins,
- * so the number is usually a second or two behind the page. Polling covers
- * that gap; the delivered order confirmation carries the same number for
- * anyone who closes the tab first, so this is a convenience, not the only
- * way a customer ever learns their reference.
+ * so the number is usually a second or two behind the page.
  */
 const REFERENCE_POLL_INTERVAL_MS = 1500;
 const REFERENCE_POLL_ATTEMPTS = 8;   // ~12 seconds
 
+/**
+ * The last reference this browser was shown.
+ *
+ * Stripe's receipt email carries Stripe's own receipt number, not MCB's
+ * reference, so a customer who closes this tab has no other way back to their
+ * number today. Remembering it here is not a substitute for sending it — it
+ * is device-local and disappears if they clear their browser — but it means
+ * returning to /thank-you on the same device still answers the question.
+ */
+const STORED_REFERENCE_KEY = "mcb_last_reference";
+
+/**
+ * COLOUR CONTRACT FOR THIS PAGE
+ *
+ * index.css sets base element rules for the ivory canvas the rest of the site
+ * uses — `h1..h6 { color: rgba(46,38,35,.9) }` and `p { color:
+ * rgba(46,38,35,.65) }`. An element rule beats a colour inherited from a
+ * wrapper, so on this dark page ANY heading or paragraph left unpainted
+ * renders dark espresso on Midnight Ink and is effectively invisible. That is
+ * exactly what production showed.
+ *
+ * So every heading and every <p> below carries an explicit colour. Hierarchy
+ * is built from size, weight and letter-spacing rather than opacity: no
+ * essential copy on this page is a faded white.
+ */
+const TEXT_PRIMARY = "text-ivory";        // 15.99:1 on Midnight Ink
+const TEXT_ACCENT = "text-gold";          //  7.19:1 — Heritage Gold, accent only
+
 /** One summary row. Stacks on narrow screens so long values never squeeze. */
 const DetailRow = ({ label, value }: { label: string; value: string }) => (
   <div className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
-    <dt className="text-sm uppercase tracking-[0.12em] text-ivory/80">{label}</dt>
-    <dd className="text-lg font-medium text-ivory sm:text-right">{value}</dd>
+    <dt className={`text-sm font-semibold uppercase tracking-[0.14em] ${TEXT_PRIMARY}`}>
+      {label}
+    </dt>
+    <dd className="text-lg font-semibold text-white sm:text-right">{value}</dd>
   </div>
 );
 
@@ -33,17 +60,28 @@ export default function ThankYou() {
   /**
    * The customer-facing MCB reference — MCB-YYYY-NNNNNN.
    *
-   * Read from the server, never derived here. It used to be built in the
-   * browser as `MCB-` plus the last six characters of the Stripe session id,
-   * which looked like a reference but was not one: nothing stored it, so a
-   * customer who quoted it could not be found, and uppercasing a
-   * case-sensitive id made two different sessions capable of showing the
-   * same number.
+   * Read from the server, never derived here. It is not Stripe's receipt
+   * number, not the Stripe session id, and not an internal database id.
    */
   const [reference, setReference] = useState<string | null>(null);
   const [referencePending, setReferencePending] = useState<boolean>(!!sessionId);
   /** Order status as MCB's own record reports it — not as Stripe's URL implies. */
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
+
+  /**
+   * Shown only to a visitor arriving WITHOUT a session id — someone returning
+   * to the page later. When a session id is present the server is the only
+   * acceptable answer, because a remembered number could belong to a
+   * different order than the one just paid for.
+   */
+  const [storedReference] = useState<string | null>(() => {
+    if (sessionId) return null;
+    try {
+      return localStorage.getItem(STORED_REFERENCE_KEY);
+    } catch {
+      return null;
+    }
+  });
 
   // What the customer just bought, carried over from the order form.
   const orderedPackage = getPackage(
@@ -61,13 +99,13 @@ export default function ThankYou() {
    *
    * Open-ended commissions price as "From £799", which is a starting point
    * and not a sum anyone was charged, so those show the agreed-price wording
-   * instead. Stating a figure the customer might not recognise on their bank
-   * statement would be worse than stating none.
+   * instead of asserting a figure the customer would not recognise on their
+   * statement.
    */
   const amountPaid = orderedPackage
     ? orderedPackage.price.prefix
       ? "As agreed for your commission"
-      : `£${orderedPackage.price.gbp}`
+      : `£${orderedPackage.price.gbp.toFixed(2)}`
     : null;
 
   useEffect(() => {
@@ -81,12 +119,7 @@ export default function ThankYou() {
     // never drift from the amount actually charged.
     if (!orderedPackage) return;
 
-    trackPurchase(
-      sessionId,
-      orderedPackage.price.gbp,
-      "GBP",
-      orderedPackage.name
-    );
+    trackPurchase(sessionId, orderedPackage.price.gbp, "GBP", orderedPackage.name);
     sessionStorage.setItem(trackedKey, "true");
   }, [sessionId, orderedPackage]);
 
@@ -113,6 +146,11 @@ export default function ThankYou() {
           if (typeof data?.reference === "string" && data.reference !== "") {
             setReference(data.reference);
             setReferencePending(false);
+            try {
+              localStorage.setItem(STORED_REFERENCE_KEY, data.reference);
+            } catch {
+              // Private browsing or blocked storage. Nothing here is essential.
+            }
             return;
           }
         }
@@ -145,6 +183,9 @@ export default function ThankYou() {
   const paymentStatus =
     orderStatus === "PAID" || reference ? "Paid" : orderStatus ? "Processing" : null;
 
+  const shownReference = reference ?? storedReference;
+  const isRemembered = !reference && !!storedReference;
+
   return (
    <>
      <Helmet>
@@ -152,83 +193,80 @@ export default function ThankYou() {
        <meta name="description" content="Your order is confirmed and our composers are reviewing your story." />
      </Helmet>
 
-    {/*
-      MVIS Midnight Ink, not pure black. `bg-black` was off-palette and, with
-      body copy set in white at 40–60% opacity, read as uniformly dim. Every
-      text colour below is a solid MVIS tone measured against this field:
-      ivory 15.99:1, ivory/80 10.50:1, ivory/70 8.36:1, Heritage Gold 7.19:1,
-      gold-light 9.17:1 — all comfortably past WCAG AA, most past AAA.
-    */}
-    <div className="min-h-screen bg-ink text-ivory">
+    {/* MVIS Midnight Ink, never bg-black. */}
+    <div className="min-h-screen bg-ink">
       <div className="mx-auto w-full max-w-2xl px-5 py-14 sm:px-6 sm:py-20">
 
         {/* 1 — Payment confirmed */}
         <div className="text-center">
-          <p className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5 text-sm font-semibold tracking-wide text-gold-light">
+          <p className={`inline-flex items-center gap-2 rounded-full border border-gold bg-gold/15 px-4 py-1.5 text-sm font-bold tracking-wide ${TEXT_ACCENT}`}>
             <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
-            Payment successful
+            Payment confirmed
           </p>
 
-          {/*
-            text-ivory is explicit and load-bearing. index.css sets a base
-            `h1..h6 { color: rgba(46,38,35,.9) }` — dark espresso for the ivory
-            canvas — and an element rule beats a colour inherited from the
-            wrapper, so an unpainted heading renders dark brown on this dark
-            field. That is what made the old page's headline near-invisible.
-          */}
-          <h1 className="mt-6 text-ivory text-4xl font-light leading-tight tracking-wide sm:text-5xl">
+          <h1 className={`mt-6 text-4xl font-light leading-tight tracking-wide sm:text-5xl ${TEXT_PRIMARY}`}>
             Your Song Is Now In Motion
           </h1>
         </div>
 
-        {/* 2 + 3 — The reference. The primary information on this page. */}
+        {/* 2 — The MCB reference. The dominant element on this page. */}
         <section
           aria-labelledby="mcb-reference-label"
-          className="mt-10 rounded-2xl border border-gold/30 bg-ivory/[0.07] p-6 text-center sm:p-8"
+          className="mt-10 rounded-2xl border-2 border-gold bg-white/[0.06] p-5 text-center sm:p-8"
         >
           <h2
             id="mcb-reference-label"
-            className="text-xs font-semibold uppercase tracking-[0.22em] text-ivory/80 sm:text-sm"
+            className={`text-xs font-bold uppercase tracking-[0.22em] sm:text-sm ${TEXT_PRIMARY}`}
           >
             Your MCB Reference
           </h2>
 
-          {reference ? (
+          {shownReference ? (
             <>
               {/*
                 Set in Manrope with tabular figures, not the display serif:
                 this is a code to be read aloud and copied down, so character
-                shapes matter more than elegance.
+                shapes matter more than elegance. `select-all` makes one tap
+                or click select the whole reference on a phone.
 
                 The floor and the tracking are measured, not guessed. Inside
-                this card a 320px screen leaves 232px of line; "MCB-2026-000001"
+                this card a 320px screen leaves 232px of line; the reference
                 at 28px with 0.04em tracking wants 272px, so it broke across
                 two lines on the narrowest phones. At 24px with 0.02em it
-                measures ~226px and holds one line from 320px upward.
+                measures ~230px. The card drops to 20px padding below `sm`
+                purely to widen that margin from 2px to 10px, so font loading
+                or subpixel rounding cannot tip it onto a second line.
               */}
-              <p className="mt-3 font-sans font-semibold tabular-nums tracking-[0.02em] text-gold-light [font-size:clamp(1.5rem,7.5vw,3rem)]">
-                {reference}
+              <p className={`mt-3 select-all font-sans font-bold tabular-nums tracking-[0.02em] ${TEXT_ACCENT} [font-size:clamp(1.5rem,7.5vw,3rem)]`}>
+                {shownReference}
               </p>
-              <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-ivory">
+
+              <p className={`mx-auto mt-5 max-w-md text-base font-medium leading-relaxed ${TEXT_PRIMARY}`}>
                 Please keep this reference for all future correspondence with
                 My Custom Beats.
               </p>
+
+              {isRemembered && (
+                <p className={`mt-3 text-sm ${TEXT_PRIMARY}`}>
+                  This is the most recent reference issued on this device.
+                </p>
+              )}
             </>
           ) : referencePending ? (
-            <p className="mt-4 text-lg text-ivory/80" role="status" aria-live="polite">
+            <p className={`mt-4 text-lg ${TEXT_PRIMARY}`} role="status" aria-live="polite">
               Confirming your payment and issuing your reference…
             </p>
           ) : (
-            <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-ivory/80" role="status">
-              Your reference is on its way and will be in your confirmation
-              email. Your payment is complete and nothing is outstanding.
+            <p className={`mx-auto mt-4 max-w-md text-base leading-relaxed ${TEXT_PRIMARY}`} role="status">
+              Your reference is on its way. Your payment is complete and
+              nothing is outstanding — contact us and we will confirm it.
             </p>
           )}
         </section>
 
-        {/* 4, 5, 6 — Order, amount, payment status */}
+        {/* 3, 4, 5 — Order, amount paid, payment status */}
         {(orderedPackage || paymentStatus) && (
-          <dl className="mt-8 divide-y divide-ivory/15 overflow-hidden rounded-2xl border border-ivory/20">
+          <dl className="mt-8 divide-y divide-white/20 overflow-hidden rounded-2xl border border-white/25">
             {orderedPackage && (
               <DetailRow
                 label="Order"
@@ -240,13 +278,13 @@ export default function ThankYou() {
           </dl>
         )}
 
-        {/* 7 — What happens next */}
-        <section className="mt-8 rounded-2xl border border-ivory/20 p-6 sm:p-8">
-          <h2 className="text-xl tracking-wide text-gold-light">
-            What Happens Next
+        {/* 6 — What happens next */}
+        <section className="mt-8 rounded-2xl border border-white/25 p-6 sm:p-8">
+          <h2 className={`text-xl font-semibold tracking-wide ${TEXT_ACCENT}`}>
+            What happens next
           </h2>
 
-          <ul className="mt-5 space-y-3 text-ivory/90">
+          <ul className={`mt-5 space-y-3 text-base leading-relaxed ${TEXT_PRIMARY}`}>
             <li>Our creative team reviews your story and inspiration.</li>
             <li>Your custom composition begins within 24 hours.</li>
             <li>We may reach out if we need a few more details.</li>
@@ -262,14 +300,14 @@ export default function ThankYou() {
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
             to="/"
-            className="rounded-lg border border-ivory/40 px-8 py-3 text-center font-medium transition hover:bg-ivory/10"
+            className={`rounded-lg border border-white/50 px-8 py-3 text-center font-semibold transition hover:bg-white/10 ${TEXT_PRIMARY}`}
           >
             Return Home
           </Link>
 
           <a
             href="mailto:support@mycustombeats.com"
-            className="rounded-lg border border-ivory/40 px-8 py-3 text-center font-medium transition hover:bg-ivory/10"
+            className={`rounded-lg border border-white/50 px-8 py-3 text-center font-semibold transition hover:bg-white/10 ${TEXT_PRIMARY}`}
           >
             Contact Support
           </a>
@@ -277,9 +315,9 @@ export default function ThankYou() {
 
         {/* Upload */}
         <div className="mt-10 space-y-4 text-center">
-          <p className="text-base text-ivory/80">
+          <p className={`text-base ${TEXT_PRIMARY}`}>
             If you forgot to include photos, artwork, or voice notes, you can
-            securely send them to us here.
+            securely send them to us here — quote your MCB reference.
           </p>
 
           {/* `/submit-memories` was never a registered route, so this button
@@ -287,13 +325,13 @@ export default function ThankYou() {
               upload page exists. */}
           <a
             href="/#contact"
-            className="inline-block rounded-md bg-gold px-8 py-3 font-semibold text-ink transition hover:bg-gold-light"
+            className="inline-block rounded-md bg-gold px-8 py-3 font-bold text-ink transition hover:bg-gold-light"
           >
             Send Photos, Memories or Voice Notes
           </a>
         </div>
 
-        <p className="mt-12 text-center text-sm text-ivory/70">
+        <p className={`mt-12 text-center text-sm ${TEXT_PRIMARY}`}>
           MyCustomBeats • Turning memories into music
         </p>
 
