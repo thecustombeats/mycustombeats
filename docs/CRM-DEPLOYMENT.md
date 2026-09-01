@@ -180,22 +180,24 @@ unwell.
 
 ## 8. The post-payment customer email
 
-The email carrying the MCB reference is sent by **Make.com**, triggered by the
+The email carrying the MCB reference is sent by **Zapier**, triggered by the
 Stripe webhook after payment commits.
 
-1. In Make.com, create a scenario with a **Custom webhook** trigger and copy
-   its URL.
-2. Put it in `~/mcb-config.php` as `make.post_payment_webhook`.
+1. In Zapier, create a Zap whose trigger is **Webhooks by Zapier → Catch
+   Hook** (not Catch Raw Hook) and copy its URL. Send one test payload first
+   so the field list populates before you build the template.
+2. Put it in `~/mcb-config.php` as `zapier.post_payment_webhook`. The Zap must
+   be published/ON — a draft catches test data but runs no actions.
 3. Build the email on that scenario. It must show the reference prominently:
 
    > **Your MCB Reference: MCB-2026-000001**
    > Please keep this reference for all future correspondence with My Custom
    > Beats.
 
-4. In the **existing** order-form scenario, switch OFF the customer email
-   module. That one fires before payment, so it cannot carry the reference and
-   currently mails people who never pay. Keep its other work — the payload now
-   carries `stage: "SUBMITTED"` to route on.
+4. In the **existing** pre-payment order-form automation, switch OFF any
+   customer email. That one fires before payment, so it cannot carry the
+   reference and currently mails people who never pay. Keep its other work —
+   the payload carries `stage: "SUBMITTED"` to route on.
 
 While the URL is empty nothing is sent and nothing is claimed, so you can
 configure it at any time and recover with Resend.

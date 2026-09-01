@@ -99,29 +99,48 @@ function post_payment_notification_payload(PDO $pdo, int $orderId): ?array
         return null;
     }
 
+    $amount = (float) $row['amount_gbp'];
+    // Literal UTF-8, not "\u{a3}" escapes: PHP only interprets those inside
+    // DOUBLE-quoted strings, so a single-quoted escape ships to the customer
+    // as the characters \u{a3} instead of a pound sign.
+    $symbols = ['GBP' => '£', 'USD' => '$', 'EUR' => '€'];
+    $symbol  = $symbols[$row['currency']] ?? '';
+
+    // FLAT on purpose. Zapier's Catch Hook exposes nested JSON as
+    // `customer__email` / `amount__value` in the Zap editor, which is easy to
+    // mis-map when someone builds the email template by hand. Flat keys map
+    // one-to-one onto template fields.
     return [
-        'event'         => 'order.paid',
+        'event'           => 'order.paid',
+
         // The one identifier the customer is asked to quote.
-        'mcb_reference' => $row['mcb_reference'],
-        'order_id'      => (int) $row['id'],
-        'customer'      => [
-            'name'  => $row['customer_name'],
-            'email' => $row['customer_email'],
-        ],
-        'order'         => [
-            'package'         => $row['package'],
-            'format'          => $row['format'],
-            'fulfilment_type' => $row['fulfilment_type'],
-        ],
-        'amount'        => [
-            'value'    => (float) $row['amount_gbp'],
-            'currency' => $row['currency'],
-        ],
+        'mcb_reference'   => $row['mcb_reference'],
+
+        'customer_name'   => $row['customer_name'],
+        'customer_email'  => $row['customer_email'],
+
+        'package'         => $row['package'],
+        'format'          => $row['format'],
+        'fulfilment_type' => $row['fulfilment_type'],
+
+        'amount_value'    => $amount,
+        'amount_currency' => $row['currency'],
+        // Pre-formatted so the Zap never has to do currency maths, and the
+        // customer always sees "£10.00" rather than "10".
+        'amount_display'  => $symbol . number_format($amount, 2),
+
+        // INTERNAL ONLY — for staff lookup and Zap filtering.
+        // MUST NOT be rendered in the customer's email.
+        'order_id'        => (int) $row['id'],
     ];
 }
 
 /**
- * POSTs the payload to Make.com. Returns true only on a 2xx.
+ * POSTs the payload to the automation platform. Returns true only on a 2xx.
+ *
+ * Zapier's Catch Hook answers 200 with {"status":"success",…}, so the existing
+ * 2xx check needs no special case. Transport-agnostic on purpose: the
+ * platform is a URL in configuration, never a decision baked into code.
  *
  * Never throws. A transport failure here is an email problem, not a payment
  * problem, and must not propagate into the webhook's response to Stripe.
@@ -150,7 +169,7 @@ function deliver_post_payment_notification(string $url, array $payload): bool
         curl_close($ch);
 
         if ($response === false || $status < 200 || $status >= 300) {
-            error_log('MCB CRM: Make.com notification failed (HTTP ' . $status . ') ' . $error);
+            error_log('MCB CRM: post-payment notification failed (HTTP ' . $status . ') ' . $error);
             return false;
         }
         return true;
@@ -174,7 +193,7 @@ function deliver_post_payment_notification(string $url, array $payload): bool
         && (bool) preg_match('#\s(2\d\d)\s#', $http_response_header[0]);
 
     if (!$ok) {
-        error_log('MCB CRM: Make.com notification failed (stream transport).');
+        error_log('MCB CRM: post-payment notification failed (stream transport).');
     }
     return $ok;
 }
@@ -188,12 +207,12 @@ function deliver_post_payment_notification(string $url, array $payload): bool
  */
 function notify_customer_of_payment(PDO $pdo, int $orderId): string
 {
-    $url = (string) mcb_setting('make.post_payment_webhook', '');
+    $url = (string) mcb_setting('zapier.post_payment_webhook', '');
     if ($url === '') {
         // Not configured. Deliberately does NOT claim the order, so the email
         // still goes out once the webhook URL is set and an event replayed.
         error_log('MCB CRM: post-payment notification skipped for order ' . $orderId
-            . ' — make.post_payment_webhook is not configured.');
+            . ' — zapier.post_payment_webhook is not configured.');
         return 'not_configured';
     }
 

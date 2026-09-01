@@ -52,9 +52,12 @@ return [
     ],
 
     // ---- Customer communication ---------------------------------------
-    // Make.com webhook that sends the POST-PAYMENT customer email — the one
+    // Zapier Catch Hook that sends the POST-PAYMENT customer email — the one
     // carrying the MCB reference. Fired by the Stripe webhook only after the
     // paid transaction has committed.
+    //
+    // Must be a "Catch Hook", not a "Catch Raw Hook": the raw variant hands
+    // the Zap one unparsed string instead of mapped fields.
     //
     // While this is empty the notification is skipped entirely and logged:
     // payments, references and the CRM are completely unaffected. Nothing
@@ -63,8 +66,8 @@ return [
     // This is NOT the order-form webhook in the website bundle. That one
     // fires at submission, before payment, and must no longer send the
     // customer a fulfilment email.
-    'make' => [
-        'post_payment_webhook' => '',   // https://hook.eu1.make.com/…
+    'zapier' => [
+        'post_payment_webhook' => '',   // https://hooks.zapier.com/hooks/catch/<acct>/<hook>/
     ],
 
     // ---- Behaviour ----------------------------------------------------

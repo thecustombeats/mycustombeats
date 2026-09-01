@@ -240,8 +240,8 @@ commits**.
 webhook: PENDING -> PAID, reference issued, COMMIT
   -> claim: UPDATE orders SET customer_notified_at = NOW()
             WHERE id = ? AND status = 'PAID' AND customer_notified_at IS NULL
-  -> POST config `make.post_payment_webhook`   { event: "order.paid", … }
-  -> Make.com sends the email
+  -> POST config `zapier.post_payment_webhook`  { event: "order.paid", … }
+  -> Zapier Catch Hook -> the Zap sends the email
 ```
 
 It was previously fired from the **browser at form submission**, before
@@ -259,12 +259,15 @@ retry a payment MCB has already banked. A delivery failure *releases* the
 claim, so the order shows as still owed its email rather than being recorded
 as sent.
 
+The trigger must be a Zapier **Catch Hook**, not a Catch Raw Hook — the raw
+variant hands the Zap one unparsed string instead of mapped fields.
+
 **Recovery:** Stripe's **Resend** button re-delivers the same event id, which
 returns `outcome: "duplicate"` — and notification is attempted on that path
 too. That is the route to an order paid before this existed, or one whose
 email failed during an outage.
 
-While `make.post_payment_webhook` is empty the notification is skipped and
+While `zapier.post_payment_webhook` is empty the notification is skipped and
 logged, and the claim is deliberately **not** taken, so configuring the URL
 later and hitting Resend still delivers.
 
@@ -275,12 +278,25 @@ means that customer has not yet been sent their reference.
 
 Only what the email needs. No Stripe identifier, no secret, no creative brief.
 
+**Flat on purpose.** Zapier's Catch Hook exposes nested JSON as
+`customer__email` / `amount__value` in the Zap editor, which is easy to
+mis-map when building the template by hand.
+
 ```json
-{ "event": "order.paid", "mcb_reference": "MCB-2026-000006", "order_id": 12,
-  "customer": { "name": "…", "email": "…" },
-  "order": { "package": "keepsake", "format": "vinyl", "fulfilment_type": "PHYSICAL" },
-  "amount": { "value": 79, "currency": "GBP" } }
+{ "event": "order.paid",
+  "mcb_reference": "MCB-2026-000001",
+  "customer_name": "Lewis", "customer_email": "lewis@example.com",
+  "package": "moment", "format": "mp3", "fulfilment_type": "DIGITAL",
+  "amount_value": 10, "amount_currency": "GBP", "amount_display": "£10.00",
+  "order_id": 7 }
 ```
+
+`amount_display` is pre-formatted server-side so the Zap never does currency
+maths and the customer always sees `£10.00`, never `10`.
+
+`order_id` is for staff lookup and Zap filtering. **It must not be rendered in
+the customer's email**, along with every Stripe identifier and the customer id
+— the MCB reference is the only number a customer is given.
 
 ---
 

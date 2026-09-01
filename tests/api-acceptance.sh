@@ -317,7 +317,11 @@ tc "  → exactly ONE notification delivered" "$([ "$(sink_count)" = "1" ] && ec
 NREF=$(q "SELECT mcb_reference FROM orders WHERE id=$NOID")
 tc "  → payload carries the MCB reference ($NREF)" "$([ "$(sink | grep -c "\"mcb_reference\":\"$NREF\"")" = "1" ] && echo 1 || echo 0)"
 tc "  → payload carries the customer's email" "$([ "$(sink | grep -c 'nadia@example.com')" = "1" ] && echo 1 || echo 0)"
-tc "  → payload carries the amount paid" "$([ "$(sink | grep -c '\"value\":10')" = "1" ] && echo 1 || echo 0)"
+tc "  → payload carries the amount paid" "$([ "$(sink | grep -c '\"amount_value\":10')" = "1" ] && echo 1 || echo 0)"
+tc "  → amount is SERVER-formatted as a real pound sign, not an escape" "$([ "$(sink | grep -c '"amount_display":"£10.00"')" = "1" ] && echo 1 || echo 0)"
+tc "  → payload is FLAT (no nested objects for Zapier to mangle)" "$([ "$(sink | grep -c '\"customer\":{\|\"amount\":{\|\"order\":{')" = "0" ] && echo 1 || echo 0)"
+tc "  → customer name present for the email greeting" "$([ "$(sink | grep -c '\"customer_name\"')" = "1" ] && echo 1 || echo 0)"
+tc "  → package and format present" "$([ "$(sink | grep -c '\"package\"')" = "1" ] && [ "$(sink | grep -c '\"format\"')" = "1" ] && echo 1 || echo 0)"
 tc "  → payload marked event order.paid" "$([ "$(sink | grep -c '\"event\":\"order.paid\"')" = "1" ] && echo 1 || echo 0)"
 tc "  → NO Stripe identifier leaked to Make" "$([ "$(sink | grep -ci 'cs_notify\|pi_notify\|stripe')" = "0" ] && echo 1 || echo 0)"
 tc "  → NO secret leaked to Make" "$([ "$(sink | grep -ci 'whsec\|testpass\|crm_key\|token_secret')" = "0" ] && echo 1 || echo 0)"
