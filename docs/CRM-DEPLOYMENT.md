@@ -180,41 +180,78 @@ unwell.
 
 ## 8. The post-payment customer email
 
-The email carrying the MCB reference is sent by **Zapier**, triggered by the
-Stripe webhook after payment commits.
+The email carrying the MCB reference is sent by **Resend**, called directly
+from the Stripe webhook after the paid transaction commits. There is no
+automation platform in this path.
 
-1. In Zapier, create a Zap whose trigger is **Webhooks by Zapier → Catch
-   Hook** (not Catch Raw Hook) and copy its URL. Send one test payload first
-   so the field list populates before you build the template.
-2. Put it in `~/mcb-config.php` as `zapier.post_payment_webhook`. The Zap must
-   be published/ON — a draft catches test data but runs no actions.
-3. Build the email on that scenario. It must show the reference prominently:
+### 8a. Verify a sending domain (do this FIRST)
 
-   > **Your MCB Reference: MCB-2026-000001**
-   > Please keep this reference for all future correspondence with My Custom
-   > Beats.
+Resend refuses to send from an unverified domain, so this gates everything
+else. Resend recommends a **subdomain** rather than the root domain, so that
+transactional mail builds its own sending reputation and a marketing mistake
+can never poison order confirmations:
 
-4. In the **existing** pre-payment order-form automation, switch OFF any
+    send.mycustombeats.com        (recommended)
+
+1. Resend -> Domains -> **Add Domain**, enter the subdomain, pick the region
+   closest to your customers (EU/Ireland for a UK business).
+2. Resend generates records **specific to your account**. They cannot be
+   written down in advance — copy them from that screen. Expect:
+
+   | Type | Purpose |
+   |---|---|
+   | `TXT` (or `CNAME` on newer accounts) | **DKIM** — signs each message. Case-sensitive; must match exactly |
+   | `TXT` | **SPF** — lists who may send for the domain |
+   | `MX` | routes bounce and complaint feedback back to Resend |
+
+3. Add them in **Hostinger -> Domains -> DNS Zone**. When adding a record for
+   `send.mycustombeats.com`, Hostinger usually wants the host as `send`, not
+   the full name — check the field's hint or the record will land at
+   `send.mycustombeats.com.mycustombeats.com`.
+4. Wait for Resend to show **Verified** — usually under 15 minutes, though DNS
+   can take up to 72 hours.
+5. Optionally add a DMARC record once DKIM and SPF pass.
+
+The `from` address must be on that verified domain, e.g.
+`My Custom Beats <orders@send.mycustombeats.com>`. The mailbox does not need
+to exist to *send*, but `reply_to` is set to `support@mycustombeats.com`, and
+that one **must** be able to receive.
+
+### 8b. Configure
+
+1. Resend -> **API Keys** -> create one with **Sending access** only.
+2. Put it in `~/mcb-config.php`:
+
+   ```php
+   'resend' => [
+       'api_key' => 're_…',
+       'from'    => 'My Custom Beats <orders@send.mycustombeats.com>',
+   ],
+   ```
+
+   Treat the key exactly like the Stripe secret: never commit it, never expose
+   it to the browser. It is only ever sent to `api.resend.com` over HTTPS and
+   is never written to a log or an HTTP response.
+
+While either value is empty the email is skipped and logged, no claim is
+taken, and payments/references/CRM are entirely unaffected. Set them later and
+replay the Stripe event to deliver the outstanding mail.
+
+3. In the **existing** pre-payment order-form automation, switch OFF any
    customer email. That one fires before payment, so it cannot carry the
    reference and currently mails people who never pay. Keep its other work —
    the payload carries `stage: "SUBMITTED"` to route on.
 
-While the URL is empty nothing is sent and nothing is claimed, so you can
-configure it at any time and recover with Resend.
-
-### Sending the reference for an order that predates this
+### 8c. Sending the reference for an order that predates this
 
 ```sql
 SELECT id, mcb_reference FROM orders
  WHERE status = 'PAID' AND customer_notified_at IS NULL;
 ```
 
-For each, open the payment in Stripe → Developers → Events → **Resend**. The
-webhook returns `outcome: "duplicate"` and still delivers the email once.
+For each, open the payment in Stripe -> Developers -> Events -> **Resend**.
+The webhook returns `outcome: "duplicate"` and still delivers the email once.
 Re-sending again will not email twice.
-
-While the secret is empty the endpoint returns 503 and processes nothing —
-deliberately. An unverified payment webhook would let anyone mark orders paid.
 
 ---
 

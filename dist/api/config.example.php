@@ -52,22 +52,35 @@ return [
     ],
 
     // ---- Customer communication ---------------------------------------
-    // Zapier Catch Hook that sends the POST-PAYMENT customer email — the one
-    // carrying the MCB reference. Fired by the Stripe webhook only after the
-    // paid transaction has committed.
+    // Resend (https://resend.com) sends the POST-PAYMENT customer email —
+    // the one carrying the MCB reference. Fired by the Stripe webhook only
+    // after the paid transaction has committed.
     //
-    // Must be a "Catch Hook", not a "Catch Raw Hook": the raw variant hands
-    // the Zap one unparsed string instead of mapped fields.
-    //
-    // While this is empty the notification is skipped entirely and logged:
+    // While either value is empty the email is skipped entirely and logged:
     // payments, references and the CRM are completely unaffected. Nothing
-    // here can fail a payment.
+    // here can fail a payment. Set them later and replay the Stripe event
+    // (Developers -> Events -> Resend) to deliver the outstanding mail.
     //
     // This is NOT the order-form webhook in the website bundle. That one
     // fires at submission, before payment, and must no longer send the
     // customer a fulfilment email.
-    'zapier' => [
-        'post_payment_webhook' => '',   // https://hooks.zapier.com/hooks/catch/<acct>/<hook>/
+    'resend' => [
+        // Server-side only. Treat exactly like the Stripe secret: never
+        // commit it, never expose it to the browser, never log it.
+        // Create at Resend -> API Keys with "Sending access" only.
+        'api_key' => '',   // re_…
+
+        // Must be an address on a domain VERIFIED in Resend, or the send is
+        // rejected. Friendly-name form is accepted:
+        //     'My Custom Beats <orders@send.mycustombeats.com>'
+        // A subdomain is recommended over the root domain — see
+        // docs/CRM-DEPLOYMENT.md.
+        'from'    => '',
+
+        // Test override ONLY. Leave absent in production, which then uses
+        // https://api.resend.com/emails. The acceptance suite points this at
+        // a local stub so tests never send real mail.
+        // 'api_url' => '',
     ],
 
     // ---- Behaviour ----------------------------------------------------

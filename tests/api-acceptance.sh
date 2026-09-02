@@ -296,10 +296,13 @@ t "malformed session id refused" 422 "$(curl -s -o /dev/null -w '%{http_code}' -
 
 echo ""
 echo "================ POST-PAYMENT CUSTOMER EMAIL ================"
-sink()      { docker exec mcb-api sh -c 'cat /tmp/make-sink.log 2>/dev/null'; }
-sink_count() { docker exec mcb-api sh -c 'wc -l < /tmp/make-sink.log 2>/dev/null || echo 0' | tr -d ' '; }
-sink_reset() { docker exec mcb-api sh -c 'rm -f /tmp/make-sink.log; echo ok >/dev/null'; }
-make_mode()  { docker exec mcb-api sh -c "echo '$1' > /tmp/make-mode"; }
+sink()       { docker exec mcb-api sh -c 'cat /tmp/resend-stub.log 2>/dev/null'; }
+sink_count() { docker exec mcb-api sh -c 'wc -l < /tmp/resend-stub.log 2>/dev/null || echo 0' | tr -d ' '; }
+sink_reset() { docker exec mcb-api sh -c 'rm -f /tmp/resend-stub.log; echo ok >/dev/null'; }
+make_mode()  { docker exec mcb-api sh -c "echo '$1' > /tmp/resend-mode"; }
+# Apache's error.log is a symlink to /dev/stderr — a pipe. Reading it with
+# cat can block forever, so the container's captured stdout/stderr is used.
+errlog()     { docker logs mcb-api 2>&1 | tail -300; }
 
 make_mode ok
 sink_reset
@@ -315,17 +318,26 @@ t "payment accepted" 200 "$CODE"
 tc "  → webhook reports the email was sent" "$([ "$(body | grep -c '\"customer_email\":\"notified\"')" = "1" ] && echo 1 || echo 0)"
 tc "  → exactly ONE notification delivered" "$([ "$(sink_count)" = "1" ] && echo 1 || echo 0)"
 NREF=$(q "SELECT mcb_reference FROM orders WHERE id=$NOID")
-tc "  → payload carries the MCB reference ($NREF)" "$([ "$(sink | grep -c "\"mcb_reference\":\"$NREF\"")" = "1" ] && echo 1 || echo 0)"
-tc "  → payload carries the customer's email" "$([ "$(sink | grep -c 'nadia@example.com')" = "1" ] && echo 1 || echo 0)"
-tc "  → payload carries the amount paid" "$([ "$(sink | grep -c '\"amount_value\":10')" = "1" ] && echo 1 || echo 0)"
-tc "  → amount is SERVER-formatted as a real pound sign, not an escape" "$([ "$(sink | grep -c '"amount_display":"£10.00"')" = "1" ] && echo 1 || echo 0)"
-tc "  → payload is FLAT (no nested objects for Zapier to mangle)" "$([ "$(sink | grep -c '\"customer\":{\|\"amount\":{\|\"order\":{')" = "0" ] && echo 1 || echo 0)"
-tc "  → customer name present for the email greeting" "$([ "$(sink | grep -c '\"customer_name\"')" = "1" ] && echo 1 || echo 0)"
-tc "  → package and format present" "$([ "$(sink | grep -c '\"package\"')" = "1" ] && [ "$(sink | grep -c '\"format\"')" = "1" ] && echo 1 || echo 0)"
-tc "  → payload marked event order.paid" "$([ "$(sink | grep -c '\"event\":\"order.paid\"')" = "1" ] && echo 1 || echo 0)"
-tc "  → NO Stripe identifier leaked to Make" "$([ "$(sink | grep -ci 'cs_notify\|pi_notify\|stripe')" = "0" ] && echo 1 || echo 0)"
-tc "  → NO secret leaked to Make" "$([ "$(sink | grep -ci 'whsec\|testpass\|crm_key\|token_secret')" = "0" ] && echo 1 || echo 0)"
-tc "  → NO creative brief/story leaked to Make" "$([ "$(sink | grep -c 'For my sister')" = "0" ] && echo 1 || echo 0)"
+tc "  → email carries the MCB reference ($NREF)" "$([ "$(sink | grep -c "$NREF")" -ge 1 ] && echo 1 || echo 0)"
+tc "  → addressed to the correct customer" "$([ "$(sink | grep -c 'nadia@example.com')" -ge 1 ] && echo 1 || echo 0)"
+tc "  → greets the customer by name" "$([ "$(sink | grep -c 'Hi Nadia Okonkwo')" -ge 1 ] && echo 1 || echo 0)"
+tc "  → shows the package by its DISPLAY name, not its id" "$([ "$(sink | grep -c 'Package: <strong>Moment\|Package: Moment')" -ge 1 ] && echo 1 || echo 0)"
+tc "  → shows the format by its DISPLAY name" "$([ "$(sink | grep -c 'MP3')" -ge 1 ] && echo 1 || echo 0)"
+tc "  → shows the amount server-formatted (£10.00)" "$([ "$(sink | grep -c '£10.00')" -ge 1 ] && echo 1 || echo 0)"
+tc "  → states the correspondence instruction" "$([ "$(sink | grep -c 'keep this reference for all future correspondence')" -ge 1 ] && echo 1 || echo 0)"
+tc "  → includes What happens next" "$([ "$(sink | grep -c 'What happens next')" -ge 1 ] && echo 1 || echo 0)"
+tc "  → includes the MCB sign-off" "$([ "$(sink | grep -c 'The My Custom Beats Team')" -ge 1 ] && echo 1 || echo 0)"
+tc "  → sends BOTH html and text parts" "$([ "$(sink | grep -c '\"html\"')" -ge 1 ] && [ "$(sink | grep -c '\"text\"')" -ge 1 ] && echo 1 || echo 0)"
+tc "  → authenticates to Resend with a Bearer key" "$([ "$(sink | grep -ci 'Bearer re_test')" -ge 1 ] && echo 1 || echo 0)"
+tc "  → sends an Idempotency-Key derived from the reference" "$([ "$(sink | grep -ci "Idempotency-Key.*$NREF")" -ge 1 ] && echo 1 || echo 0)"
+tc "  → the API KEY never appears in the webhook response" "$([ "$(body | grep -c 're_test')" = "0" ] && echo 1 || echo 0)"
+tc "  → the API KEY never appears in the server error log" "$([ "$(errlog | grep -c 're_test')" = "0" ] && echo 1 || echo 0)"
+tc "  → internal order_id is NOT rendered in the email" "$([ "$(sink | grep -c 'order_id')" = "0" ] && echo 1 || echo 0)"
+tc "  → no Stripe session or payment intent in the email" "$([ "$(sink | grep -ci 'cs_notify\|pi_notify')" = "0" ] && echo 1 || echo 0)"
+tc "  → subject line leads with the reference" "$([ "$(sink | grep -c "Your My Custom Beats order")" -ge 1 ] && echo 1 || echo 0)"
+tc "  → NO Stripe identifier leaked to the email" "$([ "$(sink | grep -ci 'cs_notify\|pi_notify\|stripe')" = "0" ] && echo 1 || echo 0)"
+tc "  → NO secret leaked to the email" "$([ "$(sink | grep -ci 'whsec\|testpass\|crm_key\|token_secret')" = "0" ] && echo 1 || echo 0)"
+tc "  → NO creative brief/story leaked to the email" "$([ "$(sink | grep -c 'For my sister')" = "0" ] && echo 1 || echo 0)"
 tc "  → order recorded as notified" "$([ "$(q "SELECT customer_notified_at IS NOT NULL FROM orders WHERE id=$NOID")" = "1" ] && echo 1 || echo 0)"
 
 # Stripe retries what it believes failed. The customer must not be emailed twice.
@@ -340,8 +352,36 @@ tc "  → still only ONE email" "$([ "$(sink_count)" = "1" ] && echo 1 || echo 0
 tc "  → and the reference did not change" "$([ "$(q "SELECT mcb_reference FROM orders WHERE id=$NOID")" = "$NREF" ] && echo 1 || echo 0)"
 
 echo ""
-echo "---------------- Make.com outage ----------------"
-make_mode fail
+echo "---------------- Resend failure modes ----------------"
+# Each mode is a DIFFERENT way the provider can fail. All must leave the
+# payment successful and the order recoverable — never marked notified.
+resend_failure_case() {   # $1 = stub mode, $2 = human label, $3 = email suffix
+  local mode="$1" label="$2" sfx="$3"
+  make_mode "$mode"; sink_reset
+  post order "{\"firstName\":\"Case\",\"lastName\":\"$sfx\",\"email\":\"case-$sfx@example.com\",\"package\":\"moment\",\"format\":\"mp3\"}" > /dev/null
+  local oid; oid=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
+  local pay="{\"id\":\"evt_$sfx\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_$sfx\",\"client_reference_id\":\"$oid\",\"payment_intent\":\"pi_$sfx\"}}}"
+  local code; code=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$pay")" -H 'Content-Type: application/json' -d "$pay")
+  t "$label: payment webhook still returns 200" 200 "$code"
+  tc "  → order is PAID despite the email failing" "$([ "$(q "SELECT status FROM orders WHERE id=$oid")" = "PAID" ] && echo 1 || echo 0)"
+  tc "  → MCB reference still issued" "$([ -n "$(q "SELECT mcb_reference FROM orders WHERE id=$oid")" ] && echo 1 || echo 0)"
+  tc "  → reported delivery_failed, not notified" "$([ "$(body | grep -c 'delivery_failed')" = "1" ] && echo 1 || echo 0)"
+  tc "  → claim RELEASED so the email can be retried" "$([ "$(q "SELECT IFNULL(customer_notified_at,'NULL') FROM orders WHERE id=$oid")" = "NULL" ] && echo 1 || echo 0)"
+}
+
+resend_failure_case http_fail "HTTP 422 rejection" httpfail
+resend_failure_case malformed "2xx with no message id" malformed
+resend_failure_case empty     "2xx with an empty body" emptybody
+
+echo ""
+echo "  (the timeout case takes ~8s — the client must give up first)"
+resend_failure_case timeout   "provider timeout" timeoutcase
+
+make_mode ok
+
+echo ""
+echo "---------------- Resend outage ----------------"
+make_mode http_fail
 sink_reset
 S=$(post order '{"firstName":"Ivan","lastName":"Petrov","email":"ivan@example.com","package":"moment","format":"mp3"}')
 FOID=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
@@ -354,7 +394,7 @@ tc "  → the reference was still issued" "$([ -n "$(q "SELECT mcb_reference FRO
 tc "  → outcome reported as delivery_failed" "$([ "$(body | grep -c 'delivery_failed')" = "1" ] && echo 1 || echo 0)"
 tc "  → claim RELEASED, so the customer still shows as owed an email" "$([ "$(q "SELECT IFNULL(customer_notified_at,'NULL') FROM orders WHERE id=$FOID")" = "NULL" ] && echo 1 || echo 0)"
 
-# Recovery: Make comes back and Stripe's "Resend" (same event id) delivers
+# Recovery: Resend comes back and Stripe's replay (same event id) delivers
 # the outstanding email. This is the only route to an order that was paid
 # before the email existed, or whose email failed during an outage.
 make_mode ok
@@ -367,7 +407,12 @@ curl -s -o /dev/null -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign
 tc "  → a further Resend does NOT email again" "$([ "$(sink_count)" = "1" ] && echo 1 || echo 0)"
 CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' "$BASE/crm/orders?status=PAID" -H "Authorization: Bearer $KEY")
 tc "CRM exposes notification state, so staff can spot who is owed one" "$([ "$(body | grep -c 'customer_notified_at')" -ge 1 ] && echo 1 || echo 0)"
-tc "  → every PAID order here has now been notified" "$([ "$(q "SELECT COUNT(*) FROM orders WHERE status='PAID' AND customer_notified_at IS NULL")" = "0" ] && echo 1 || echo 0)"
+# The failure-mode cases above deliberately leave their orders PAID but
+# un-notified — that IS the behaviour under test. So the invariant is not
+# "everything is notified", it is "the only orders still owed an email are
+# the ones whose delivery we deliberately broke".
+tc "  → the ONLY orders still owed an email are the deliberate failures" "$([ "$(q "SELECT COUNT(*) FROM orders o JOIN customers c ON c.id=o.customer_id WHERE o.status='PAID' AND o.customer_notified_at IS NULL AND c.email NOT LIKE 'case-%'")" = "0" ] && echo 1 || echo 0)"
+tc "  → and every one of those IS visible to staff as outstanding" "$([ "$(q "SELECT COUNT(*) FROM orders WHERE status='PAID' AND customer_notified_at IS NULL")" = "4" ] && echo 1 || echo 0)"
 
 echo ""
 echo "================ SECURITY ================"
