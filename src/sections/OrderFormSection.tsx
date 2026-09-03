@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { Upload, Info } from 'lucide-react';
+import { Upload, Info, Check } from 'lucide-react';
 import { Link } from "react-router-dom";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -1114,16 +1114,49 @@ if (formData.artwork) {
         : ""
     }`}
   >
-    <input
-      type="checkbox"
-      checked={formData.agreeTerms}
-      onChange={(e) =>
-        handleChange("agreeTerms", e.target.checked)
-      }
-      className="mt-1 w-5 h-5 md:w-6 md:h-6 accent-gold cursor-pointer"
-    />
+    {/*
+      44x44 touch target around a 24x24 control.
 
-    <span className="order-heading text-sm md:text-base leading-relaxed">
+      The negative margin is what makes both true at once: the wrapper is
+      44px, so a fingertip has the full WCAG 2.5.5 target, but -10px on every
+      side means it only OCCUPIES 24px of layout, so the box still sits
+      exactly where a 24px checkbox would and the text alignment is
+      unchanged. The overhang falls into the gap and the form's padding, so
+      it cannot overflow or overlap the copy.
+    */}
+    <span className="relative -m-2.5 flex h-11 w-11 shrink-0 items-center justify-center">
+      <input
+        type="checkbox"
+        checked={formData.agreeTerms}
+        onChange={(e) =>
+          handleChange("agreeTerms", e.target.checked)
+        }
+        /*
+          appearance-none, then drawn explicitly.
+
+          The native control was 20px on mobile and only grew to 24px on
+          desktop — backwards, since the finger is on the phone. iOS Safari
+          also renders `accent-color` inconsistently and ignores sizing on
+          some versions, which is exactly the "inconsistently tiny control"
+          this had to stop relying on.
+
+          Semantics are untouched: this is still a real
+          <input type="checkbox"> inside its <label>, so the accessibility
+          tree, screen-reader announcement, keyboard toggle and form
+          behaviour are all native.
+        */
+        className="peer h-6 w-6 shrink-0 cursor-pointer appearance-none rounded-md border-2 border-espresso/40 bg-white transition-colors checked:border-gold-deep checked:bg-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
+      />
+
+      {/* Checked state. pointer-events-none so the tick never eats the tap. */}
+      <Check
+        aria-hidden="true"
+        strokeWidth={3.5}
+        className="pointer-events-none absolute h-4 w-4 text-white opacity-0 transition-opacity peer-checked:opacity-100"
+      />
+    </span>
+
+    <span className="order-heading min-w-0 text-sm md:text-base leading-relaxed text-espresso">
       I confirm that I have read and agree to the{" "}
 <Link to="/legal/terms" target="_blank" className="text-gold-deep underline">
   Terms & Conditions
@@ -1136,7 +1169,12 @@ if (formData.artwork) {
 </Link>{" "}
 of My Custom Beats, and understand that this is a personalised, made-to-order digital product.
 
-      <span className="text-xs text-ivory/50 block mt-2">
+      {/*
+        Was text-ivory/50, which measured 1.04:1 against this white card —
+        invisible in practice. espresso/70 is 5.56:1 and passes AA while
+        staying visibly secondary to the consent sentence above it.
+      */}
+      <span className="text-xs text-espresso/70 block mt-2">
         By proceeding, you also confirm that your submission
         does not contain offensive, political, abusive,
         or inappropriate content.
