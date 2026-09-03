@@ -1,7 +1,5 @@
 
 import { useEffect, useRef, useState } from 'react';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Upload, Info, Check } from 'lucide-react';
 import { Link } from "react-router-dom";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -17,8 +15,7 @@ import {
 } from "../data/packages";
 import { buildMemory } from "../lib/memory";
 import YourMemorySummary from "../components/YourMemorySummary";
-
-gsap.registerPlugin(ScrollTrigger);
+import { revealOnScroll } from "../lib/scrollReveal";
 
 const moodsList = [
   'Romantic','Adventurous','Relaxed','Upbeat','Celebration',
@@ -248,12 +245,32 @@ const memory = buildMemory({
     const section = sectionRef.current;
     if (!section) return;
 
-    const ctx = gsap.context(() => {
-      gsap.fromTo('.order-heading',{y:30,opacity:0},{y:0,opacity:1,duration:0.4});
-      gsap.fromTo('.order-form-field',{y:20,opacity:0},{y:0,opacity:1,stagger:0.05,duration:0.3});
-    }, section);
+    /**
+     * Reveal that cannot leave the form invisible.
+     *
+     * This was a bare `gsap.fromTo(..., { opacity: 0 }, ...)`. `fromTo`
+     * renders its from-state synchronously, but the tween that clears it is
+     * driven by GSAP's ticker, which runs on requestAnimationFrame — and rAF
+     * does not fire while `document.visibilityState === "hidden"`. So a form
+     * mounted in a background tab (opened via middle-click, "open in new
+     * tab", or session restore) had `opacity: 0` written and nothing to
+     * remove it: the entire order form, from "Get started" through the
+     * consent row to the submit button, stayed blank.
+     *
+     * `revealOnScroll` keeps the same GSAP architecture but makes visibility
+     * the guaranteed end state — it hides only from JavaScript, recomputes
+     * trigger positions after late layout shifts, honours reduced motion, and
+     * runs a failsafe that shows everything regardless. `gsap.set` and
+     * `setTimeout` both work in a hidden tab, so the failsafe fires there too.
+     *
+     * The y-offsets, durations and stagger are the previous values.
+     */
+    const cleanups = [
+      revealOnScroll(section, '.order-heading', { y: 30, duration: 0.4, stagger: 0 }),
+      revealOnScroll(section, '.order-form-field', { y: 20, duration: 0.3, stagger: 0.05 }),
+    ];
 
-    return () => ctx.revert();
+    return () => cleanups.forEach((cleanup) => cleanup());
   }, []);
 
   const handleMoodToggle = (mood: string) => {
@@ -1222,14 +1239,10 @@ of My Custom Beats, and understand that this is a personalised, made-to-order di
 
               Deliberately NOT given the `order-form-field` class.
 
-              That class is animated by the bare `gsap.fromTo(..., {opacity: 0},
-              ...)` above, which couples visibility to the tween actually
-              running: if the ticker stalls or the effect re-runs without
-              completing, the element stays at `opacity: 0` permanently. This
-              panel states the price the customer is about to be charged, and
-              `lib/scrollReveal` exists because exactly that failure once hid
-              the whole price list. So the total renders unconditionally, with
-              no animation between it and the customer.
+              The reveal above is now failsafe-backed, so this is no longer
+              load-bearing — but the panel states the price the customer is
+              about to be charged, and there is no reason to put any animation
+              between that number and the customer. It renders immediately.
             */}
             <YourMemorySummary memory={memory} />
 
