@@ -106,9 +106,13 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
             {pkg.name}
           </h3>
 
-          {/* Fixed height so a positioning line that wraps to two lines
-              doesn't push its price out of alignment with the other cards. */}
-          <p className="text-[11px] tracking-[0.16em] uppercase text-espresso/45 text-center mb-5 min-h-[2.6em] flex items-center justify-center">
+          {/* Fixed height so the approved positioning lines cannot push their
+              price out of alignment with the other cards. 4.5em is three lines
+              at this size and leading — what the longest approved line
+              ("Turn the memory into something you can hold.") needs in a
+              four-column card. Shrink this and Keepsake's price drops 7px
+              below the rest. */}
+          <p className="text-[11px] tracking-[0.16em] uppercase text-espresso/45 text-center mb-5 min-h-[4.5em] flex items-center justify-center leading-[1.5]">
             {pkg.positioning}
           </p>
 
@@ -118,7 +122,7 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
               <span className="text-4xl font-serif text-espresso">
                 {formatPrice(pkg)}
               </span>
-              <span className="text-sm text-espresso/45">
+              <span className="font-mono text-sm text-espresso/45">
                 {formatPrice(pkg, 'usd')}
               </span>
             </div>
@@ -170,9 +174,10 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
             </button>
           )}
 
-          {/* FORMAT */}
-          <p className="text-[11px] tracking-[0.12em] uppercase text-espresso/45 mt-auto pt-5 border-t border-espresso/10">
-            {pkg.formats.map((f) => FORMATS[f].name.replace('High-quality 12" Black ', '')).join(' · ')}
+          {/* FORMAT — names come through as-is now that no size or colour
+              is baked into them. See FORMATS in data/packages.ts. */}
+          <p className="font-mono text-[11px] tracking-[0.12em] uppercase text-espresso/45 mt-auto pt-5 border-t border-espresso/10">
+            {pkg.formats.map((f) => FORMATS[f].name).join(' · ')}
           </p>
 
           {/* CTA */}
@@ -211,25 +216,33 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
               {BESPOKE_PACKAGE.name}
             </h3>
             <p className="text-ivory/70 max-w-xl leading-relaxed mb-6">
-              A completely unique commission — scored, arranged and produced around
-              a single story, with a private creative consultation and a dedicated
-              production window.
+              {BESPOKE_PACKAGE.description}
             </p>
+
+            {/* Every inclusion, not the first six. Bespoke is the most
+                expensive experience on the site and was the only one hiding
+                what it contains — five of its eleven inclusions were
+                unreachable, with no way to expand them. */}
             <ul className="grid sm:grid-cols-2 gap-x-8 gap-y-2 max-w-2xl">
-              {BESPOKE_PACKAGE.features.slice(0, 6).map((feature, index) => (
+              {BESPOKE_PACKAGE.features.map((feature, index) => (
                 <li key={index} className="flex gap-2.5">
                   <Check size={15} className="text-gold mt-1 shrink-0" aria-hidden="true" />
                   <span className="text-sm text-ivory/75 leading-snug">{feature}</span>
                 </li>
               ))}
             </ul>
+
+            {/* Delivery, which every other card states and this band did not. */}
+            <p className="font-mono text-[11px] tracking-[0.12em] uppercase text-ivory/50 mt-6 pt-5 border-t border-ivory/15">
+              {BESPOKE_PACKAGE.delivery}
+            </p>
           </div>
 
           <div className="text-left md:text-right shrink-0">
             <div className="font-serif text-4xl text-ivory mb-1">
               {formatPrice(BESPOKE_PACKAGE)}
             </div>
-            <div className="text-sm text-ivory/50 mb-6">
+            <div className="font-mono text-sm text-ivory/50 mb-6">
               {formatPrice(BESPOKE_PACKAGE, 'usd')}
             </div>
             <button

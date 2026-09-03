@@ -1,19 +1,24 @@
 /**
- * MCB physical keepsakes — the objects a song can become.
+ * The homepage keepsake band — a derived view, not a second catalogue.
  *
- * Shared by the Products page and the homepage "Make the memory physical"
- * band so the two can never describe the ecosystem differently.
+ * This file used to hold its own list of physical products, which meant the
+ * homepage, the Products page and the checkout formats could each describe the
+ * ecosystem differently. It now projects `data/catalogue` down to the flat
+ * shape the homepage band renders, so there is exactly one place a product
+ * name, description or photograph is written.
  *
- * ASSETS
- * ------
- * `image` is omitted where no photograph exists, and components fall back to
- * an illustrative mark rather than a broken or borrowed image. Every entry
- * currently has approved artwork. Nothing here describes manufacturing,
- * materials or specifications that have not been provided.
+ * Families with no approved product yet (Digital Players, Portable
+ * Gramophones, the Mobile-phone Gramophone, Frames) are excluded: a showcase
+ * tile for something with no photograph, price or specification would be an
+ * empty promise. They are still part of the catalogue and still appear as
+ * related products wherever a relationship is declared.
  */
 
+import { CATALOGUE } from "./catalogue";
+import type { ProductFamilyId } from "./catalogue";
+
 export interface Keepsake {
-  id: string;
+  id: ProductFamilyId;
   title: string;
   description: string;
   /** Public path to the product photograph. Omitted when none exists yet. */
@@ -24,49 +29,31 @@ export interface Keepsake {
   isCheckoutFormat: boolean;
 }
 
-export const KEEPSAKES: readonly Keepsake[] = [
-  {
-    id: "vinyl",
-    title: "Personalised Vinyl Records",
-    description: "Your song, pressed onto premium vinyl with bespoke artwork.",
-    image: "/images/products/vinyl.jpg",
-    isCheckoutFormat: true,
-  },
-  {
-    id: "cd",
-    title: "CD",
-    description:
-      "Your music on disc, presented with your custom cover artwork.",
-    image: "/images/brand/CD.png",
-    alt: "MCB CD — personalised music keepsake",
-    isCheckoutFormat: true,
-  },
-  {
-    id: "artwork",
-    title: "Framed Lyric Artwork",
-    description: "Timeless typography designed to live on walls.",
-    image: "/images/products/artwork.jpg",
-    isCheckoutFormat: false,
-  },
-  {
-    id: "plaque",
-    title: "Engraved Music Plaques",
-    description: "Crystal or wood with a scannable code to your song.",
-    image: "/images/products/plaque.jpg",
-    isCheckoutFormat: false,
-  },
-  {
-    id: "memory-box",
-    title: "Luxury Memory Boxes",
-    description: "Lyrics, photos, and your song in one complete experience.",
-    image: "/images/products/memory-box.jpg",
-    isCheckoutFormat: false,
-  },
-  {
-    id: "cards",
-    title: "Premium Music Cards",
-    description: "A minimal card that reveals your song with a single tap.",
-    image: "/images/products/cards.jpg",
-    isCheckoutFormat: false,
-  },
+/**
+ * Homepage order, which is not catalogue order: the two formats a customer can
+ * actually check out with lead, then the pieces built around them.
+ */
+const SHOWCASE_ORDER: readonly ProductFamilyId[] = [
+  "vinyl",
+  "cd",
+  "lyrics-frame",
+  "plaque",
+  "memory-box",
+  "gift-pop-up-card",
 ];
+
+export const KEEPSAKES: readonly Keepsake[] = SHOWCASE_ORDER.flatMap((id) => {
+  const family = CATALOGUE.find((candidate) => candidate.id === id);
+  if (!family || family.products.length === 0) return [];
+
+  return [
+    {
+      id: family.id,
+      title: family.name,
+      description: family.description,
+      ...(family.image ? { image: family.image } : {}),
+      ...(family.alt ? { alt: family.alt } : {}),
+      isCheckoutFormat: family.isCheckoutFormat,
+    },
+  ];
+});

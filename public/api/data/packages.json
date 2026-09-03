@@ -2,7 +2,7 @@
   "_generated": "Do not edit. Generated from src/data/packages.ts by scripts/generate-packages-json.mjs",
   "formats": {
     "vinyl": {
-      "name": "High-quality 12\" Black Vinyl",
+      "name": "Vinyl",
       "is_physical": true
     },
     "cd": {
@@ -71,7 +71,7 @@
       "price_gbp": 349,
       "price_usd": 449,
       "price_prefix": null,
-      "song_count": 7,
+      "song_count": 6,
       "delivery": "Delivered within 15 working days",
       "formats": [
         "vinyl",

@@ -52,7 +52,7 @@ const faqs: { question: string; answer: string }[] = [
   },
   {
     question: `What is ${HEIRLOOM.name}?`,
-    answer: `${HEIRLOOM.name} is ${formatPrice(HEIRLOOM)} and preserves a whole life story as an album: seven cohesive songs with a narrative arc, a custom intro and closing theme, producer-guided creative review, premium album artwork, a multi-page lyric and story booklet and a private streaming link. You choose vinyl or CD, delivered within 15 working days.`,
+    answer: `${HEIRLOOM.name} is ${formatPrice(HEIRLOOM)} and preserves a whole life story as an album: six cohesive songs with a narrative arc, a custom intro and closing theme, producer-guided creative review, premium album artwork, a multi-page lyric and story booklet and a private streaming link. You choose vinyl or CD, delivered within 15 working days.`,
   },
   {
     question: 'What is Bespoke?',
@@ -60,11 +60,11 @@ const faqs: { question: string; answer: string }[] = [
   },
   {
     question: 'What is the difference between Moment, Keepsake, Journey and Heirloom?',
-    answer: `They differ in scale and in what you end up holding. ${MOMENT.name} is one song delivered digitally within the hour. ${KEEPSAKE.name} is one carefully crafted song you can have pressed to vinyl or CD. ${JOURNEY.name} is four songs written as a single connected experience. ${HEIRLOOM.name} is a seven-song album telling a complete life story. Bespoke is an open commission shaped entirely around you.`,
+    answer: `They differ in scale and in what you end up holding. ${MOMENT.name} is one song delivered digitally within the hour. ${KEEPSAKE.name} is one carefully crafted song you can have pressed to vinyl or CD. ${JOURNEY.name} is four songs written as a single connected experience. ${HEIRLOOM.name} is a six-song album telling a complete life story. Bespoke is an open commission shaped entirely around you.`,
   },
   {
     question: 'Can I get my personalised song on vinyl?',
-    answer: `Yes. A high-quality 12-inch black vinyl pressing is included at no extra cost with ${KEEPSAKE.name}, ${JOURNEY.name} and ${HEIRLOOM.name}. Choose vinyl when you place your order and we will ask for a delivery address.`,
+    answer: `Yes. A vinyl pressing is included at no extra cost with ${KEEPSAKE.name}, ${JOURNEY.name} and ${HEIRLOOM.name}. The record is sized to your music: a 7-inch holds one song, a 10-inch holds two, and a 12-inch holds five to six — so a four-song ${JOURNEY.name} presses to a single 12-inch or a pair of 10-inch records, and a six-song ${HEIRLOOM.name} to one 12-inch. Choose vinyl when you place your order and we will ask for a delivery address.`,
   },
   {
     question: 'Can I get a CD?',
@@ -84,12 +84,12 @@ const faqs: { question: string; answer: string }[] = [
   },
   {
     question: 'Can you make an album from a holiday?',
-    answer: `Yes. ${JOURNEY.name} gives you a four-song album with unified artwork and a lyric booklet. For a longer story — a milestone anniversary trip, or a journey spanning years — ${HEIRLOOM.name} gives you a seven-song album with a full narrative arc.`,
+    answer: `Yes. ${JOURNEY.name} gives you a four-song album with unified artwork and a lyric booklet. For a longer story — a milestone anniversary trip, or a journey spanning years — ${HEIRLOOM.name} gives you a six-song album with a full narrative arc.`,
   },
   {
     question: 'What physical keepsakes do you offer?',
     answer:
-      'Beyond vinyl and CD, we make framed lyric artwork, engraved crystal or wood music plaques with a scannable code to your song, luxury memory boxes holding lyrics and photos alongside your music, and premium music cards that reveal your song with a single tap. These are made to order — contact us for pricing.',
+      'Beyond vinyl and CD, we make lyrics frames — your words set as typography and framed for the wall — engraved crystal or wood music plaques with a scannable code to your song, luxury memory boxes holding lyrics and photos alongside your music, and gift pop-up cards that open to reveal your song, with designs for anniversaries, birthdays, weddings, Christmas and more. These are made to order — contact us for pricing.',
   },
   {
     question: 'Do I need to write lyrics?',

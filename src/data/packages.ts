@@ -29,8 +29,18 @@ export interface FormatDefinition {
 export const FORMATS: Readonly<Record<FormatId, FormatDefinition>> = {
   vinyl: {
     id: "vinyl",
-    name: 'High-quality 12" Black Vinyl',
-    summary: "Pressed and posted to you, with your custom cover artwork.",
+    /**
+     * No colour, and no size, in the name.
+     *
+     * Colour is not offered at launch, so naming one here would advertise a
+     * choice the customer does not have. Size is not fixed either: record
+     * capacity now determines the pressing, so a one-song Keepsake and a
+     * six-song Heirloom are not the same object. `catalogue/vinyl.ts` derives
+     * which records an experience presses to.
+     */
+    name: "Vinyl",
+    summary:
+      "Pressed and posted to you, with your custom sleeve artwork. Record size is matched to the number of songs.",
     isPhysical: true,
   },
   cd: {
@@ -87,7 +97,12 @@ export type PackageId = "moment" | "keepsake" | "journey" | "heirloom" | "bespok
 export interface McbPackage<F extends FormatId = FormatId> {
   id: PackageId;
   name: string;
-  /** Short line under the price, e.g. "Most popular gift". */
+  /**
+   * The approved positioning line — what this experience *is*, in one
+   * sentence, e.g. "Four chapters. One unforgettable story." Rendered above
+   * the price on every card. It is marketing copy signed off by the business:
+   * do not paraphrase it in a component.
+   */
   positioning: string;
   description: string;
   price: {
@@ -141,7 +156,7 @@ export const formatPrice = (
 export const MOMENT: McbPackage<"mp3"> = {
   id: "moment",
   name: "Moment",
-  positioning: "Perfect for special moments",
+  positioning: "A memory, made instantly.",
   description:
     "A simple, beautiful way to turn a memory into music. Perfect for last minute requirements and quick, meaningful gifts.",
   price: { gbp: 10, usd: 14 },
@@ -171,7 +186,7 @@ export const MOMENT: McbPackage<"mp3"> = {
 export const KEEPSAKE: McbPackage<"vinyl" | "cd" | "mp3"> = {
   id: "keepsake",
   name: "Keepsake",
-  positioning: "Most popular gift",
+  positioning: "Turn the memory into something you can hold.",
   description:
     "Perfect for a heartfelt gift, proposal, or meaningful personal moment.",
   price: { gbp: 79, usd: 99 },
@@ -183,7 +198,7 @@ export const KEEPSAKE: McbPackage<"vinyl" | "cd" | "mp3"> = {
     "Story-driven lyrics crafted from your memories",
     "2 refinement revisions",
     "Elegant cover artwork",
-    'Your choice of 12" Black Vinyl, CD or MP3',
+    "Your choice of vinyl, CD or MP3",
     "Delivered within 15 working days",
   ],
   delivery: "Delivered within 15 working days",
@@ -214,7 +229,7 @@ export const KEEPSAKE: McbPackage<"vinyl" | "cd" | "mp3"> = {
 export const JOURNEY: McbPackage<"vinyl" | "cd"> = {
   id: "journey",
   name: "Journey",
-  positioning: "Best overall experience",
+  positioning: "Four chapters. One unforgettable story.",
   description:
     "Ideal for cruises, anniversaries, romantic escapes, and milestone celebrations.",
   price: { gbp: 199, usd: 249 },
@@ -229,7 +244,7 @@ export const JOURNEY: McbPackage<"vinyl" | "cd"> = {
     "Custom album artwork",
     "1-page lyric printable booklet (PDF)",
     "Deluxe digital delivery package",
-    'Your choice of 12" Black Vinyl or CD',
+    "Your choice of vinyl or CD",
     "Delivered within 15 working days",
   ],
   delivery: "Delivered within 15 working days",
@@ -253,14 +268,14 @@ export const JOURNEY: McbPackage<"vinyl" | "cd"> = {
 export const HEIRLOOM: McbPackage<"vinyl" | "cd"> = {
   id: "heirloom",
   name: "Heirloom",
-  positioning: "For major life events",
+  positioning: "Six memories. One family story.",
   description:
     "Designed for weddings, family milestones, and once-in-a-lifetime celebrations.",
   price: { gbp: 349, usd: 449 },
-  songCount: 7,
+  songCount: 6,
   revisions: "2 refinements per song",
   features: [
-    "7-song cohesive storytelling album",
+    "6-song cohesive storytelling album",
     "Narrative-driven emotional arc",
     "Custom intro and closing theme",
     "2 refinements per song",
@@ -268,7 +283,7 @@ export const HEIRLOOM: McbPackage<"vinyl" | "cd"> = {
     "Premium custom album artwork",
     "Multi-page lyric & story booklet (PDF)",
     "Private streaming link for sharing",
-    'Your choice of 12" Black Vinyl or CD',
+    "Your choice of vinyl or CD",
     "Priority handling",
     "Delivered within 15 working days",
   ],
@@ -291,16 +306,21 @@ export const HEIRLOOM: McbPackage<"vinyl" | "cd"> = {
 };
 
 /**
- * Bespoke is unchanged by directive. Its inclusions are all digital
- * deliverables (artwork files, instrumental versions, story booklet), and its
- * existing Payment Link collects no shipping address, so no shipping change
- * is applied here.
+ * Bespoke's inclusions are all digital deliverables (artwork files,
+ * instrumental versions, story booklet), and its existing Payment Link
+ * collects no shipping address, so no shipping change is applied here.
  */
 export const BESPOKE: AnyPackage = {
   id: "bespoke",
   name: "Bespoke",
-  positioning: "Full luxury production",
-  description: "A fully commissioned luxury experience.",
+  positioning: "Your story. Your sound. Your heirloom.",
+  /**
+   * Bespoke's full editorial description. It previously lived hard-coded in
+   * PackagesSection while this field held a one-line stub, so the band and
+   * the data said different things and only one of them was reusable.
+   */
+  description:
+    "A completely unique commission — scored, arranged and produced around a single story, with a private creative consultation and a dedicated production window.",
   price: { gbp: 799, usd: 999, prefix: "From" },
   songCount: null,
   revisions: "Unlimited refinements during production window",

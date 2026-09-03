@@ -1,8 +1,30 @@
 
 import { Helmet } from "react-helmet-async";
-import { KEEPSAKES } from "../data/keepsakes";
-import CdDiscMark from "../components/CdDiscMark";
+import { stockedFamilies, relatedFamilies } from "../data/catalogue";
+import CatalogueFamily from "../components/CatalogueFamily";
 import { canonical, breadcrumbStructuredData } from "../lib/seo";
+
+/**
+ * Families with an approved product, in catalogue order.
+ *
+ * Families with none — Digital Players, Portable Gramophones, the
+ * Mobile-phone Gramophone and Frames — are not given a block of their own.
+ * They still appear by name wherever a relationship names them, which is
+ * honest about what exists without inventing a product to photograph.
+ */
+const FAMILIES = stockedFamilies();
+
+/**
+ * Approved families with nothing catalogued yet, discovered through the
+ * relationship map rather than listed here, so this cannot drift out of step
+ * with the catalogue.
+ */
+const AWAITED_FAMILIES = FAMILIES.flatMap((family) =>
+  relatedFamilies(family.id).filter((related) => related.products.length === 0)
+).filter(
+  (family, index, all) =>
+    all.findIndex((candidate) => candidate.id === family.id) === index
+);
 
 
 const Products = () => {
@@ -10,15 +32,15 @@ const Products = () => {
   return (
     <>
       <Helmet>
-        <title>Music Keepsakes — Vinyl, CD, Artwork & Plaques | My Custom Beats</title>
+        <title>Music Keepsakes — Vinyl, Frames, Memory Boxes & Cards | My Custom Beats</title>
         <meta
           name="description"
-          content="Turn your personalised song into something you can hold: 12-inch vinyl, CD, framed lyric artwork, engraved plaques, memory boxes and music cards."
+          content="Turn your personalised song into something you can hold: vinyl in 7, 10 and 12-inch, CD, lyrics frames, engraved plaques, luxury memory boxes and gift pop-up cards."
         />
         <meta property="og:title" content="Music Keepsakes | My Custom Beats" />
         <meta
           property="og:description"
-          content="Vinyl, CD, framed lyric artwork, engraved plaques, memory boxes and music cards — your song, made physical."
+          content="Vinyl, CD, lyrics frames, engraved plaques, luxury memory boxes and gift pop-up cards — your song, made physical."
         />
         <meta property="og:url" content={canonical("/products")} />
         <script type="application/ld+json">
@@ -72,53 +94,47 @@ const Products = () => {
 </section>
 
 
-        {/* PRODUCTS */}
-        <section className="px-6 max-w-6xl mx-auto py-20 space-y-24">
-          {KEEPSAKES.map((product) => (
-            <div
-              key={product.id}
-              className="grid md:grid-cols-2 gap-12 items-center"
-            >
-             
-              {/* IMAGE — or a typographic panel where no photograph exists.
-                  Never substitute a stand-in image for a real product. */}
-              <div className="h-[400px] rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition duration-500">
-                {product.image ? (
-                  <img
-                    src={product.image}
-                    alt={product.alt ?? product.title}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-full object-cover transition duration-700"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-ivory border border-espresso/10 rounded-2xl p-10">
-                    <CdDiscMark className="w-full h-full max-w-[300px]" />
-                  </div>
-                )}
-              </div>
-
-              {/* CONTENT */}
-              <div> 
-                <h2 className="text-3xl md:text-4xl font-light mb-4">
-                  {product.title}
-                </h2>
-
-                <p className="text-black/60 mb-6 leading-relaxed">
-                  {product.description}
-                </p>
-
-                <p className="italic text-sm mb-6 text-black/50">
-                  Each piece is custom made — enquire for pricing
-                </p>
-
-<p className="text-xs text-black/50 mt-1">
-  Based on quantity, design & personalization
-</p>
-
-              </div>
-            </div>
+        {/* PRODUCTS — every family rendered from catalogue data. */}
+        <section className="px-6 max-w-6xl mx-auto py-20 space-y-20 md:space-y-24">
+          {FAMILIES.map((family, index) => (
+            <CatalogueFamily
+              key={family.id}
+              family={family}
+              reverse={index % 2 === 1}
+            />
           ))}
+
+          {/* Approved product lines with no catalogue yet. Named, because
+              they are a real part of the ecosystem, but given no price,
+              photograph or specification that has not been supplied. */}
+          {AWAITED_FAMILIES.length > 0 && (
+            <div className="border-t border-black/10 pt-14">
+              <h2 className="text-2xl md:text-3xl font-light mb-3">
+                Also part of the collection
+              </h2>
+              <p className="text-black/60 mb-8 max-w-2xl leading-relaxed">
+                These pieces complete the vinyl experience. Each is made
+                individually — talk to us about what you have in mind.
+              </p>
+
+              <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 list-none p-0 m-0">
+                {AWAITED_FAMILIES.map((family) => (
+                  <li
+                    key={family.id}
+                    className="rounded-2xl border border-black/10 bg-white p-6"
+                  >
+                    <h3 className="text-lg font-light mb-2">{family.name}</h3>
+                    <p className="text-sm text-black/60 leading-relaxed mb-4">
+                      {family.description}
+                    </p>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-black/45">
+                      Enquire for availability
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
 
 
@@ -219,7 +235,7 @@ const Products = () => {
         {/* CTA */}
         <section className="text-center py-32 px-6 border-t border-black/10">
           <h2 className="text-4xl font-light mb-6">
-            Create Something They’ll Never Forget
+            Create Your Memory
           </h2>
 
           <p className="text-black/60 max-w-xl mx-auto mb-10">

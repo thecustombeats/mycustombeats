@@ -53,9 +53,12 @@ module.exports = {
       },
 
       fontFamily: {
-        /* MVIS™: Cormorant Garamond for display, Manrope for body and UI. */
+        /* MVIS™: Cormorant Garamond for display, Manrope for body and UI,
+         * IBM Plex Mono for technical values — prices, song capacities,
+         * lead times. Mono is for figures only, never for prose. */
         serif: ['Cormorant Garamond', 'Georgia', 'serif'],
         sans: ['Manrope', 'system-ui', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
 
       corePlugins: {

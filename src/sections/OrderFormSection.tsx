@@ -15,6 +15,8 @@ import {
   formatPrice,
   type FormatId,
 } from "../data/packages";
+import { buildMemory } from "../lib/memory";
+import YourMemorySummary from "../components/YourMemorySummary";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -228,6 +230,19 @@ const offersFormatChoice = availableFormats.length > 1;
 const needsShipping = activePackage
   ? requiresShippingAddress(activePackage, formData.format)
   : false;
+
+/**
+ * YOUR MEMORY, resolved from the current selection.
+ *
+ * The panel below renders this rather than reading formData itself, so what
+ * the customer is shown and what the memory model computes cannot disagree.
+ * No enhancements are passed: none can be charged through a fixed Payment
+ * Link, so none is offered here. See lib/memory.ts for why.
+ */
+const memory = buildMemory({
+  packageId: formData.package || null,
+  formatId: formData.format || null,
+});
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -453,6 +468,19 @@ if (formData.artwork) {
     "formatName",
     orderedFormat ? FORMATS[orderedFormat as FormatId].name : ""
   );
+
+  /**
+   * The vinyl pressing, derived from the package's song count.
+   *
+   * Fulfilment cannot press a record without knowing which record: a four-song
+   * Journey is 2 × 10-inch or 1 × 12-inch, and a six-song Heirloom is a single
+   * 12-inch. The customer is not asked to choose — the business has not
+   * approved a customer-facing pressing choice — so the recommended
+   * configuration is derived and passed to operations. Empty for non-vinyl.
+   *
+   * Ancillary only. Nothing here reaches Stripe or affects what is charged.
+   */
+  zapierData.append("vinylPressing", memory.pressing?.label ?? "");
 
   const shipping = requiresShippingAddress(orderedPackage, orderedFormat);
   zapierData.append("requiresShipping", String(shipping));
@@ -1189,76 +1217,21 @@ of My Custom Beats, and understand that this is a personalised, made-to-order di
   )}
 </div>
 
-            {/* ---- Order summary: what am I actually buying? ---- */}
-            {activePackage && (
-              <section
-                aria-labelledby="order-summary-heading"
-                className="order-form-field rounded-2xl border border-gold/30 bg-ivory p-6"
-              >
-                <h3
-                  id="order-summary-heading"
-                  className="font-serif text-2xl text-espresso mb-1"
-                >
-                  Your order
-                </h3>
-                <p className="text-sm text-espresso/60 mb-5">
-                  {activePackage.positioning}
-                </p>
+            {/*
+              ---- YOUR MEMORY: core package + format + enhancements ----
 
-                <dl className="divide-y divide-espresso/10 text-sm">
-                  <div className="flex justify-between gap-6 py-3">
-                    <dt className="text-espresso/60">Experience</dt>
-                    <dd className="text-espresso font-medium text-right">
-                      {activePackage.name}
-                    </dd>
-                  </div>
+              Deliberately NOT given the `order-form-field` class.
 
-                  {formData.format && (
-                    <div className="flex justify-between gap-6 py-3">
-                      <dt className="text-espresso/60">Format</dt>
-                      <dd className="text-espresso font-medium text-right">
-                        {FORMATS[formData.format as FormatId].name}
-                      </dd>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between gap-6 py-3">
-                    <dt className="text-espresso/60">Delivery</dt>
-                    <dd className="text-espresso text-right">
-                      {activePackage.delivery}
-                      {needsShipping && (
-                        <span className="block text-xs text-espresso/50 mt-0.5">
-                          Posted to your delivery address
-                        </span>
-                      )}
-                    </dd>
-                  </div>
-
-                  <div className="flex justify-between gap-6 py-3">
-                    <dt className="text-espresso/60">Includes</dt>
-                    <dd className="text-espresso/80 text-right max-w-xs">
-                      {activePackage.songCount
-                        ? `${activePackage.songCount} personalised ${
-                            activePackage.songCount === 1 ? "song" : "songs"
-                          }, ${activePackage.revisions.toLowerCase()}`
-                        : activePackage.revisions}
-                    </dd>
-                  </div>
-
-                  <div className="flex justify-between gap-6 pt-4">
-                    <dt className="text-espresso font-medium">Total</dt>
-                    <dd className="text-right">
-                      <span className="font-serif text-2xl text-espresso">
-                        {formatPrice(activePackage)}
-                      </span>
-                      <span className="text-espresso/50 text-xs ml-2">
-                        {formatPrice(activePackage, "usd")}
-                      </span>
-                    </dd>
-                  </div>
-                </dl>
-              </section>
-            )}
+              That class is animated by the bare `gsap.fromTo(..., {opacity: 0},
+              ...)` above, which couples visibility to the tween actually
+              running: if the ticker stalls or the effect re-runs without
+              completing, the element stays at `opacity: 0` permanently. This
+              panel states the price the customer is about to be charged, and
+              `lib/scrollReveal` exists because exactly that failure once hid
+              the whole price list. So the total renders unconditionally, with
+              no animation between it and the customer.
+            */}
+            <YourMemorySummary memory={memory} />
 
             {submitError && (
               <p
@@ -1275,9 +1248,9 @@ of My Custom Beats, and understand that this is a personalised, made-to-order di
               className="w-full py-4 bg-espresso text-white rounded-full transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
-                <>Processing Secure Payment...</>
+                <>Taking you to secure checkout...</>
               ) : (
-                <>Proceed to Secure Payment</>
+                <>Continue to Checkout</>
               )}
             </button>
 <p className="text-sm text-black/50 mt-2">
