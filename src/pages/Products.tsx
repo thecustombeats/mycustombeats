@@ -2,7 +2,7 @@
 import { Helmet } from "react-helmet-async";
 import { stockedFamilies, relatedFamilies } from "../data/catalogue";
 import CatalogueFamily from "../components/CatalogueFamily";
-import { canonical, breadcrumbStructuredData } from "../lib/seo";
+import { canonical, productsPageStructuredData } from "../lib/seo";
 
 /**
  * Families with an approved product, in catalogue order.
@@ -44,9 +44,7 @@ const Products = () => {
         />
         <meta property="og:url" content={canonical("/products")} />
         <script type="application/ld+json">
-          {JSON.stringify(
-            breadcrumbStructuredData([{ name: "Keepsakes", path: "/products" }])
-          )}
+          {JSON.stringify(productsPageStructuredData())}
         </script>
       </Helmet>
 

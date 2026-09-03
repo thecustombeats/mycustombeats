@@ -4,6 +4,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Instagram, Youtube, Facebook, MessageCircle, Music } from 'lucide-react';
 import { Helmet } from "react-helmet-async";
 import { trackWhatsAppClick, trackEvent } from '../lib/analytics';
+import { canonical, aboutPageStructuredData } from '../lib/seo';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -80,6 +81,12 @@ const AboutSection = () => {
     name="description"
     content="Meet the founders and the global collective of professional musicians who turn your memories into personalised songs and keepsakes."
   />
+  <meta property="og:url" content={canonical("/about")} />
+  {/* The About page is where the organisation is actually described, so it
+      is where the AboutPage + Organization graph belongs. */}
+  <script type="application/ld+json">
+    {JSON.stringify(aboutPageStructuredData())}
+  </script>
 </Helmet>
 
 

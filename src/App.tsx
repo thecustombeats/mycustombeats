@@ -32,7 +32,7 @@ import { Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import { KEEPSAKES } from "./data/keepsakes";
 import CdDiscMark from "./components/CdDiscMark";
-import { siteStructuredData, canonical } from "./lib/seo";
+import { homepageStructuredData, canonical } from "./lib/seo";
 import RouteErrorBoundary from "./components/RouteErrorBoundary";
 import NotFound from "./pages/NotFound";
 
@@ -122,7 +122,7 @@ function MainSite() {
     />
     <meta property="og:url" content={canonical("/")} />
     <script type="application/ld+json">
-      {JSON.stringify(siteStructuredData())}
+      {JSON.stringify(homepageStructuredData())}
     </script>
   </Helmet>
 

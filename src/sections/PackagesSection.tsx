@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Music } from 'lucide-react';
 import { Sparkles } from "lucide-react";
-import { Helmet } from "react-helmet-async";
 import { revealOnScroll } from '../lib/scrollReveal';
 import { PACKAGES, FORMATS, formatPrice } from '../data/packages';
-import { packagesStructuredData } from '../lib/seo';
 
 /**
  * The four fixed experiences sit in the comparison grid. Bespoke is an
@@ -51,14 +49,10 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
 
   return (
     <>
-    {/* Product + Offer data for every experience, generated from the same
-        source as the visible cards so markup and page can never disagree. */}
-    <Helmet>
-      <script type="application/ld+json">
-        {JSON.stringify(packagesStructuredData())}
-      </script>
-    </Helmet>
-
+    {/* Package Product + Offer data is emitted once, by the homepage graph in
+        App.tsx. This section previously emitted its own block, which put two
+        competing JSON-LD scripts describing the same five products on one
+        page. See lib/seo.ts. */}
     <div
       ref={sectionRef}
       id="packages"

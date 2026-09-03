@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/accordion';
 import { Helmet } from "react-helmet-async";
 import { MOMENT, KEEPSAKE, JOURNEY, HEIRLOOM, BESPOKE, formatPrice } from '../data/packages';
-import { canonical, breadcrumbStructuredData } from '../lib/seo';
+import { canonical, faqPageStructuredData } from '../lib/seo';
 
 
 gsap.registerPlugin(ScrollTrigger);
@@ -175,20 +175,12 @@ const FAQSection = () => {
     content="How personalised songs work, what Moment, Keepsake, Journey and Heirloom include, whether you can get vinyl, CD or MP3, and how quickly your music arrives."
   />
   <meta property="og:url" content={canonical("/faq")} />
+  {/* FAQPage, breadcrumb and page identity in one graph. `mainEntity` is
+      built from the same `faqs` array the accordion renders below, so the
+      markup cannot answer a question the page does not ask. */}
   <script type="application/ld+json">
-    {JSON.stringify(breadcrumbStructuredData([{ name: "FAQ", path: "/faq" }]))}
+    {JSON.stringify(faqPageStructuredData(faqs))}
   </script>
-  <script type="application/ld+json">
-{JSON.stringify({
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: faqs.map((faq) => ({
-    "@type": "Question",
-    name: faq.question,
-    acceptedAnswer: { "@type": "Answer", text: faq.answer },
-  })),
-})}
-</script>
 </Helmet>
 
 

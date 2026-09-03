@@ -43,25 +43,59 @@
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
 
+    <!--
+      Static Organization identity, for crawlers that do not execute
+      JavaScript. This app is client-rendered, so without this block a non-JS
+      fetch of the homepage carries no machine-readable identity at all.
+
+      IT MUST STAY IDENTICAL TO organizationEntity() IN src/lib/seo.ts.
+      Both emit @id https://www.mycustombeats.com/#organization, so a crawler
+      merges them into one node - and if they disagree, that node ends up
+      holding two descriptions, or claiming a profile the other omits. The
+      previous version did exactly that: a different description, a founder's
+      personal Instagram in sameAs, and areaServed "Worldwide", which the site
+      nowhere states.
+    -->
     <script type="application/ld+json">
     {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "@id": "https://www.mycustombeats.com/#organization",
-      "name": "My Custom Beats",
-      "url": "https://www.mycustombeats.com/",
-      "logo": "https://www.mycustombeats.com/images/brand/MCB-Logo-Final.png",
-      "description": "Personalised music and luxury keepsakes. Memories turned into songs by professional musicians, delivered on vinyl, CD or MP3.",
-      "sameAs": [
-        "https://www.instagram.com/djrinaldiofficial",
-        "https://www.youtube.com/@MyCustomBeats"
-      ],
-      "contactPoint": {
-        "@type": "ContactPoint",
-        "email": "hello@mycustombeats.com",
-        "contactType": "customer support",
-        "areaServed": "Worldwide"
-      }
+          "@context": "https://schema.org",
+          "@type": "OnlineStore",
+          "@id": "https://www.mycustombeats.com/#organization",
+          "name": "My Custom Beats",
+          "alternateName": "MCB",
+          "url": "https://www.mycustombeats.com",
+          "description": "My Custom Beats turns a memory into a personalised song, written and produced to order and delivered as vinyl, CD or MP3, alongside physical keepsakes made to hold it.",
+          "logo": {
+                "@type": "ImageObject",
+                "@id": "https://www.mycustombeats.com/#logo",
+                "url": "https://www.mycustombeats.com/images/brand/MCB-Logo-Final.png",
+                "caption": "My Custom Beats"
+          },
+          "image": {
+                "@id": "https://www.mycustombeats.com/#logo"
+          },
+          "email": "hello@mycustombeats.com",
+          "telephone": "+447340742009",
+          "sameAs": [
+                "https://www.youtube.com/@MyCustomBeats"
+          ],
+          "founder": [
+                {
+                      "@type": "Person",
+                      "name": "Rinaldi"
+                },
+                {
+                      "@type": "Person",
+                      "name": "Shobha (Bella) Menezes"
+                }
+          ],
+          "contactPoint": {
+                "@type": "ContactPoint",
+                "contactType": "customer support",
+                "email": "hello@mycustombeats.com",
+                "telephone": "+447340742009",
+                "url": "https://www.mycustombeats.com/#contact"
+          }
     }
     </script>
 
