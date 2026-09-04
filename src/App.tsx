@@ -31,6 +31,7 @@ import { Helmet } from "react-helmet-async";
 import { Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import { KEEPSAKES } from "./data/keepsakes";
+import AudienceSplitSection from "./sections/AudienceSplitSection";
 import CdDiscMark from "./components/CdDiscMark";
 import { homepageStructuredData, canonical } from "./lib/seo";
 import RouteErrorBoundary from "./components/RouteErrorBoundary";
@@ -132,6 +133,9 @@ function MainSite() {
       <main className="relative">
        
         <HeroSection />
+
+        {/* The two commercial paths, immediately after the hero. */}
+        <AudienceSplitSection />
 
 <Suspense fallback={<div className="h-40" />}>
   <SongShowcaseSection />

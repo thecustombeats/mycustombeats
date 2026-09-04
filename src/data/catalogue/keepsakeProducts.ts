@@ -108,7 +108,13 @@ export const MEMORY_BOX: CatalogueProduct = {
   familyId: "memory-box",
   name: "Luxury Memory Box",
   description: "Lyrics, photos, and your song in one complete experience.",
-  image: "/images/products/memory-box.jpg",
+  /**
+   * NO IMAGE. `memory-box.jpg` showed a USB stick labelled "Your Story /
+   * Your Song" inside the box — the discontinued USB Memory Box, which must
+   * not appear anywhere. No approved photograph of the current product
+   * exists, so the family renders through the typographic fallback rather
+   * than a stand-in. ASSET REQUIRED: Luxury Memory Box product photograph.
+   */
   price: TBD,
   availability: "MADE_TO_ORDER",
   fulfilment: "PHYSICAL",
@@ -126,7 +132,7 @@ export const MEMORY_BOX_FAMILY: ProductFamily = {
   id: "memory-box",
   name: "Luxury Memory Boxes",
   description: "Lyrics, photos, and your song in one complete experience.",
-  image: "/images/products/memory-box.jpg",
+  // See MEMORY_BOX: the only photograph shows the discontinued USB concept.
   isCheckoutFormat: false,
   products: [MEMORY_BOX],
 };

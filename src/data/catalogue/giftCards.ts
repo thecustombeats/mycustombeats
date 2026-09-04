@@ -54,7 +54,12 @@ export const GIFT_POP_UP_CARD_FAMILY: ProductFamily = {
   id: "gift-pop-up-card",
   name: "Gift Pop-Up Cards",
   description: "A card that opens to reveal your song.",
-  image: "/images/products/cards.jpg",
+  /**
+   * NO IMAGE. `cards.jpg` shows a flat card printed "NFC" — the
+   * discontinued Music Card, which tapped rather than opened. A Gift Pop-Up
+   * Card is a different product, and no photograph of it exists yet.
+   * ASSET REQUIRED: Gift Pop-Up Card product photograph.
+   */
   isCheckoutFormat: false,
   products: GIFT_POP_UP_CARDS,
 };

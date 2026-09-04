@@ -59,6 +59,7 @@ const logoSize = isScrolled
   { label: 'Occasions', href: '/occasions' }, // ✅ ADD THIS
   { label: 'Order', href: '/#order' },
   { label: 'Contact', href: '/#contact' },
+  { label: 'For Cruise Lines', href: '/partners' }, // enterprise path — the second MCB audience
   { label: 'FAQ', href: '/faq' }, // keep but place last
 ];
     
