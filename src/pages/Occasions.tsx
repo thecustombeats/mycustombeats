@@ -1,19 +1,24 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { revealOnScroll } from "../lib/scrollReveal";
 
 export default function Occasions() {
-  gsap.registerPlugin(ScrollTrigger);
+  const sectionRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * This page animated ".fade-up" — a class no element in the codebase has
+   * ever carried — so GSAP logged "target .fade-up not found" on every visit
+   * and nothing animated. The selector was also unscoped, searching the whole
+   * document, so it could have reached elements on other routes.
+   *
+   * Now it reveals the occasion cards that actually exist, scoped to this
+   * page's root, through the helper that guarantees content ends up visible
+   * even if the animation never runs.
+   */
   useEffect(() => {
-    gsap.from(".fade-up", {
-      y: 40,
-      opacity: 0,
-      duration: 1,
-      stagger: 0.2,
-      ease: "power3.out",
-    });
+    const scope = sectionRef.current;
+    if (!scope) return;
+    return revealOnScroll(scope, ".occasion-card");
   }, []);
 
   const occasions = [
@@ -36,7 +41,7 @@ export default function Occasions() {
         <meta name="keywords" content="custom song, personalized music gift, wedding song, anniversary song, birthday song, proposal song, bespoke song, music gift for pets, corporate music gift" />
       </Helmet>
 
-      <div className="bg-[#FBF9F6] text-black">
+      <div ref={sectionRef} className="bg-[#FBF9F6] text-black">
 
         {/* HERO */}
         <section className="pt-32 pb-24 text-center px-6 max-w-5xl mx-auto">
@@ -67,7 +72,7 @@ export default function Occasions() {
         <section className="max-w-6xl mx-auto px-6 pb-24">
           <div className="grid md:grid-cols-2 gap-10">
             {occasions.map((item, index) => (
-              <div key={index} className="border border-black/10 rounded-2xl bg-white overflow-hidden hover:shadow-xl transition">
+              <div key={index} className="occasion-card border border-black/10 rounded-2xl bg-white overflow-hidden hover:shadow-xl transition">
                 {item.type === "video" ? (
                   <video autoPlay loop muted playsInline poster={item.poster || "/images/hero-poster.jpg"} className="w-full h-56 object-cover">
                     <source src={item.src} type="video/mp4" />

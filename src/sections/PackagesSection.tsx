@@ -3,6 +3,7 @@ import { Check, Music } from 'lucide-react';
 import { Sparkles } from "lucide-react";
 import { revealOnScroll } from '../lib/scrollReveal';
 import { PACKAGES, FORMATS, formatPrice } from '../data/packages';
+import { scrollToSection } from '../utils/scrollToSection';
 
 /**
  * The four fixed experiences sit in the comparison grid. Bespoke is an
@@ -38,14 +39,19 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
     );
   };
 
+  /**
+   * Selecting a package takes the customer to the order form with it chosen.
+   *
+   * This used to read `document.querySelector('#order')` and scroll only if
+   * it found something. The order form is lazy-loaded, so on a first visit it
+   * usually found nothing: the card highlighted and the page did not move,
+   * which is what "it only highlights and doesn't navigate" was. Waiting for
+   * the section fixes every card, Bespoke included.
+   */
   const handleSelect = (packageId: string) => {
-  setSelectedPackage(packageId);
-
-  const orderForm = document.querySelector('#order');
-  if (orderForm) {
-    orderForm.scrollIntoView({ behavior: 'smooth' });
-  }
-};
+    setSelectedPackage(packageId);
+    scrollToSection('order');
+  };
 
   return (
     <>
@@ -201,7 +207,10 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
            editorial band so it reads as deliberate rather than a fifth
            card left over at the end of a four-column grid. ---- */}
       {BESPOKE_PACKAGE && (
-        <div className="package-card mt-8 xl:mt-10 rounded-2xl bg-ink text-ivory p-8 md:p-12 grid md:grid-cols-[1fr_auto] gap-8 md:gap-12 items-center">
+        <div
+          onClick={() => handleSelect(BESPOKE_PACKAGE.id)}
+          className="package-card mt-8 xl:mt-10 rounded-2xl bg-ink text-ivory p-8 md:p-12 grid md:grid-cols-[1fr_auto] gap-8 md:gap-12 items-center cursor-pointer"
+        >
           <div>
             <p className="text-[11px] tracking-[0.2em] uppercase text-gold mb-3">
               {BESPOKE_PACKAGE.positioning}
@@ -241,7 +250,12 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
             </div>
             <button
               type="button"
-              onClick={() => handleSelect(BESPOKE_PACKAGE.id)}
+              onClick={(e) => {
+                // The band is clickable now, so stop the click reaching it
+                // twice — the same guard the four cards' buttons use.
+                e.stopPropagation();
+                handleSelect(BESPOKE_PACKAGE.id);
+              }}
               className="px-7 py-3 text-[11px] tracking-[0.2em] uppercase rounded-full bg-gold text-ink hover:bg-gold-light transition-all duration-300"
             >
               {BESPOKE_PACKAGE.cta}

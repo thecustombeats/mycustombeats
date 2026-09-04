@@ -34,7 +34,9 @@ import { KEEPSAKES } from "./data/keepsakes";
 import AudienceSplitSection from "./sections/AudienceSplitSection";
 import SeasonalBanner from "./components/SeasonalBanner";
 import CdDiscMark from "./components/CdDiscMark";
+import KeepsakeMark from "./components/KeepsakeMark";
 import { homepageStructuredData, canonical, shareImageFor } from "./lib/seo";
+import { scrollToSection } from "./utils/scrollToSection";
 import RouteErrorBoundary from "./components/RouteErrorBoundary";
 import NotFound from "./pages/NotFound";
 
@@ -191,7 +193,11 @@ function MainSite() {
                 />
               ) : (
                 <div className="w-full h-[240px] flex items-center justify-center bg-ivory p-6">
-                  <CdDiscMark className="h-full w-auto" />
+                  {item.id === "cd" ? (
+                    <CdDiscMark className="h-full w-auto" />
+                  ) : (
+                    <KeepsakeMark name={item.title} />
+                  )}
                 </div>
               )}
             </div>
@@ -289,14 +295,17 @@ function ScrollToTop() {
   }, [pathname]);
 
   useEffect(() => {
-    if (hash) {
-      const element = document.querySelector(hash);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
-      }
-    } else {
+    if (!hash) {
       window.scrollTo(0, 0);
+      return;
     }
+
+    // The homepage's sections are lazy-loaded, so #order and #samples are
+    // usually absent at this moment. Waiting for the element is what stops
+    // the visitor being left at the hero on the first navigation and only
+    // arriving on the second. Cancelled on the next route change so a stale
+    // target cannot hijack the page the visitor has since moved to.
+    return scrollToSection(hash);
   }, [pathname, hash]);
 
   return null;

@@ -22,6 +22,7 @@
 
 import { useState } from "react";
 import CdDiscMark from "./CdDiscMark";
+import KeepsakeMark from "./KeepsakeMark";
 import { PACKAGES } from "../data/packages";
 import {
   OCCASIONS,
@@ -270,7 +271,14 @@ const CatalogueFamily = ({ family, reverse = false }: CatalogueFamilyProps) => {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-ivory border border-espresso/10 rounded-2xl p-10">
-            <CdDiscMark className="w-full h-full max-w-[300px]" />
+            {/* The disc mark is a drawing of a CD, so it only stands in for
+                the CD. Anything else names itself rather than borrowing an
+                image of a different product. */}
+            {family.id === "cd" ? (
+              <CdDiscMark className="w-full h-full max-w-[300px]" />
+            ) : (
+              <KeepsakeMark name={family.name} />
+            )}
           </div>
         )}
       </div>
