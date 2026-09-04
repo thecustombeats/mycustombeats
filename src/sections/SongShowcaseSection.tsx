@@ -19,6 +19,29 @@ const SongShowcaseSection = () => {
 
   // 🎬 Animations
   useEffect(() => {
+    /**
+     * Scope the context to the ELEMENT, not the ref object.
+     *
+     * This passed `sectionRef` itself. GSAP accepts a ref, but it resolves it
+     * lazily every time the context's selector runs:
+     *
+     *   el = value.current || value.nativeElement || value
+     *   ... el.querySelectorAll ? el : el === value ? _warn("Invalid scope")
+     *
+     * React nulls `sectionRef.current` when this section unmounts, so once the
+     * homepage was left, `value.current` was null, `el` fell back to the ref
+     * object, and any later `ScrollTrigger.refresh()` re-ran the selector and
+     * logged "Invalid scope". The refresh came from the body ResizeObserver in
+     * lib/scrollReveal — the bottom of that stack trace — which fires on the
+     * page-height change a route transition causes.
+     *
+     * Resolving `.current` once, here, is what every other animated component
+     * already does. The scope stays a real element for the life of the
+     * context, and `ctx.revert()` still tears it down on unmount.
+     */
+    const section = sectionRef.current;
+    if (!section) return;
+
     const ctx = gsap.context(() => {
       gsap.fromTo(".showcase-heading", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4 });
 
@@ -32,7 +55,7 @@ const SongShowcaseSection = () => {
           start: "top 85%"
         }
       });
-    }, sectionRef);
+    }, section);
 
     return () => ctx.revert();
   }, []);
