@@ -211,9 +211,9 @@ export default function PartnersPage() {
 
   const steps = [
     { num: "01", title: "Guest Stories & Preferences", desc: "We gather the guest's memories, milestones, relationships, and emotional moments." },
-    { num: "02", title: "Bespoke Creative Brief", desc: "Our concierge team crafts a deeply personal creative vision around the guest's story." },
+    { num: "02", title: "Bespoke Creative Brief", desc: "Our producers shape a creative brief around the guest's story, in their own words." },
     { num: "03", title: "Artisan Production", desc: "Skilled creators bring the story to life as a beautifully crafted, original musical experience." },
-    { num: "04", title: "Seamless Delivery", desc: "Delivered elegantly through cruise apps, concierge teams, guest portals, and onboard touchpoints." },
+    { num: "04", title: "Delivered to Your Guest", desc: "Delivered digitally, or pressed to vinyl or CD and posted — presented however you choose to give it to your guest." },
   ];
 
   const experiences = [
@@ -382,6 +382,14 @@ export default function PartnersPage() {
           .bottom-row { flex-direction: column !important; }
           .target-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }
+        .goal-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 10px 16px;
+        }
+        @media (max-width: 760px) { .goal-grid { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 420px) { .goal-grid { grid-template-columns: 1fr; } }
+
         @media (max-width: 600px) {
           .partners-grid { grid-template-columns: 1fr !important; }
           .experiences-grid { grid-template-columns: 1fr !important; }
@@ -431,8 +439,8 @@ export default function PartnersPage() {
             <div style={{ display: "flex", gap: "32px", marginBottom: "44px", flexWrap: "wrap" }}>
               {[
                 { label: "White-Glove", sub: "Personalization" },
-                { label: "Enterprise Ready", sub: "& Scalable" },
-                { label: "Turnkey Solution", sub: "From Start to Finish" },
+                { label: "Every Guest", sub: "Individually Written" },
+                { label: "One Point", sub: "Of Contact" },
               ].map(b => (
                 <div key={b.label} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                   <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "12px", fontWeight: "500", letterSpacing: "0.1em", color: "#d4aa70", textTransform: "uppercase" }}>{b.label}</span>
@@ -459,6 +467,33 @@ export default function PartnersPage() {
             ... card content ...
           </div> 
           */}
+        </div>
+      </section>
+
+      {/* ── AUDIENCE SIGNPOST ───────────────────────────────────────────────
+           This page sells a guest experience to a business. Someone who
+           arrived here wanting a song for themselves needs one line telling
+           them so, and a way out — otherwise the only path onward is a
+           partnership enquiry form they have no reason to complete. */}
+      <section style={{ background: "#1a1208", padding: "20px 48px" }}>
+        <div style={{
+          maxWidth: "1280px", margin: "0 auto", display: "flex", flexWrap: "wrap",
+          alignItems: "center", justifyContent: "center", gap: "8px 16px", textAlign: "center",
+        }}>
+          <span style={{
+            fontFamily: "'Jost', sans-serif", fontSize: "13px", letterSpacing: "0.02em", color: "#c9bda8",
+          }}>
+            This page is for businesses buying a guest experience.
+          </span>
+          <a
+            href="/#packages"
+            style={{
+              fontFamily: "'Jost', sans-serif", fontSize: "13px", fontWeight: 500,
+              letterSpacing: "0.06em", color: "#d4aa70", textDecoration: "underline",
+            }}
+          >
+            Creating a memory for yourself? Start here →
+          </a>
         </div>
       </section>
 
@@ -559,7 +594,7 @@ export default function PartnersPage() {
 
           {/* Delivery channels */}
           <div style={{ marginTop: "48px", display: "flex", justifyContent: "center", gap: "40px", flexWrap: "wrap" }}>
-            {["Cruise Apps", "Email", "QR Codes", "Guest Portals", "Concierge Teams", "Onboard Experiences"].map(ch => (
+            {["Email", "QR Codes", "Posted Keepsakes"].map(ch => (
               <div key={ch} style={{ fontFamily: "'Jost', sans-serif", fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880", display: "flex", alignItems: "center", gap: "6px" }}>
                 <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#B8965A", display: "inline-block" }} />
                 {ch}
@@ -583,12 +618,12 @@ export default function PartnersPage() {
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               {[
-                "Seamless Workflow & Partner Integration",
-                "Scalable Fulfillment & High-Volume Personalization",
-                "White-Label Partnership Programs",
-                "CRM & Property Management Integration",
-                "Multi-Location & Multi-Brand Support",
-                "Enterprise Security & Compliance Ready",
+                "Every song written from one guest's own story",
+                "Written and produced by professional musicians",
+                "Delivered digitally, or as a keepsake posted to you",
+                "From one hour to fifteen working days",
+                "One point of contact for your team",
+                "Scoped with you before anything is agreed",
               ].map(item => (
                 <div key={item} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <CheckIcon />
@@ -682,7 +717,7 @@ export default function PartnersPage() {
                     Flexible Partnerships.<br /><em>Infinite Possibilities.</em>
                   </h3>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 20px", marginBottom: "28px" }}>
-                    {["White-Label Partnerships", "Custom Integrations", "Revenue-Sharing Arrangements", "Event Collaborations", "Enterprise Licensing", "Hospitality Partnerships"].map(m => (
+                    {["Guest Gifting", "Onboard & Event Experiences", "Milestone Celebrations", "Brand Activations", "Bespoke Commissions", "Something Else"].map(m => (
                       <div key={m} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <CheckIcon />
                         <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "11px", color: "rgba(250,247,240,0.7)", letterSpacing: "0.04em" }}>{m}</span>
@@ -706,7 +741,7 @@ export default function PartnersPage() {
             </div>
 
             {/* Partner Inquiry Form */}
-            <div style={{ flex: 1 }} ref={formRef}>
+            <div style={{ flex: 1, minWidth: 0 }} ref={formRef}>
               <p className="section-label">Partner Inquiry</p>
               <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "clamp(28px, 3.5vw, 44px)", fontWeight: "300", color: "#1a1208", marginBottom: "8px" }}>
                 Start the Conversation
@@ -795,10 +830,11 @@ export default function PartnersPage() {
                       <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880" }}>Type of Partnership Interest</label>
                       <select className="form-select" name="partnershipInterest" value={formData.partnershipInterest} onChange={handleChange}>
                         <option value="">Select type</option>
-                        <option>White-Label Partnership</option>
-                        <option>Revenue-Sharing</option>
-                        <option>Enterprise Integration</option>
-                        <option>Event Collaboration</option>
+                        <option>Guest Gifting</option>
+                        <option>Onboard or Event Experiences</option>
+                        <option>Milestone Celebrations</option>
+                        <option>Brand Activation</option>
+                        <option>Bespoke Commission</option>
                         <option>Other</option>
                       </select>
                     </div>
@@ -825,8 +861,8 @@ export default function PartnersPage() {
                   {/* Partnership Goals */}
                   <div style={{ marginBottom: "28px" }}>
                     <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880", display: "block", marginBottom: "16px" }}>Partnership Goals</label>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px 16px" }}>
-                      {["Guest Entertainment", "Concierge Integration", "Hospitality Integration", "White-Label Solutions", "API / AI Integrations", "Event Experiences", "Revenue-Sharing Opportunities", "Brand Activations"].map(goal => (
+                    <div className="goal-grid">
+                      {["Guest Entertainment", "Hospitality Experiences", "Event Experiences", "Brand Activations", "Guest Gifting", "Something Else"].map(goal => (
                         <div key={goal} className="goal-chip" onClick={() => handleGoalToggle(goal)}>
                           <div className={`goal-checkbox ${formData.goals.includes(goal) ? "checked" : ""}`}>
                             {formData.goals.includes(goal) && <svg width="10" height="8" viewBox="0 0 10 8" fill="white"><path d="M1 4l3 3 5-6" strokeWidth="1.5" stroke="white" fill="none"/></svg>}
@@ -871,9 +907,9 @@ export default function PartnersPage() {
       <section style={{ background: "#f4efe8", borderTop: "1px solid #e8e0d4", padding: "40px 48px" }}>
         <div style={{ maxWidth: "1280px", margin: "0 auto", display: "flex", justifyContent: "center", gap: "60px", flexWrap: "wrap" }}>
           {[
-            { title: "Enterprise Ready", sub: "Onboarding" },
-            { title: "Feel-On", sub: "Hospitality Experiences" },
-            { title: "Built for Scalable", sub: "Hospitality Experiences" },
+            { title: "Written by", sub: "Professional Musicians" },
+            { title: "Every Guest", sub: "Individually" },
+            { title: "Digital or", sub: "Physical Keepsakes" },
             { title: "Designed for Modern", sub: "Guest Engagement" },
           ].map(b => (
             <div key={b.title} style={{ textAlign: "center" }}>
