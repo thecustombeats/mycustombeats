@@ -56,6 +56,67 @@ export const canonical = (path = "/") =>
   `${SITE_URL}${path === "/" ? "" : path}`;
 
 /* ------------------------------------------------------------------ */
+/* Social / discovery images                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The share image for each route.
+ *
+ * Every page previously inherited one `og:image` from index.html, so a pin,
+ * a shared link or a social card for the keepsakes page, the cruise funnel
+ * or the partnerships page all showed the homepage hero. That is the single
+ * thing standing between these pages and being pinnable.
+ *
+ * Kept as a route map rather than per-page tags for the same reason the
+ * canonical is: a page cannot be missed, and it cannot emit two. Only images
+ * that already exist and already describe the page are listed — a route with
+ * no obviously right photograph is absent and falls back to the site default
+ * rather than being given a borrowed one.
+ *
+ * `og:title` and `og:description` are deliberately not duplicated here.
+ * Crawlers fall back to the page's own <title> and meta description, which
+ * every page already sets, so restating them would create a second copy to
+ * drift.
+ */
+const SHARE_IMAGES: Readonly<Record<string, { path: string; alt: string }>> = {
+  "/products": {
+    path: "/images/products/vinyl.jpg",
+    alt: "A personalised vinyl record pressed by My Custom Beats",
+  },
+  "/cruise": {
+    path: "/images/hero-cruise.jpg",
+    alt: "A voyage at sea",
+  },
+  "/partners": {
+    path: "/images/hero-cruise-couple.jpg",
+    alt: "Guests aboard a luxury cruise",
+  },
+  "/occasions": {
+    path: "/images/occasions/travel.jpg",
+    alt: "A personalised song for a journey",
+  },
+  "/about": {
+    path: "/images/founder1-rinaldi.jpg",
+    alt: "Rinaldi, founder and executive producer at My Custom Beats",
+  },
+  "/anniversary-song": {
+    path: "/images/sample-anniversary.jpg",
+    alt: "A personalised anniversary song",
+  },
+};
+
+/** Site-wide default, matching the static tag in index.html. */
+const DEFAULT_SHARE_IMAGE = {
+  path: "/images/hero-1.jpg",
+  alt: "My Custom Beats — personalised songs and keepsakes",
+};
+
+export const shareImageFor = (path: string) => {
+  const image = SHARE_IMAGES[path] ?? DEFAULT_SHARE_IMAGE;
+  return { url: `${SITE_URL}${image.path}`, alt: image.alt };
+};
+
+/* ------------------------------------------------------------------ */
 /* Stable entity ids                                                   */
 /* ------------------------------------------------------------------ */
 

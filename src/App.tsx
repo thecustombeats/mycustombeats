@@ -32,8 +32,9 @@ import { Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import { KEEPSAKES } from "./data/keepsakes";
 import AudienceSplitSection from "./sections/AudienceSplitSection";
+import SeasonalBanner from "./components/SeasonalBanner";
 import CdDiscMark from "./components/CdDiscMark";
-import { homepageStructuredData, canonical } from "./lib/seo";
+import { homepageStructuredData, canonical, shareImageFor } from "./lib/seo";
 import RouteErrorBoundary from "./components/RouteErrorBoundary";
 import NotFound from "./pages/NotFound";
 
@@ -134,6 +135,10 @@ function MainSite() {
       <main className="relative">
        
         <HeroSection />
+
+        {/* Renders only when a seasonal edition is switched on and in
+            window. Nothing is active today. */}
+        <SeasonalBanner />
 
         {/* The two commercial paths, immediately after the hero. */}
         <AudienceSplitSection />
@@ -254,13 +259,19 @@ function MainSite() {
 
 function Layout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
+  const share = shareImageFor(pathname);
 
   return (
     <>
-      {/* One canonical per page, derived from the route. Kept here rather
-          than in each page so no route can be missed or emit two. */}
+      {/* One canonical and one share image per page, derived from the route.
+          Kept here rather than in each page so no route can be missed or
+          emit two. Titles and descriptions stay with their pages; crawlers
+          fall back to them when og:title is absent. */}
       <Helmet>
         <link rel="canonical" href={canonical(pathname)} />
+        <meta property="og:image" content={share.url} />
+        <meta property="og:image:alt" content={share.alt} />
+        <meta name="twitter:image" content={share.url} />
       </Helmet>
       <Navigation />
       {children}
