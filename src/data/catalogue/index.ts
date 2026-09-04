@@ -30,6 +30,7 @@ export * from "./vinyl";
 export * from "./giftCards";
 export * from "./keepsakeProducts";
 export * from "./relationships";
+export * from "./commercial";
 
 /** Every family, in the order the site presents them. */
 export const CATALOGUE: readonly ProductFamily[] = [

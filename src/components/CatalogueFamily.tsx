@@ -32,6 +32,8 @@ import {
   relatedFamilies,
   relationLabel,
   selectableOptions,
+  termsFor,
+  termStatement,
   type CatalogueProduct,
   type ProductFamily,
 } from "../data/catalogue";
@@ -340,6 +342,48 @@ const CatalogueFamily = ({ family, reverse = false }: CatalogueFamilyProps) => {
             </p>
           </div>
         )}
+
+        {/* Commercial terms. Only what is approved is stated; the rest says
+            so plainly rather than rendering nothing, because a customer
+            deciding on a fragile made-to-order object asks about delivery,
+            returns and damage before they ask about anything else. */}
+        {(() => {
+          const terms = termsFor(family.id);
+          const stated: { label: string; statement: string }[] = [
+            { label: "Shipping", term: terms.shipping },
+            { label: "Delivery", term: terms.delivery },
+            { label: "Returns", term: terms.returns },
+            { label: "Exchange", term: terms.exchange },
+            { label: "If it arrives damaged", term: terms.damage },
+          ].flatMap(({ label, term }) => {
+            const statement = termStatement(term);
+            return statement === null ? [] : [{ label, statement }];
+          });
+
+          return (
+            <div className="mt-6">
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-black/45 mb-2">
+                Delivery &amp; care
+              </p>
+              {stated.length > 0 ? (
+                <dl className="space-y-1.5 text-sm">
+                  {stated.map(({ label, statement }) => (
+                    <div key={label} className="flex gap-3">
+                      <dt className="text-black/50 shrink-0 w-28">{label}</dt>
+                      <dd className="text-black/70 m-0">{statement}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <p className="text-sm text-black/60 leading-relaxed">
+                  Delivery, returns and replacement are confirmed with your
+                  quote — each piece is made to order, so we agree them with
+                  you before anything is produced.
+                </p>
+              )}
+            </div>
+          );
+        })()}
 
         <div className="mt-7 space-y-1">
           {/* Every product in a family shares its pricing basis today, so the
