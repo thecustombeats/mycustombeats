@@ -25,6 +25,7 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/reference.php';
 require_once __DIR__ . '/reconciliation.php';
 require_once __DIR__ . '/notify.php';
+require_once __DIR__ . '/stripe.php';
 
 /**
  * Loads configuration, preferring a location outside the web root.

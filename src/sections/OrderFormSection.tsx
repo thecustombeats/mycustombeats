@@ -16,6 +16,7 @@ import {
 import { buildMemory } from "../lib/memory";
 import YourMemorySummary from "../components/YourMemorySummary";
 import { revealOnScroll } from "../lib/scrollReveal";
+import { createCheckoutSession } from "../lib/checkoutSession";
 
 const moodsList = [
   'Romantic','Adventurous','Relaxed','Upbeat','Celebration',
@@ -610,7 +611,23 @@ if (formData.artwork) {
       ? `${stripeUrl}?client_reference_id=${encodeURIComponent(String(crmOrderId))}`
       : stripeUrl;
 
-  window.location.href = finalUrl;
+  /**
+   * Server-created Checkout Session, if it is switched on.
+   *
+   * DORMANT: the flag is off, so this returns immediately without a network
+   * call and `finalUrl` — the existing Payment Link — is what the customer
+   * gets. The live payment path is unchanged.
+   *
+   * When it is switched on, a refusal or an outage also falls through to the
+   * Payment Link rather than stranding someone mid-purchase.
+   */
+  const session = await createCheckoutSession({
+    packageId: selectedPackage,
+    formatId: orderedFormat,
+    orderId: crmOrderId,
+  });
+
+  window.location.href = session.ok ? session.url : finalUrl;
 };
 
   return (

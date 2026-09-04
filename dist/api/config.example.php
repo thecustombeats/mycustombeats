@@ -49,6 +49,12 @@ return [
     'stripe' => [
         'webhook_secret' => '',   // whsec_…
         'secret_key'     => '',   // sk_live_… — server-side only, never shipped
+
+        // Server-created Checkout Sessions. OFF until sandbox testing and
+        // end-to-end verification are complete. While false, /api/checkout/
+        // session returns 503 and the site continues to use the Payment
+        // Links, which remain the live payment path.
+        'checkout_sessions_enabled' => false,
     ],
 
     // ---- Customer communication ---------------------------------------
