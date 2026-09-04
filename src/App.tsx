@@ -40,6 +40,7 @@ import NotFound from "./pages/NotFound";
 
 
 const AnniversarySong = lazy(() => import("./pages/AnniversarySong"));
+const CruiseMemories = lazy(() => import("./pages/CruiseMemories"));
 const SongShowcaseSection = lazy(() => import("./sections/SongShowcaseSection"));
 const HowItWorksSection = lazy(() => import("./sections/HowItWorksSection"));
 const TestimonialsSection = lazy(() => import("./sections/TestimonialsSection"));
@@ -354,6 +355,7 @@ function App() {
             </Layout>
           }
         />
+        <Route path="/cruise" element={<Layout><CruiseMemories /></Layout>} />
         <Route path="/about" element={<Layout><About /></Layout>} />
         <Route path="/faq" element={<Layout><FAQ /></Layout>} />
 

@@ -620,6 +620,27 @@ export const productsPageStructuredData = () =>
     ...keepsakeEntities(),
   ]);
 
+/**
+ * The cruise guest funnel. A WebPage about the service, not a collection —
+ * it presents one journey, and the packages it names are already defined on
+ * the homepage graph, so they are referenced rather than redefined.
+ */
+export const cruisePageStructuredData = () =>
+  graph([
+    organizationEntity(),
+    websiteEntity(),
+    webPageEntity({
+      path: "/cruise",
+      name: "Cruise & Voyage Songs | My Custom Beats",
+      description:
+        "Turn a cruise or voyage into a personalised song written from your own story. Delivered digitally or pressed to vinyl or CD.",
+      mainEntity: ENTITY.service,
+      breadcrumb: `${canonical("/cruise")}#breadcrumb`,
+    }),
+    breadcrumbEntity("/cruise", [{ name: "Cruise & Voyage", path: "/cruise" }]),
+    serviceEntity(),
+  ]);
+
 /** The About page, which is where the organisation is actually described. */
 export const aboutPageStructuredData = () =>
   graph([

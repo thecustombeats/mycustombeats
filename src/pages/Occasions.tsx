@@ -116,6 +116,17 @@ export default function Occasions() {
 >
   Start My Song →
 </a>
+
+{/* The voyage funnel has a page of its own; this card is where a guest
+    looking for it actually is. */}
+{item.title === "Travel / Cruise Songs" && (
+  <a
+    href="/cruise"
+    className="block mt-4 text-sm text-gold-deep hover:underline"
+  >
+    See the cruise &amp; voyage journey →
+  </a>
+)}
                 </div>
               </div>
             ))}
