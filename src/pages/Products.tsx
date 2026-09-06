@@ -110,29 +110,52 @@ const Products = () => {
               <h2 className="text-2xl md:text-3xl font-light mb-3">
                 Also part of the collection
               </h2>
-              <p className="text-black/60 mb-8 max-w-2xl leading-relaxed">
-                These pieces complete the vinyl experience. Each is made
-                individually — talk to us about what you have in mind.
+              <p className="text-black/60 mb-10 max-w-2xl leading-relaxed">
+                Ways to play what you make. Each is produced individually —
+                talk to us about what you have in mind.
               </p>
 
-              <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 list-none p-0 m-0">
+              {/*
+                Each card is the artwork alone. These images carry their own
+                title and description inside them, matching the catalogue copy
+                exactly, so repeating the words underneath would print them
+                twice. The heading stays in the markup for structure and
+                screen readers, visually hidden.
+
+                object-contain, not cover: the titles are printed near the
+                bottom edge of the artwork and a crop could clip them.
+              */}
+              <ul className="grid sm:grid-cols-2 gap-6 lg:gap-8 list-none p-0 m-0">
                 {AWAITED_FAMILIES.map((family) => (
-                  <li
-                    key={family.id}
-                    className="rounded-2xl border border-black/10 bg-white p-6"
-                  >
-                    <h3 className="text-lg font-light mb-2">{family.name}</h3>
-                    <p className="text-sm text-black/60 leading-relaxed mb-4">
-                      {family.description}
-                    </p>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-black/45">
-                      Enquire for availability
-                    </p>
+                  <li key={family.id}>
+                    <article className="h-full rounded-2xl border border-black/10 bg-white overflow-hidden">
+                      <h3 className="sr-only">{family.name}</h3>
+                      {family.image ? (
+                        <img
+                          src={family.image}
+                          alt={family.alt ?? family.name}
+                          loading="lazy"
+                          decoding="async"
+                          className="w-full h-auto block"
+                        />
+                      ) : (
+                        <div className="p-6">
+                          <p className="text-lg font-light mb-2">{family.name}</p>
+                          <p className="text-sm text-black/60 leading-relaxed">
+                            {family.description}
+                          </p>
+                        </div>
+                      )}
+                      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-black/45 px-6 py-4 border-t border-black/5">
+                        Enquire for availability
+                      </p>
+                    </article>
                   </li>
                 ))}
               </ul>
             </div>
           )}
+
         </section>
 
 

@@ -35,6 +35,7 @@ export const FAMILY_RELATIONSHIPS: Readonly<
       "digital-player",
       "portable-gramophone",
       "phone-gramophone",
+      "vintage-collection",
     ],
   },
   "lyrics-frame": { label: "Pairs with", familyIds: ["memory-box"] },
@@ -53,6 +54,7 @@ export const FAMILY_RELATIONSHIPS: Readonly<
   "digital-player": { label: "Plays", familyIds: [] },
   "portable-gramophone": { label: "Plays", familyIds: [] },
   "phone-gramophone": { label: "Plays", familyIds: [] },
+  "vintage-collection": { label: "Plays", familyIds: [] },
 };
 
 export const relatedFamilyIds = (

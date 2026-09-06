@@ -262,7 +262,8 @@ export type ProductFamilyId =
   | "plaque"
   | "digital-player"
   | "portable-gramophone"
-  | "phone-gramophone";
+  | "phone-gramophone"
+  | "vintage-collection";
 
 /* ------------------------------------------------------------------ */
 /* Option dimensions                                                   */
@@ -369,6 +370,15 @@ export interface ProductFamily {
   /** Representative image for the family, where one exists. */
   image?: string;
   alt?: string;
+  /**
+   * How the image should fill its container.
+   *
+   * `cover` crops to fill and suits landscape photographs. `contain` shows
+   * the whole image and is required where the artwork carries text — the
+   * collection images have their titles printed inside them, and a crop that
+   * clipped a title would be worse than letterboxing. Defaults to `cover`.
+   */
+  imageFit?: "cover" | "contain";
   /** True where the family is also selectable as a delivery format. */
   isCheckoutFormat: boolean;
   products: readonly CatalogueProduct[];

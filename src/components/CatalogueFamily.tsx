@@ -267,7 +267,9 @@ const CatalogueFamily = ({ family, reverse = false }: CatalogueFamilyProps) => {
             alt={family.alt ?? family.name}
             loading="lazy"
             decoding="async"
-            className="w-full h-full object-cover transition duration-700"
+            className={`w-full h-full transition duration-700 ${
+              family.imageFit === "contain" ? "object-contain p-4" : "object-cover"
+            }`}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-ivory border border-espresso/10 rounded-2xl p-10">

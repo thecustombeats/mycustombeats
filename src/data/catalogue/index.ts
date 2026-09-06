@@ -18,6 +18,7 @@ import {
   PHONE_GRAMOPHONE_FAMILY,
   PLAQUE_FAMILY,
   PORTABLE_GRAMOPHONE_FAMILY,
+  VINTAGE_COLLECTION_FAMILY,
 } from "./keepsakeProducts";
 import type {
   CatalogueProduct,
@@ -44,6 +45,7 @@ export const CATALOGUE: readonly ProductFamily[] = [
   DIGITAL_PLAYER_FAMILY,
   PORTABLE_GRAMOPHONE_FAMILY,
   PHONE_GRAMOPHONE_FAMILY,
+  VINTAGE_COLLECTION_FAMILY,
 ];
 
 export const getFamily = (

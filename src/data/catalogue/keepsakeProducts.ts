@@ -108,13 +108,9 @@ export const MEMORY_BOX: CatalogueProduct = {
   familyId: "memory-box",
   name: "Luxury Memory Box",
   description: "Lyrics, photos, and your song in one complete experience.",
-  /**
-   * NO IMAGE. `memory-box.jpg` showed a USB stick labelled "Your Story /
-   * Your Song" inside the box — the discontinued USB Memory Box, which must
-   * not appear anywhere. No approved photograph of the current product
-   * exists, so the family renders through the typographic fallback rather
-   * than a stand-in. ASSET REQUIRED: Luxury Memory Box product photograph.
-   */
+  // Approved photograph. The discontinued USB concept does not appear in it.
+  image: "/images/brand/Luxury-Memory-Box.png",
+  alt: "The MCB Luxury Memory Box, gold-foiled and tied with ribbon",
   price: TBD,
   availability: "MADE_TO_ORDER",
   fulfilment: "PHYSICAL",
@@ -132,7 +128,9 @@ export const MEMORY_BOX_FAMILY: ProductFamily = {
   id: "memory-box",
   name: "Luxury Memory Boxes",
   description: "Lyrics, photos, and your song in one complete experience.",
-  // See MEMORY_BOX: the only photograph shows the discontinued USB concept.
+  image: "/images/brand/Luxury-Memory-Box.png",
+  alt: "The MCB Luxury Memory Box, gold-foiled and tied with ribbon",
+  imageFit: "contain",
   isCheckoutFormat: false,
   products: [MEMORY_BOX],
 };
@@ -167,10 +165,36 @@ export const PLAQUE_FAMILY: ProductFamily = {
 /* Vinyl playback ecosystem — separate families, not vinyl variants     */
 /* ------------------------------------------------------------------ */
 
+/**
+ * THE PLAYBACK COLLECTION
+ *
+ * Four families with approved artwork and no approved product yet. Each image
+ * carries its own title and description inside the artwork — and those match
+ * the `name` and `description` below exactly, which is why the cards render
+ * the image alone rather than repeating the same words underneath it.
+ *
+ * They still hold no products: no model, specification, price or availability
+ * has been supplied for any individual player. The families exist so the
+ * first approved product is a data edit.
+ */
 export const DIGITAL_PLAYER_FAMILY: ProductFamily = {
   id: "digital-player",
   name: "Digital Players",
   description: "Players for listening to your music at home.",
+  image: "/images/brand/digital-player.png",
+  alt: "Digital Players — players for listening to your music at home",
+  imageFit: "contain",
+  isCheckoutFormat: false,
+  products: [],
+};
+
+export const VINTAGE_COLLECTION_FAMILY: ProductFamily = {
+  id: "vintage-collection",
+  name: "Vintage Collection",
+  description: "Timeless classics for the true music lover.",
+  image: "/images/brand/vintage-gramaphone.png",
+  alt: "Vintage Collection — timeless classics for the true music lover",
+  imageFit: "contain",
   isCheckoutFormat: false,
   products: [],
 };
@@ -179,6 +203,9 @@ export const PORTABLE_GRAMOPHONE_FAMILY: ProductFamily = {
   id: "portable-gramophone",
   name: "Portable Gramophones",
   description: "A record player that travels with the memory.",
+  image: "/images/brand/portable-recordplayer.png",
+  alt: "Portable Gramophones — a record player that travels with the memory",
+  imageFit: "contain",
   isCheckoutFormat: false,
   products: [],
 };
@@ -187,6 +214,9 @@ export const PHONE_GRAMOPHONE_FAMILY: ProductFamily = {
   id: "phone-gramophone",
   name: "Mobile-phone Gramophone",
   description: "An acoustic gramophone built around a mobile phone.",
+  image: "/images/brand/phone-gramaphone.png",
+  alt: "Mobile-phone Gramophone — an acoustic gramophone built around a mobile phone",
+  imageFit: "contain",
   isCheckoutFormat: false,
   products: [],
 };

@@ -54,12 +54,11 @@ export const GIFT_POP_UP_CARD_FAMILY: ProductFamily = {
   id: "gift-pop-up-card",
   name: "Gift Pop-Up Cards",
   description: "A card that opens to reveal your song.",
-  /**
-   * NO IMAGE. `cards.jpg` shows a flat card printed "NFC" — the
-   * discontinued Music Card, which tapped rather than opened. A Gift Pop-Up
-   * Card is a different product, and no photograph of it exists yet.
-   * ASSET REQUIRED: Gift Pop-Up Card product photograph.
-   */
+  // Approved photograph of the current product: a card that opens to a paper
+  // bouquet. The discontinued NFC tap-card does not appear in it.
+  image: "/images/brand/Pop-Up-Card.png",
+  alt: "An MCB Gift Pop-Up Card opening to a paper bouquet",
+  imageFit: "contain",
   isCheckoutFormat: false,
   products: GIFT_POP_UP_CARDS,
 };
