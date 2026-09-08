@@ -595,17 +595,56 @@ const familyEntity = (family: ProductFamily): Node =>
       };
 
 /**
- * Only families with an approved product are described.
+ * A family that can legitimately be a Product: one with an approved price.
  *
- * Digital Players, Portable Gramophones, the Mobile-phone Gramophone and
- * Frames are named on the page as part of the collection, but have no product,
- * price, photograph or specification — so they are not exposed as Product
- * entities. Naming a product to a crawler that a customer cannot see or buy is
- * precisely the fabrication this file exists to prevent.
+ * Google requires a Product to carry offers, a review or an aggregateRating
+ * to be eligible for its product treatment. MCB has no approved price for any
+ * physical product and publishes no reviews or ratings, so every catalogue
+ * Product it emitted was, correctly, reported as invalid by Search Console.
+ *
+ * The answer is not to manufacture an Offer. It is to stop claiming these are
+ * purchasable products until they are. This predicate is the switch: the day a
+ * price is approved in the catalogue, that family becomes a Product with a
+ * real Offer again and nothing else has to change.
+ */
+const familyIsPurchasable = (family: ProductFamily): boolean =>
+  family.products.some((product) => isPriced(product.price));
+
+/**
+ * Product entities for families that are genuinely for sale.
+ *
+ * Empty today, and that is the honest state. Unpriced families are described
+ * inside the ItemList below instead — see `keepsakeListEntity`.
  */
 export const keepsakeEntities = (): Node[] =>
-  stockedFamilies().map(familyEntity);
+  stockedFamilies().filter(familyIsPurchasable).map(familyEntity);
 
+/**
+ * A descriptive entry for a family MCB makes but cannot yet sell.
+ *
+ * `Thing` is deliberate. These are real objects with a real name, description
+ * and photograph, and saying so is accurate. What would not be accurate is
+ * calling them Products, because a Product is something a customer can be
+ * offered, and no price for any of these has been approved. A crawler gets
+ * everything true about them and no commercial claim at all.
+ */
+const descriptiveFamilyEntity = (family: ProductFamily): Node => ({
+  "@type": "Thing",
+  "@id": familyEntityId(family.id),
+  name: family.name,
+  description: family.description,
+  url: canonical("/products"),
+  ...(family.image ? { image: `${SITE_URL}${family.image}` } : {}),
+});
+
+/**
+ * The keepsake collection.
+ *
+ * Purchasable families are referenced by `@id` to their Product node.
+ * Unpriced families are described inline as `Thing`, so the list still
+ * documents the whole collection without a single unpriced Product node
+ * remaining in the graph.
+ */
 export const keepsakeListEntity = (): Node => {
   const families = stockedFamilies();
   return {
@@ -619,7 +658,9 @@ export const keepsakeListEntity = (): Node => {
     itemListElement: families.map((family, index) => ({
       "@type": "ListItem",
       position: index + 1,
-      item: ref(familyEntityId(family.id)),
+      item: familyIsPurchasable(family)
+        ? ref(familyEntityId(family.id))
+        : descriptiveFamilyEntity(family),
     })),
   };
 };
