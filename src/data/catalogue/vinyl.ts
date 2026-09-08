@@ -22,7 +22,7 @@ import {
   type SongCapacity,
 } from "./types";
 
-export type VinylSizeId = "vinyl-7" | "vinyl-10" | "vinyl-12";
+export type VinylSizeId = "vinyl-12";
 
 /**
  * Sleeve presentation.
@@ -77,31 +77,24 @@ const vinylProduct = (
   options: [SLEEVE_OPTION],
 });
 
-export const VINYL_7: CatalogueProduct = vinylProduct(
-  "vinyl-7",
-  "7-inch",
-  { min: 1, max: 1 },
-  "/images/products/vinyl.jpg"
-);
-
-export const VINYL_10: CatalogueProduct = vinylProduct(
-  "vinyl-10",
-  "10-inch",
-  { min: 2, max: 2 }
-);
-
 export const VINYL_12: CatalogueProduct = vinylProduct(
   "vinyl-12",
   "12-inch",
   { min: 5, max: 6 }
 );
 
-/** Smallest first, so derived options come back in a sensible order. */
-export const VINYL_SIZES: readonly CatalogueProduct[] = [
-  VINYL_7,
-  VINYL_10,
-  VINYL_12,
-];
+/**
+ * The active vinyl catalogue: 12-inch only.
+ *
+ * MCB launched with 7-inch and 10-inch as well. Both are withdrawn, so they
+ * are gone from the data rather than hidden in the UI — a size that still
+ * existed here would keep appearing in the derived pressing options, in the
+ * capacity table, in `compatibleProducts` and in the generated schema.
+ *
+ * The size model itself is untouched. Capacity still drives which pressings a
+ * package can use, so restoring a size, or adding one, is one entry here.
+ */
+export const VINYL_SIZES: readonly CatalogueProduct[] = [VINYL_12];
 
 export const VINYL_FAMILY: ProductFamily = {
   id: "vinyl",
@@ -118,7 +111,7 @@ export const VINYL_FAMILY: ProductFamily = {
 /* ------------------------------------------------------------------ */
 
 export interface PressingOption {
-  /** Stable id, e.g. "2x-vinyl-10". */
+  /** Stable id, e.g. "1x-vinyl-12". */
   id: string;
   product: CatalogueProduct;
   records: number;

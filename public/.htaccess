@@ -10,6 +10,23 @@
   RewriteEngine On
   RewriteBase /
 
+  # Canonical host. MUST stay above every rule below.
+  #
+  # The whole site answered 200 on both mycustombeats.com and
+  # www.mycustombeats.com, so every page existed at two URLs. Only the
+  # rendered canonical tag told Google which one counted, which is why Search
+  # Console filed the apex as "Alternate page with proper canonical tag" — it
+  # worked, but it left the duplicate reachable and depended on JavaScript
+  # rendering to resolve it. A 301 settles it at the server.
+  #
+  # $1 carries the path and mod_rewrite appends the original query string, so
+  # /products and /legal/terms?x=1 both survive. Only the bare apex matches,
+  # so the redirect target can never match again and cannot loop. HTTPS is
+  # already enforced upstream and is deliberately not touched here: this host
+  # terminates TLS at a proxy, where testing %{HTTPS} can loop.
+  RewriteCond %{HTTP_HOST} ^mycustombeats\.com$ [NC]
+  RewriteRule ^(.*)$ https://www.mycustombeats.com/$1 [R=301,L]
+
   RewriteRule ^index\.html$ - [L]
 
   # Build output must NEVER fall through to index.html.

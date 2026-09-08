@@ -66,7 +66,7 @@ export const LYRICS_FRAME: CatalogueProduct = {
   availability: "MADE_TO_ORDER",
   fulfilment: "PHYSICAL",
   songInclusion: "KEEPSAKE_ONLY",
-  compatibleProducts: ["memory-box-luxury", "vinyl-7", "vinyl-10", "vinyl-12"],
+  compatibleProducts: ["memory-box-luxury", "vinyl-12"],
 };
 
 export const LYRICS_FRAME_FAMILY: ProductFamily = {
@@ -116,8 +116,6 @@ export const MEMORY_BOX: CatalogueProduct = {
   fulfilment: "PHYSICAL",
   songInclusion: "CONFIGURABLE",
   compatibleProducts: [
-    "vinyl-7",
-    "vinyl-10",
     "vinyl-12",
     "cd",
     "lyrics-frame",

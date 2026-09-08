@@ -256,10 +256,22 @@ const CatalogueFamily = ({ family, reverse = false }: CatalogueFamilyProps) => {
     <div className="grid md:grid-cols-2 gap-10 lg:gap-12 items-center">
       {/* IMAGE — or a typographic panel where no photograph exists.
           Never substitute a stand-in image for a real product. */}
+      {/*
+        The media well takes its shape from the photograph.
+
+        A landscape shot fills a landscape well. The Memory Box and Gift
+        Pop-Up Card are near-square (760x792 and 755x792), and letterboxing
+        them into a 3:2 well left a small picture stranded in a wide box with
+        empty space either side — they read as lesser products than the vinyl
+        and the plaque beside them. A square well lets those two fill their
+        space with the same visual weight, still uncropped and undistorted.
+      */}
       <div
-        className={`h-[280px] sm:h-[360px] md:h-[400px] rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition duration-500 ${
-          reverse ? "md:order-2" : ""
-        }`}
+        className={`rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition duration-500 ${
+          family.imageFit === "contain"
+            ? "aspect-square"
+            : "h-[280px] sm:h-[360px] md:h-[400px]"
+        } ${reverse ? "md:order-2" : ""}`}
       >
         {family.image ? (
           <img
@@ -268,7 +280,7 @@ const CatalogueFamily = ({ family, reverse = false }: CatalogueFamilyProps) => {
             loading="lazy"
             decoding="async"
             className={`w-full h-full transition duration-700 ${
-              family.imageFit === "contain" ? "object-contain p-4" : "object-cover"
+              family.imageFit === "contain" ? "object-contain" : "object-cover"
             }`}
           />
         ) : (
