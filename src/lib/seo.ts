@@ -361,17 +361,53 @@ const packageOffer = (pkg: AnyPackage): Node => {
 };
 
 /**
+ * A package with a price prefix has no fixed price.
+ *
+ * "From £799" is a floor. Bespoke is scoped per commission and the final
+ * figure may exceed it, so there is no single number that is true.
+ */
+const hasFixedPrice = (pkg: AnyPackage): boolean => !pkg.price.prefix;
+
+/**
  * A package as a Product.
  *
  * Product rather than Service: each is a fixed, priced, purchasable thing that
  * results in a deliverable the customer keeps. The creative work behind them is
  * modelled once, as the Service above, and every package sits in its catalogue.
  */
+/**
+ * A package as a Product — or, where it has no fixed price, as a Service.
+ *
+ * WHY BESPOKE IS NOT A PRODUCT
+ * Google's Product markup requires `offers.price` or
+ * `offers.priceSpecification.price`: one concrete figure the customer pays.
+ * Bespoke has none. It is quoted "From £799" because it is commissioned
+ * individually and can cost more, so every way of satisfying that requirement
+ * is a lie — `price: 799` states a fixed price the page contradicts, and an
+ * AggregateOffer both invents a range and misdescribes a single commission as
+ * several competing offers.
+ *
+ * A commission is not a product with a price tag; it is a service quoted per
+ * job. Typing it `Service` says exactly that. It carries the same floor
+ * through `priceSpecification.minPrice`, which is what schema.org defines
+ * minPrice for, and it is no longer measured against a Product requirement it
+ * cannot honestly meet.
+ *
+ * The consequence is deliberate: Bespoke forgoes Product rich-result
+ * eligibility. The four fixed-price packages keep theirs, because they have a
+ * real price. Accuracy over eligibility, as Sprint 02 settled.
+ */
 export const packageEntity = (pkg: AnyPackage): Node => {
   const days = deliveryDays(pkg);
 
   return {
-    "@type": "Product",
+    ...(hasFixedPrice(pkg)
+      ? { "@type": "Product" }
+      : {
+          "@type": "Service",
+          provider: ref(ENTITY.organization),
+          serviceType: "Bespoke personalised music commission",
+        }),
     "@id": packageEntityId(pkg.id),
     name: `MCB ${pkg.name}`,
     description: `${pkg.positioning} ${pkg.description}`,
