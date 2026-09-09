@@ -25,6 +25,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/bootstrap.php';
+require_once __DIR__ . '/lib/basket.php';
 
 require_method('POST');
 require_same_origin();
@@ -55,8 +56,69 @@ if ($package !== '' && $fulfilment === null) {
     $v->fail('format', 'That format is not available for this experience.');
 }
 
-// ---- Delivery address, required only for physical fulfilment ----------
-$needsAddress = ($fulfilment === 'PHYSICAL');
+/**
+ * ---- The Complete Your Memory basket -------------------------------
+ *
+ * Ids and integer quantities. Priced HERE, by the same `price_basket` the
+ * checkout endpoint uses, from the same generated catalogue — so the
+ * fulfilment record and the eventual charge cannot disagree about what was
+ * sold or what it cost.
+ *
+ * Nothing in the request states an amount, and there is no field through
+ * which one could: a body carrying `price`, `line_gbp` or `total` is parsed
+ * and never read.
+ *
+ * An invalid basket is a validation failure, not a silently dropped line.
+ * Recording an order that quietly omits what someone chose would be worse
+ * than refusing it.
+ *
+ * Priced BEFORE the address rules below, because what is in the basket
+ * decides whether an address is needed at all.
+ */
+$itemsRaw = $body['enhancements'] ?? [];
+if (!is_array($itemsRaw)) {
+    $v->fail('enhancements', 'That basket could not be read.');
+    $itemsRaw = [];
+}
+if (count($itemsRaw) > 20) {
+    $v->fail('enhancements', 'That basket has too many items.');
+    $itemsRaw = [];
+}
+
+$basketLines = [];
+$basketTotalMinor = 0;
+$basketNeedsAddress = false;
+
+if ($package !== '' && $fulfilment !== null && !$v->hasErrors()) {
+    $basket = price_basket($package, $format, $itemsRaw);
+    if (!$basket->ok) {
+        json_error(422, (string) $basket->errorCode, (string) $basket->errorMessage);
+    }
+    // The first line is the package itself; the rest are what the customer
+    // added. Only the additions are stored — the package already has its own
+    // columns on the order.
+    $basketLines      = array_slice($basket->lines, 1);
+    $basketTotalMinor = $basket->totalMinor;
+
+    /**
+     * A physical addition makes an otherwise-digital order shippable.
+     *
+     * A digital Moment with a framed lyric print still has to be posted, so
+     * the address requirement is derived from the WHOLE basket rather than
+     * the package alone — and derived here, on the server, so a browser that
+     * skipped the address cannot get past it.
+     */
+    foreach ($basketLines as $line) {
+        $item = catalogue_item($line['id']);
+        if ($item !== null && ($item['fulfilment'] ?? '') === 'PHYSICAL') {
+            $basketNeedsAddress = true;
+        }
+    }
+}
+
+// ---- Delivery address, required for physical fulfilment OR a physical
+//      addition to an otherwise digital order --------------------------
+$needsAddress = ($fulfilment === 'PHYSICAL') || $basketNeedsAddress;
 $address = null;
 
 if ($needsAddress) {
@@ -83,7 +145,72 @@ $brief = [
     'artwork'   => $v->optional('artworkUrl', 512),
 ];
 
+// ---- Creative brief ---------------------------------------------------
+$brief = [
+    'mood'      => $v->optional('mood', 255),
+    'genre'     => $v->optional('genre', 120),
+    'touches'   => $v->optional('personalTouches', 2000),
+    'story'     => $v->optional('story', 60000),
+    'artwork'   => $v->optional('artworkUrl', 512),
+];
+
+/**
+ * ---- The Complete Your Memory basket -------------------------------
+ *
+ * Ids and integer quantities. Priced HERE, by the same `price_basket` the
+ * checkout endpoint uses, from the same generated catalogue — so the
+ * fulfilment record and the eventual charge cannot disagree about what was
+ * sold or what it cost.
+ *
+ * Nothing in the request states an amount, and there is no field through
+ * which one could: a body carrying `price`, `line_gbp` or `total` is parsed
+ * and never read.
+ *
+ * An invalid basket is a validation failure, not a silently dropped line.
+ * Recording an order that quietly omits what someone chose would be worse
+ * than refusing it.
+ */
+$itemsRaw = $body['enhancements'] ?? [];
+if (!is_array($itemsRaw)) {
+    $v->fail('enhancements', 'That basket could not be read.');
+    $itemsRaw = [];
+}
+if (count($itemsRaw) > 20) {
+    $v->fail('enhancements', 'That basket has too many items.');
+    $itemsRaw = [];
+}
+
 $v->stopIfInvalid();
+
+$basketLines = [];
+$basketTotalMinor = 0;
+
+if ($package !== '') {
+    $basket = price_basket($package, $format, $itemsRaw);
+    if (!$basket->ok) {
+        json_error(422, (string) $basket->errorCode, (string) $basket->errorMessage);
+    }
+    // The first line is the package itself; the rest are what the customer
+    // added. Only the additions are stored here — the package already has
+    // its own columns on the order.
+    $basketLines = array_slice($basket->lines, 1);
+    $basketTotalMinor = $basket->totalMinor;
+}
+
+/**
+ * A physical addition makes an otherwise-digital order shippable.
+ *
+ * A digital Moment with a framed lyric print still has to be posted, so the
+ * address requirement is re-derived from the WHOLE basket rather than the
+ * package alone — and re-derived here, on the server, so a browser that
+ * skipped the address cannot get past it.
+ */
+foreach ($basketLines as $line) {
+    $item = catalogue_item($line['id']);
+    if ($item !== null && ($item['fulfilment'] ?? '') === 'PHYSICAL') {
+        $needsAddressForBasket = true;
+    }
+}
 
 // ---- Attribution, resolved server-side --------------------------------
 // The browser reports what it saw in the URL. The server decides what that
@@ -141,7 +268,7 @@ try {
         $firstName, $lastName, $email, $phone,
         $package, $format, $fulfilment, $price,
         $sourceType, $affiliateId, $partnerId, $referralStored,
-        $brief, $address
+        $brief, $address, $basketLines
     ): int {
         $fullName = trim($firstName . ' ' . $lastName);
 
@@ -220,6 +347,35 @@ try {
             ]);
         }
 
+        /**
+         * The fulfilment record for Complete Your Memory.
+         *
+         * Written in the SAME transaction as the order. An order that
+         * existed without its items would be unfulfillable and, worse,
+         * would look complete — the customer's frame or extra record would
+         * simply never be made.
+         *
+         * Amounts are the server's, priced from the generated catalogue
+         * moments ago. Nothing here came from the browser.
+         */
+        if ($basketLines !== []) {
+            $stmt = $pdo->prepare(
+                'INSERT INTO order_items
+                    (order_id, item_id, item_name, quantity, unit_gbp, line_gbp)
+                 VALUES (:oid, :iid, :name, :qty, :unit, :line)'
+            );
+            foreach ($basketLines as $line) {
+                $stmt->execute([
+                    ':oid'  => $orderId,
+                    ':iid'  => $line['id'],
+                    ':name' => $line['name'],
+                    ':qty'  => $line['quantity'],
+                    ':unit' => number_format($line['unit_minor'] / 100, 2, '.', ''),
+                    ':line' => number_format($line['line_minor'] / 100, 2, '.', ''),
+                ]);
+            }
+        }
+
         return $orderId;
     });
 } catch (PDOException $e) {
@@ -229,8 +385,17 @@ try {
 
 // Minimal response. The caller needs the id to hand to Stripe and the derived
 // fulfilment to confirm what it showed the customer — nothing else.
+/**
+ * Minimal response. The caller needs the id to hand to Stripe and the derived
+ * fulfilment to confirm what it showed the customer.
+ *
+ * `basket_total_gbp` is the SERVER's total, returned so the browser can check
+ * its own preview against it. It is information, not authority — the charge
+ * is built from this same server calculation either way.
+ */
 json_response(201, [
-    'order_id'        => $orderId,
-    'fulfilment_type' => $fulfilment,
-    'source_type'     => $sourceType,
+    'order_id'         => $orderId,
+    'fulfilment_type'  => $fulfilment,
+    'source_type'      => $sourceType,
+    'basket_total_gbp' => number_format($basketTotalMinor / 100, 2, '.', ''),
 ]);

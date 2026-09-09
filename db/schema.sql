@@ -399,3 +399,51 @@ CREATE TABLE IF NOT EXISTS checkout_sessions (
   CONSTRAINT fk_checkout_order FOREIGN KEY (order_id)
     REFERENCES orders (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================================
+-- order_items — what the customer actually chose, beyond the package
+-- =====================================================================
+--
+-- WHY THIS EXISTS SEPARATELY FROM checkout_sessions
+--
+-- `checkout_sessions.basket_lines` is a PAYMENT record: it exists only
+-- once a Stripe session was created, and its job is to let the webhook
+-- reconcile an amount. This table is a FULFILMENT record: it exists from
+-- the moment the order is written, whether or not payment ever starts,
+-- and its job is to let MCB make and post the right things.
+--
+-- Conflating them would mean an abandoned checkout left no trace of what
+-- someone wanted, and that a payment-reconciliation change could alter
+-- the fulfilment record.
+--
+-- Amounts are the SERVER'S, priced from the generated catalogue at the
+-- moment the order was written. They are never recalculated, so a later
+-- repricing cannot change what an old order says it sold. GBP only:
+-- local currency is presentation and never a commercial record.
+CREATE TABLE IF NOT EXISTS order_items (
+  id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  order_id       INT UNSIGNED NOT NULL,
+
+  -- The stable catalogue id, e.g. 'vinyl-frame' or a specific card design
+  -- such as 'gift-pop-up-card-anniversary'. A chosen variant is stored as
+  -- ITSELF, so fulfilment reads an exact product rather than a category
+  -- plus a free-text occasion.
+  item_id        VARCHAR(64)  NOT NULL,
+
+  -- Name as it was at the time of sale. A snapshot for operators and for
+  -- historical accuracy; the id remains the thing that identifies it.
+  item_name      VARCHAR(160) NOT NULL,
+
+  quantity       SMALLINT UNSIGNED NOT NULL,
+  unit_gbp       DECIMAL(10,2) NOT NULL,
+  line_gbp       DECIMAL(10,2) NOT NULL,
+
+  created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id),
+  -- One row per item per order: a repeated id would double a line silently.
+  UNIQUE KEY uq_order_item (order_id, item_id),
+  KEY idx_order_items_order (order_id),
+  CONSTRAINT fk_order_items_order FOREIGN KEY (order_id)
+    REFERENCES orders (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

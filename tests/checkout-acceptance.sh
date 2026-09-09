@@ -42,6 +42,13 @@ mkorder() {
   sed -n 's/.*"order_id":\([0-9]*\).*/\1/p' /tmp/o.json
 }
 
+# An order carrying the full Complete Your Memory basket.
+mkorder_basket() {
+  curl -s -o /tmp/o.json -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" \
+    -d '{"firstName":"Cs","lastName":"Tester","email":"'"$1"'","whatsapp":"+447000000123","package":"'"$2"'","format":"'"$3"'","shippingName":"Cs Tester","shippingAddress":"1 Test St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom","story":"A story.","enhancements":[{"id":"vinyl-frame","quantity":1},{"id":"gift-pop-up-card-anniversary","quantity":1},{"id":"additional-vinyl-copy","quantity":2}]}' >/dev/null
+  sed -n 's/.*"order_id":\([0-9]*\).*/\1/p' /tmp/o.json
+}
+
 echo "================ FLAGS & DORMANCY ================"
 tc "1. shipped config template keeps checkout sessions OFF" \
   "$(grep -A1 "'checkout_sessions_enabled'" public/api/config.example.php | grep -qi 'false' && echo 1 || echo 0)"
@@ -229,6 +236,60 @@ tc "35. rate limiting is enforced on session creation" "$(
 # Release the budget the test just consumed, so later sections are not throttled
 # by it. Deletes only the rows this test created.
 q "DELETE FROM checkout_sessions WHERE order_id IN (SELECT id FROM (SELECT id FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE email='csrate@example.com')) x)" >/dev/null
+
+echo ""
+echo "================ COMPLETE YOUR MEMORY (Sprint 6) ================"
+OIDM=$(mkorder "csmem@example.com" keepsake vinyl)
+stub_reset
+# The £449 basket, priced entirely by the server from ids and quantities.
+B='{"package":"keepsake","format":"vinyl","orderId":'"$OIDM"',"enhancements":[{"id":"vinyl-frame","quantity":1},{"id":"gift-pop-up-card-anniversary","quantity":1},{"id":"additional-vinyl-copy","quantity":2}]}'
+t "19. £449 basket accepted" 200 "$(post checkout/session "$B")"
+tc "19. → server totalled 44900 pence (£449.00)" "$([ "$(q "SELECT expected_amount_gbp FROM checkout_sessions WHERE order_id=$OIDM")" = "449.00" ] && echo 1 || echo 0)"
+tc "20. → Stripe stub received FOUR truthful lines" "$([ "$(last_params | grep -o '\"unit_amount\"' | wc -l | tr -d ' ')" = "4" ] && echo 1 || echo 0)"
+tc "20. → Keepsake 7900" "$(last_params | grep -qc '\"unit_amount\":\"7900\"' && echo 1 || echo 0)"
+tc "20. → Vinyl Frame 20000" "$(last_params | grep -qc '\"unit_amount\":\"20000\"' && echo 1 || echo 0)"
+tc "20. → Music Card 5000" "$(last_params | grep -qc '\"unit_amount\":\"5000\"' && echo 1 || echo 0)"
+tc "20. → Additional Vinyl 6000 x2" "$(last_params | grep -qc '\"unit_amount\":\"6000\"' && last_params | grep -qc '\"quantity\":\"2\"' && echo 1 || echo 0)"
+tc "23. → currency remains gbp" "$(last_params | grep -qc '\"currency\":\"gbp\"' && echo 1 || echo 0)"
+
+# The format dimension of eligibility, enforced server-side.
+OIDF=$(mkorder "csfmt@example.com" keepsake cd)
+B='{"package":"keepsake","format":"cd","orderId":'"$OIDF"',"enhancements":[{"id":"additional-vinyl-copy","quantity":1}]}'
+t "28. additional vinyl REFUSED on a non-vinyl format" 422 "$(post checkout/session "$B")"
+tc "28.  → refused as ineligible, not silently dropped" "$(body | grep -qc 'ineligible_item' && echo 1 || echo 0)"
+
+# Browser-stated amounts remain ignored with a full basket present.
+OIDX=$(mkorder "csx@example.com" keepsake vinyl)
+stub_reset
+B='{"package":"keepsake","format":"vinyl","orderId":'"$OIDX"',"price":1,"total":1,"currency":"usd","enhancements":[{"id":"vinyl-frame","quantity":1,"price":1,"line_gbp":1}]}'
+t "21-22. browser price/total inside a basket accepted and IGNORED" 200 "$(post checkout/session "$B")"
+tc "21. → server still charged £279.00" "$([ "$(q "SELECT expected_amount_gbp FROM checkout_sessions WHERE order_id=$OIDX")" = "279.00" ] && echo 1 || echo 0)"
+
+echo ""
+echo "---------------- order persistence ----------------"
+OIDP=$(mkorder_basket "cspersist@example.com" keepsake vinyl)
+tc "37. order persists the enhancement ids" "$([ "$(q "SELECT COUNT(*) FROM order_items WHERE order_id=$OIDP")" = "3" ] && echo 1 || echo 0)"
+tc "38. order persists quantity" "$([ "$(q "SELECT quantity FROM order_items WHERE order_id=$OIDP AND item_id='additional-vinyl-copy'")" = "2" ] && echo 1 || echo 0)"
+tc "39. order persists trusted GBP unit and line totals" "$([ "$(q "SELECT CONCAT(unit_gbp,'|',line_gbp) FROM order_items WHERE order_id=$OIDP AND item_id='additional-vinyl-copy'")" = "60.00|120.00" ] && echo 1 || echo 0)"
+tc "45. the chosen card VARIANT is what persists" "$([ "$(q "SELECT COUNT(*) FROM order_items WHERE order_id=$OIDP AND item_id='gift-pop-up-card-anniversary'")" = "1" ] && echo 1 || echo 0)"
+tc "39. a name snapshot is stored for operators" "$(q "SELECT item_name FROM order_items WHERE order_id=$OIDP AND item_id='vinyl-frame'" | grep -qc 'Vinyl Frame' && echo 1 || echo 0)"
+tc "order response reports the server total" "$(grep -qc '\"basket_total_gbp\":\"449.00\"' /tmp/o.json && echo 1 || echo 0)"
+
+echo ""
+echo "---------------- CRM can answer: what did they order? ----------------"
+CRMKEY="test_crm_key_not_real_000000000000000000000"
+curl -s -o /tmp/crm.json "$BASE/crm/orders" -H "Authorization: Bearer $CRMKEY" >/dev/null
+tc "40. CRM exposes the enhancement lines" "$(grep -qc '\"enhancements\"' /tmp/crm.json && echo 1 || echo 0)"
+tc "40. CRM exposes a basket total" "$(grep -qc '\"basket_total_gbp\"' /tmp/crm.json && echo 1 || echo 0)"
+tc "40. existing amount.gbp / amount.usd shape preserved" "$(grep -qc '\"gbp\"' /tmp/crm.json && grep -qc '\"usd\"' /tmp/crm.json && echo 1 || echo 0)"
+
+echo ""
+echo "---------------- shipping from the whole basket ----------------"
+NOADDR='{"firstName":"No","lastName":"Addr","email":"csnoaddr@example.com","whatsapp":"+447000000123","package":"moment","format":"mp3","story":"A story.","enhancements":[{"id":"vinyl-frame","quantity":1}]}'
+t "32. a physical addition to a DIGITAL order demands an address" 422 "$(post order "$NOADDR")"
+tc "32.  → names the missing address fields" "$(body | grep -qc 'shippingAddress' && echo 1 || echo 0)"
+WITHADDR='{"firstName":"With","lastName":"Addr","email":"cswithaddr@example.com","whatsapp":"+447000000123","package":"moment","format":"mp3","story":"A story.","shippingName":"With Addr","shippingAddress":"1 Test St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom","enhancements":[{"id":"vinyl-frame","quantity":1}]}'
+t "32. and accepts it once supplied" 201 "$(post order "$WITHADDR")"
 
 echo ""
 echo "================ BESPOKE & PAYMENT LINKS ================"

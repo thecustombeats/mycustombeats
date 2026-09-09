@@ -20,6 +20,14 @@ import YourMemorySummary from "../components/YourMemorySummary";
 import MusicStyleSelector from "../components/MusicStyleSelector";
 import UpgradeInvitation from "../components/UpgradeInvitation";
 import { isUpgradeEligible, type UpgradeDecision } from "../lib/upgrade";
+import CompleteYourMemory from "../components/CompleteYourMemory";
+import {
+  offersFor,
+  priceBasket,
+  revalidate,
+  toCheckoutItems,
+  type BasketItem,
+} from "../lib/completeMemory";
 import {
   MAX_STYLE_LABEL_LENGTH,
   OTHER_STYLE_VALUE,
@@ -27,6 +35,9 @@ import {
 import { revealOnScroll } from "../lib/scrollReveal";
 import { trackEvent } from "../lib/analytics";
 import { createCheckoutSession } from "../lib/checkoutSession";
+
+/** Stable empty array, so clearing the notice cannot re-trigger an effect. */
+const NO_REMOVALS: readonly string[] = [];
 
 const moodsList = [
   'Romantic','Adventurous','Relaxed','Upbeat','Celebration',
@@ -331,6 +342,17 @@ const offersFormatChoice = availableFormats.length > 1;
 const [upgradeDecision, setUpgradeDecision] = useState<UpgradeDecision>(null);
 
 /**
+ * COMPLETE YOUR MEMORY — the enhancement basket.
+ *
+ * Ids and integer quantities ONLY. There is no price in this state and no
+ * way to put one there: names and amounts are resolved from the catalogue
+ * for display, and the server prices the same ids again for the charge.
+ */
+const [basket, setBasket] = useState<readonly BasketItem[]>([]);
+/** Names dropped by the last revalidation, so the customer can be told. */
+const [basketRemoved, setBasketRemoved] = useState<readonly string[]>([]);
+
+/**
  * The invitation waits until the customer has actually said something.
  *
  * Asked on page load it is an advertisement; asked after they have written
@@ -364,9 +386,75 @@ useEffect(() => {
     to_package: KEEPSAKE.id,
   });
 }, [briefReady, formData.package, upgradeDecision]);
+
+/**
+ * Re-check the basket whenever the package or format changes.
+ *
+ * A customer can choose a vinyl Keepsake, add a second record, then change
+ * their mind and pick MP3 — at which point the additional copy is a copy of
+ * a record that does not exist. Charging for it silently would be the worst
+ * outcome; dropping it silently is only slightly better. It is dropped AND
+ * reported, and `CompleteYourMemory` announces what went.
+ *
+ * Still-eligible selections are preserved: changing format is not a reason to
+ * make someone rebuild their basket.
+ */
+useEffect(() => {
+  if (basket.length === 0) {
+    // NO_REMOVALS rather than a fresh []: a new array every run would change
+    // identity, re-render, and run this again forever.
+    setBasketRemoved(NO_REMOVALS);
+    return;
+  }
+
+  const result = revalidate(formData.package, formData.format || null, basket);
+  if (result.removed.length === 0) return;
+
+  /**
+   * `basket` is in the dependency list on purpose, and this does not loop:
+   * the corrected basket contains only eligible items, so the very next run
+   * finds nothing to remove and returns before setting anything.
+   */
+  setBasket(result.items);
+  setBasketRemoved(result.removed);
+}, [formData.package, formData.format, basket]);
+/**
+ * SHIPPING IS A PROPERTY OF THE WHOLE BASKET, NOT JUST THE PACKAGE.
+ *
+ * A digital Moment with a framed lyric print in it still has to be posted.
+ * Asking only the package would have been correct until the moment
+ * enhancements existed, and silently wrong afterwards — the customer would
+ * have reached Stripe with nowhere for MCB to send the frame.
+ */
+const basketPreview = activePackage
+  ? priceBasket(activePackage, formData.format || null, basket)
+  : null;
+
 const needsShipping = activePackage
-  ? requiresShippingAddress(activePackage, formData.format)
+  ? requiresShippingAddress(activePackage, formData.format) ||
+    (basketPreview?.requiresShipping ?? false)
   : false;
+
+/** What may be offered against the CURRENT package and format. */
+const availableOffers = activePackage
+  ? offersFor(activePackage.id, formData.format || null)
+  : [];
+
+/**
+ * Complete Your Memory comes AFTER the package and format are settled, and
+ * after a Moment customer has answered the upgrade invitation.
+ *
+ * Eligibility depends on the final commercial state: a Keepsake on MP3 has no
+ * record, so there is nothing to make an additional copy of. Asking earlier
+ * would mean asking about the wrong order.
+ */
+const upgradeAnswered =
+  !isUpgradeEligible(formData.package) || upgradeDecision !== null;
+const showCompleteMemory =
+  briefReady &&
+  upgradeAnswered &&
+  Boolean(activePackage) &&
+  (availableFormats.length === 0 || formData.format !== "");
 
 /**
  * YOUR MEMORY, resolved from the current selection.
@@ -498,6 +586,24 @@ const memory = buildMemory({
       format: defaultFormatFor(MOMENT.id),
     }));
     setUpgradeDecision("declined");
+  };
+
+  /**
+   * Basket analytics. Stable product ids and quantities only.
+   *
+   * No story, no musical style text, no contact details, no address — the
+   * same rule the music-style events follow. A product id is a fact about the
+   * catalogue; everything else here belongs to the customer.
+   */
+  const handleBasketEvent = (
+    event: "selected" | "removed" | "quantity_changed",
+    id: string,
+    quantity?: number
+  ) => {
+    trackEvent(`memory_enhancement_${event}`, {
+      item_id: id,
+      ...(typeof quantity === "number" ? { quantity } : {}),
+    });
   };
 
   const handleMoodToggle = (mood: string) => {
@@ -840,6 +946,15 @@ if (formData.artwork) {
     artworkUrl: artworkUpload || "",
     referral: ref,
     partner: getPartner(),
+    /**
+     * The basket, as ids and integer quantities.
+     *
+     * MCB needs to know what was actually ordered — Stripe line items are a
+     * payment record, not a fulfilment one, and an order that only Stripe
+     * understands cannot be made. The server prices these ids itself from the
+     * generated catalogue; nothing here states an amount.
+     */
+    enhancements: toCheckoutItems(basket),
   });
 
   if (crmOrderId !== null) {
@@ -849,6 +964,31 @@ if (formData.artwork) {
   // Marks this as the PRE-payment capture. The post-payment notification
   // sends `event: "order.paid"` and carries the MCB reference; nothing sent
   // from the browser ever does, because at this moment it does not exist.
+  /**
+   * Basket summary for fulfilment automation. ADDITIVE — every existing field
+   * is untouched, so nothing downstream that reads this payload can break.
+   *
+   * Ids, quantities and the server-approved unit amounts read from the
+   * catalogue, plus a name so an operator can read it without a lookup. No
+   * local-currency figure: the sale is GBP and a converted number here would
+   * be a second, wrong answer to what was sold.
+   */
+  if (basketPreview && basketPreview.lines.length > 0) {
+    zapierData.append(
+      "enhancements",
+      JSON.stringify(
+        basketPreview.lines.map((line) => ({
+          id: line.id,
+          name: line.name,
+          quantity: line.quantity,
+          unit_gbp: line.unitGbp,
+          line_gbp: line.lineGbp,
+        }))
+      )
+    );
+    zapierData.append("basketTotalGBP", String(basketPreview.totalGbp));
+  }
+
   zapierData.append("stage", "SUBMITTED");
   zapierData.append("paymentConfirmed", "false");
 
@@ -889,9 +1029,13 @@ if (formData.artwork) {
     packageId: selectedPackage,
     formatId: orderedFormat,
     orderId: crmOrderId,
-    // No basket UI exists yet, so this is always a base-package checkout and
-    // the Payment Link fallback below stays permitted. When Complete Your
-    // Memory populates `items`, the same call starts refusing to fall back.
+    /**
+     * The basket now genuinely populates this, which is what turns on the
+     * Sprint 4 fallback guard: a checkout carrying enhancements may never be
+     * sent to a fixed Payment Link, because that link would charge the
+     * package price for a larger order and report success.
+     */
+    items: toCheckoutItems(basket),
   });
 
   if (session.ok) {
@@ -1564,6 +1708,29 @@ if (formData.artwork) {
               briefReady={briefReady}
             />
 
+            {/*
+              COMPLETE YOUR MEMORY.
+
+              Deliberately after the upgrade invitation: a Moment customer may
+              become a Keepsake customer, and enhancement eligibility depends
+              on the FINAL package and format. Asking first would be asking
+              about an order that no longer exists.
+            */}
+            {showCompleteMemory && (
+              <CompleteYourMemory
+                offers={availableOffers}
+                items={basket}
+                onChange={(next) => {
+                  setBasket(next);
+                  // The notice belongs to the change that caused it; a new
+                  // selection means the customer has moved on from it.
+                  if (basketRemoved.length > 0) setBasketRemoved([]);
+                }}
+                removedNotice={basketRemoved}
+                onEvent={handleBasketEvent}
+              />
+            )}
+
   {/* TERMS */}
 <h3 className="label-uppercase text-gold-deep">
   Step 7 — Confirmation
@@ -1662,7 +1829,8 @@ of My Custom Beats, and understand that this is a personalised, made-to-order di
               about to be charged, and there is no reason to put any animation
               between that number and the customer. It renders immediately.
             */}
-            <YourMemorySummary memory={memory} />
+            <YourMemorySummary
+                basket={basketPreview} memory={memory} />
 
             {submitError && (
               <p

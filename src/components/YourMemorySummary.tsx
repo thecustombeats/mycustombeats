@@ -17,11 +17,20 @@
 
 import { formatProductPrice, isPriced } from "../data/catalogue";
 import { formatGbp, type MemorySummary } from "../lib/memory";
+import type { BasketPreview } from "../lib/completeMemory";
 import { approximateLabel } from "../lib/currency";
 import { useCurrency } from "../lib/useCurrency";
 
 interface YourMemorySummaryProps {
   memory: MemorySummary;
+  /**
+   * Complete Your Memory lines, already priced from the catalogue.
+   *
+   * Passed in rather than resolved here: this component renders figures, it
+   * does not decide them. The same lines are priced again on the server, and
+   * that result is what is charged.
+   */
+  basket?: BasketPreview | null;
   className?: string;
 }
 
@@ -58,13 +67,27 @@ const LinePrice = ({
   );
 };
 
-const YourMemorySummary = ({ memory, className }: YourMemorySummaryProps) => {
+const YourMemorySummary = ({
+  memory,
+  basket,
+  className,
+}: YourMemorySummaryProps) => {
   const { currency, rates } = useCurrency();
   const { pkg } = memory;
 
+  /**
+   * THE FINAL COMMERCIAL TOTAL: the package plus everything added.
+   *
+   * `chargeableTotal` is the package alone — it predates the basket and is
+   * still what a base-package Payment Link takes. Adding the enhancement
+   * lines here is what makes the review the customer's real total.
+   */
+  const enhancementsGbp = basket?.enhancementsGbp ?? 0;
+  const finalTotalGbp = memory.chargeableTotal.gbp + enhancementsGbp;
+
   // The estimate for the amount actually being charged. `null` for GBP and
   // whenever rates are unavailable, in which case only the pound total shows.
-  const approx = approximateLabel(memory.chargeableTotal.gbp, currency, rates);
+  const approx = approximateLabel(finalTotalGbp, currency, rates);
 
   if (!pkg) return null;
 
@@ -129,13 +152,43 @@ const YourMemorySummary = ({ memory, className }: YourMemorySummaryProps) => {
           </div>
         )}
 
+        {/*
+          Complete Your Memory, itemised. A quantity is stated on the line
+          rather than repeated as identical rows — "Additional Vinyl Copy ×2"
+          is one decision the customer made, not two.
+        */}
+        {basket?.lines.map((line) => (
+          <div
+            key={line.id}
+            className="flex justify-between items-start gap-4 py-3"
+          >
+            <dt className="min-w-0">
+              <span className="block text-espresso font-medium">
+                {line.name}
+                {line.quantity > 1 && (
+                  <span className="text-espresso/60"> ×{line.quantity}</span>
+                )}
+              </span>
+              {line.quantity > 1 && (
+                <span className="block text-xs text-espresso/55 mt-0.5">
+                  {formatGbp(line.unitGbp)} each
+                </span>
+              )}
+            </dt>
+            <dd className="text-right shrink-0 pt-0.5">
+              <span className="font-mono text-sm text-espresso">
+                {formatGbp(line.lineGbp)}
+              </span>
+            </dd>
+          </div>
+        ))}
+
         <div className="flex justify-between items-baseline gap-4 py-3">
           <dt className="text-espresso/60">Subtotal</dt>
           <dd className="font-mono text-sm text-espresso text-right">
             {/* GBP only — the catalogue lines this sums carry no other
-                currency. The package total below still shows both approved
-                package figures. */}
-            {formatGbp(memory.subtotal)}
+                currency. */}
+            {formatGbp(memory.subtotal + enhancementsGbp)}
           </dd>
         </div>
 
@@ -157,7 +210,7 @@ const YourMemorySummary = ({ memory, className }: YourMemorySummaryProps) => {
           <dt className="text-espresso font-medium">Total</dt>
           <dd className="text-right">
             <span className="font-serif text-2xl text-ink">
-              {formatGbp(memory.chargeableTotal.gbp)}
+              {formatGbp(finalTotalGbp)}
             </span>
             {approx && (
               <span className="mt-0.5 block font-mono text-espresso/55 text-xs">

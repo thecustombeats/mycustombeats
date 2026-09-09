@@ -147,6 +147,8 @@ for (const product of ALL_PRODUCTS) {
     eligible_packages: product.compatiblePackages
       ? [...product.compatiblePackages]
       : null,
+    // Products carry no format restriction; only enhancements do.
+    eligible_formats: null,
   };
 }
 
@@ -159,6 +161,10 @@ for (const enhancement of ENHANCEMENTS) {
     max_quantity: enhancement.maxQuantity,
     fulfilment: enhancement.fulfilment,
     eligible_packages: [...enhancement.eligiblePackages],
+    // An additional copy of a record needs the order to actually contain one.
+    eligible_formats: enhancement.eligibleFormats
+      ? [...enhancement.eligibleFormats]
+      : null,
   };
 }
 

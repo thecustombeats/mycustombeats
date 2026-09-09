@@ -186,11 +186,26 @@ function price_basket(string $packageId, ?string $format, array $requestedItems)
             return BasketResult::refused('invalid_quantity', 'That quantity is not available.');
         }
 
-        // Eligibility. `null` means the business stated no restriction; an
-        // explicit list means exactly that list.
+        // Eligibility, on BOTH dimensions. `null` means the business stated
+        // no restriction; an explicit list means exactly that list.
         $eligible = $item['eligible_packages'] ?? null;
         if (is_array($eligible) && !in_array($packageId, $eligible, true)) {
             return BasketResult::refused('ineligible_item', 'That item cannot be added to this experience.');
+        }
+
+        /**
+         * The format dimension matters as much as the package.
+         *
+         * Keepsake sells vinyl, CD and MP3, so a Keepsake order passes the
+         * package check either way — but a Keepsake customer who chose MP3
+         * has no record, and an additional copy of a record that does not
+         * exist is not something MCB can make. The client hides it; this is
+         * what makes hiding it enforceable.
+         */
+        $eligibleFormats = $item['eligible_formats'] ?? null;
+        if (is_array($eligibleFormats)
+            && ($format === null || !in_array($format, $eligibleFormats, true))) {
+            return BasketResult::refused('ineligible_item', 'That item cannot be added to this format.');
         }
 
         $unitMinor = gbp_to_minor((float) ($item['price_gbp'] ?? 0));

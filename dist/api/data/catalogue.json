@@ -7,7 +7,8 @@
       "price_gbp": 100,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "vinyl-frame": {
       "name": "Vinyl Frame",
@@ -15,7 +16,8 @@
       "price_gbp": 200,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "plaque": {
       "name": "Engraved Music Plaque",
@@ -23,7 +25,8 @@
       "price_gbp": 100,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "music-box-experience": {
       "name": "MCB Music Box Experience",
@@ -31,7 +34,8 @@
       "price_gbp": 600,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "gift-pop-up-card-anniversary": {
       "name": "Anniversary Gift Pop-Up Card",
@@ -39,7 +43,8 @@
       "price_gbp": 50,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "gift-pop-up-card-birthday": {
       "name": "Birthday Gift Pop-Up Card",
@@ -47,7 +52,8 @@
       "price_gbp": 50,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "gift-pop-up-card-wedding": {
       "name": "Wedding Gift Pop-Up Card",
@@ -55,7 +61,8 @@
       "price_gbp": 50,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "gift-pop-up-card-mothers-day": {
       "name": "Mother's Day Gift Pop-Up Card",
@@ -63,7 +70,8 @@
       "price_gbp": 50,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "gift-pop-up-card-christmas": {
       "name": "Christmas Gift Pop-Up Card",
@@ -71,7 +79,8 @@
       "price_gbp": 50,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "gift-pop-up-card-easter": {
       "name": "Easter Gift Pop-Up Card",
@@ -79,7 +88,8 @@
       "price_gbp": 50,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "gift-pop-up-card-thank-you": {
       "name": "Thank You Gift Pop-Up Card",
@@ -87,7 +97,8 @@
       "price_gbp": 50,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "gift-pop-up-card-congratulations": {
       "name": "Congratulations Gift Pop-Up Card",
@@ -95,7 +106,8 @@
       "price_gbp": 50,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "gift-pop-up-card-valentines-day": {
       "name": "Valentine's Day Gift Pop-Up Card",
@@ -103,7 +115,8 @@
       "price_gbp": 50,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "gift-pop-up-card-cruise": {
       "name": "Cruise / Voyage Gift Pop-Up Card",
@@ -111,7 +124,8 @@
       "price_gbp": 50,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "digital-player": {
       "name": "Digital Player",
@@ -119,7 +133,8 @@
       "price_gbp": 250,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "portable-record-player-suitcase": {
       "name": "Portable Record Player Suitcase",
@@ -127,7 +142,8 @@
       "price_gbp": 200,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "phone-gramophone": {
       "name": "Mobile Phone Gramophone",
@@ -135,7 +151,8 @@
       "price_gbp": 100,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "vintage-gramophone": {
       "name": "Vintage Collection Gramophone",
@@ -143,7 +160,8 @@
       "price_gbp": 1000,
       "max_quantity": 1,
       "fulfilment": "PHYSICAL",
-      "eligible_packages": null
+      "eligible_packages": null,
+      "eligible_formats": null
     },
     "additional-vinyl-copy": {
       "name": "Additional Vinyl Copy",
@@ -155,6 +173,9 @@
         "keepsake",
         "journey",
         "heirloom"
+      ],
+      "eligible_formats": [
+        "vinyl"
       ]
     }
   }

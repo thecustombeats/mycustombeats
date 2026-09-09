@@ -36,7 +36,12 @@
  * of it. Selling it needs payment infrastructure that does not exist yet.
  */
 
-import { PACKAGES, type AnyPackage, type PackageId } from "../packages";
+import {
+  PACKAGES,
+  type AnyPackage,
+  type FormatId,
+  type PackageId,
+} from "../packages";
 import { gbp, type Availability, type Fulfilment, type ProductPrice } from "./types";
 
 /**
@@ -84,6 +89,19 @@ export interface CatalogueEnhancement {
    * its formats.
    */
   eligiblePackages: readonly PackageId[];
+  /**
+   * Formats the ORDER must be arriving in, or null for "any".
+   *
+   * The package dimension is not enough on its own. Keepsake sells vinyl, CD
+   * and MP3 — so a Keepsake customer passes `eligiblePackages`, but a Keepsake
+   * customer who chose MP3 has no record, and an "additional copy" of a record
+   * that does not exist is not a thing MCB can make.
+   *
+   * This is DERIVED from `duplicatesProductId`, not invented: an enhancement
+   * that duplicates a product can only be offered when that product is
+   * actually in the order.
+   */
+  eligibleFormats: readonly FormatId[] | null;
 }
 
 /**
@@ -123,6 +141,9 @@ export const ADDITIONAL_VINYL_COPY: CatalogueEnhancement = {
   availability: "MADE_TO_ORDER",
   fulfilment: "PHYSICAL",
   eligiblePackages: packagesOfferingVinyl(PACKAGES),
+  // Vinyl only, and for the reason above: there has to be a first record
+  // before there can be an additional one.
+  eligibleFormats: ["vinyl"],
 };
 
 /** Every enhancement, in display order. */
@@ -135,12 +156,38 @@ export const getEnhancement = (
 ): CatalogueEnhancement | undefined =>
   ENHANCEMENTS.find((enhancement) => enhancement.id === id);
 
-/** Enhancements offerable against a given package. */
+/**
+ * Whether this enhancement may be offered against a package and format.
+ *
+ * BOTH dimensions, because either alone is wrong: the package says whether
+ * the experience can include a record at all, and the format says whether
+ * THIS order actually does.
+ *
+ * A null `eligibleFormats` means the business stated no format restriction —
+ * not "no formats".
+ */
+export const isEnhancementEligible = (
+  enhancement: CatalogueEnhancement,
+  packageId: string,
+  format: string | null
+): boolean => {
+  if (!(enhancement.eligiblePackages as readonly string[]).includes(packageId)) {
+    return false;
+  }
+  if (enhancement.eligibleFormats === null) return true;
+  return (
+    format !== null &&
+    (enhancement.eligibleFormats as readonly string[]).includes(format)
+  );
+};
+
+/** Enhancements offerable against a given package and format. */
 export const enhancementsForPackage = (
-  packageId: string
+  packageId: string,
+  format: string | null = null
 ): readonly CatalogueEnhancement[] =>
   ENHANCEMENTS.filter((enhancement) =>
-    (enhancement.eligiblePackages as readonly string[]).includes(packageId)
+    isEnhancementEligible(enhancement, packageId, format)
   );
 
 /**

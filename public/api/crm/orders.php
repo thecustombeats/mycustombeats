@@ -83,7 +83,44 @@ $stmt = db()->prepare($sql);
 $stmt->execute($params);
 $rows = $stmt->fetchAll();
 
-$orders = array_map(static function (array $r): array {
+/**
+ * The Complete Your Memory items, for every order in this page of results.
+ *
+ * ONE query rather than one per order — a fulfilment list that got slower the
+ * more orders you asked for would stop being used.
+ *
+ * Fetched separately rather than joined into the query above because a join
+ * would multiply each order row by its item count and quietly break every
+ * existing consumer's expectation of one row per order.
+ */
+$itemsByOrder = [];
+if ($rows !== []) {
+    $ids = array_map(static fn (array $r): int => (int) $r['id'], $rows);
+    $in  = implode(',', array_fill(0, count($ids), '?'));
+    $itemStmt = db()->prepare(
+        "SELECT order_id, item_id, item_name, quantity, unit_gbp, line_gbp
+           FROM order_items WHERE order_id IN ($in) ORDER BY id ASC"
+    );
+    try {
+        $itemStmt->execute($ids);
+        foreach ($itemStmt->fetchAll() as $item) {
+            $itemsByOrder[(int) $item['order_id']][] = [
+                'item_id'   => $item['item_id'],
+                'name'      => $item['item_name'],
+                'quantity'  => (int) $item['quantity'],
+                'unit_gbp'  => (float) $item['unit_gbp'],
+                'line_gbp'  => (float) $item['line_gbp'],
+            ];
+        }
+    } catch (PDOException $e) {
+        // A database that has not run the migration yet must still be able to
+        // answer "what orders are there?" — the items simply come back empty.
+        error_log('MCB CRM: order_items unavailable: ' . $e->getMessage());
+    }
+}
+
+$orders = array_map(static function (array $r) use ($itemsByOrder): array {
+    $items = $itemsByOrder[(int) $r['id']] ?? [];
     $order = [
         // The reference leads, because it is what a customer will quote when
         // they get in touch. NULL on anything not yet paid, by design.
@@ -93,8 +130,23 @@ $orders = array_map(static function (array $r): array {
         'package'         => $r['package'],
         'format'          => $r['format'],
         'fulfilment_type' => $r['fulfilment_type'],
+        // UNCHANGED SHAPE. Existing consumers read amount.gbp / amount.usd and
+        // must keep working; the basket is added alongside, never in place of.
         'amount'          => ['gbp' => (float) $r['amount_gbp'], 'usd' => (float) $r['amount_usd']],
         'currency'        => $r['currency'],
+        /**
+         * What else this customer chose, and what it came to.
+         *
+         * `basket_total_gbp` is the package plus every line — the figure an
+         * operator needs to answer "what did they order?" without adding it
+         * up by hand. An empty list means the package alone, which is exactly
+         * what every order placed before this existed was.
+         */
+        'enhancements'    => $items,
+        'basket_total_gbp' => round(
+            (float) $r['amount_gbp'] + array_sum(array_column($items, 'line_gbp')),
+            2
+        ),
         'attribution'     => [
             'source_type'        => $r['source_type'],
             'affiliate_username' => $r['affiliate_username'],
