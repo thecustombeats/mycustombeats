@@ -336,6 +336,21 @@ tc "37.  → and no checkout session was written for it" \
 # nine URLs; one of them is now unreachable rather than absent.
 tc "38. all nine Payment Links unchanged in source" \
   "$([ "$(cat src/data/packages.ts src/data/legacy/retiredBespoke.ts | grep -c 'https://buy.stripe.com/')" = "9" ] && echo 1 || echo 0)"
+# ---- Sprint 10 certification findings --------------------------------
+tc "C1. the enhancement UI is gated on the checkout flag" \
+  "$(grep -q 'activePackage && CHECKOUT_SESSIONS_ENABLED' src/sections/OrderFormSection.tsx && echo 1 || echo 0)"
+tc "C1b.  → so a basket that cannot be paid for cannot be built" \
+  "$([ "$(grep -c 'export const CHECKOUT_SESSIONS_ENABLED = false' src/lib/checkoutSession.ts)" = "1" ] \
+     && grep -rq 'Complete Your Memory' dist/assets/ 2>/dev/null && echo 1 || echo 0)"
+tc "C2. Stripe is NOT asked to collect a second shipping address" \
+  "$(grep -vE '^\s*(\*|//)' public/api/checkout/session.php | grep -q "params\['shipping_address_collection'\]" && echo 0 || echo 1)"
+tc "C3.  → and no country allowlist can block an international customer" \
+  "$(docker exec mcb-api sh -c 'tail -1 /tmp/stripe-stub.log' 2>/dev/null | grep -q 'allowed_countries' && echo 0 || echo 1)"
+tc "C4. MCB's own delivery address is still collected and stored" \
+  "$(grep -q 'INSERT INTO delivery_addresses' public/api/order.php && echo 1 || echo 0)"
+tc "C5. automatic tax remains off, so amount_total equals the expected basket" \
+  "$(docker exec mcb-api sh -c 'tail -1 /tmp/stripe-stub.log' 2>/dev/null | grep -q 'automatic_tax' && echo 0 || echo 1)"
+
 tc "33. a basket with items may NOT fall back to a Payment Link" \
   "$(grep -q 'mayFallBackToPaymentLink' src/lib/checkoutSession.ts && grep -q 'session.fallbackAllowed' src/sections/OrderFormSection.tsx && echo 1 || echo 0)"
 tc "34. a base-package-only checkout MAY fall back" \

@@ -343,20 +343,39 @@ if (!empty($order['email'])) {
  * a legitimate tax component is not read as a mismatch.
  */
 
-if ($needsShipping) {
-    /**
-     * Belt and braces. MCB validates and stores its own delivery address in
-     * `delivery_addresses` before the customer ever reaches Stripe, and that
-     * record remains authoritative for fulfilment. Stripe's copy exists for
-     * payment-dispute evidence.
-     *
-     * Derived from the package, format and basket — never toggled by the
-     * request. Note for activation: this asks the customer for their address
-     * a second time, which is worth a UX decision before the flag is turned on.
-     */
-    $params['shipping_address_collection'] = ['allowed_countries' => stripe_shipping_countries()];
-}
-
+/**
+ * MCB'S OWN ADDRESS IS AUTHORITATIVE, AND STRIPE DOES NOT ASK AGAIN.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE DECISION, TAKEN AT CERTIFICATION
+ * ─────────────────────────────────────────────────────────────────────────
+ * This block used to set `shipping_address_collection`, with a note that
+ * asking the customer for their address a second time was "worth a UX
+ * decision before the flag is turned on". This is that decision.
+ *
+ * MCB already collects a complete delivery address in its own form, derives
+ * the requirement from the WHOLE basket (a digital Moment with a framed print
+ * in it still has to be posted), validates it server-side before the customer
+ * ever reaches Stripe, and stores it in `delivery_addresses`, which is what
+ * fulfilment actually reads. Stripe's copy was never reconciled against it —
+ * so two addresses could disagree and nothing in the system would notice,
+ * which is a worse outcome than having one.
+ *
+ * The stated benefit was payment-dispute evidence. MCB already holds the
+ * order, the delivery address, the immutable checkout snapshot, and a consent
+ * record carrying a timestamp, a salted IP hash and a user agent. That is a
+ * stronger evidential position than a second address typed into a checkout.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * AND IT WAS ACTIVELY HARMFUL
+ * ─────────────────────────────────────────────────────────────────────────
+ * The allowed-countries list was `['GB', 'US']`. MCB sells internationally —
+ * the site offers six display currencies and the Terms have a clause about
+ * customs and import duties — so an Australian customer who had completed the
+ * whole order form would have been stopped at the payment step by a country
+ * allowlist nothing else in the system agrees with. Dynamic checkout being
+ * dormant is the only reason no customer has met it.
+ */
 // Deterministic: the same basket retried produces the same key, so Stripe
 // returns the original session instead of creating another payable one.
 $session = stripe_create_checkout_session($secretKey, $params, 'mcb_' . $fingerprint);

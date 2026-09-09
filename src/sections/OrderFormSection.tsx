@@ -50,7 +50,10 @@ import {
 } from "../data/musicStyles";
 import { revealOnScroll } from "../lib/scrollReveal";
 import { trackEvent } from "../lib/analytics";
-import { createCheckoutSession } from "../lib/checkoutSession";
+import {
+  CHECKOUT_SESSIONS_ENABLED,
+  createCheckoutSession,
+} from "../lib/checkoutSession";
 
 /** Stable empty array, so clearing the notice cannot re-trigger an effect. */
 const NO_REMOVALS: readonly string[] = [];
@@ -532,10 +535,33 @@ const needsShipping = activePackage
     (basketPreview?.requiresShipping ?? false)
   : false;
 
-/** What may be offered against the CURRENT package and format. */
-const availableOffers = activePackage
-  ? offersFor(activePackage.id, formData.format || null)
-  : [];
+/**
+ * What may be offered against the CURRENT package and format.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * GATED ON THE CHECKOUT FLAG, AND THIS IS RELEASE-CRITICAL
+ * ─────────────────────────────────────────────────────────────────────────
+ * Enhancements can only be PAID FOR through a server-created Checkout
+ * Session, because a fixed Payment Link charges one fixed amount. While
+ * `CHECKOUT_SESSIONS_ENABLED` is false there is no payment path for a basket
+ * — and `mayFallBackToPaymentLink` correctly refuses to send an enhanced
+ * basket to the Keepsake link, which is what stops MCB shipping £449 of goods
+ * against a £79 payment.
+ *
+ * But refusing at the last step is not the same as not offering. Without this
+ * gate a customer could choose a £200 frame, a £50 card and two extra
+ * records, fill in the whole form, press submit, and be told to "try again in
+ * a moment" — with an order row already written and no way to pay for it.
+ * They would have been shown a shop that cannot take their money.
+ *
+ * So the stage does not appear at all until the payment path behind it is
+ * live. Turning the flag on turns the shop on; the two cannot drift apart,
+ * because they are the same switch.
+ */
+const availableOffers =
+  activePackage && CHECKOUT_SESSIONS_ENABLED
+    ? offersFor(activePackage.id, formData.format || null)
+    : [];
 
 /**
  * Complete Your Memory comes AFTER the package and format are settled, and

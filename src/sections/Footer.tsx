@@ -124,8 +124,18 @@ const Footer = () => {
 
         {/* ===== BOTTOM ===== */}
         <div className="border-t border-ivory/10 mt-6 pt-6 text-xs text-ivory/40 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>© My Custom Beats. All rights reserved.</p>
-          <p>Crafted with <span className="text-gold">♥</span></p>
+          {/*
+            `text-ivory/40` is on the <p>, not only on the wrapper.
+
+            `index.css` sets `p { color: rgba(46, 38, 35, 0.65) }` for the
+            light pages, and an element rule beats a colour inherited from a
+            parent — so this line rendered espresso on the ink footer at
+            1.17:1, which is to say invisible. The same class of bug put the
+            Full Package headline at exactly that ratio in an earlier sprint.
+            Anything on a dark ground states its own colour.
+          */}
+          <p className="text-ivory/40">© My Custom Beats. All rights reserved.</p>
+          <p className="text-ivory/40">Crafted with <span className="text-gold">♥</span></p>
         </div>
 
       </div>

@@ -42,6 +42,19 @@ function stripe_api_base(): string
  * dollars — rather than a list invented here. Widening it is a business
  * decision that belongs with the shipping rates.
  */
+/**
+ * UNUSED. Retained deliberately.
+ *
+ * `checkout/session.php` no longer asks Stripe to collect a shipping address:
+ * MCB's own form is authoritative, and a second address that nothing
+ * reconciles is a liability rather than evidence. See the note there.
+ *
+ * This list is left in place because `['GB', 'US']` is exactly the sort of
+ * restriction that gets reintroduced by accident — MCB sells internationally,
+ * and an allowlist of two countries would stop everyone else at the payment
+ * step. If shipping collection is ever reinstated, start from that problem
+ * rather than from this list.
+ */
 function stripe_shipping_countries(): array
 {
     return ['GB', 'US'];
