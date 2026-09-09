@@ -34,7 +34,7 @@ tc() { local name="$1" ok="$2"
 # So `post order` splices a full consent block into any body that does not
 # already carry one. `post_raw` sends exactly what it is given, for the tests
 # that ARE about consent.
-CONSENT_BLOCK='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2026-09-09"'
+CONSENT_BLOCK='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2026-09-09.4","cruiseCompanions":"My husband David"'
 
 with_consent() {
   case "$1" in

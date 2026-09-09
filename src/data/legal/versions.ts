@@ -60,7 +60,7 @@
  * correctly, it reads unambiguously, and it does not require anyone to learn
  * a versioning convention to understand which came first.
  */
-export const TERMS_VERSION = "2026-09-09.2";
+export const TERMS_VERSION = "2026-09-09.4";
 
 /**
  * Refunds moves with the Terms; Privacy does not.
@@ -70,7 +70,7 @@ export const TERMS_VERSION = "2026-09-09.2";
  * bumping it would tell customers a document had been revised when it had
  * not — which is exactly the noise dated-on-every-deploy versioning creates.
  */
-export const REFUND_POLICY_VERSION = "2026-09-09.2";
+export const REFUND_POLICY_VERSION = "2026-09-09.4";
 
 /**
  * MOVED, because the Privacy Policy content genuinely changed.
@@ -113,6 +113,13 @@ export const SUPERSEDED_VERSIONS: readonly {
   superseded: string;
   summary: string;
 }[] = [
+  {
+    version: "2026-09-09.2",
+    effective: "2026-09-09",
+    superseded: "2026-09-09",
+    summary:
+      "The delivery, special-occasion, product-handling and liability edition. Superseded the same day by 2026-09-09.4, in which the Founder replaced the clause set wholesale: refinement entitlements reduced to one per song, cancellation and refunds removed, courier damage disclaimed, and the liability and statutory-rights wording rewritten. Orders accepted under this version remain governed by it.",
+  },
   {
     version: "2026-09-09",
     effective: "2026-09-09",

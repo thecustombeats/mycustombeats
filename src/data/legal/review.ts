@@ -28,6 +28,15 @@ export interface ReviewItem {
 
 export const LEGAL_REVIEW_REQUIRED: readonly ReviewItem[] = [
   {
+    topic: "FOUNDER-REPLACED TERMS — clauses that consumer law does not permit",
+    positionTaken:
+      "The Founder replaced the entire clause set at version 2026-09-09.4 and accepted solicitor review as non-blocking for release. The wording is implemented exactly as supplied and has NOT been softened.",
+    question:
+      "Six clauses attempt exclusions a trader cannot make against a consumer, and a term that is void does not merely fail — it can invite a complaint that the rest of the document would not have. (1) Clause 18: 'MCB has no responsibility for death or personal injury caused by neglect or defective products' — liability for death or personal injury from negligence cannot lawfully be excluded, and this is the single most serious item here. (2) Clause 7: 'There is a no refund policy' with no carve-out for faulty or misdescribed goods. (3) Clause 8: courier damage disclaimed — under the Consumer Rights Act goods remain the trader's risk until they reach the consumer, so this is likely unenforceable. (4) Clause 17: remedy conditioned on claiming 'within 24 hours of delivery date' — statutory rights do not expire in 24 hours. (5) Clause 23: 'Any change applies to orders placed before and after' — purports to vary concluded contracts retrospectively. (6) Clause 20: 'it becomes your full responsibility if anything happens regarding a legal case' — attempts to transfer the trader's own liability to the consumer. Each should be reviewed before the terms are relied on in a dispute.",
+    severity: "BLOCKING",
+  },
+
+  {
     topic: "Cancellation classification of the core product",
     positionTaken:
       "Each order is treated as a personalised creative SERVICE that produces digital content, and — where a physical format is chosen — goods made to the consumer's specification. Three consents are captured accordingly.",
@@ -84,7 +93,7 @@ export const LEGAL_REVIEW_REQUIRED: readonly ReviewItem[] = [
     severity: "BLOCKING",
   },
   {
-    topic: "Delivery estimates and expressly agreed dates",
+    topic: "HISTORICAL (superseded) — delivery estimates and agreed dates",
     positionTaken:
       "Displayed timings are estimates; an expressly agreed written date takes precedence and is stated to do so (clause 12). Package cards were changed from 'Delivered within 15 working days' to 'Allow at least 15 working days…' so the site and the contract agree.",
     question:
@@ -92,7 +101,7 @@ export const LEGAL_REVIEW_REQUIRED: readonly ReviewItem[] = [
     severity: "BLOCKING",
   },
   {
-    topic: "Special-occasion and non-refundable arrangement wording",
+    topic: "HISTORICAL (superseded) — special-occasion and non-refundable wording",
     positionTaken:
       "Customers are advised not to make non-refundable travel, accommodation or event arrangements on the strength of an estimate (clause 13), with a fifteen-working-day planning recommendation. It is written as advice plus a foreseeability boundary in clause 21, NOT as a blanket waiver of consequential loss.",
     question:
@@ -116,7 +125,7 @@ export const LEGAL_REVIEW_REQUIRED: readonly ReviewItem[] = [
     severity: "IMPORTANT",
   },
   {
-    topic: "Product handling, misuse and personal injury",
+    topic: "HISTORICAL (superseded) — product handling, misuse and personal injury",
     positionTaken:
       "Clauses 16–18 ask for reasonable care, instruct customers to stop using visibly damaged items, and exclude responsibility for loss GENUINELY CAUSED by misuse — with an express footnote that nothing limits liability for death or personal injury caused by negligence, for defective products, or for anything else that cannot lawfully be excluded. No 48-hour reporting cutoff was reintroduced.",
     question:
@@ -124,7 +133,7 @@ export const LEGAL_REVIEW_REQUIRED: readonly ReviewItem[] = [
     severity: "BLOCKING",
   },
   {
-    topic: "Limitation of liability — 'consequential loss' replaced",
+    topic: "HISTORICAL (superseded) — limitation of liability, 'consequential loss' replaced",
     positionTaken:
       "The Founder draft's generic 'indirect or consequential losses' and reliance on 'to the fullest extent permitted by applicable law' were NOT adopted as the operative wording. Clause 21 instead ties exclusions to causation: loss not caused by MCB, loss from events outside its reasonable control, loss from misuse, loss from incorrect delivery details, and loss that was not foreseeable — plus an express business-loss exclusion for a consumer sale and an express list of what is never excluded.",
     question:

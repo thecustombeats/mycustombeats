@@ -60,19 +60,19 @@ const Refund = () => (
         </p>
 
         {/*
-          THE NOTICE COMES FIRST, not last.
-
-          The single most likely misreading of a made-to-order refund policy is
-          that "personalised items cannot be returned" also covers items MCB
-          made wrong. Putting the correction at the bottom, in small text,
-          would be technically present and practically useless.
+          The statutory-rights notice that used to sit here has been removed
+          along with the wording it referred to — see `refunds.ts`. The block
+          is rendered only if the constant carries text, so restoring the
+          notice is a one-line change in the data rather than a change here.
         */}
-        <p
-          className="mt-8 rounded-2xl border border-gold-dark/40 bg-gold/10 px-5 py-4 leading-relaxed text-espresso"
-          role="note"
-        >
-          {STATUTORY_RIGHTS_NOTICE}
-        </p>
+        {STATUTORY_RIGHTS_NOTICE !== "" && (
+          <p
+            className="mt-8 rounded-2xl border border-gold-dark/40 bg-gold/10 px-5 py-4 leading-relaxed text-espresso"
+            role="note"
+          >
+            {STATUTORY_RIGHTS_NOTICE}
+          </p>
+        )}
 
         <div className="mt-14 space-y-10">
           {REFUND_SECTIONS.map((section) => (

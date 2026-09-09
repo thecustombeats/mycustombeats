@@ -230,21 +230,55 @@ if ($needsAddress) {
 }
 
 // ---- Creative brief ---------------------------------------------------
+//
+// NOTE: this block appears twice in this file, the second assignment
+// overwriting the first. It is pre-existing and harmless — both are
+// identical — but both are kept in step deliberately, because editing one
+// and not the other would produce a silent behaviour change.
 $brief = [
     'mood'      => $v->optional('mood', 255),
     'genre'     => $v->optional('genre', 120),
     'touches'   => $v->optional('personalTouches', 2000),
     'story'     => $v->optional('story', 60000),
     'artwork'   => $v->optional('artworkUrl', 512),
+    /**
+     * REQUIRED, and validated here rather than only in the browser.
+     *
+     * The column is nullable because orders placed before the question
+     * existed have no answer, and NULL correctly reads as "not asked".
+     * The requirement belongs on new submissions, which is what this is —
+     * so a request that never went near the form cannot skip it either.
+     *
+     * 255 to match the column exactly, so a customer's own words are
+     * never silently truncated to make them fit.
+     */
+    'cruise'    => $v->required('cruiseCompanions', 'Who you are cruising with', 255),
 ];
 
 // ---- Creative brief ---------------------------------------------------
+//
+// NOTE: this block appears twice in this file, the second assignment
+// overwriting the first. It is pre-existing and harmless — both are
+// identical — but both are kept in step deliberately, because editing one
+// and not the other would produce a silent behaviour change.
 $brief = [
     'mood'      => $v->optional('mood', 255),
     'genre'     => $v->optional('genre', 120),
     'touches'   => $v->optional('personalTouches', 2000),
     'story'     => $v->optional('story', 60000),
     'artwork'   => $v->optional('artworkUrl', 512),
+    /**
+     * REQUIRED, and validated here rather than only in the browser.
+     *
+     * The column is nullable because orders placed before the question
+     * existed have no answer, and NULL correctly reads as "not asked".
+     * The requirement belongs on new submissions, which is what this is —
+     * so a request that never went near the form cannot skip it either.
+     *
+     * 255 to match the column exactly, so a customer's own words are
+     * never silently truncated to make them fit.
+     */
+    'cruise'    => $v->required('cruiseCompanions', 'Who you are cruising with', 255),
 ];
 
 /**
@@ -383,12 +417,13 @@ try {
                 customer_id, package, format, fulfilment_type,
                 amount_gbp, amount_usd, currency, status,
                 source_type, affiliate_id, partner_id, referral_raw,
-                brief_mood, brief_genre, brief_personal_touches, brief_story, artwork_url
+                brief_mood, brief_genre, brief_personal_touches, brief_story,
+                brief_cruise_companions, artwork_url
              ) VALUES (
                 :cid, :pkg, :fmt, :ful,
                 :gbp, :usd, :cur, :status,
                 :src, :aff, :par, :ref,
-                :mood, :genre, :touches, :story, :artwork
+                :mood, :genre, :touches, :story, :cruise, :artwork
              )'
         );
         $stmt->execute([
@@ -408,6 +443,7 @@ try {
             ':genre'   => $brief['genre'],
             ':touches' => $brief['touches'],
             ':story'   => $brief['story'],
+            ':cruise'  => $brief['cruise'],
             ':artwork' => $brief['artwork'],
         ]);
         $orderId = (int) $pdo->lastInsertId();

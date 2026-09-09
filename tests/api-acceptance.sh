@@ -28,7 +28,7 @@ tc() { # tc "name" condition_result
 # So `post order` splices a full consent block into any body that does not
 # already carry one. `post_raw` sends exactly what it is given, for the tests
 # that ARE about consent.
-CONSENT_BLOCK='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2026-09-09"'
+CONSENT_BLOCK='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2026-09-09.4","cruiseCompanions":"My husband David"'
 
 with_consent() {
   case "$1" in
@@ -459,7 +459,7 @@ import json
 json.dump({"firstName":"Robert'); DROP TABLE orders;--","lastName":"Tables",
            "email":"bobby@example.com","package":"moment","format":"mp3",
            "consents":{"TERMS":True,"SERVICE_START":True,"DIGITAL_CONTENT":True},
-           "termsVersion":"2026-09-09"},
+           "termsVersion":"2026-09-09.4","cruiseCompanions":"My husband David"},
           open("/tmp/inj1.json","w"))
 json.dump({"ref":"rey123' OR 1=1--"}, open("/tmp/inj2.json","w"))
 PYEOF

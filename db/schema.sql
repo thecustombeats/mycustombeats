@@ -154,6 +154,24 @@ CREATE TABLE IF NOT EXISTS orders (
   brief_genre            VARCHAR(120) NULL,
   brief_personal_touches TEXT         NULL,
   brief_story            MEDIUMTEXT   NULL,
+
+  -- Who the customer is travelling with, in their own words.
+  --
+  -- STORYTELLING CONTEXT, NOT A PROFILE. "My wife and our children",
+  -- "my best friend Sarah". It tells the writer who is in the room when
+  -- the song is played, which is the difference between a song about a
+  -- holiday and a song about these people on that holiday.
+  --
+  -- FREE TEXT ON PURPOSE, and deliberately nothing more. There is no age
+  -- field, no gender field, no relationship enum and no count — Sprint 2
+  -- cancelled recipient profiling and this does not reintroduce it under
+  -- a friendlier name. A sentence a person wrote is worth more to a
+  -- writer than a demographic form, and it is the customer's own choice
+  -- what to put in it.
+  --
+  -- Sits with the other `brief_` columns because that is what it is: part
+  -- of the creative brief, subject to the same handling as the story.
+  brief_cruise_companions VARCHAR(255) NULL,
   artwork_url            VARCHAR(512) NULL,
 
   created_at             DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -731,7 +749,27 @@ CREATE TABLE IF NOT EXISTS order_production (
   id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   order_id            INT UNSIGNED NOT NULL,
 
-  stage               ENUM('CREATIVE','AWAITING_APPROVAL','APPROVED',
+  -- The workflow MCB actually runs:
+  --
+  --   CREATIVE           writing and producing
+  --   SONG_READY         finished internally, not yet with the customer
+  --   AWAITING_APPROVAL  sent to the customer for review
+  --   REVISION_REQUESTED they have heard it and asked for a change
+  --   APPROVED           they have approved it for manufacture
+  --   PRODUCTION_LOCKED  irreversible manufacture has begun
+  --   FULFILMENT         made, being packed or dispatched
+  --   COMPLETED          MCB regards the commission as fulfilled
+  --
+  -- SONG_READY and REVISION_REQUESTED were added because the business
+  -- genuinely occupies both and the model could not express either. The
+  -- second matters most: without it, an operator moving an order out of
+  -- AWAITING_APPROVAL had only APPROVED available — so a customer asking
+  -- for a change had to be recorded as having approved the work, which is
+  -- the opposite of what happened AND would have closed their remaining
+  -- refinement. A state that forces a false record is worse than a
+  -- missing state.
+  stage               ENUM('CREATIVE','SONG_READY','AWAITING_APPROVAL',
+                           'REVISION_REQUESTED','APPROVED',
                            'PRODUCTION_LOCKED','FULFILMENT','COMPLETED')
                       NOT NULL DEFAULT 'CREATIVE',
 
@@ -803,8 +841,12 @@ CREATE TABLE IF NOT EXISTS order_production (
   -- An APPROVED order must say when and how it was approved. Without both
   -- the row asserts an approval it cannot evidence, which is worse than
   -- no record because it looks like one.
+  -- The four pre-approval states need no approval evidence, because no
+  -- approval has happened in any of them. Everything from APPROVED onward
+  -- must be able to say when and how — a row asserting an approval it
+  -- cannot date is worse than no record, because it looks like one.
   CONSTRAINT chk_production_approval CHECK (
-    stage IN ('CREATIVE','AWAITING_APPROVAL')
+    stage IN ('CREATIVE','SONG_READY','AWAITING_APPROVAL','REVISION_REQUESTED')
     OR (approved_at IS NOT NULL AND approval_channel IS NOT NULL)
   ),
 

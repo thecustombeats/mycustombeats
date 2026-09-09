@@ -29,15 +29,21 @@ body() { cat /tmp/lg.json; }
 q() { docker exec mcb-db mariadb -umcb -ptestpass -N -B -e "$1" mcb_crm 2>/dev/null; }
 qerr() { docker exec mcb-db mariadb -umcb -ptestpass -e "$1" mcb_crm 2>&1; }
 CRMKEY="test_crm_key_not_real_000000000000000000000"
+# Authenticated CRM helpers, matching the lifecycle suite's.
+crm()  { curl -s -o /tmp/lg.json -w '%{http_code}' "$BASE/$1" -H "Authorization: Bearer $CRMKEY"; }
+crmp() { curl -s -o /tmp/lg.json -w '%{http_code}' -X POST "$BASE/$1" -H "Authorization: Bearer $CRMKEY" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$2"; }
 # The version currently in force. Sprint 9.5 added the delivery,
 # special-occasion, product-handling and liability clauses, so this moved from
 # 2026-09-09 to 2026-09-09.2 — a same-day revision, hence the suffix rather
 # than a new date. Assertions 1 and 5 pin the CURRENT version; the superseded
 # one must still be recognised, which is asserted below and covered in depth by
 # tests/delivery-acceptance.sh.
-VER="2026-09-09.2"
+VER="2026-09-09.4"
 SUPERSEDED_VER="2026-09-09"
-FULL='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"'"$VER"'"'
+# Orders now also require the cruise-companion field, so every payload that
+# is not specifically testing it carries one.
+CRUISE='"cruiseCompanions":"My husband David"'
+FULL='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"'"$VER"'",'"$CRUISE"
 
 # Customer-facing prose only. Every legal file explains WHY a phrase was
 # removed, and those explanations necessarily quote the phrase — so the
@@ -98,13 +104,13 @@ tc "21. consent evidence is booleans and timestamps, not a blob of text" \
   "$(q "SHOW COLUMNS FROM order_consents" | grep -q 'terms_accepted_at' && q "SHOW COLUMNS FROM order_consents" | grep -q 'digital_content_ack' && echo 1 || echo 0)"
 
 t "22. a physical order is not asked to acknowledge digital supply" 201 \
-  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true},"termsVersion":"'"$VER"'","firstName":"Vin","lastName":"Yl","email":"lg-vinyl@example.com","package":"keepsake","format":"vinyl","story":"x","shippingName":"V Y","shippingAddress":"1 St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom"}')"
+  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true},"termsVersion":"'"$VER"'",'"$CRUISE"',"firstName":"Vin","lastName":"Yl","email":"lg-vinyl@example.com","package":"keepsake","format":"vinyl","story":"x","shippingName":"V Y","shippingAddress":"1 St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom"}')"
 OIDV=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "23.  → and its acknowledgement is NULL, not 0 (never asked ≠ declined)" \
   "$([ "$(q "SELECT IFNULL(digital_content_ack,'NULL') FROM order_consents WHERE order_id=$OIDV")" = "NULL" ] && echo 1 || echo 0)"
 # Attempted against a FRESH order id with no consent row, so the UNIQUE key
 # cannot fire first and mask the constraint being tested.
-post order '{"consents":{"TERMS":true,"SERVICE_START":true},"termsVersion":"'"$VER"'","firstName":"Chk","lastName":"Row","email":"lg-chk@example.com","package":"keepsake","format":"vinyl","story":"x","shippingName":"C R","shippingAddress":"1 St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom"}' >/dev/null
+post order '{"consents":{"TERMS":true,"SERVICE_START":true},"termsVersion":"'"$VER"'",'"$CRUISE"',"firstName":"Chk","lastName":"Row","email":"lg-chk@example.com","package":"keepsake","format":"vinyl","story":"x","shippingName":"C R","shippingAddress":"1 St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom"}' >/dev/null
 OIDC=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 q "DELETE FROM order_consents WHERE order_id=$OIDC" >/dev/null
 tc "24. the DATABASE refuses a required-but-missing digital acknowledgement" \
@@ -198,22 +204,52 @@ PYEOF
 
 echo ""
 echo "================ 5. WHAT THEY MUST SAY ================"
-tc "53. faulty goods rights are expressly preserved" \
-  "$(grep -q 'faulty' src/data/legal/terms.ts && grep -q 'Consumer Rights Act 2015' src/data/legal/terms.ts && echo 1 || echo 0)"
-tc "54. not-as-described rights are expressly preserved" \
-  "$(grep -q 'not as described' src/data/legal/terms.ts && echo 1 || echo 0)"
-tc "55. the personalised-goods exception is conditional, not blanket" \
-  "$(grep -q 'it is not a blanket rule covering everything in our catalogue' src/data/legal/terms.ts && echo 1 || echo 0)"
-tc "56. the lock is stated NOT to cover MCB's own errors" \
-  "$(grep -q 'It is not a way of avoiding responsibility for something we made incorrectly' src/data/legal/terms.ts && echo 1 || echo 0)"
-tc "57. post-lock changes are chargeable new work, quoted first" \
-  "$(grep -q 'We will not make the change and then invoice you for it without asking' src/data/legal/terms.ts && echo 1 || echo 0)"
+# ─────────────────────────────────────────────────────────────────────
+# FOUNDER DECISION, RECORDED RATHER THAN SILENTLY DROPPED
+#
+# Assertions 53-57, 60 and 67-70 previously required the Terms to preserve
+# faulty-goods rights, not-as-described rights, a conditional
+# personalised-goods exception, an express statement that the production
+# lock does not cover MCB's own errors, quoted-first post-lock changes,
+# third-party fulfilment responsibility, non-excludable liability and
+# mandatory overseas consumer rights.
+#
+# The Founder replaced the entire clause set at version 2026-09-09.4 and
+# none of that wording survives. These assertions therefore encoded
+# business decisions that have been superseded, and they are updated
+# rather than deleted: what the suite now guards is that the removal is
+# RECORDED in the internal review register, so the fact that these
+# protections were taken out cannot quietly disappear from the repository.
+# ─────────────────────────────────────────────────────────────────────
+tc "53. the Founder's clause set is what is published" \
+  "$(grep -q 'FOUNDER-SUPPLIED WORDING. REPLACED WHOLESALE, NOT EDITED.' src/data/legal/terms.ts && echo 1 || echo 0)"
+tc "54.  → and the register records exactly which protections went" \
+  "$(grep -q 'clauses that consumer law does not permit' src/data/legal/review.ts && echo 1 || echo 0)"
+tc "55.  → naming the death/personal-injury exclusion as the most serious" \
+  "$(grep -q 'the single most serious item here' src/data/legal/review.ts && echo 1 || echo 0)"
+tc "56.  → the no-refund clause with no carve-out for faulty goods" \
+  "$(grep -q "no carve-out for faulty or misdescribed goods" src/data/legal/review.ts && echo 1 || echo 0)"
+tc "57.  → the courier-damage disclaimer" \
+  "$(grep -q 'goods remain the trader' src/data/legal/review.ts && echo 1 || echo 0)"
+tc "60.  → the 24-hour claim window" \
+  "$(grep -q 'statutory rights do not expire in 24 hours' src/data/legal/review.ts && echo 1 || echo 0)"
+tc "67.  → the retrospective terms-change clause" \
+  "$(grep -q 'purports to vary concluded contracts retrospectively' src/data/legal/review.ts && echo 1 || echo 0)"
+tc "68.  → and the transfer of legal liability to the customer" \
+  "$(grep -q "transfer the trader's own liability to the consumer" src/data/legal/review.ts && echo 1 || echo 0)"
+tc "69. the entry is BLOCKING, not downgraded to make a release green" \
+  "$(grep -A6 'clauses that consumer law does not permit' src/data/legal/review.ts | grep -q 'BLOCKING' && echo 1 || echo 0)"
+tc "70. and the repository does not claim the wording was legally approved" \
+  "$(grep -q 'has NOT been reviewed by a solicitor\|NOT LEGALLY REVIEWED' src/data/legal/terms.ts && echo 1 || echo 0)"
 tc "58. a refinement is defined" \
   "$(grep -q 'REFINEMENT_DEFINITION' src/data/legal/production.ts && echo 1 || echo 0)"
 tc "59.  → and its limits are stated without making it meaningless" \
   "$([ "$(grep -c '^  \"' src/data/legal/production.ts)" -ge 5 ] && grep -q 'REFINEMENT_EXCLUSIONS' src/data/legal/production.ts && echo 1 || echo 0)"
-tc "60. material scope changes are quoted as a new order" \
-  "$(grep -q 'SCOPE_CHANGE_TREATMENT' src/data/legal/terms.ts && echo 1 || echo 0)"
+# The Founder's clause 4 states the refinement position in its own words and
+# does not use SCOPE_CHANGE_TREATMENT. The constant still exists and is still
+# correct; it is simply no longer quoted in the Terms.
+tc "60b. the refinement clause is the Founder's own wording" \
+  "$(grep -q 'As soon as a song goes to Vinyl pressing, no refinements can be made' src/data/legal/terms.ts && echo 1 || echo 0)"
 tc "61. customer-supplied material is covered" \
   "$(grep -q 'materials-you-give-us' src/data/legal/terms.ts && echo 1 || echo 0)"
 tc "62.  → the customer keeps ownership of it" \
@@ -226,14 +262,17 @@ tc "65. third-party rights and artist imitation are addressed" \
   "$(grep -q 'third-party-rights' src/data/legal/terms.ts && grep -q 'do not reproduce or imitate a specific recording' src/data/legal/terms.ts && echo 1 || echo 0)"
 tc "66. rights in MCB's work are stated once, without contradiction" \
   "$(grep -q 'rights-in-the-work' src/data/legal/terms.ts && prose $LEGAL_PROSE | grep -qi 'exclusive ownership' && echo 0 || echo 1)"
-tc "67. third-party fulfilment does not waive MCB's responsibility" \
-  "$(grep -q 'we will not point you at a supplier you never dealt with' src/data/legal/terms.ts && echo 1 || echo 0)"
-tc "68. non-excludable liability is expressly not excluded" \
-  "$(grep -q 'There are things the law does not allow anyone to exclude, and we do not attempt to' src/data/legal/terms.ts && echo 1 || echo 0)"
-tc "69. mandatory overseas consumer rights are preserved" \
-  "$(grep -q 'nothing here takes away rights that the law of your own country gives you' src/data/legal/terms.ts && echo 1 || echo 0)"
-tc "70. the early-start consequence is stated beside its checkbox, not behind a link" \
-  "$(grep -q 'we can charge you for the work already done' src/data/legal/consent.ts && echo 1 || echo 0)"
+# 67-70 asserted protections the Founder's clause set removes. Their removal
+# is guarded above (53-70), in the register, rather than here.
+tc "67b. the courier-damage position is the Founder's own wording" \
+  "$(grep -q 'do not take any responsibility for courier damages' src/data/legal/terms.ts && echo 1 || echo 0)"
+tc "68b. the consent checkbox no longer describes a cancellation route the Terms deny" \
+  "$(grep -q 'we can charge you for the work already done' src/data/legal/consent.ts && echo 0 || echo 1)"
+tc "69b.  → but the early-start ACT is still asked and still recorded separately" \
+  "$(grep -q 'Please start work on my order straight away' src/data/legal/consent.ts \
+     && [ "$(grep -c '^    id: \"' src/data/legal/consent.ts)" = "3" ] && echo 1 || echo 0)"
+tc "70b. the Refunds page no longer promises a route the Terms deny" \
+  "$(grep -q 'There is no cancellation of the product service after payment' src/data/legal/refunds.ts && echo 1 || echo 0)"
 tc "71. the digital-supply consequence is stated beside its checkbox" \
   "$(grep -q 'I lose the right to cancel that digital content' src/data/legal/consent.ts && echo 1 || echo 0)"
 
@@ -243,10 +282,10 @@ tc "72. the Terms derive entitlements rather than restating them" \
   "$(grep -q 'revisionEntitlements' src/data/legal/terms.ts && grep -q 'pkg.revisions' src/data/legal/terms.ts && echo 1 || echo 0)"
 tc "73. Moment still includes 1 revision" \
   "$(grep -q 'revisions: "1 revision included"' src/data/packages.ts && echo 1 || echo 0)"
-tc "74. Keepsake still includes 2 refinement revisions" \
-  "$(grep -q 'revisions: "2 refinement revisions"' src/data/packages.ts && echo 1 || echo 0)"
-tc "75. Journey and Heirloom still include 2 refinements per song" \
-  "$([ "$(grep -c 'revisions: \"2 refinements per song\"' src/data/packages.ts)" = "2" ] && echo 1 || echo 0)"
+tc "74. Keepsake includes 1 refinement revision (Founder revision)" \
+  "$(grep -q 'revisions: "1 refinement revision"' src/data/packages.ts && echo 1 || echo 0)"
+tc "75. Journey and Heirloom include 1 refinement per song (Founder revision)" \
+  "$([ "$(grep -c 'revisions: \"1 refinement per song\"' src/data/packages.ts)" = "2" ] && echo 1 || echo 0)"
 tc "76. the Full Package did NOT inherit 'unlimited refinements'" \
   "$(awk '/export const FULL_PACKAGE/,/^};/' src/data/packages.ts | grep -qi 'unlimited' && echo 0 || echo 1)"
 tc "77. no surface anywhere still promises unlimited refinements" \
@@ -315,6 +354,47 @@ tc "98c. and add no second canonical over App.tsx's" \
   "$(grep -q 'rel="canonical"' src/pages/legal/Terms.tsx src/pages/legal/Refund.tsx src/pages/legal/Privacy.tsx && echo 0 || echo 1)"
 tc "98d. each legal page states its own title and description" \
   "$(for f in Terms Refund Privacy; do grep -q '<title>' src/pages/legal/$f.tsx && grep -q 'name="description"' src/pages/legal/$f.tsx || exit 1; done && echo 1 || echo 0)"
+
+echo ""
+echo "================ 9c. CRUISE COMPANION FIELD ================"
+t "A1. an order without the cruise field is refused" 422 \
+  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"'"$VER"'","firstName":"NoCruise","lastName":"X","email":"lg-nc2@example.com","package":"keepsake","format":"mp3","story":"x"}')"
+tc "A2.  → named on its own field, so the customer knows which one" \
+  "$(body | grep -q 'cruiseCompanions' && echo 1 || echo 0)"
+t "A3. an order with it is accepted" 201 \
+  "$(post order '{'"$FULL"',"firstName":"Cruise","lastName":"Y","email":"lg-cruise@example.com","package":"keepsake","format":"mp3","story":"x"}')"
+OIDCR=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
+tc "A4.  → and persists exactly as the customer wrote it" \
+  "$([ "$(q "SELECT brief_cruise_companions FROM orders WHERE id=$OIDCR")" = "My husband David" ] && echo 1 || echo 0)"
+tc "A5. it is visible on the production workflow surface" \
+  "$(crm "crm/production?order=$OIDCR" >/dev/null; body | grep -q 'My husband David' && echo 1 || echo 0)"
+tc "A6. it is NOT withheld behind the orders surface's brief exclusion" \
+  "$(grep -q 'brief_cruise_companions' public/api/crm/production.php && echo 1 || echo 0)"
+tc "A7. it never reaches analytics" \
+  "$(grep -rqi 'cruise' src/lib/analytics.ts 2>/dev/null && echo 0 || echo 1)"
+tc "A8. it never reaches Stripe metadata" \
+  "$(grep -rqi 'cruise' public/api/checkout/session.php public/api/lib/stripe.php 2>/dev/null && echo 0 || echo 1)"
+tc "A9. it asks for a sentence, not a profile — no age/gender/relationship field" \
+  "$(q \"SHOW COLUMNS FROM orders\" | grep -qiE '^(age|gender|relationship|companion_age)' && echo 0 || echo 1)"
+tc "A10. the column is nullable, so pre-existing orders read as 'not asked'" \
+  "$([ "$(q "SHOW COLUMNS FROM orders LIKE 'brief_cruise_companions'" | awk '{print $3}')" = "YES" ] && echo 1 || echo 0)"
+
+echo ""
+echo "================ 9d. REVIEW-STATE MODEL ================"
+tc "F1. SONG_READY exists" \
+  "$(q "SHOW COLUMNS FROM order_production LIKE 'stage'" | grep -q 'SONG_READY' && echo 1 || echo 0)"
+tc "F2. REVISION_REQUESTED exists" \
+  "$(q "SHOW COLUMNS FROM order_production LIKE 'stage'" | grep -q 'REVISION_REQUESTED' && echo 1 || echo 0)"
+tc "F3. a revision request keeps refinements OPEN" \
+  "$(crmp crm/production '{"order_id":'"$OIDCR"',"stage":"REVISION_REQUESTED"}' >/dev/null; body | grep -q '"revisions_open":true' && echo 1 || echo 0)"
+tc "F4.  → and needs no approval evidence, because none has happened" \
+  "$(body | grep -q '"approved_at":null' && echo 1 || echo 0)"
+tc "F5. approval still requires a channel" \
+  "$(crmp crm/production '{"order_id":'"$OIDCR"',"stage":"APPROVED"}' | grep -q '^422$' && echo 1 || echo 0)"
+tc "F6. the pre-approval set is derived, not a hard-coded list" \
+  "$(grep -q 'revisions_remain_open(\$stage)' public/api/crm/production.php && echo 1 || echo 0)"
+tc "F7. payment still does not equal creative approval" \
+  "$([ "$(q "SELECT stage FROM order_production WHERE order_id=$OIDCR")" != "APPROVED" ] && echo 1 || echo 0)"
 
 echo ""
 echo "================ 10. INTERNAL GOVERNANCE ================"

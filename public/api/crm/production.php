@@ -80,6 +80,17 @@ function production_row(array $r): array
          */
         'completed_at'         => $r['completed_at'],
         'terms_version'        => $r['terms_version'],
+        /**
+         * Who the customer is travelling with, in their own words.
+         *
+         * HERE rather than on `/api/crm/orders`, which deliberately
+         * withholds the creative brief because a fulfilment list does not
+         * need it. This endpoint is the production workflow — it exists so
+         * somebody can prepare to make the work — and knowing who will be
+         * listening is part of that preparation. Same reasoning as the
+         * concierge surface returning the enquiry's story.
+         */
+        'cruise_companions'    => $r['brief_cruise_companions'] ?? null,
         // Payment state, returned ALONGSIDE and never as a substitute. An
         // operator can see both and the difference between them at a glance.
         'payment_status'       => $r['payment_status'] ?? null,
@@ -111,7 +122,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
 
     $limit = min(max((int) ($_GET['limit'] ?? 50), 1), 200);
 
-    $sql = 'SELECT p.*, o.status AS payment_status
+    $sql = 'SELECT p.*, o.status AS payment_status,
+                   o.brief_cruise_companions
               FROM order_production p
               JOIN orders o ON o.id = p.order_id'
          . ($where === [] ? '' : ' WHERE ' . implode(' AND ', $where))
@@ -158,7 +170,20 @@ $note      = trim((string) ($body['production_note'] ?? ''));
  * than an unapproved record, because it reads as evidence. The database
  * enforces the same rule with a CHECK constraint.
  */
-$needsApproval = !in_array($stage, ['CREATIVE', 'AWAITING_APPROVAL'], true);
+/**
+ * DERIVED, not listed.
+ *
+ * This was a hard-coded `['CREATIVE','AWAITING_APPROVAL']`, which went
+ * stale the moment SONG_READY and REVISION_REQUESTED were added — an
+ * operator recording a customer's revision request would have been asked
+ * for approval evidence for an approval that had not happened.
+ *
+ * A stage needs approval evidence exactly when it is past the point of
+ * approval, which is exactly when revisions have closed. `revisions_open`
+ * comes from the generated stage table, so a stage added in future is
+ * classified correctly without anyone editing this line.
+ */
+$needsApproval = !revisions_remain_open($stage);
 
 if ($needsApproval && !in_array($channel, approval_channels(), true)) {
     json_error(
@@ -245,7 +270,8 @@ try {
         ]);
 
         $read = $pdo->prepare(
-            'SELECT p.*, o.status AS payment_status
+            'SELECT p.*, o.status AS payment_status,
+                    o.brief_cruise_companions
                FROM order_production p
                JOIN orders o ON o.id = p.order_id
               WHERE p.order_id = :oid LIMIT 1'

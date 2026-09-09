@@ -50,7 +50,9 @@
  */
 export type ProductionStage =
   | "CREATIVE"
+  | "SONG_READY"
   | "AWAITING_APPROVAL"
+  | "REVISION_REQUESTED"
   | "APPROVED"
   | "PRODUCTION_LOCKED"
   | "FULFILMENT"
@@ -76,11 +78,35 @@ export const PRODUCTION_STAGES: readonly StageDefinition[] = [
     revisionsOpen: true,
   },
   {
+    stage: "SONG_READY",
+    internal:
+      "Finished internally and not yet sent. The gap between 'we have made it' and 'they have it' is real and was previously invisible.",
+    customer:
+      "Your work is finished and we are about to send it to you.",
+    revisionsOpen: true,
+  },
+  {
     stage: "AWAITING_APPROVAL",
     internal:
       "The draft is with the customer. Still open — a customer looking at a draft has not spent their refinements by looking.",
     customer:
       "Your work is with you to review. Tell us what you would like adjusted.",
+    revisionsOpen: true,
+  },
+  {
+    stage: "REVISION_REQUESTED",
+    internal:
+      "The customer has heard it and asked for a change. Revisions are OPEN — this is the state a refinement is used in.",
+    customer:
+      "You have asked us for a change, and we are making it.",
+    /**
+     * OPEN, and this is the whole reason the state exists.
+     *
+     * Without it the only move out of AWAITING_APPROVAL was APPROVED, so
+     * a customer asking for a change had to be recorded as having
+     * approved the work — false, and it would have closed the very
+     * refinement they were trying to use.
+     */
     revisionsOpen: true,
   },
   {

@@ -92,17 +92,31 @@ export const CONSENTS: readonly ConsentDefinition[] = [
      * to be caught out by.
      */
     detail:
-      "These explain what is included, how refinements work, when your order can no longer be changed, that delivery times are estimates unless we agree a date in writing, how to look after a physical item, and what happens if something is wrong with what we send you.",
+      "These explain what is included, how refinements work, when your order can no longer be changed, that delivery times are estimates, and our position on cancelling and refunds — please read clause 7.",
     error:
       "Please confirm you have read and agree to our terms before placing your order.",
     appliesTo: "ALWAYS",
   },
   {
     id: "SERVICE_START",
+    /**
+     * REWORDED, not removed.
+     *
+     * This previously said "rather than waiting for the 14-day cancellation
+     * period to pass" and explained what cancelling within it would cost.
+     * The Founder's Terms (2026-09-09.4) state there is no cancellation
+     * after payment, so those sentences described a route the contract no
+     * longer offers — and a checkbox promising one beside a clause denying
+     * it is worse than either alone.
+     *
+     * The ACT is unchanged and still recorded separately: the customer is
+     * asking MCB to begin immediately. Only the description of what
+     * cancelling would involve has been taken out.
+     */
     label:
-      "Please start work on my order straight away, rather than waiting for the 14-day cancellation period to pass.",
+      "Please start work on my order straight away.",
     detail:
-      "We begin as soon as you order — that is how a Moment arrives within the hour. Because you have asked us to start early, if you later cancel within the 14 days we can charge you for the work already done. Your rights if something is faulty or not as described are not affected.",
+      "We begin as soon as you order — that is how a Moment arrives within the hour. Clause 7 of our Terms explains what that means for cancelling, and we would rather you read it before you buy than afterwards.",
     error:
       "We need you to ask us to begin before we can start your order. Without this we cannot start work for 14 days.",
     appliesTo: "ALWAYS",
@@ -112,7 +126,7 @@ export const CONSENTS: readonly ConsentDefinition[] = [
     label:
       "I understand that once you send me my finished music, I lose the right to cancel that digital content.",
     detail:
-      "This applies to the audio files themselves, once we have sent them. It does not affect anything physical you have ordered, and it does not affect your rights if the files are faulty or not what you ordered.",
+      "This applies to the audio files themselves, once we have sent them. It does not affect anything physical you have ordered.",
     error:
       "Please confirm you understand this before we send you digital music files.",
     appliesTo: "DIGITAL_DELIVERY",

@@ -179,14 +179,14 @@ const faqs: { question: string; answer: string }[] = [
   {
     question: 'Can I get a refund?',
     /**
-     * This said "refunds are not available once production begins" — blanket,
-     * with an undefined trigger and no carve-out for MCB's own mistakes. It
-     * also disagreed with both the Terms and the Refunds page, which is how
-     * a business ends up unable to say what its own policy is.
+     * Reduced to match the Founder's Terms, which state there is no
+     * cancellation after payment and a no-refund policy. The previous answer
+     * described a cancellation route the contract no longer offers.
      */
     answer:
-      'It depends where your order has got to, and the Refunds & Cancellations page sets it out properly. In short: if we genuinely have not started, we refund you in full. If we have started, you can still cancel within the 14-day period and we may charge fairly for the work already done. Once an item has been personalised or made for you, the ordinary right to change your mind no longer applies to it. And separately from all of that — if what arrives is faulty, damaged or not what you ordered, we put it right.',
+      'Please read clause 7 of our Terms before you order: there is no cancellation of the product service after payment, and a no refund policy. If an item arrives damaged, clause 17 explains what to do and what we can offer.',
   },
+
   {
     question: 'Is my information kept private?',
     answer:

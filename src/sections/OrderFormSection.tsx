@@ -292,6 +292,17 @@ type FormDataType = {
   genre: string;
   otherGenre: string;
   personalTouches: string;
+  /**
+   * Who the customer is travelling with, in their own words.
+   *
+   * REQUIRED, and free text. It is storytelling context — "my wife and
+   * our children", "my best friend Sarah" — which tells the writer who is
+   * in the room when the song is played. It is deliberately not a set of
+   * tick boxes: no age, no gender, no relationship category. A sentence a
+   * person chose to write is worth more to a writer than a demographic
+   * form, and it is theirs to decide what goes in it.
+   */
+  cruiseCompanions: string;
   story: string;
   artwork: File | null;
   /**
@@ -382,6 +393,7 @@ const OrderFormSection = ({ selectedPackage }: OrderFormSectionProps) => {
   genre: '',
   otherGenre: '',
   personalTouches: '',
+  cruiseCompanions: '',
   story: '',
   artwork: null,
   // Nothing pre-ticked. See INITIAL_CONSENT_STATE for why that is a named
@@ -852,6 +864,14 @@ const validateForm = (): FormErrors => {
       newErrors.otherGenre = `Please keep this under ${MAX_STYLE_LABEL_LENGTH} characters`;
   }
 
+  if (!formData.cruiseCompanions.trim()) {
+    newErrors.cruiseCompanions = "Please tell us who you are travelling with";
+  } else if (formData.cruiseCompanions.trim().length > 255) {
+    // Matches the column, so the server never has to truncate a customer's
+    // own words to make them fit.
+    newErrors.cruiseCompanions = "Please keep this under 255 characters";
+  }
+
   if (!formData.story.trim())
     newErrors.story = "Story required";
   else if (wordCount > 2000)
@@ -1085,6 +1105,7 @@ if (formData.artwork) {
       : formData.genre
   );
   zapierData.append("personalTouches", formData.personalTouches);
+  zapierData.append("cruiseCompanions", formData.cruiseCompanions);
   zapierData.append("story", formData.story);
   zapierData.append("artworkUrl", artworkUpload || "");
   // Each consent reported by name rather than as one "agreeTerms" boolean,
@@ -1136,6 +1157,15 @@ if (formData.artwork) {
       : formData.moods.join(", "),
     genre: formData.genre === "Other" ? formData.otherGenre : formData.genre,
     personalTouches: formData.personalTouches,
+    /**
+     * Sent to MCB's own record so it reaches production and the CRM.
+     *
+     * NOT sent to analytics and NOT put in Stripe metadata: it is a
+     * sentence about the customer's family, it plays no part in taking a
+     * payment, and Stripe metadata is visible in a dashboard that has no
+     * business holding it.
+     */
+    cruiseCompanions: formData.cruiseCompanions,
     story: formData.story,
     artworkUrl: artworkUpload || "",
     referral: ref,
@@ -1803,6 +1833,40 @@ if (formData.artwork) {
   <h3 className="label-uppercase text-gold-deep">
     Step 5 — Personal Touches (Optional)
   </h3>
+
+  {/*
+    ---- WHO ARE YOU CRUISING WITH? -------------------------------------
+
+    REQUIRED, and it sits with the other brief fields because that is what
+    it is: part of the story, not a profile of anyone.
+
+    It asks for a sentence, not a form. "My wife and our children" tells a
+    writer more than an age, a gender and a relationship category would,
+    and it lets the customer decide what is relevant about the people they
+    love rather than picking from options MCB chose for them.
+  */}
+  <div data-field="cruiseCompanions">
+    <FieldLabel name="cruiseCompanions">
+      Who are you cruising with? (required)
+    </FieldLabel>
+    <input
+      name="cruiseCompanions"
+      type="text"
+      maxLength={255}
+      placeholder="My husband David, my parents, my best friend Sarah..."
+      value={formData.cruiseCompanions}
+      onChange={(e) => handleChange("cruiseCompanions", e.target.value)}
+      {...fieldAria("cruiseCompanions", errors.cruiseCompanions)}
+      className="w-full px-4 py-3 bg-ivory border border-espresso/10 rounded-xl text-espresso placeholder:text-espresso/40 focus:outline-none focus:ring-2 focus:ring-gold/30 transition-all duration-fast"
+    />
+    <p className="mt-2 text-xs leading-relaxed text-espresso/55">
+      However you would describe them. It helps us write for the people who
+      will actually be listening.
+    </p>
+    {errors.cruiseCompanions && (
+      <FieldError name="cruiseCompanions" message={errors.cruiseCompanions} />
+    )}
+  </div>
 
   <FieldLabel name="personalTouches">
     Personal touches — names, dates or phrases to include (optional)
