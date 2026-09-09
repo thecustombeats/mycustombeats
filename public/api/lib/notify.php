@@ -92,11 +92,26 @@ function release_customer_notification(PDO $pdo, int $orderId): void
 function post_payment_notification_payload(PDO $pdo, int $orderId): ?array
 {
     $stmt = $pdo->prepare(
+        /**
+         * The accepted terms version is joined in, not looked up.
+         *
+         * The point of recording a version against an order is that the
+         * customer's contract is with the words that were on the page that
+         * day. Reading the CURRENT version here would defeat that entirely —
+         * the email would name whatever the site says now, which is not what
+         * this customer accepted.
+         *
+         * LEFT JOIN because orders placed before consent was recorded have no
+         * row, and they still deserve their confirmation email.
+         */
         'SELECT o.id, o.mcb_reference, o.package, o.format, o.fulfilment_type,
                 o.amount_gbp, o.currency,
-                c.name AS customer_name, c.email AS customer_email
+                c.name AS customer_name, c.email AS customer_email,
+                oc.terms_version AS terms_version,
+                oc.terms_accepted_at AS terms_accepted_at
            FROM orders o
            JOIN customers c ON c.id = o.customer_id
+           LEFT JOIN order_consents oc ON oc.order_id = o.id
           WHERE o.id = :id
           LIMIT 1'
     );
@@ -150,6 +165,25 @@ function post_payment_notification_payload(PDO $pdo, int $orderId): ?array
         // Pre-formatted so the Zap never has to do currency maths, and the
         // customer always sees "£10.00" rather than "10".
         'amount_display'  => $symbol . number_format($amount, 2),
+
+        /**
+         * THE DURABLE CONTRACT RECORD.
+         *
+         * Distance selling requires the contractual information to reach the
+         * customer in a form they can keep. A link to a page that can be
+         * silently replaced is not that: the terms could change and the
+         * customer would have no way to see what they had actually agreed to.
+         *
+         * So the email names the VERSION they accepted, and the email itself
+         * — sitting in their inbox — is the durable copy. `order_consents`
+         * holds MCB's matching record, so the two can be reconciled years
+         * later from either side.
+         *
+         * NULL for an order placed before consent was recorded. The email
+         * simply omits the line rather than inventing a version.
+         */
+        'terms_version'     => $row['terms_version'],
+        'terms_accepted_at' => $row['terms_accepted_at'],
 
         // INTERNAL ONLY — for staff lookup and Zap filtering.
         // MUST NOT be rendered in the customer's email.
@@ -214,6 +248,19 @@ function post_payment_email_text(array $payload): string
         $lines[] = $payload['delivery'] . '.';
     }
 
+    if (($payload['terms_version'] ?? null) !== null) {
+        $lines[] = '';
+        $lines[] = 'Your agreement';
+        $lines[] = '';
+        $lines[] = 'This order is governed by version ' . $payload['terms_version']
+                 . ' of our Terms & Conditions, which you accepted at checkout. '
+                 . 'Keep this email as your record of that. If we update our terms '
+                 . 'later, your order stays governed by the version named here.';
+        $lines[] = '';
+        $lines[] = 'Terms: https://www.mycustombeats.com/legal/terms';
+        $lines[] = 'Refunds & cancellations: https://www.mycustombeats.com/legal/refund';
+    }
+
     $lines[] = '';
     $lines[] = 'Thank you for choosing My Custom Beats.';
     $lines[] = '';
@@ -255,6 +302,38 @@ function post_payment_email_html(array $payload): string
             . mcb_e($payload['delivery']) . '.</p>';
     }
 
+    /**
+     * THE DURABLE RECORD OF WHAT WAS AGREED.
+     *
+     * The email is the copy the customer keeps. Linking to a page that can be
+     * replaced would not survive a later revision of the terms — this names
+     * the exact version, so the customer can always establish what they
+     * accepted even if the page has since moved on.
+     *
+     * Omitted entirely for an order placed before consent was recorded,
+     * rather than printing a version that was never captured.
+     */
+    $termsBlock = '';
+    if (($payload['terms_version'] ?? null) !== null) {
+        $termsVersion = mcb_e((string) $payload['terms_version']);
+        $termsBlock = <<<TERMS
+    <div style="margin:24px 0 0;padding:16px;border:1px solid #E4DED4;border-radius:10px;background:#FBF9F6;">
+      <p style="margin:0 0 8px;font-weight:bold;">Your agreement</p>
+      <p style="margin:0 0 8px;font-size:14px;">
+        This order is governed by version <strong>{$termsVersion}</strong> of our
+        Terms &amp; Conditions, which you accepted at checkout. Please keep this
+        email as your record of that &mdash; if we update our terms later, your
+        order stays governed by the version named here.
+      </p>
+      <p style="margin:0;font-size:14px;">
+        <a href="https://www.mycustombeats.com/legal/terms" style="color:#8A6A1F;">Terms &amp; Conditions</a>
+        &nbsp;&middot;&nbsp;
+        <a href="https://www.mycustombeats.com/legal/refund" style="color:#8A6A1F;">Refunds &amp; Cancellations</a>
+      </p>
+    </div>
+TERMS;
+    }
+
     return <<<HTML
 <div style="margin:0;padding:24px;background:#F8F5F0;font-family:Helvetica,Arial,sans-serif;color:#0D1B2A;line-height:1.6;">
   <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;padding:32px;">
@@ -280,6 +359,7 @@ function post_payment_email_html(array $payload): string
     <p style="margin:0 0 8px;font-weight:bold;">What happens next</p>
     <p style="margin:0;">Our team will now begin processing your custom music experience. We will be in touch if we need anything further from you.</p>
     {$deliveryLine}
+    {$termsBlock}
 
     <p style="margin:24px 0 0;">Thank you for choosing My Custom Beats.</p>
 

@@ -24,7 +24,32 @@ tc() { local name="$1" ok="$2"
   if [ "$ok" = "1" ]; then printf "  PASS  %-62s\n" "$name"; PASS=$((PASS+1));
   else printf "  FAIL  %-62s\n" "$name"; FAIL=$((FAIL+1)); FAILED+=("$name"); fi }
 
-post() { curl -s -o /tmp/c.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$2"; }
+# ---- Sprint 8: orders now require consent evidence ---------------------
+#
+# `POST /api/order` refuses an order that does not carry the acknowledgements
+# it requires. Every assertion below that creates an order in order to test
+# something else — attribution, references, baskets, webhooks — would otherwise
+# fail on a consent field it was never written to exercise.
+#
+# So `post order` splices a full consent block into any body that does not
+# already carry one. `post_raw` sends exactly what it is given, for the tests
+# that ARE about consent.
+CONSENT_BLOCK='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2026-09-09"'
+
+with_consent() {
+  case "$1" in
+    *'"consents"'*) printf '%s' "$1" ;;
+    '{"'*)          printf '{%s,%s' "$CONSENT_BLOCK" "${1#\{}" ;;
+    *)              printf '%s' "$1" ;;
+  esac
+}
+
+post_raw() { curl -s -o /tmp/c.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$2"; }
+post() {
+  local ep="$1" data="$2"
+  [ "$ep" = "order" ] && data="$(with_consent "$data")"
+  post_raw "$ep" "$data"
+}
 body() { cat /tmp/c.json; }
 q() { docker exec mcb-db mariadb -umcb -ptestpass -N -B -e "$1" mcb_crm 2>/dev/null; }
 stub() { docker exec mcb-api sh -c "echo '$1' > /tmp/stripe-mode"; }
@@ -38,14 +63,14 @@ stub_reset
 # An order to check out against.
 mkorder() {
   curl -s -o /tmp/o.json -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" \
-    -d "{\"firstName\":\"Cs\",\"lastName\":\"Tester\",\"email\":\"$1\",\"whatsapp\":\"+447000000123\",\"package\":\"$2\",\"format\":\"$3\",\"shippingName\":\"Cs Tester\",\"shippingAddress\":\"1 Test St\",\"shippingCity\":\"London\",\"shippingPostcode\":\"E1 1AA\",\"shippingCountry\":\"United Kingdom\",\"story\":\"A story.\"}" >/dev/null
+    -d "{$CONSENT_BLOCK,\"firstName\":\"Cs\",\"lastName\":\"Tester\",\"email\":\"$1\",\"whatsapp\":\"+447000000123\",\"package\":\"$2\",\"format\":\"$3\",\"shippingName\":\"Cs Tester\",\"shippingAddress\":\"1 Test St\",\"shippingCity\":\"London\",\"shippingPostcode\":\"E1 1AA\",\"shippingCountry\":\"United Kingdom\",\"story\":\"A story.\"}" >/dev/null
   sed -n 's/.*"order_id":\([0-9]*\).*/\1/p' /tmp/o.json
 }
 
 # An order carrying the full Complete Your Memory basket.
 mkorder_basket() {
   curl -s -o /tmp/o.json -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" \
-    -d '{"firstName":"Cs","lastName":"Tester","email":"'"$1"'","whatsapp":"+447000000123","package":"'"$2"'","format":"'"$3"'","shippingName":"Cs Tester","shippingAddress":"1 Test St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom","story":"A story.","enhancements":[{"id":"vinyl-frame","quantity":1},{"id":"gift-pop-up-card-anniversary","quantity":1},{"id":"additional-vinyl-copy","quantity":2}]}' >/dev/null
+    -d '{'"$CONSENT_BLOCK"',"firstName":"Cs","lastName":"Tester","email":"'"$1"'","whatsapp":"+447000000123","package":"'"$2"'","format":"'"$3"'","shippingName":"Cs Tester","shippingAddress":"1 Test St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom","story":"A story.","enhancements":[{"id":"vinyl-frame","quantity":1},{"id":"gift-pop-up-card-anniversary","quantity":1},{"id":"additional-vinyl-copy","quantity":2}]}' >/dev/null
   sed -n 's/.*"order_id":\([0-9]*\).*/\1/p' /tmp/o.json
 }
 

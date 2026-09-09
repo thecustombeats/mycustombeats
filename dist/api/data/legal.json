@@ -1,0 +1,59 @@
+{
+  "_generated": "Do not edit. Generated from src/data/legal/ by scripts/generate-packages-json.mjs",
+  "versions": {
+    "terms": "2026-09-09",
+    "refund_policy": "2026-09-09",
+    "privacy_policy": "2026-09-09",
+    "terms_effective_date": "2026-09-09",
+    "known_terms_versions": [
+      "2026-09-09"
+    ]
+  },
+  "consents": {
+    "TERMS": {
+      "applies_to": "ALWAYS"
+    },
+    "SERVICE_START": {
+      "applies_to": "ALWAYS"
+    },
+    "DIGITAL_CONTENT": {
+      "applies_to": "DIGITAL_DELIVERY"
+    }
+  },
+  "production": {
+    "initial_stage": "CREATIVE",
+    "stages": [
+      {
+        "stage": "CREATIVE",
+        "revisions_open": true
+      },
+      {
+        "stage": "AWAITING_APPROVAL",
+        "revisions_open": true
+      },
+      {
+        "stage": "APPROVED",
+        "revisions_open": false
+      },
+      {
+        "stage": "PRODUCTION_LOCKED",
+        "revisions_open": false
+      },
+      {
+        "stage": "FULFILMENT",
+        "revisions_open": false
+      },
+      {
+        "stage": "COMPLETED",
+        "revisions_open": false
+      }
+    ],
+    "approval_channels": [
+      "WEBSITE",
+      "EMAIL",
+      "WHATSAPP",
+      "PHONE",
+      "IN_PERSON"
+    ]
+  }
+}

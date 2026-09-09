@@ -17,6 +17,16 @@ import {
   formatPrice,
   type FormatId,
 } from "../data/packages";
+import {
+  CONSENTS,
+  INITIAL_CONSENT_STATE,
+  getConsent,
+  requiredConsents,
+  TERMS_VERSION,
+  REFUND_POLICY_VERSION,
+  PRIVACY_POLICY_VERSION,
+  type ConsentId,
+} from "../data/legal";
 import { buildMemory } from "../lib/memory";
 import YourMemorySummary from "../components/YourMemorySummary";
 import MusicStyleSelector from "../components/MusicStyleSelector";
@@ -277,10 +287,32 @@ type FormDataType = {
   personalTouches: string;
   story: string;
   artwork: File | null;
-  agreeTerms: boolean;
+  /**
+   * THREE SEPARATE LEGAL ACTS, held separately.
+   *
+   * This was one boolean, `agreeTerms`, covering "Terms, Privacy and Refund
+   * Policy". That is fine for accepting terms and wrong for the other two
+   * things happening at the same moment: asking MCB to begin inside the
+   * 14-day cancellation period, and acknowledging that supplied digital
+   * content ends the right to cancel it. Both are decisions the customer has
+   * to make, not consequences of a box mostly about something else.
+   *
+   * Keyed by `ConsentId` so the form, the server and the stored record all
+   * name the same three things.
+   */
+  consents: Record<ConsentId, boolean>;
 };
 
-type FormErrors = Partial<Record<keyof FormDataType, string>>;
+/**
+ * Errors are keyed by field, and each consent gets its own key.
+ *
+ * A single `consents` error would put one message under three checkboxes and
+ * leave the customer to work out which. Consent ids are used directly so the
+ * message lands on the control it belongs to.
+ */
+type FormErrors = Partial<
+  Record<Exclude<keyof FormDataType, "consents"> | ConsentId, string>
+>;
 
 interface OrderFormSectionProps {
   selectedPackage: string | null;
@@ -322,9 +354,29 @@ const OrderFormSection = ({ selectedPackage }: OrderFormSectionProps) => {
   personalTouches: '',
   story: '',
   artwork: null,
-  agreeTerms: false,
+  // Nothing pre-ticked. See INITIAL_CONSENT_STATE for why that is a named
+  // constant rather than three literal `false`s someone could tidy up.
+  consents: { ...INITIAL_CONSENT_STATE },
 });
 
+
+/**
+ * Whether this order's deliverable is supplied digitally.
+ *
+ * DERIVED FROM THE FORMAT, not hard-coded per package. An MP3 Keepsake needs
+ * the digital-content acknowledgement and a vinyl one does not, and that
+ * follows from what the customer chose rather than from anyone remembering to
+ * list Moment. `order.php` derives the same answer from the same generated
+ * format data, so the browser cannot decide it needs fewer consents than it
+ * does.
+ *
+ * A package with no format chosen yet is treated as not-yet-digital: the
+ * acknowledgement appears when the choice makes it relevant, rather than
+ * asking the customer about digital files before they have said they want any.
+ */
+const hasDigitalDelivery =
+  formData.format in FORMATS &&
+  !FORMATS[formData.format as FormatId].isPhysical;
 
 const [errors, setErrors] = useState<FormErrors>({});
 const [isSubmitting, setIsSubmitting] = useState(false);
@@ -752,9 +804,17 @@ const validateForm = (): FormErrors => {
   else if (wordCount > 2000)
     newErrors.story = "Maximum 2000 words";
 
-  if (!formData.agreeTerms) {
-  newErrors.agreeTerms = "You must agree to the Terms & Conditions";
-}
+  /**
+   * Each required consent checked individually, against the same rule the
+   * server applies — `requiredConsents` derives the list from whether this
+   * order actually involves digital delivery, so a vinyl order is not asked
+   * to acknowledge something that does not apply to it.
+   */
+  for (const id of requiredConsents({ hasDigitalDelivery })) {
+    if (!formData.consents[id]) {
+      newErrors[id] = getConsent(id)?.error ?? "Please confirm this to continue.";
+    }
+  }
 
   return newErrors;
 };
@@ -768,10 +828,35 @@ const handleChange = <K extends keyof FormDataType>(
     [field]: value,
   }));
 
-  if (errors[field]) {
+  // `consents` has its own setter — it is a record, not a scalar, and its
+  // errors are keyed by consent id rather than by the field name.
+  if (field !== "consents" && errors[field as keyof FormErrors]) {
     setErrors((prev) => {
       const updated = { ...prev };
-      delete updated[field];
+      delete updated[field as keyof FormErrors];
+      return updated;
+    });
+  }
+};
+
+/**
+ * Toggling one consent, and clearing only that consent's message.
+ *
+ * Separate from `handleChange` so ticking the terms box cannot clear the
+ * error under the digital-content box — which is what a shared handler over a
+ * record would do, and would leave a customer looking at a form that appeared
+ * to have fixed itself.
+ */
+const setConsent = (id: ConsentId, value: boolean) => {
+  setFormData((prev) => ({
+    ...prev,
+    consents: { ...prev.consents, [id]: value },
+  }));
+
+  if (errors[id]) {
+    setErrors((prev) => {
+      const updated = { ...prev };
+      delete updated[id];
       return updated;
     });
   }
@@ -791,9 +876,20 @@ const handleChange = <K extends keyof FormDataType>(
   if (Object.keys(validationErrors).length > 0) {
     const firstError = Object.keys(validationErrors)[0];
 
-    const element = document.querySelector(
-      `[data-field="${firstError}"]`
-    ) as HTMLElement | null;
+    /**
+     * Consent errors are keyed by CONSENT ID, not by field name.
+     *
+     * The three acknowledgements share one `data-field="consents"` wrapper,
+     * so a lookup on `data-field` alone would find the block but not the box,
+     * and a customer missing only the digital acknowledgement would be
+     * focused into the terms checkbox above it — told there was a problem
+     * while being put in front of the wrong one. `data-consent` addresses the
+     * individual box.
+     */
+    const element = (document.querySelector(`[data-field="${firstError}"]`) ??
+      document.querySelector(`[data-consent="${firstError}"]`)) as
+      | HTMLElement
+      | null;
 
     if (element) {
       element.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -938,7 +1034,12 @@ if (formData.artwork) {
   zapierData.append("personalTouches", formData.personalTouches);
   zapierData.append("story", formData.story);
   zapierData.append("artworkUrl", artworkUpload || "");
-  zapierData.append("agreeTerms", String(formData.agreeTerms));
+  // Each consent reported by name rather than as one "agreeTerms" boolean,
+  // so fulfilment automation can see which of the three were given.
+  for (const consent of CONSENTS) {
+    zapierData.append(`consent_${consent.id}`, String(formData.consents[consent.id]));
+  }
+  zapierData.append("termsVersion", TERMS_VERSION);
 
   // ---------------------------------------------------------------
   // PAYMENT PATH FIRST.
@@ -995,6 +1096,24 @@ if (formData.artwork) {
      * generated catalogue; nothing here states an amount.
      */
     enhancements: toCheckoutItems(basket),
+    /**
+     * THE CONSENT RECORD, SENT TO MCB'S OWN SERVER.
+     *
+     * Previously the consent boolean went only to the fulfilment webhook, so
+     * MCB's own database held no evidence that anybody had agreed to anything
+     * — and `POST /api/order` accepted an order that asserted no consent at
+     * all. The server now requires these and stores them with timestamps and
+     * the document versions in force.
+     *
+     * The VERSIONS are sent because a policy read years later is not evidence
+     * of what this customer accepted today. The server records them verbatim
+     * rather than looking up the current ones, so an order stays readable
+     * against the words that were actually on the page.
+     */
+    consents: formData.consents,
+    termsVersion: TERMS_VERSION,
+    refundPolicyVersion: REFUND_POLICY_VERSION,
+    privacyPolicyVersion: PRIVACY_POLICY_VERSION,
   });
 
   if (crmOrderId !== null) {
@@ -1795,87 +1914,146 @@ if (formData.artwork) {
   Step 7 — Confirmation
 </h3>
 
-<div className="order-form-field" data-field="agreeTerms">
-  <label
-    className={`flex items-start gap-3 cursor-pointer ${
-      errors.agreeTerms
-        ? "border border-red-500 p-4 rounded-xl"
-        : ""
-    }`}
-  >
-    {/*
-      44x44 touch target around a 24x24 control.
+{/*
+  ---- CONSENT: three acts, three boxes ----------------------------------
 
-      The negative margin is what makes both true at once: the wrapper is
-      44px, so a fingertip has the full WCAG 2.5.5 target, but -10px on every
-      side means it only OCCUPIES 24px of layout, so the box still sits
-      exactly where a 24px checkbox would and the text alignment is
-      unchanged. The overhang falls into the gap and the form's padding, so
-      it cannot overflow or overlap the copy.
-    */}
-    <span className="relative -m-2.5 flex h-11 w-11 shrink-0 items-center justify-center">
-      <input
-        type="checkbox"
-        checked={formData.agreeTerms}
-        onChange={(e) =>
-          handleChange("agreeTerms", e.target.checked)
-        }
-        /*
-          appearance-none, then drawn explicitly.
+  This was one checkbox reading "I confirm that I have read and agree to the
+  Terms, Privacy Policy and Refund Policy … and understand that this is a
+  personalised, made-to-order digital product."
 
-          The native control was 20px on mobile and only grew to 24px on
-          desktop — backwards, since the finger is on the phone. iOS Safari
-          also renders `accent-color` inconsistently and ignores sizing on
-          some versions, which is exactly the "inconsistently tiny control"
-          this had to stop relying on.
+  That sentence was doing three jobs. Accepting the terms is one of them. The
+  other two — asking MCB to begin inside the 14-day cancellation period, and
+  acknowledging that supplied digital music ends the right to cancel it — are
+  decisions with their own consequences, and inferring them from a box mostly
+  about something else is exactly how a customer loses a right they never
+  knowingly gave up.
 
-          Semantics are untouched: this is still a real
-          <input type="checkbox"> inside its <label>, so the accessibility
-          tree, screen-reader announcement, keyboard toggle and form
-          behaviour are all native.
-        */
-        className="peer h-6 w-6 shrink-0 cursor-pointer appearance-none rounded-md border-2 border-espresso/40 bg-white transition-colors checked:border-gold-deep checked:bg-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
-      />
+  So: one box each, each stating its own consequence in full rather than
+  behind a link, none pre-ticked, each with its own error message on its own
+  control. The list is derived from `requiredConsents`, so a vinyl order is
+  never asked about digital files.
+------------------------------------------------------------------------ */}
+<div className="order-form-field space-y-4" data-field="consents">
+  {CONSENTS.filter((consent) =>
+    requiredConsents({ hasDigitalDelivery }).includes(consent.id)
+  ).map((consent) => {
+    const checkboxId = fieldId(`consent-${consent.id}`);
+    const detailId = `${checkboxId}-detail`;
+    const errorMessage = errors[consent.id];
 
-      {/* Checked state. pointer-events-none so the tick never eats the tap. */}
-      <Check
-        aria-hidden="true"
-        strokeWidth={3.5}
-        className="pointer-events-none absolute h-4 w-4 text-white opacity-0 transition-opacity peer-checked:opacity-100"
-      />
-    </span>
+    return (
+      <div
+        key={consent.id}
+        data-consent={consent.id}
+        className={`rounded-2xl border p-4 transition-colors ${
+          errorMessage
+            ? "border-red-500 bg-red-50/40"
+            : formData.consents[consent.id]
+              ? "border-gold-dark bg-gold/5"
+              : "border-espresso/12 bg-white"
+        }`}
+      >
+        <label htmlFor={checkboxId} className="flex cursor-pointer items-start gap-3">
+          {/*
+            44x44 touch target around a 24x24 control. The negative margin is
+            what makes both true at once: the wrapper is 44px so a fingertip
+            has the full WCAG 2.5.5 target, but -10px on every side means it
+            occupies only 24px of layout, so the box sits where a 24px
+            checkbox would and the text alignment is unchanged.
+          */}
+          <span className="relative -m-2.5 flex h-11 w-11 shrink-0 items-center justify-center">
+            <input
+              type="checkbox"
+              id={checkboxId}
+              checked={formData.consents[consent.id]}
+              onChange={(e) => setConsent(consent.id, e.target.checked)}
+              aria-describedby={
+                errorMessage ? `${detailId} ${checkboxId}-error` : detailId
+              }
+              aria-invalid={errorMessage ? true : undefined}
+              /*
+                appearance-none, then drawn explicitly. The native control was
+                20px on mobile and grew to 24px on desktop — backwards, since
+                the finger is on the phone — and iOS Safari renders
+                `accent-color` inconsistently. Semantics are untouched: still a
+                real <input type="checkbox"> inside its <label>.
+              */
+              className="peer h-6 w-6 shrink-0 cursor-pointer appearance-none rounded-md border-2 border-espresso/40 bg-white transition-colors checked:border-gold-deep checked:bg-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
+            />
+            {/* pointer-events-none so the tick never eats the tap. */}
+            <Check
+              aria-hidden="true"
+              strokeWidth={3.5}
+              className="pointer-events-none absolute h-4 w-4 text-white opacity-0 transition-opacity peer-checked:opacity-100"
+            />
+          </span>
 
-    <span className="order-heading min-w-0 text-sm md:text-base leading-relaxed text-espresso">
-      I confirm that I have read and agree to the{" "}
-<Link to="/legal/terms" target="_blank" className="text-gold-deep underline">
-  Terms & Conditions
-</Link>,{" "}
-<Link to="/legal/privacy" target="_blank" className="text-gold-deep underline">
-  Privacy Policy
-</Link>, and{" "}
-<Link to="/legal/refund" target="_blank" className="text-gold-deep underline">
-  Refund Policy
-</Link>{" "}
-of My Custom Beats, and understand that this is a personalised, made-to-order digital product.
+          <span className="min-w-0">
+            <span className="order-heading block text-sm leading-relaxed text-espresso md:text-base">
+              {consent.label}
+            </span>
 
-      {/*
-        Was text-ivory/50, which measured 1.04:1 against this white card —
-        invisible in practice. espresso/70 is 5.56:1 and passes AA while
-        staying visibly secondary to the consent sentence above it.
-      */}
-      <span className="text-xs text-espresso/70 block mt-2">
-        By proceeding, you also confirm that your submission
-        does not contain offensive, political, abusive,
-        or inappropriate content.
-      </span>
-    </span>
-  </label>
+            {/*
+              The consequence, in full, next to the box — not one link away.
+              For the two cancellation-related acknowledgements this sentence
+              IS the disclosure; a customer who has to open a policy page to
+              discover what they just agreed to has not been told.
+            */}
+            <span
+              id={detailId}
+              className="mt-2 block text-xs leading-relaxed text-espresso/70"
+            >
+              {consent.detail}
+            </span>
 
-  {errors.agreeTerms && (
-    <p className="text-red-500 text-xs mt-2">
-      {errors.agreeTerms}
-    </p>
-  )}
+            {/* The links live on the terms consent, where they belong. */}
+            {consent.id === "TERMS" && (
+              <span className="mt-2 block text-xs leading-relaxed text-espresso/70">
+                <Link to="/legal/terms" target="_blank" className="text-gold-deep underline underline-offset-4">
+                  Terms &amp; Conditions
+                </Link>
+                {" · "}
+                <Link to="/legal/refund" target="_blank" className="text-gold-deep underline underline-offset-4">
+                  Refunds &amp; Cancellations
+                </Link>
+                {" · "}
+                <Link to="/legal/privacy" target="_blank" className="text-gold-deep underline underline-offset-4">
+                  Privacy Policy
+                </Link>
+                {/* The version the customer is accepting, named where they
+                    accept it — and the same string recorded on the order. */}
+                <span className="mt-1 block text-espresso/50">
+                  Terms version {TERMS_VERSION}. We record this against your
+                  order and name it in your confirmation email.
+                </span>
+              </span>
+            )}
+          </span>
+        </label>
+
+        {errorMessage && (
+          <p
+            id={`${checkboxId}-error`}
+            role="alert"
+            className="mt-3 pl-9 text-sm leading-relaxed text-red-600"
+          >
+            {errorMessage}
+          </p>
+        )}
+      </div>
+    );
+  })}
+
+  {/*
+    The content undertaking. Kept out of the consent boxes above because it is
+    a representation about the submission rather than a legal acknowledgement
+    with a cancellation consequence, and merging it back in is how the boxes
+    started doing three jobs each in the first place.
+  */}
+  <p className="text-xs leading-relaxed text-espresso/70">
+    By placing your order you also confirm that what you have sent us is yours
+    to send, and does not contain offensive, abusive or inappropriate content.
+  </p>
 </div>
 
             {/*

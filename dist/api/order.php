@@ -27,6 +27,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/bootstrap.php';
 require_once __DIR__ . '/lib/basket.php';
 require_once __DIR__ . '/lib/attribution.php';
+require_once __DIR__ . '/lib/legal.php';
 
 require_method('POST');
 require_same_origin();
@@ -80,6 +81,71 @@ if ($package !== '' && !package_allows_format($package, $format)) {
 $fulfilment = $package === '' ? null : derive_fulfilment_type($package, $format);
 if ($package !== '' && $fulfilment === null) {
     $v->fail('format', 'That format is not available for this experience.');
+}
+
+/**
+ * ---- Consent, required and verified by the server -------------------
+ *
+ * Previously this endpoint asked for nothing. The checkout page had a
+ * checkbox, but the boolean went to the fulfilment webhook and never here, so
+ * MCB's own database held no evidence of consent and a request that never
+ * touched the form could create an order regardless.
+ *
+ * The required set is DERIVED FROM THE ORDER, not taken from the request. A
+ * body that omits `consents` entirely, or that reports fewer consents than
+ * this order needs, is refused — the browser does not get to decide which
+ * legal acknowledgements apply to what it is buying.
+ */
+$consentsRaw = $body['consents'] ?? null;
+$consentGiven = static function (string $id) use ($consentsRaw): bool {
+    // Strictly true. "true", 1 and "on" are all refused rather than coerced:
+    // a consent is either an affirmative act or it is not, and a value that
+    // needs interpreting is not evidence of one.
+    return is_array($consentsRaw) && ($consentsRaw[$id] ?? null) === true;
+};
+
+$hasDigitalDelivery = false;
+$missingConsents    = [];
+
+if ($package !== '' && $fulfilment !== null) {
+    $hasDigitalDelivery = order_has_digital_delivery($package, $format);
+
+    foreach (required_consents($hasDigitalDelivery) as $consentId) {
+        if (!$consentGiven($consentId)) {
+            $missingConsents[] = $consentId;
+        }
+    }
+
+    if ($missingConsents !== []) {
+        $v->fail(
+            'consents',
+            'Please confirm the required acknowledgements before placing your order.'
+        );
+    }
+}
+
+/**
+ * The document versions the customer accepted.
+ *
+ * Stored AS CLAIMED, but only if MCB actually published them. A version this
+ * build does not recognise is refused rather than written: an order recorded
+ * against terms that never existed is a fabricated contractual reference, and
+ * worse than no reference because it looks like one.
+ */
+$termsVersion   = trim((string) ($body['termsVersion'] ?? ''));
+$refundVersion  = trim((string) ($body['refundPolicyVersion'] ?? ''));
+$privacyVersion = trim((string) ($body['privacyPolicyVersion'] ?? ''));
+
+if ($package !== '' && $missingConsents === []) {
+    if ($termsVersion === '' || !legal_version_is_known($termsVersion)) {
+        $v->fail('termsVersion', 'We could not confirm which version of our terms you accepted. Please reload the page and try again.');
+    }
+    // The other two are recorded but not gated on: they are not separately
+    // versioned documents in practice today, and refusing an order because a
+    // secondary version string was absent would fail a customer over
+    // bookkeeping. Defaulted to the terms version so the row is never blank.
+    if ($refundVersion === '')  { $refundVersion  = $termsVersion; }
+    if ($privacyVersion === '') { $privacyVersion = $termsVersion; }
 }
 
 /**
@@ -263,7 +329,8 @@ try {
         $firstName, $lastName, $email, $phone,
         $package, $format, $fulfilment, $price,
         $sourceType, $affiliateId, $partnerId, $referralStored,
-        $brief, $address, $basketLines
+        $brief, $address, $basketLines,
+        $termsVersion, $refundVersion, $privacyVersion, $hasDigitalDelivery
     ): int {
         $fullName = trim($firstName . ' ' . $lastName);
 
@@ -321,6 +388,67 @@ try {
             ':artwork' => $brief['artwork'],
         ]);
         $orderId = (int) $pdo->lastInsertId();
+
+        /**
+         * THE CONSENT RECORD — written in the SAME transaction as the order.
+         *
+         * An order that existed without its consent row would be an order
+         * MCB could not evidence the customer had agreed to, and it would
+         * look complete. Both rows commit or neither does.
+         *
+         * `digital_content_ack` is NULL, not 0, when the order never needed
+         * it: a vinyl customer was not asked, and 0 would misread as asked
+         * and declined. The CHECK constraint enforces the same distinction.
+         */
+        $stmt = $pdo->prepare(
+            'INSERT INTO order_consents (
+                order_id, terms_version, refund_policy_version, privacy_policy_version,
+                terms_accepted_at,
+                service_start_requested, service_start_at,
+                digital_content_required, digital_content_ack, digital_content_ack_at,
+                ip_hash, user_agent
+             ) VALUES (
+                :oid, :tv, :rv, :pv,
+                UTC_TIMESTAMP(),
+                :ssr, UTC_TIMESTAMP(),
+                :dcr, :dca, :dcat,
+                :iph, :ua
+             )'
+        );
+        $stmt->execute([
+            ':oid'  => $orderId,
+            ':tv'   => $termsVersion,
+            ':rv'   => $refundVersion,
+            ':pv'   => $privacyVersion,
+            ':ssr'  => 1,
+            ':dcr'  => $hasDigitalDelivery ? 1 : 0,
+            ':dca'  => $hasDigitalDelivery ? 1 : null,
+            ':dcat' => $hasDigitalDelivery ? gmdate('Y-m-d H:i:s') : null,
+            ':iph'  => hash_ip(client_ip()),
+            ':ua'   => mb_substr((string) (client_user_agent() ?? ''), 0, 255) ?: null,
+        ]);
+
+        /**
+         * THE PRODUCTION RECORD, opened at CREATIVE.
+         *
+         * Not APPROVED and not locked. This is the row that makes it possible
+         * to answer "does this customer still have refinements?" without
+         * inferring it from whether they paid — **PAID IS NOT
+         * PRODUCTION_LOCKED**, and a customer whose card cleared moments ago
+         * has every refinement their package includes.
+         *
+         * Approval is recorded later, through the CRM, when the customer
+         * actually approves work that by definition does not exist yet.
+         */
+        $stmt = $pdo->prepare(
+            'INSERT INTO order_production (order_id, stage, terms_version)
+             VALUES (:oid, :stage, :tv)'
+        );
+        $stmt->execute([
+            ':oid'   => $orderId,
+            ':stage' => initial_production_stage(),
+            ':tv'    => $termsVersion,
+        ]);
 
         if ($address !== null) {
             $stmt = $pdo->prepare(

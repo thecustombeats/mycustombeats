@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/accordion';
 import { Helmet } from "react-helmet-async";
 import { MOMENT, KEEPSAKE, JOURNEY, HEIRLOOM, FULL_PACKAGE, formatPrice } from '../data/packages';
+import { REFINEMENT_DEFINITION } from '../data/legal';
 import { VINYL_12 } from '../data/catalogue/vinyl';
 import {
   GIFT_POP_UP_CARDS,
@@ -146,8 +147,19 @@ const faqs: { question: string; answer: string }[] = [
   },
   {
     question: 'Can I request changes?',
+    /**
+     * Entitlements READ FROM THE PACKAGES, not restated.
+     *
+     * This answer used to hard-code "one with Moment, two with Keepsake" and
+     * would have gone stale the first time an allowance changed, leaving the
+     * FAQ contradicting both the package card and the Terms.
+     */
+    answer: `Yes — every experience includes refinements. ${MOMENT.name} includes ${MOMENT.revisions.toLowerCase()}, ${KEEPSAKE.name} ${KEEPSAKE.revisions.toLowerCase()}, and ${JOURNEY.name} and ${HEIRLOOM.name} ${JOURNEY.revisions.toLowerCase()}. ${REFINEMENT_DEFINITION} If what you would like is genuinely a different piece of work, we will tell you and quote for it rather than absorbing it or refusing it quietly.`,
+  },
+  {
+    question: 'When can I no longer change my order?',
     answer:
-      'Yes. Every experience includes revisions — one with Moment, two with Keepsake, and two per song with Journey and Heirloom. Additional revisions can be arranged for a small fee.',
+      'Once you have approved your work and we have started anything irreversible — pressing a record, printing, engraving — your order is locked and the included refinements are closed. That is about changes of mind. If something is wrong with what we made, that is ours to put right whether the order is locked or not.',
   },
   {
     question: 'Can I upload photos for album artwork?',
@@ -156,13 +168,19 @@ const faqs: { question: string; answer: string }[] = [
   },
   {
     question: 'Can I get a refund?',
+    /**
+     * This said "refunds are not available once production begins" — blanket,
+     * with an undefined trigger and no carve-out for MCB's own mistakes. It
+     * also disagreed with both the Terms and the Refunds page, which is how
+     * a business ends up unable to say what its own policy is.
+     */
     answer:
-      'Because this is a personalised made-to-order product, refunds are not available once production begins. We make sure you are happy with the direction before we start. If a physical item arrives damaged or defective we will replace it.',
+      'It depends where your order has got to, and the Refunds & Cancellations page sets it out properly. In short: if we genuinely have not started, we refund you in full. If we have started, you can still cancel within the 14-day period and we may charge fairly for the work already done. Once an item has been personalised or made for you, the ordinary right to change your mind no longer applies to it. And separately from all of that — if what arrives is faulty, damaged or not what you ordered, we put it right.',
   },
   {
     question: 'Is my information kept private?',
     answer:
-      'Yes. Your data is used only to create and deliver your order. We never share your personal information or your story with third parties.',
+      'Your story is yours. We use it to create and deliver your order and we do not sell your information or share it for anyone else\'s marketing. Running an online shop does mean some details pass through the services we use to operate — taking payment, sending your confirmation, hosting the site — and only for those purposes. Our Privacy Policy explains it.',
   },
 ];
 
