@@ -550,7 +550,7 @@ const SCHEMA_AVAILABILITY: Record<CatalogueProduct["availability"], string> = {
  *
  * `isPriced` is the gate. Most of the physical catalogue now carries an
  * approved GBP price and therefore emits a real Offer; the pieces that do not
- * — the vinyl record itself, the CD, the Luxury Memory Box — emit no `offers`
+ * — the vinyl record itself and the CD — emit no `offers`
  * key at all rather than an Offer with a placeholder or a zero in it.
  *
  * The Offer is GBP because GBP is what Stripe charges. No second currency is
@@ -680,8 +680,8 @@ const familyEntity = (family: ProductFamily): Node => {
  * these were purchasable products until they were. This predicate is the
  * switch, and it has now flipped for most of the catalogue on its own: the
  * families given an approved price this sprint became Products carrying real
- * Offers without a line changing here. The vinyl, CD and memory-box families
- * remain unpriced and are still described as `Thing` rather than promoted.
+ * Offers without a line changing here. The vinyl and CD families remain
+ * unpriced and are still described as `Thing` rather than promoted.
  */
 const familyIsPurchasable = (family: ProductFamily): boolean =>
   family.products.some((product) => isPriced(product.price));
@@ -728,7 +728,7 @@ export const keepsakeListEntity = (): Node => {
     "@id": ENTITY.keepsakeList,
     name: "MCB memory keepsakes",
     description:
-      "Physical pieces a personalised song can become: vinyl records, CDs, framed lyric artwork, engraved plaques, vinyl frames, luxury memory boxes, gift pop-up cards and the players to hear them on.",
+      "Physical pieces a personalised song can become: vinyl records, CDs, framed lyric artwork, engraved plaques, vinyl frames, gift pop-up cards, the curated Music Box Experience, and the players to hear them on.",
     url: canonical("/products"),
     numberOfItems: families.length,
     itemListElement: families.map((family, index) => ({
@@ -793,7 +793,7 @@ export const homepageStructuredData = () =>
  * still holds, and no size is mentioned that is not sold.
  */
 export const PRODUCTS_DESCRIPTION =
-  "Turn your personalised song into something you can hold: 12-inch vinyl, CD, framed lyric artwork, engraved plaques, vinyl frames, luxury memory boxes, gift pop-up cards and players to hear it on.";
+  "Turn your personalised song into something you can hold: 12-inch vinyl, CD, framed lyric artwork, engraved plaques, vinyl frames, gift pop-up cards, the curated MCB Music Box Experience, and players to hear it on.";
 
 export const productsPageStructuredData = () =>
   graph([

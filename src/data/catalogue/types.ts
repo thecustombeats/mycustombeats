@@ -17,7 +17,7 @@
  *    There is no third state, and TBD carries no number to accidentally
  *    render — see `ProductPrice`.
  * 2. Whether a product physically carries the song is stated, never assumed.
- *    A vinyl record inside a memory box is not automatically a playable copy
+ *    A vinyl record inside a frame is not automatically a playable copy
  *    of the customer's song — see `SongInclusion`.
  * 3. Song capacity is a property of the physical format, so the set of valid
  *    pressings for an album is derived from capacity rather than hand-listed
@@ -268,12 +268,19 @@ export const OCCASIONS: Readonly<Record<OccasionId, Occasion>> = {
 /* Families and products                                               */
 /* ------------------------------------------------------------------ */
 
+/**
+ * `memory-box` was removed when the Luxury Memory Box was retired, and
+ * `music-box` added for the separate Music Box Experience. Removing the id
+ * rather than leaving it unused is what makes the retirement complete: every
+ * map keyed exhaustively over this union — the relationship map especially —
+ * became a compile error until the retired family was taken out of it.
+ */
 export type ProductFamilyId =
   | "vinyl"
   | "cd"
   | "lyrics-frame"
   | "frame"
-  | "memory-box"
+  | "music-box"
   | "gift-pop-up-card"
   | "plaque"
   | "digital-player"
@@ -400,8 +407,8 @@ export interface ProductFamily {
    *
    * Only meaningful alongside `contain`, which letterboxes rather than crops:
    * a well the wrong shape leaves the artwork stranded in empty space. The
-   * Memory Box and Gift Pop-Up Card photographs are near-square (760x792,
-   * 755x792) and fill a `square` well; the playback-collection artwork is
+   * Gift Pop-Up Card photograph is near-square (755x792) and fills a
+   * `square` well; the playback-collection artwork is
    * landscape (~3:2) and fills a `landscape` one. Defaults to `square`, which
    * is what the two original `contain` families already used.
    */

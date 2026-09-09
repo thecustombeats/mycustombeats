@@ -15,9 +15,10 @@
  * worse lie than an unpriced one. `specs` stays omitted until the business
  * fills it in.
  *
- * NO USB. The Memory Box contains no USB component, enhancement, related
- * product or included item, and no USB product exists anywhere in this
- * catalogue.
+ * NO USB. No USB component, enhancement, related product or included item
+ * exists anywhere in this catalogue. (This note originally guarded the
+ * Luxury Memory Box, now retired — see the Music Box Experience below. It
+ * stays because the rule is about the catalogue, not about that product.)
  */
 
 import {
@@ -42,7 +43,6 @@ export const CD_PRODUCT: CatalogueProduct = {
   availability: "AVAILABLE",
   fulfilment: "PHYSICAL",
   songInclusion: "CARRIES_SONG",
-  compatibleProducts: ["memory-box-luxury"],
 };
 
 export const CD_FAMILY: ProductFamily = {
@@ -77,7 +77,7 @@ export const LYRICS_FRAME: CatalogueProduct = {
   availability: "MADE_TO_ORDER",
   fulfilment: "PHYSICAL",
   songInclusion: "KEEPSAKE_ONLY",
-  compatibleProducts: ["memory-box-luxury", "vinyl-12"],
+  compatibleProducts: ["vinyl-12"],
 };
 
 export const LYRICS_FRAME_FAMILY: ProductFamily = {
@@ -113,11 +113,11 @@ export const VINYL_FRAME: CatalogueProduct = {
   fulfilment: "PHYSICAL",
   /**
    * A framed record may hold the customer's own pressing or a display copy,
-   * and the business has approved no blanket rule — the same reasoning that
-   * makes the Memory Box `CONFIGURABLE`. Settled during configuration.
+   * and the business has approved no blanket rule. Settled during
+   * configuration rather than promised in a listing.
    */
   songInclusion: "CONFIGURABLE",
-  compatibleProducts: ["vinyl-12", "memory-box-luxury"],
+  compatibleProducts: ["vinyl-12"],
 };
 
 /**
@@ -136,43 +136,71 @@ export const FRAME_FAMILY: ProductFamily = {
 };
 
 /* ------------------------------------------------------------------ */
-/* Memory box                                                          */
+/* Music Box Experience                                                */
 /* ------------------------------------------------------------------ */
 
 /**
- * `CONFIGURABLE` song inclusion is the important field here. A memory box may
- * hold a playable pressing of the song, or it may hold a display piece and
- * present the song another way. The business has not approved a blanket rule,
- * so the model refuses to assume one — see `pairedSongInclusion`.
+ * THE LUXURY MEMORY BOX IS RETIRED.
+ *
+ * It is gone from the data rather than hidden in the UI — the same treatment
+ * the withdrawn 7-inch and 10-inch records got, and for the same reason: a
+ * product that still existed here would keep surfacing in the homepage
+ * keepsake band, in the products page, in `compatibleProducts` and in the
+ * generated schema, no matter what the UI chose to render. Its family, its
+ * `ProductFamilyId` and every reference to `memory-box-luxury` went with it,
+ * so nothing can point at a product MCB no longer sells.
+ *
+ * The Music Box Experience below is NOT that product renamed. The business
+ * has confirmed they are different things, which is why the old id, name,
+ * description, photograph and family were retired rather than repriced. The
+ * £600 belongs to the new product and to nothing else.
+ *
+ * `/images/brand/Luxury-Memory-Box.png` is deliberately NOT reused here. It
+ * photographs the retired box, and putting it on a different product would
+ * show a customer something other than what they are buying.
  */
-export const MEMORY_BOX: CatalogueProduct = {
-  id: "memory-box-luxury",
-  familyId: "memory-box",
-  name: "Luxury Memory Box",
-  description: "Lyrics, photos, and your song in one complete experience.",
-  // Approved photograph. The discontinued USB concept does not appear in it.
-  image: "/images/brand/Luxury-Memory-Box.png",
-  alt: "The MCB Luxury Memory Box, gold-foiled and tied with ribbon",
-  price: TBD,
+
+/**
+ * MCB MUSIC BOX EXPERIENCE — £600.
+ *
+ * WHAT THIS DELIBERATELY DOES NOT SAY. No contents list, no dimensions, no
+ * materials, no colours, no mechanical or music-playing specification, no
+ * manufacturing origin, no shipping promise and no third-party gifts. None of
+ * that has been approved, and the composition is confirmed with the customer
+ * where appropriate — so stating any of it here would turn a curated
+ * experience into a fixed promise nobody has agreed to honour.
+ *
+ * `CONFIGURABLE` song inclusion follows from exactly that: whether the
+ * experience carries a playable pressing or presents the song another way is
+ * settled during configuration, not asserted in a product listing.
+ *
+ * `compatibleProducts` is OMITTED rather than empty. Per `CatalogueProduct`,
+ * absent means the business has stated no restriction — whereas listing the
+ * keepsakes it might contain would read as the contents list this product is
+ * explicitly not allowed to have.
+ *
+ * NO PHOTOGRAPH EXISTS, so `image` is omitted and the catalogue's typographic
+ * fallback renders. Nothing unrelated is borrowed to fill the space.
+ */
+export const MUSIC_BOX_EXPERIENCE: CatalogueProduct = {
+  id: "music-box-experience",
+  familyId: "music-box",
+  name: "MCB Music Box Experience",
+  description:
+    "An elevated MCB gifting experience bringing together multiple personalised keepsakes in one beautifully curated presentation. Each Music Box Experience is shaped around the story, recipient and occasion.",
+  price: gbp(600),
   availability: "MADE_TO_ORDER",
   fulfilment: "PHYSICAL",
   songInclusion: "CONFIGURABLE",
-  compatibleProducts: [
-    "vinyl-12",
-    "cd",
-    "lyrics-frame",
-  ],
 };
 
-export const MEMORY_BOX_FAMILY: ProductFamily = {
-  id: "memory-box",
-  name: "Luxury Memory Boxes",
-  description: "Lyrics, photos, and your song in one complete experience.",
-  image: "/images/brand/Luxury-Memory-Box.png",
-  alt: "The MCB Luxury Memory Box, gold-foiled and tied with ribbon",
-  imageFit: "contain",
+export const MUSIC_BOX_FAMILY: ProductFamily = {
+  id: "music-box",
+  name: "MCB Music Box Experience",
+  description:
+    "An elevated MCB gifting experience bringing together multiple personalised keepsakes in one beautifully curated presentation.",
   isCheckoutFormat: false,
-  products: [MEMORY_BOX],
+  products: [MUSIC_BOX_EXPERIENCE],
 };
 
 /* ------------------------------------------------------------------ */
@@ -189,7 +217,6 @@ export const PLAQUE: CatalogueProduct = {
   availability: "MADE_TO_ORDER",
   fulfilment: "PHYSICAL",
   songInclusion: "KEEPSAKE_ONLY",
-  compatibleProducts: ["memory-box-luxury"],
 };
 
 export const PLAQUE_FAMILY: ProductFamily = {

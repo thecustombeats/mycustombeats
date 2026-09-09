@@ -2,12 +2,12 @@
  * Typographic stand-in for a keepsake with no approved photograph.
  *
  * NOT A PHOTOGRAPH, AND IT NAMES WHAT IT STANDS FOR
- * The Luxury Memory Box and the Gift Pop-Up Card have no product photograph:
+ * The Vinyl Frame and the Music Box Experience have no product photograph:
  * the only images that existed sold discontinued concepts — a USB stick
  * inside the box, and a flat "NFC" tap card — and both were removed.
  *
  * They previously fell back to the CD disc mark, which is a drawing of a CD.
- * Showing a disc where a memory box belongs misdescribes the product just as
+ * Showing a disc where a framed record belongs misdescribes the product just as
  * surely as the wrong photograph did, so this names the piece instead and
  * makes no claim about how it looks.
  *

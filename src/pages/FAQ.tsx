@@ -13,6 +13,7 @@ import { VINYL_12 } from '../data/catalogue/vinyl';
 import {
   GIFT_POP_UP_CARDS,
   LYRICS_FRAME,
+  MUSIC_BOX_EXPERIENCE,
   PLAQUE,
   VINYL_FRAME,
   capacityLabel,
@@ -121,12 +122,14 @@ const faqs: { question: string; answer: string }[] = [
     question: 'What physical keepsakes do you offer?',
     answer:
       /**
-       * Prices are named here because they are approved and published on
-       * /products; the memory box is described WITHOUT one because it has
-       * none, and "contact us" now applies to that alone rather than to the
-       * whole list as it did when nothing was priced.
+       * Every price here is read from the catalogue, so a repricing or a
+       * retirement updates this answer and its FAQPage structured data
+       * together. The Luxury Memory Box was named here until it was retired;
+       * the Music Box Experience that replaced it in this list is a different
+       * product with its own approved price, described in the approved
+       * language and WITHOUT a contents list.
        */
-      `Beyond vinyl and CD, we make framed lyric artwork — your words set as typography and framed for the wall, ${formatProductPrice(LYRICS_FRAME.price)} — engraved crystal or wood music plaques with a scannable code to your song, ${formatProductPrice(PLAQUE.price)}, a vinyl frame that turns your record into a display piece, ${formatProductPrice(VINYL_FRAME.price)}, and gift pop-up cards that open to reveal your song, ${formatProductPrice(GIFT_POP_UP_CARDS[0].price)}, with designs for anniversaries, birthdays, weddings, Christmas and more. We also make luxury memory boxes holding lyrics and photos alongside your music — contact us for those. Everything is made to order.`,
+      `Beyond vinyl and CD, we make framed lyric artwork — your words set as typography and framed for the wall, ${formatProductPrice(LYRICS_FRAME.price)} — engraved crystal or wood music plaques with a scannable code to your song, ${formatProductPrice(PLAQUE.price)}, a vinyl frame that turns your record into a display piece, ${formatProductPrice(VINYL_FRAME.price)}, and gift pop-up cards that open to reveal your song, ${formatProductPrice(GIFT_POP_UP_CARDS[0].price)}, with designs for anniversaries, birthdays, weddings, Christmas and more. There is also the ${MUSIC_BOX_EXPERIENCE.name}, ${formatProductPrice(MUSIC_BOX_EXPERIENCE.price)} — an elevated gifting experience bringing together multiple personalised keepsakes in one beautifully curated presentation, shaped around the story, recipient and occasion. Everything is made to order.`,
   },
   {
     question: 'Do I need to write lyrics?',

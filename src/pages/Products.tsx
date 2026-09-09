@@ -45,7 +45,7 @@ const Products = () => {
         <meta property="og:title" content="Music Keepsakes | My Custom Beats" />
         <meta
           property="og:description"
-          content="Vinyl, CD, framed lyric artwork, engraved plaques, vinyl frames, gift pop-up cards and the players to hear them on — your song, made physical."
+          content="Vinyl, CD, framed lyric artwork, engraved plaques, vinyl frames, gift pop-up cards, the Music Box Experience and the players to hear them on — your song, made physical."
         />
         <script type="application/ld+json">
           {JSON.stringify(productsPageStructuredData())}

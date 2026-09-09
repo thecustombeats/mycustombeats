@@ -118,16 +118,33 @@ export const PENDING_DECISIONS: readonly PendingDecision[] = [
   {
     id: "remaining-keepsake-pricing",
     question:
-      "What do the personalised vinyl record, the CD and the Luxury Memory Box cost on their own? Frames, plaques, cards and the playback collection are now priced; these three are not.",
+      "What do the personalised vinyl record and the CD cost on their own? Every other family is now priced; these two are not.",
     blocks:
       "Totalling a basket that contains them, and publishing an Offer for the vinyl and CD families. Note the £60 Additional Vinyl Copy is the price of a DUPLICATE pressing, not of the record itself — see catalogue/enhancements.ts.",
   },
+  /**
+   * RESOLVED, and kept as the record of what was decided.
+   *
+   * The business confirmed the Luxury Memory Box and the £600 Music Box
+   * Experience are DIFFERENT products. The Memory Box was retired from the
+   * catalogue rather than repriced, and the Music Box Experience created as a
+   * separate family and product. Left here because the next person to read
+   * `git log` for "why is there no memory box" deserves the answer in the
+   * data, not only in a commit message.
+   */
   {
-    id: "music-box-identity",
+    id: "music-box-composition",
     question:
-      "Is the proposed £600 MCB Music Box Experience the existing Luxury Memory Box under a new name, a replacement for it, or a separate product? If it is separate or new, what does it physically contain?",
+      "Is a standard composition ever published for the MCB Music Box Experience, or is it always confirmed with the customer? If it is ever fixed, what does it contain, and does that change the £600?",
     blocks:
-      "Publishing the £600 experience at all. The repository holds an approved Luxury Memory Box with an approved photograph and no approved price, and nothing anywhere defines a 'Music Box Experience' or connects £600 to it. The two names also denote different objects in ordinary use — a keepsake box that holds things, versus a music box that plays. Pricing the existing Memory Box at £600 on that resemblance would put a figure and a set of contents in front of customers that nobody has approved, so the £600 experience is deliberately absent from the catalogue until this is answered.",
+      "Stating what the experience contains anywhere on the site, and offering it as a configurable basket line rather than a curated conversation. The £600 price IS approved and published; only the composition is open. Nothing in the catalogue asserts contents, dimensions, materials, mechanism, colours, origin, shipping or third-party gifts, and nothing should until this is answered.",
+  },
+  {
+    id: "portable-suitcase-artwork",
+    question:
+      "When can /images/brand/portable-recordplayer.png be re-rendered with the approved product name printed in it?",
+    blocks:
+      "Nothing commercially — the product name, price and page are correct and live. But the artwork still reads 'Portable Gramophones' inside the image while the heading beside it reads 'Portable Record Player Suitcase', so the two visibly disagree. Known stale visual asset; the name is authoritative and must NOT be reverted to match the picture.",
   },
   {
     id: "shipping-rates",

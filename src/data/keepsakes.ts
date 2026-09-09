@@ -7,11 +7,11 @@
  * shape the homepage band renders, so there is exactly one place a product
  * name, description or photograph is written.
  *
- * Families with no approved product yet (Digital Players, Portable
- * Gramophones, the Mobile-phone Gramophone, Frames) are excluded: a showcase
- * tile for something with no photograph, price or specification would be an
- * empty promise. They are still part of the catalogue and still appear as
- * related products wherever a relationship is declared.
+ * A family with no approved product is excluded: a showcase tile for
+ * something with no photograph, price or specification would be an empty
+ * promise. Every family holds a product today, so the guard is dormant — but
+ * it is what keeps a newly declared family out of the homepage until it has
+ * something real to show.
  */
 
 import { CATALOGUE } from "./catalogue";
@@ -38,7 +38,7 @@ const SHOWCASE_ORDER: readonly ProductFamilyId[] = [
   "cd",
   "lyrics-frame",
   "plaque",
-  "memory-box",
+  "music-box",
   "gift-pop-up-card",
 ];
 

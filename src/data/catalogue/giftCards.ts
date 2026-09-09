@@ -63,7 +63,6 @@ const cardFor = (occasion: OccasionId): CatalogueProduct => ({
   fulfilment: "PHYSICAL",
   // The card presents the song; it does not physically contain the recording.
   songInclusion: "KEEPSAKE_ONLY",
-  compatibleProducts: ["memory-box-luxury"],
 });
 
 export const GIFT_POP_UP_CARDS: readonly CatalogueProduct[] =

@@ -18,7 +18,7 @@ import type { ProductFamilyId, SongInclusion } from "./types";
  *
  * The label lives with the relationship rather than in a component, because
  * "plays with" and "pairs with" are not interchangeable: a gramophone plays a
- * record, a memory box holds one. A page that had to choose the wording
+ * record, a frame displays one. A page that had to choose the wording
  * itself would eventually choose differently on two different pages.
  */
 export interface FamilyRelation {
@@ -38,11 +38,23 @@ export const FAMILY_RELATIONSHIPS: Readonly<
       "vintage-collection",
     ],
   },
-  "lyrics-frame": { label: "Pairs with", familyIds: ["memory-box"] },
-  "memory-box": {
-    label: "Holds",
-    familyIds: ["vinyl", "lyrics-frame", "gift-pop-up-card"],
-  },
+  /**
+   * The lyrics frame paired with the retired Luxury Memory Box. It is NOT
+   * repointed at the Music Box Experience: "pairs with" was a statement about
+   * a box that held it, and asserting the same of a different product would
+   * invent a relationship nobody approved.
+   */
+  "lyrics-frame": { label: "Pairs with", familyIds: [] },
+
+  /**
+   * The Music Box Experience declares NO relations, deliberately.
+   *
+   * It brings together multiple keepsakes, but which ones is confirmed with
+   * the customer rather than fixed — so naming families here would render as
+   * the contents list the product is explicitly not allowed to publish. Empty
+   * is the honest state, and the map's own convention for it.
+   */
+  "music-box": { label: "Brings together", familyIds: [] },
 
   // Declared empty rather than omitted, so the map stays exhaustive over
   // ProductFamilyId and a new family cannot be added without a decision
@@ -68,7 +80,7 @@ export const relationLabel = (familyId: ProductFamilyId): string =>
 /**
  * What pairing two products means for the customer's song.
  *
- * A record in a memory box is not automatically a playable pressing of the
+ * A record in a frame is not automatically a playable pressing of the
  * customer's song — that is a configuration decision the business has not
  * generalised. So a pairing only asserts `CARRIES_SONG` when BOTH products
  * independently do; anything less resolves to `CONFIGURABLE` and is settled

@@ -10,14 +10,14 @@
  *                            vinyl products declare `songCapacity`)
  *   • occasion             → the occasion selector (cards only, because only
  *                            cards declare `occasion`)
- *   • declared relations   → the "plays with" / "holds" row
+ *   • declared relations   → the "plays with" / "pairs with" row
  *
- * PRICING. No product in the catalogue has an approved price. Rather than
- * print a placeholder, an unpriced product states that it is made to order and
- * quoted — which is what the page already said before the catalogue existed.
- * If a price is approved later, `formatProductPrice` returns it and the same
- * markup shows it. Nothing here can invent one: a TBD `ProductPrice` carries
- * no number.
+ * PRICING. Most families now carry an approved GBP price and render it; the
+ * vinyl record and the CD do not, and state that they are made to order and
+ * quoted instead. Which of the two a family gets is decided by the DATA, not
+ * here — `familyPrice` reads the products and returns null when none is
+ * approved. Nothing in this component can invent a price: a TBD
+ * `ProductPrice` carries no number to render.
  */
 
 import { useState } from "react";
@@ -289,7 +289,7 @@ const CatalogueFamily = ({ family, reverse = false }: CatalogueFamilyProps) => {
     leadTimes.size === 1 ? [...leadTimes][0] || undefined : undefined;
 
   /**
-   * Stated only where the catalogue is genuinely undecided. A memory box may
+   * Stated only where the catalogue is genuinely undecided. A framed record may
    * hold a playable pressing or a display piece, and the business has not
    * generalised which — so the page says it is confirmed during
    * configuration rather than promising either.
@@ -305,7 +305,7 @@ const CatalogueFamily = ({ family, reverse = false }: CatalogueFamilyProps) => {
       {/*
         The media well takes its shape from the photograph.
 
-        A landscape shot fills a landscape well. The Memory Box and Gift
+        A landscape shot fills a landscape well. The Gift
         Pop-Up Card are near-square (760x792 and 755x792), and letterboxing
         them into a 3:2 well left a small picture stranded in a wide box with
         empty space either side — they read as lesser products than the vinyl

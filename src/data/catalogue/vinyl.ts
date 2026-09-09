@@ -73,7 +73,7 @@ const vinylProduct = (
   fulfilment: "PHYSICAL",
   songInclusion: "CARRIES_SONG",
   songCapacity: capacity,
-  compatibleProducts: ["lyrics-frame", "memory-box-luxury"],
+  compatibleProducts: ["lyrics-frame"],
   options: [SLEEVE_OPTION],
 });
 
