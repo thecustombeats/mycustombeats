@@ -84,6 +84,62 @@ export const LEGAL_REVIEW_REQUIRED: readonly ReviewItem[] = [
     severity: "BLOCKING",
   },
   {
+    topic: "Delivery estimates and expressly agreed dates",
+    positionTaken:
+      "Displayed timings are estimates; an expressly agreed written date takes precedence and is stated to do so (clause 12). Package cards were changed from 'Delivered within 15 working days' to 'Allow at least 15 working days…' so the site and the contract agree.",
+    question:
+      "Is the estimate/agreed-date split correctly drawn, and does clause 12 adequately preserve the consumer's remedies where MCB itself causes a delay or where a delivery time was of the essence?",
+    severity: "BLOCKING",
+  },
+  {
+    topic: "Special-occasion and non-refundable arrangement wording",
+    positionTaken:
+      "Customers are advised not to make non-refundable travel, accommodation or event arrangements on the strength of an estimate (clause 13), with a fifteen-working-day planning recommendation. It is written as advice plus a foreseeability boundary in clause 21, NOT as a blanket waiver of consequential loss.",
+    question:
+      "Does this achieve the intended commercial protection without operating as an unfair exclusion of losses caused by MCB's own breach?",
+    severity: "BLOCKING",
+  },
+  {
+    topic: "Events outside reasonable control",
+    positionTaken:
+      "Clause 19 lists courier delay, customs, weather, industrial action and similar, and expressly states that the involvement of a subcontractor does not by itself make something outside MCB's control. Third-party fulfilment does not reduce MCB's responsibility.",
+    question:
+      "Is the force-majeure formulation adequate, and is the express refusal to treat subcontracting as immunity correctly drafted?",
+    severity: "IMPORTANT",
+  },
+  {
+    topic: "International duties and taxes",
+    positionTaken:
+      "Import duties and taxes are payable by the recipient 'unless we have expressly stated otherwise at checkout, or the law of the destination requires otherwise' (clause 15).",
+    question:
+      "Is the qualification sufficient for MCB's actual selling territories, and does any territory require the total including duties to be disclosed before purchase?",
+    severity: "IMPORTANT",
+  },
+  {
+    topic: "Product handling, misuse and personal injury",
+    positionTaken:
+      "Clauses 16–18 ask for reasonable care, instruct customers to stop using visibly damaged items, and exclude responsibility for loss GENUINELY CAUSED by misuse — with an express footnote that nothing limits liability for death or personal injury caused by negligence, for defective products, or for anything else that cannot lawfully be excluded. No 48-hour reporting cutoff was reintroduced.",
+    question:
+      "Is the causal framing of the misuse clause tight enough to be enforceable, and is the product-safety carve-out sufficient given MCB supplies glazed frames and pressed records?",
+    severity: "BLOCKING",
+  },
+  {
+    topic: "Limitation of liability — 'consequential loss' replaced",
+    positionTaken:
+      "The Founder draft's generic 'indirect or consequential losses' and reliance on 'to the fullest extent permitted by applicable law' were NOT adopted as the operative wording. Clause 21 instead ties exclusions to causation: loss not caused by MCB, loss from events outside its reasonable control, loss from misuse, loss from incorrect delivery details, and loss that was not foreseeable — plus an express business-loss exclusion for a consumer sale and an express list of what is never excluded.",
+    question:
+      "Does the causation-based formulation preserve the Founder's intended commercial protection while remaining fair under the unfair-terms regime? This is the single most important item in this register.",
+    severity: "BLOCKING",
+  },
+  {
+    topic: "Allocation of fulfilment and carrier responsibility",
+    positionTaken:
+      "The customer's contract is with MCB throughout; manufacturers, fulfilment partners and carriers are named as MCB's suppliers rather than as a boundary of MCB's responsibility.",
+    question:
+      "Is that allocation correctly expressed, and does it need supporting wording about MCB's rights of recourse against those suppliers?",
+    severity: "CONFIRMATORY",
+  },
+  {
     topic: "Privacy policy",
     positionTaken:
       "The false 'we do not sell or share your data' absolute has been corrected to name processor categories. The policy has not otherwise been rewritten.",

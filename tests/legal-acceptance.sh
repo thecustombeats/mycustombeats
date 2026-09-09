@@ -29,7 +29,14 @@ body() { cat /tmp/lg.json; }
 q() { docker exec mcb-db mariadb -umcb -ptestpass -N -B -e "$1" mcb_crm 2>/dev/null; }
 qerr() { docker exec mcb-db mariadb -umcb -ptestpass -e "$1" mcb_crm 2>&1; }
 CRMKEY="test_crm_key_not_real_000000000000000000000"
-VER="2026-09-09"
+# The version currently in force. Sprint 9.5 added the delivery,
+# special-occasion, product-handling and liability clauses, so this moved from
+# 2026-09-09 to 2026-09-09.2 — a same-day revision, hence the suffix rather
+# than a new date. Assertions 1 and 5 pin the CURRENT version; the superseded
+# one must still be recognised, which is asserted below and covered in depth by
+# tests/delivery-acceptance.sh.
+VER="2026-09-09.2"
+SUPERSEDED_VER="2026-09-09"
 FULL='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"'"$VER"'"'
 
 # Customer-facing prose only. Every legal file explains WHY a phrase was
@@ -51,6 +58,10 @@ tc "5. the version reaches the server as generated data" \
   "$(grep -q "\"terms\": \"$VER\"" public/api/data/legal.json && echo 1 || echo 0)"
 tc "6. superseded versions stay identifiable" \
   "$(grep -q 'SUPERSEDED_VERSIONS' src/data/legal/versions.ts && grep -q 'KNOWN_TERMS_VERSIONS' src/data/legal/versions.ts && echo 1 || echo 0)"
+tc "6b.  → and the previous edition is still recognised by the server" \
+  "$(grep -q "\"$SUPERSEDED_VER\"" public/api/data/legal.json && echo 1 || echo 0)"
+tc "6c.  → so an order accepted under it keeps that version, not this one" \
+  "$(grep -A14 'export const SUPERSEDED_VERSIONS' src/data/legal/versions.ts | grep -q 'remain governed by it' && echo 1 || echo 0)"
 tc "7. changes are prospective only" \
   "$(grep -q 'It does not change the terms of an order you have already placed' src/data/legal/versions.ts && echo 1 || echo 0)"
 tc "8. no clause claims power to rewrite concluded contracts" \

@@ -1,11 +1,12 @@
 {
   "_generated": "Do not edit. Generated from src/data/legal/ by scripts/generate-packages-json.mjs",
   "versions": {
-    "terms": "2026-09-09",
-    "refund_policy": "2026-09-09",
+    "terms": "2026-09-09.2",
+    "refund_policy": "2026-09-09.2",
     "privacy_policy": "2026-09-09",
     "terms_effective_date": "2026-09-09",
     "known_terms_versions": [
+      "2026-09-09.2",
       "2026-09-09"
     ]
   },

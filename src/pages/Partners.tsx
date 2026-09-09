@@ -621,7 +621,7 @@ export default function PartnersPage() {
                 "Every song written from one guest's own story",
                 "Written and produced by professional musicians",
                 "Delivered digitally, or as a keepsake posted to you",
-                "From one hour to fifteen working days",
+                "From one hour digitally, to around fifteen working days for physical keepsakes",
                 "One point of contact for your team",
                 "Scoped with you before anything is agreed",
               ].map(item => (

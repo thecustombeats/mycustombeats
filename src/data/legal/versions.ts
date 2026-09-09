@@ -46,8 +46,31 @@
  * version would additionally invite an argument about whether a clause change
  * was "major", which is not a question anyone here needs to answer.
  */
-export const TERMS_VERSION = "2026-09-09";
-export const REFUND_POLICY_VERSION = "2026-09-09";
+/**
+ * `2026-09-09.2`, not `2026-09-10`.
+ *
+ * The delivery, special-occasion, product-handling and liability clauses were
+ * added on the same calendar day the first versioned edition took effect. A
+ * plain date would therefore have collided with it, and the two editions say
+ * materially different things about what MCB promises — so a customer who
+ * accepted the first must remain distinguishable from one who accepted the
+ * second.
+ *
+ * The `.N` suffix is a same-day revision counter and nothing more. It sorts
+ * correctly, it reads unambiguously, and it does not require anyone to learn
+ * a versioning convention to understand which came first.
+ */
+export const TERMS_VERSION = "2026-09-09.2";
+
+/**
+ * Refunds moves with the Terms; Privacy does not.
+ *
+ * The refunds page cross-references the new damaged-goods wording, so it
+ * changed. The Privacy Policy did not change at all in this revision, and
+ * bumping it would tell customers a document had been revised when it had
+ * not — which is exactly the noise dated-on-every-deploy versioning creates.
+ */
+export const REFUND_POLICY_VERSION = "2026-09-09.2";
 export const PRIVACY_POLICY_VERSION = "2026-09-09";
 
 /**
@@ -77,7 +100,15 @@ export const SUPERSEDED_VERSIONS: readonly {
   effective: string;
   superseded: string;
   summary: string;
-}[] = [];
+}[] = [
+  {
+    version: "2026-09-09",
+    effective: "2026-09-09",
+    superseded: "2026-09-09",
+    summary:
+      "The first versioned edition. Superseded the same day by 2026-09-09.2, which added delivery estimates and agreed dates, special-occasion planning, customer-supplied delivery details, international delivery, safe handling of physical products, damaged products, misuse, and a reworked limitation of liability. Orders accepted under this version remain governed by it.",
+  },
+];
 
 /**
  * Every version this codebase can identify, for validating a recorded value.

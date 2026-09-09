@@ -37,6 +37,11 @@ import {
   SCOPE_CHANGE_TREATMENT,
 } from "./production";
 import { TERMS_CHANGE_POLICY } from "./versions";
+import {
+  AGREED_DATE_EXCEPTION,
+  RECOMMENDED_PLANNING_DAYS,
+  TRAVEL_NOTICE,
+} from "./delivery";
 
 /* ------------------------------------------------------------------ */
 /* Package entitlements, read from the commercial source of truth      */
@@ -193,30 +198,93 @@ export const TERMS_CLAUSES: readonly Clause[] = [
   {
     id: "delivery",
     heading: "12. Timing and delivery",
-    /**
-     * These paragraphs have to agree with the delivery line on every package
-     * card — "Delivered within 1 hour", "Delivered within 15 working days".
-     * An earlier draft said transit was "added on top" of the quoted time,
-     * which would have made the terms contradict the headline promise on the
-     * product the customer just bought. The quoted window is end to end.
-     */
     body: [
-      "The times we quote — an hour for a Moment, fifteen working days for the others — are what we aim for end to end: writing, producing, and where relevant manufacturing and posting. They are targets we work to, not guarantees, and they depend in part on how quickly we hear back from you at the points where we need you.",
-      "Once something is with a carrier, its progress is in their hands rather than ours. We do not guarantee an arrival date unless we have agreed one with you in writing — and if we have agreed one, we mean it.",
-      "If you are ordering for a particular date, tell us the date. We would rather say no than miss it.",
+      "The times we show are ESTIMATES. They are honest ones, based on how long this work actually takes, and they cover everything from writing your music to the parcel reaching your door — but they are not guaranteed arrival dates, and we would rather say so plainly than let you find out.",
+      "The reason is the last stage. We control the writing, the production, the making and the sending. We do not control the carrier's van, a customs queue, a snowstorm or a missed delivery attempt, and no promise we made would change that.",
+      AGREED_DATE_EXCEPTION,
+      "So if a date matters, tell us the date before you order. We will tell you honestly whether we can meet it, and if we agree one in writing, we mean it.",
     ],
+    footnote:
+      "If we are late because of something we did, that is our responsibility and your statutory rights apply in the ordinary way. An estimate is not a disclaimer.",
+  },
+  {
+    id: "planning-ahead",
+    heading: "13. Ordering for a particular occasion",
+    body: [
+      "Much of what we make is for a wedding, an anniversary, a milestone birthday, a memorial, a cruise or a holiday — a day that does not move.",
+      `Because of that, we strongly recommend placing your order at least ${RECOMMENDED_PLANNING_DAYS} working days before the date you need it. That is a planning recommendation, not a delivery promise: it is how long to allow, not a date we commit to.`,
+      TRAVEL_NOTICE,
+      "Please do not make non-refundable travel, accommodation or event arrangements on the strength of an estimated delivery date. If something depends on your order arriving by a particular day, ask us to agree that date in writing first.",
+    ],
+    footnote:
+      "None of this applies to a date we have expressly agreed with you, and none of it affects your rights if we fail to do something we agreed to do.",
+  },
+  {
+    id: "your-delivery-details",
+    heading: "14. The delivery details you give us",
+    body: [
+      "We send your order to the details you give us, so please check them: the recipient's name, the address, the postcode or ZIP, and a contact number or email the carrier can use.",
+      "Where a delay, a failed delivery or a return to us is genuinely caused by details that were incorrect or incomplete, we will do what we can to put it right — but remaking a personalised item, or posting it a second time, can involve a further charge. We will tell you what it is before doing anything.",
+    ],
+    footnote:
+      "This does not apply where the problem was ours, and it does not affect your statutory rights.",
+  },
+  {
+    id: "international-delivery",
+    heading: "15. Deliveries outside the United Kingdom",
+    body: [
+      "We ship internationally. Orders crossing a border go through customs, import procedures and whatever checks the destination country applies, and how long that takes is decided by those authorities rather than by us or the carrier.",
+      "Any import duties, taxes or customs charges that apply are payable by the recipient — unless we have expressly stated otherwise at checkout, or the law of the destination requires otherwise.",
+      "We cannot predict or influence a customs inspection. If your order is going abroad for a particular occasion, please allow considerably more time.",
+    ],
+  },
+  {
+    id: "handling-physical-products",
+    heading: "16. Looking after physical items",
+    body: [
+      "Some of what we make is a physical object: a pressed record, a framed print, a glazed frame, a presentation box, a printed booklet, a keepsake. These are made to be kept, not to be tested.",
+      "Please handle them with reasonable care. Depending on the item, they can have edges, corners, glass or glazed panels, small parts, or materials that mark, chip or break if dropped or mishandled.",
+      "Where appropriate for the item, please keep it away from young children, vulnerable people and animals unless it is expressly intended for them, and follow any care or safety information supplied with it.",
+    ],
+    footnote:
+      "This is ordinary care for ordinary objects. It is not a suggestion that anything we sell is dangerous.",
+  },
+  {
+    id: "damaged-products",
+    heading: "17. If something arrives damaged",
+    body: [
+      "If an item reaches you cracked, chipped, shattered, broken or otherwise structurally damaged, please stop using it. A broken frame or a cracked record is not something to handle carefully — it is something to put down.",
+      "Then tell us as soon as you reasonably can, and please send a photograph if you are able to. It usually settles the matter in one message, and carriers keep their records for a limited time, so getting in touch early genuinely helps.",
+      "We will then repair, replace, remake or refund as appropriate.",
+    ],
+    footnote:
+      "There is no deadline on this. Contacting us promptly helps us, but it is a request rather than a condition, and it does not affect your legal rights — see clause 8.",
+  },
+  {
+    id: "misuse",
+    heading: "18. Misuse and improper handling",
+    body: [
+      "We are not responsible for injury, loss or damage that is genuinely caused by an item being misused rather than by anything wrong with the item.",
+      "By that we mean things like: using it for something it was plainly not made for, continuing to use it after visible damage, taking it apart, altering or repairing it without our agreement, ignoring safety information we supplied, or a failure to take reasonable care by you or someone else.",
+      "The cause is what matters here. This clause is about what somebody did with the item; it has nothing to say about an item that was faulty, unsafe or not what you ordered when it reached you.",
+    ],
+    footnote:
+      "Nothing in this clause limits our responsibility for death or personal injury caused by our negligence, for defective products, or for anything else the law does not allow us to exclude.",
   },
   {
     id: "how-we-fulfil",
-    heading: "13. How we make and send things",
+    heading: "19. How we make and send things",
     body: [
-      "We work with specialist manufacturers and fulfilment partners for pressing, printing and delivery. That is normal for work of this kind and it is how the quality is achieved.",
-      "Your contract is with us. If something goes wrong at any point in that chain, it is ours to resolve with you — we will not point you at a supplier you never dealt with.",
+      "We work with specialist manufacturers, fulfilment partners, postal operators and couriers for pressing, printing and delivery. That is normal for work of this kind and it is how the quality is achieved.",
+      "Your contract is with us. If something goes wrong at any point in that chain, it is ours to resolve with you — we will not point you at a supplier you never dealt with. Using a subcontractor is not a way for us to stop being responsible.",
+      "What we genuinely cannot answer for is an event outside our reasonable control that we did not cause: courier delays, customs or border processing, import inspections, severe weather, transport disruption, industrial action, public holidays, a local postal disruption, an unsuccessful delivery attempt, or a supply-chain failure of the same kind. Where one of those affects your order we will tell you, and we will do what we reasonably can to put it right.",
     ],
+    footnote:
+      "That is about events, not about parties. The fact that another company was involved does not by itself make something outside our control.",
   },
   {
     id: "content-we-can-decline",
-    heading: "14. Content we will not produce",
+    heading: "20. Content we will not produce",
     body: [
       "We may decline or ask you to change a submission that is abusive, harassing, hateful, defamatory, sexually explicit, or that we believe would harm someone.",
       "If we decline before starting work, you get your money back. If it only becomes apparent later, we will talk to you about it.",
@@ -224,18 +292,19 @@ export const TERMS_CLAUSES: readonly Clause[] = [
   },
   {
     id: "liability",
-    heading: "15. Our responsibility to you",
+    heading: "21. Our responsibility to you",
     body: [
-      "We take our work seriously and we accept responsibility for it. Where we are at fault, we are responsible for losses that are a foreseeable result of our breach.",
-      "We are not responsible for losses that were not foreseeable, or for business losses — these experiences are sold to you as a consumer, for personal use.",
-      "There are things the law does not allow anyone to exclude, and we do not attempt to: liability for death or personal injury caused by negligence, for fraud, and for breaches of your statutory rights in goods, digital content and services.",
+      "We take our work seriously and we accept responsibility for it. Where we are at fault, we are responsible for the losses that are a foreseeable result of that — including, where it applies, putting right an order we got wrong.",
+      "What we are not responsible for is loss that we did not cause. In practice that means: loss arising from an event outside our reasonable control that was not our doing; loss caused by an item being misused or mishandled rather than by anything wrong with it; loss caused by delivery details that were given to us incorrectly; and loss that was not a foreseeable consequence of anything we did.",
+      "These experiences are sold to you as a consumer, for personal use, so we do not accept responsibility for business losses such as lost profit, lost revenue or lost business opportunity.",
+      "There are things the law does not allow anyone to exclude, and we do not attempt to: liability for death or personal injury caused by negligence, for fraud, for defective products, and for your statutory rights in goods, digital content and services.",
     ],
     footnote:
       "Music is subjective. A refinement is how we respond to that, and we would rather use one than argue about taste.",
   },
   {
     id: "your-information",
-    heading: "16. Your information",
+    heading: "22. Your information",
     body: [
       "We use your details to create and deliver your order, and to talk to you about it. We do not sell your personal information and we do not share it for anyone else's marketing.",
       "We do rely on a small number of service providers to operate — payment processing, email delivery, file hosting, our website host and our own records — and your information passes through them for those purposes only. Our Privacy Policy names what they do.",
@@ -243,20 +312,31 @@ export const TERMS_CLAUSES: readonly Clause[] = [
   },
   {
     id: "changes",
-    heading: "17. Changes to these terms",
+    heading: "23. Changes to these terms",
     body: [TERMS_CHANGE_POLICY],
   },
   {
     id: "law",
-    heading: "18. Law, and where you live",
+    heading: "24. Law, and where you live",
     body: [
       "These terms are governed by the law of England and Wales, and the courts of England and Wales have jurisdiction.",
       "We sell internationally. If you are a consumer somewhere else, nothing here takes away rights that the law of your own country gives you and does not allow to be signed away.",
     ],
   },
   {
+    id: "acceptance",
+    heading: "25. Accepting these terms",
+    body: [
+      "When you place an order you confirm that you have read and agree to these terms, and we record which version you accepted along with the date and time. Your confirmation email names that version, so you always have your own copy of what applied to your order.",
+      "These terms include the parts that are easy to skip and matter most: that delivery times are estimates unless we agree a date in writing, that we recommend allowing fifteen working days for anything with a date attached, how international deliveries and customs work, how to look after and stop using a damaged physical item, and where our responsibility to you begins and ends.",
+      "If we update these terms later, your order stays governed by the version you accepted — see clause 23.",
+    ],
+    footnote:
+      "You are also asked separately, at checkout, to request that we begin work straight away and — where your order includes digital music — to acknowledge what that means for cancelling it. Those are their own decisions and are recorded separately.",
+  },
+  {
     id: "contact",
-    heading: "19. Talking to us",
+    heading: "26. Talking to us",
     body: [
       "If something is not right, or you are unsure where you stand, write to us before assuming the answer. Most of what these terms describe never needs to be relied on, because it is settled in a conversation.",
     ],

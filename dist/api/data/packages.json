@@ -38,7 +38,7 @@
       "price_usd": 99,
       "price_prefix": null,
       "song_count": 1,
-      "delivery": "Delivered within 15 working days",
+      "delivery": "Allow at least 15 working days for personalised production and delivery",
       "formats": [
         "vinyl",
         "cd",
@@ -58,7 +58,7 @@
       "price_usd": 249,
       "price_prefix": null,
       "song_count": 4,
-      "delivery": "Delivered within 15 working days",
+      "delivery": "Allow at least 15 working days for personalised production and delivery",
       "formats": [
         "vinyl",
         "cd"
@@ -76,7 +76,7 @@
       "price_usd": 449,
       "price_prefix": null,
       "song_count": 6,
-      "delivery": "Delivered within 15 working days",
+      "delivery": "Allow at least 15 working days for personalised production and delivery",
       "formats": [
         "vinyl",
         "cd"

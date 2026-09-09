@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/accordion';
 import { Helmet } from "react-helmet-async";
 import { MOMENT, KEEPSAKE, JOURNEY, HEIRLOOM, FULL_PACKAGE, formatPrice } from '../data/packages';
-import { REFINEMENT_DEFINITION } from '../data/legal';
+import { REFINEMENT_DEFINITION, RECOMMENDED_PLANNING_DAYS } from '../data/legal';
 import { VINYL_12 } from '../data/catalogue/vinyl';
 import {
   GIFT_POP_UP_CARDS,
@@ -75,15 +75,15 @@ const faqs: { question: string; answer: string }[] = [
   },
   {
     question: `What is ${KEEPSAKE.name}?`,
-    answer: `${KEEPSAKE.name} is ${formatPrice(KEEPSAKE)} and is our most popular gift: one fully personalised song of three to four minutes, story-driven lyrics, two refinement revisions and elegant cover artwork. You choose vinyl, CD or MP3, and it is delivered within 15 working days.`,
+    answer: `${KEEPSAKE.name} is ${formatPrice(KEEPSAKE)} and is our most popular gift: one fully personalised song of three to four minutes, story-driven lyrics, two refinement revisions and elegant cover artwork. You choose vinyl, CD or MP3. ${KEEPSAKE.delivery}.`,
   },
   {
     question: `What is ${JOURNEY.name}?`,
-    answer: `${JOURNEY.name} is ${formatPrice(JOURNEY)} and is built for a trip or a celebration rather than a single moment: four personalised songs sharing one musical theme, arranged as a beginning, middle and finale, with two refinements per song, custom album artwork and a printable lyric booklet. You choose vinyl or CD, delivered within 15 working days.`,
+    answer: `${JOURNEY.name} is ${formatPrice(JOURNEY)} and is built for a trip or a celebration rather than a single moment: four personalised songs sharing one musical theme, arranged as a beginning, middle and finale, with two refinements per song, custom album artwork and a printable lyric booklet. You choose vinyl or CD. ${JOURNEY.delivery}.`,
   },
   {
     question: `What is ${HEIRLOOM.name}?`,
-    answer: `${HEIRLOOM.name} is ${formatPrice(HEIRLOOM)} and preserves a whole life story as an album: six cohesive songs with a narrative arc, a custom intro and closing theme, producer-guided creative review, premium album artwork, a multi-page lyric and story booklet and a private streaming link. You choose vinyl or CD, delivered within 15 working days.`,
+    answer: `${HEIRLOOM.name} is ${formatPrice(HEIRLOOM)} and preserves a whole life story as an album: six cohesive songs with a narrative arc, a custom intro and closing theme, producer-guided creative review, premium album artwork, a multi-page lyric and story booklet and a private streaming link. You choose vinyl or CD. ${HEIRLOOM.delivery}.`,
   },
   {
     question: `What is ${FULL_PACKAGE.name}?`,
@@ -117,7 +117,17 @@ const faqs: { question: string; answer: string }[] = [
   },
   {
     question: 'How quickly can you create a song?',
-    answer: `${MOMENT.name} is delivered within one hour. ${KEEPSAKE.name}, ${JOURNEY.name} and ${HEIRLOOM.name} are delivered within 15 working days, which covers writing, recording, production, your revisions and — where you have chosen vinyl or CD — manufacturing and postage.`,
+    /**
+     * This said the three larger experiences "are delivered within 15 working
+     * days", which read as a commitment while the Terms called the same figure
+     * a target. Fifteen working days is how long to ALLOW, and the answer now
+     * says which parts of that MCB controls and which it does not.
+     */
+    answer: `${MOMENT.name} is delivered within one hour — we write, produce and send it ourselves, with nothing to manufacture and no carrier involved. For ${KEEPSAKE.name}, ${JOURNEY.name} and ${HEIRLOOM.name}, allow at least ${RECOMMENDED_PLANNING_DAYS} working days: that covers writing, recording, production, your refinements and — where you have chosen vinyl or CD — manufacturing and postage. It is a planning guide rather than a guaranteed arrival date, because the carrier's leg is not ours to control.`,
+  },
+  {
+    question: 'I need it for a specific date. Can you guarantee it?',
+    answer: `Tell us the date before you order and we will tell you honestly whether we can meet it. If we agree a date in writing, that agreed date applies and we mean it. Otherwise the timings we show are estimates — so for a wedding, a sailing date or a memorial, please allow at least ${RECOMMENDED_PLANNING_DAYS} working days and do not book anything non-refundable around an estimate.`,
   },
   {
     question: 'Can you create music for a cruise or a holiday?',

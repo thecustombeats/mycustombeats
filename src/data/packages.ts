@@ -89,6 +89,14 @@ export interface CheckoutTarget {
 export type PackageId = "moment" | "keepsake" | "journey" | "heirloom" | "bespoke";
 
 /**
+ * Re-exported so a consumer reading a package's timing does not have to know
+ * that the vocabulary lives with the legal documents. It lives there because
+ * the Terms and the product card have to agree about it, and putting the
+ * definition beside only one of them is how they came to disagree.
+ */
+export type { DeliveryBasis } from "./legal/delivery";
+
+/**
  * How an experience is bought.
  *
  * `FIXED_PRICE` — a published GBP price, an online checkout, a basket. The
@@ -180,7 +188,25 @@ export interface McbPackage<F extends FormatId = FormatId> {
   songDuration?: string;
   revisions: string;
   features: readonly string[];
+  /**
+   * The customer-facing timing line.
+   *
+   * THIS IS AN ESTIMATE, AND IT NOW SAYS SO. Three of these read "Delivered
+   * within 15 working days" while the Terms said those times were "targets we
+   * work to, not guarantees" — two statements about the same product, on the
+   * same site, that could not both be true. MCB does not control a customs
+   * queue or a courier's third delivery attempt, so the card was the one
+   * making a promise nobody could keep.
+   */
   delivery: string;
+  /**
+   * Which kind of timing `delivery` is.
+   *
+   * A Moment written and sent by MCB within the hour and a record pressed and
+   * posted over a fortnight are not the same claim, and the fifteen-working-day
+   * planning recommendation is about the stages only the second one has.
+   */
+  deliveryBasis: DeliveryBasis;
   /** Formats the customer chooses between. Empty = no format choice. */
   formats: readonly F[];
   checkout: Readonly<Record<F, CheckoutTarget>>;
@@ -221,6 +247,11 @@ export type AnyPackage = Omit<McbPackage<FormatId>, "formats" | "checkout"> & {
   formats: readonly FormatId[];
   checkout: Partial<Readonly<Record<FormatId, CheckoutTarget>>>;
 };
+
+import {
+  PLANNING_RECOMMENDATION,
+  type DeliveryBasis,
+} from "./legal/delivery";
 
 const gbp = (value: number) => `£${value}`;
 /**
@@ -279,7 +310,15 @@ export const MOMENT: FixedPricePackage<"mp3"> = {
     "MP3 delivery",
     "Delivered within 1 hour",
   ],
+  /**
+   * UNCHANGED, deliberately. This is MCB writing, producing and sending a
+   * file — no manufacturing, no carrier, nothing outside MCB's hands. The
+   * fifteen-working-day planning recommendation exists because of the stages
+   * a physical order goes through, and applying it here would misdescribe
+   * MCB's fastest product as its slowest.
+   */
   delivery: "Delivered within 1 hour",
+  deliveryBasis: "DIGITAL_TURNAROUND",
   formats: ["mp3"],
   checkout: {
     mp3: {
@@ -309,9 +348,10 @@ export const KEEPSAKE: FixedPricePackage<"vinyl" | "cd" | "mp3"> = {
     "2 refinement revisions",
     "Elegant cover artwork",
     "Your choice of vinyl, CD or MP3",
-    "Delivered within 15 working days",
+    PLANNING_RECOMMENDATION,
   ],
-  delivery: "Delivered within 15 working days",
+  delivery: PLANNING_RECOMMENDATION,
+  deliveryBasis: "MADE_TO_ORDER",
   formats: ["vinyl", "cd", "mp3"],
   checkout: {
     // The existing Keepsake link collects no shipping address, so it is
@@ -356,9 +396,10 @@ export const JOURNEY: FixedPricePackage<"vinyl" | "cd"> = {
     "1-page lyric printable booklet (PDF)",
     "Deluxe digital delivery package",
     "Your choice of vinyl or CD",
-    "Delivered within 15 working days",
+    PLANNING_RECOMMENDATION,
   ],
-  delivery: "Delivered within 15 working days",
+  delivery: PLANNING_RECOMMENDATION,
+  deliveryBasis: "MADE_TO_ORDER",
   formats: ["vinyl", "cd"],
   checkout: {
     vinyl: {
@@ -397,9 +438,10 @@ export const HEIRLOOM: FixedPricePackage<"vinyl" | "cd"> = {
     "Private streaming link for sharing",
     "Your choice of vinyl or CD",
     "Priority handling",
-    "Delivered within 15 working days",
+    PLANNING_RECOMMENDATION,
   ],
-  delivery: "Delivered within 15 working days",
+  delivery: PLANNING_RECOMMENDATION,
+  deliveryBasis: "MADE_TO_ORDER",
   formats: ["vinyl", "cd"],
   checkout: {
     vinyl: {
@@ -479,6 +521,7 @@ export const FULL_PACKAGE: AnyPackage = {
     "White-glove delivery",
   ],
   delivery: "Timeline agreed with you during the consultation",
+  deliveryBasis: "AGREED_IN_PROPOSAL",
   formats: [],
   /**
    * No checkout, and no `fallbackCheckout`.

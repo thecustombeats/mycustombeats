@@ -82,6 +82,24 @@ export const REFUND_SECTIONS: readonly RefundSection[] = [
     clause: "if-we-get-it-wrong",
   },
   {
+    heading: "It has not arrived when I expected",
+    question: "The date you showed me has passed.",
+    body: [
+      "The timings on the site are estimates, not guaranteed arrival dates — the carrier's leg is not ours to control. If we agreed a specific date with you in writing, that is different, and that date applies.",
+      "Either way, tell us. If it is late because of something we did, that is ours to put right and your legal rights apply in the ordinary way. If it is stuck in a customs queue or with a courier, we will chase it with you.",
+    ],
+    clause: "delivery",
+  },
+  {
+    heading: "It arrived broken",
+    question: "The frame is cracked / the record is chipped.",
+    body: [
+      "Stop using it — a cracked frame is something to put down rather than handle carefully — and send us a photograph when you can.",
+      "We will repair, replace, remake or refund as appropriate. There is no deadline on this: getting in touch early helps us establish what happened while carriers still hold their records, but it is a request rather than a condition and it does not affect your legal rights.",
+    ],
+    clause: "damaged-products",
+  },
+  {
     heading: "How refunds are paid",
     question: "How do I get the money back?",
     body: [

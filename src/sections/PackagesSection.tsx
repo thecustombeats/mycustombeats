@@ -192,6 +192,22 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
             {pkg.formats.map((f) => FORMATS[f].name).join(' · ')}
           </p>
 
+          {/*
+            TIMING, ON THE CARD RATHER THAN BEHIND THE EXPANDER.
+
+            This line was the sixth feature bullet, which put it under "View
+            full experience" on every experience that has one — so the fact a
+            customer most needs before ordering for a wedding was the one fact
+            they had to click to find.
+
+            It reads from `pkg.delivery`, the same string the Terms, the FAQ,
+            the confirmation email and the structured data all use, so the
+            card cannot promise a date the contract does not.
+          */}
+          <p className="font-mono text-[11px] tracking-[0.12em] uppercase text-espresso/45 pt-2">
+            {pkg.delivery}
+          </p>
+
           {/* CTA */}
           <div className="flex justify-center pt-5">
             <button

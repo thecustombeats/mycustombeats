@@ -60,24 +60,41 @@ execFileSync(
   { cwd: root, stdio: "pipe" }
 );
 
+/**
+ * tsc emits extensionless relative imports, which Node's ESM loader will not
+ * resolve. Rewriting them here is cheaper than adding a bundler to a build
+ * step whose only job is to read a few constants out of the source of truth.
+ *
+ * WALKED RECURSIVELY FROM THE ROOT, and run BEFORE anything is imported.
+ * It used to fix only `catalogue/` and only after `packages.js` had already
+ * been imported — which worked exactly as long as `packages.ts` imported
+ * nothing. The moment it imported the delivery vocabulary, the generator
+ * failed on a module specifier it had not been taught to look at. Fixing the
+ * whole tree first means the next cross-directory import does not break the
+ * build either.
+ */
+const addJsSuffixes = (dir) => {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      addJsSuffixes(path);
+      continue;
+    }
+    if (!entry.name.endsWith(".js")) continue;
+    writeFileSync(
+      path,
+      readFileSync(path, "utf8").replace(
+        /(from\s+["'])(\.\.?\/[^"']*?)(["'])/g,
+        (_m, a, spec, b) => a + (spec.endsWith(".js") ? spec : spec + ".js") + b
+      )
+    );
+  }
+};
+addJsSuffixes(tmp);
+
 const { PACKAGES, FORMATS } = await import(
   pathToFileURL(join(tmp, "packages.js")).href
 );
-
-// tsc emits extensionless relative imports, which Node's ESM loader will not
-// resolve. Rewriting them here is cheaper than adding a bundler to a build
-// step whose only job is to read two constants out of the source of truth.
-for (const file of readdirSync(join(tmp, "catalogue"))) {
-  if (!file.endsWith(".js")) continue;
-  const path = join(tmp, "catalogue", file);
-  writeFileSync(
-    path,
-    readFileSync(path, "utf8").replace(
-      /(from\s+["'])(\.\.?\/[^"']*?)(["'])/g,
-      (_m, a, spec, b) => a + (spec.endsWith(".js") ? spec : spec + ".js") + b
-    )
-  );
-}
 
 const { ALL_PRODUCTS, ENHANCEMENTS, isPriced } = await import(
   pathToFileURL(join(tmp, "catalogue/index.js")).href
@@ -210,18 +227,6 @@ writeFileSync(catalogueTarget, JSON.stringify(catalogueOut, null, 2) + "\n");
  * same in both places — and the failure would be silent, with orders recorded
  * against a version that never existed.
  */
-for (const file of readdirSync(join(tmp, "legal"))) {
-  if (!file.endsWith(".js")) continue;
-  const path = join(tmp, "legal", file);
-  writeFileSync(
-    path,
-    readFileSync(path, "utf8").replace(
-      /(from\s+["'])(\.\.?\/[^"']*?)(["'])/g,
-      (_m, a, spec, b) => a + (spec.endsWith(".js") ? spec : spec + ".js") + b
-    )
-  );
-}
-
 const {
   TERMS_VERSION,
   REFUND_POLICY_VERSION,

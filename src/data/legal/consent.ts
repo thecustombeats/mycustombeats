@@ -79,8 +79,20 @@ export const CONSENTS: readonly ConsentDefinition[] = [
     id: "TERMS",
     label:
       "I have read and agree to the Terms & Conditions, the Refunds & Cancellations policy, and the Privacy Policy.",
+    /**
+     * Widened to name the delivery and handling provisions, NOT split into a
+     * second checkbox.
+     *
+     * The Founder draft included an "Acceptance of These Terms" section, which
+     * would naturally have become another box. It did not, because there is
+     * already exactly one act of accepting the contract and adding a second
+     * box for a subset of the same contract would suggest the first one did
+     * not cover it. The Terms themselves say what accepting includes — see
+     * clause 25 — and this sentence names the parts a customer is most likely
+     * to be caught out by.
+     */
     detail:
-      "These explain what is included, how refinements work, when your order can no longer be changed, and what happens if something is wrong with what we send you.",
+      "These explain what is included, how refinements work, when your order can no longer be changed, that delivery times are estimates unless we agree a date in writing, how to look after a physical item, and what happens if something is wrong with what we send you.",
     error:
       "Please confirm you have read and agree to our terms before placing your order.",
     appliesTo: "ALWAYS",
