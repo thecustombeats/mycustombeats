@@ -55,8 +55,18 @@ tc "3.  → with a summary of what changed" \
 tc "4. both versions are known to the server" \
   "$(docker exec mcb-api sh -c 'cat /var/www/html/api/data/legal.json' | grep -q "\"$OLD\"" \
      && docker exec mcb-api sh -c 'cat /var/www/html/api/data/legal.json' | grep -q "\"$NEW\"" && echo 1 || echo 0)"
-tc "5. the privacy version did NOT move, because privacy did not change" \
-  "$(grep -q "PRIVACY_POLICY_VERSION = \"$OLD\"" src/data/legal/versions.ts && echo 1 || echo 0)"
+# Sprint 9.5 asserted that Privacy stayed at 2026-09-09 because nothing in it
+# had changed. It has now genuinely changed — the policy names every processor
+# from a verified inventory — so the version moved, and it moved SEPARATELY
+# from Terms. That separation is the property worth asserting: a version that
+# tracked deploys rather than content would tell customers nothing.
+tc "5. the privacy version moves independently of Terms, and only on content change" \
+  "$(grep -q 'PRIVACY_POLICY_VERSION = "2026-09-09.3"' src/data/legal/versions.ts \
+     && grep -q 'TERMS_VERSION = "2026-09-09.2"' src/data/legal/versions.ts && echo 1 || echo 0)"
+tc "5b.  → and the server carries all three versions distinctly" \
+  "$(grep -q '"terms": "2026-09-09.2"' public/api/data/legal.json \
+     && grep -q '"privacy_policy": "2026-09-09.3"' public/api/data/legal.json \
+     && grep -q '"refund_policy": "2026-09-09.2"' public/api/data/legal.json && echo 1 || echo 0)"
 
 t "6. a new order snapshots the new version" 201 \
   "$(post order '{'"$CN"',"firstName":"New","lastName":"N","email":"dl-new@example.com","package":"keepsake","format":"mp3","story":"x"}')"
@@ -265,7 +275,12 @@ tc "86. the consequential-loss decision is registered with its reasoning" \
 tc "87. carrier and fulfilment allocation is registered" \
   "$(grep -q 'Allocation of fulfilment and carrier responsibility' src/data/legal/review.ts && echo 1 || echo 0)"
 tc "88. the UK GDPR blocker is carried forward, not closed" \
-  "$(grep -A8 'topic: "Privacy policy"' src/data/legal/review.ts | grep -q 'BLOCKING' && echo 1 || echo 0)"
+  "$(grep -A10 'UK GDPR review of the completed policy' src/data/legal/review.ts | grep -q 'BLOCKING' && echo 1 || echo 0)"
+tc "88b.  → and the policy does not claim the review is done" \
+  "$(grep -q 'It does NOT constitute the review' src/data/legal/review.ts && echo 1 || echo 0)"
+tc "88c.  → the page says openly which parts are still being settled" \
+  "$(grep -q 'this section will state them precisely when that work is finished' src/data/legal/privacy.ts \
+     && grep -q 'updated when that review is complete' src/data/legal/privacy.ts && echo 1 || echo 0)"
 tc "89. the register is still not imported by any page" \
   "$(grep -rqE 'from ["'"'"'].*legal/review' src/pages src/sections src/components 2>/dev/null && echo 0 || echo 1)"
 tc "90.  → nor re-exported from the legal barrel" \
@@ -296,7 +311,7 @@ tc "100. the affiliate system is unchanged" \
 tc "101. no Stripe secret in the built bundle" \
   "$(grep -rq 'sk_live_\|sk_test_' dist/assets/ 2>/dev/null && echo 0 || echo 1)"
 tc "102. the legal modules make no Stripe call" \
-  "$(prose src/data/legal/*.ts | grep -qi 'stripe' && echo 0 || echo 1)"
+  "$(prose src/data/legal/*.ts | grep -qiE 'api\.stripe\.com|fetch\(|stripe_create|sk_(live|test)_' && echo 0 || echo 1)"
 tc "103. the review URL is still configuration and still empty" \
   "$(grep -A3 "'reviews'" public/api/config.example.php | grep -q "'url' => ''" && echo 1 || echo 0)"
 

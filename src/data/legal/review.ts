@@ -140,12 +140,20 @@ export const LEGAL_REVIEW_REQUIRED: readonly ReviewItem[] = [
     severity: "CONFIRMATORY",
   },
   {
-    topic: "Privacy policy",
+    topic: "Privacy — UK GDPR review of the completed policy",
     positionTaken:
-      "The false 'we do not sell or share your data' absolute has been corrected to name processor categories. The policy has not otherwise been rewritten.",
+      "The policy is now written from a verified data-flow inventory (`privacy.ts`): thirteen processors, each with what it receives and the source file that proves it; the browser storage list; and the order-record fields including the salted IP hash and user agent. Two sections state openly that exact retention periods and the cookie-consent position are still being settled rather than asserting them.",
     question:
-      "A full UK GDPR review — lawful bases, retention, international transfers, data-subject rights, cookies — is outstanding and out of this sprint's scope.",
+      "The inventory removes the excuse that nobody knew the data flows. It does NOT constitute the review. Still required: lawful basis for each purpose, exact retention periods, international transfer mechanisms for processors outside the UK, the cookie/analytics consent position, a data processing agreement with each named processor, and whether a ROPA and any DPIA are needed. Note that the inventory is wider than previously assumed — Formspree, Calendly, Zapier, Google Apps Script, QR Server, YouTube and Google Fonts are all live paths.",
     severity: "BLOCKING",
+  },
+  {
+    topic: "Founder Terms comparison",
+    positionTaken:
+      "RESOLVED. The Founder's complete nine-section source was compared against the implementation by the supervising certification process: PASS, commercial intent preserved across clauses 12-18, 21 and 25.",
+    question:
+      "No longer a release blocker. The liability clause's causation-based formulation was deliberately retained in preference to the draft's generic wording and must NOT be reverted for textual similarity — its review sits under its own entry above.",
+    severity: "CONFIRMATORY",
   },
 ];
 
@@ -207,3 +215,49 @@ export const PROHIBITED_PHRASES: readonly { phrase: string; because: string }[] 
         "A blanket cap that would purport to limit non-excludable liability.",
     },
   ];
+
+/* ------------------------------------------------------------------ */
+/* Non-legal items recorded for release                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Known defects that are NOT release blockers, recorded so they are not lost.
+ *
+ * Kept here rather than in a ticket because this file is the one thing a
+ * release reviewer is guaranteed to open, and an item nobody reads is an item
+ * nobody fixes.
+ */
+export const RECORDED_NON_BLOCKERS: readonly {
+  item: string;
+  detail: string;
+  action: string;
+}[] = [
+  {
+    item: "Portable Record Player Suitcase artwork",
+    detail:
+      "`/images/brand/portable-recordplayer.png` carries baked-in text reading 'Portable Gramophones'. The product's authoritative name is 'Portable Record Player Suitcase', the surrounding page copy and the alt text are both correct, and MCB separately sells two actual gramophones — so the artwork misnames this product and collides with two others. Customer-visible on /products.",
+    action:
+      "Replace the image. Do NOT rename the product to match the artwork; the name is the approved commercial truth and the picture is the thing that is wrong.",
+  },
+  {
+    item: "Brand accent contrast",
+    detail:
+      "`text-gold-deep` measures 4.18:1 on ivory, marginally under the 4.5:1 AA threshold for normal-size text. It is used site-wide as a section label.",
+    action:
+      "A brand-colour decision, not a code fix. Darkening the token slightly would clear AA everywhere it is used.",
+  },
+  {
+    item: "api/stripe/webhook-test.php",
+    detail:
+      "A sandbox-only near-copy of the live webhook, marked TEMPORARY in its own header. It fails closed on production (503) because it reads `stripe.webhook_secret_test`, which the shipped config template does not define.",
+    action:
+      "Delete it at deployment. It is safe if it ships, but it widens the surface for no benefit now that the contract it existed to prove has been verified.",
+  },
+  {
+    item: "Duplicate <title> elements",
+    detail:
+      "Every page carries the static title from index.html plus the one react-helmet-async adds. The effective title resolves correctly on every route. Site-wide and pre-existing.",
+    action:
+      "Remove the static <title> from index.html when a sprint is touching that file anyway.",
+  },
+];

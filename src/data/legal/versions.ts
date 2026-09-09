@@ -71,7 +71,19 @@ export const TERMS_VERSION = "2026-09-09.2";
  * not — which is exactly the noise dated-on-every-deploy versioning creates.
  */
 export const REFUND_POLICY_VERSION = "2026-09-09.2";
-export const PRIVACY_POLICY_VERSION = "2026-09-09";
+
+/**
+ * MOVED, because the Privacy Policy content genuinely changed.
+ *
+ * It stayed at `2026-09-09` through the delivery revision precisely because
+ * nothing in it had changed then, and bumping it would have told customers a
+ * document had been revised when it had not. It moves now: the policy names
+ * every processor MCB actually sends personal data to, lists what the browser
+ * stores, and says plainly which parts are still under review.
+ *
+ * THIS IS NOT A COMPLETED UK GDPR REVIEW. See the internal register.
+ */
+export const PRIVACY_POLICY_VERSION = "2026-09-09.3";
 
 /**
  * When this version takes effect for NEW orders.

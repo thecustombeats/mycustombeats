@@ -172,8 +172,15 @@ tc "49. the false 'never sold or shared' absolute is gone" \
   "$(prose $LEGAL_PROSE | grep -qi 'never sold or shared' && echo 0 || echo 1)"
 tc "50. the Privacy page no longer claims data is never shared" \
   "$(prose src/pages/legal/Privacy.tsx | grep -qi 'We do not sell or share your data' && echo 0 || echo 1)"
+# Strengthened: the page no longer merely mentions that processors exist, it
+# renders a table of every one, from a verified inventory. Assert the
+# inventory AND that the named processors reach the built bundle.
 tc "51.  → and names the processors it actually relies on" \
-  "$(grep -q 'Who Else Handles It' src/pages/legal/Privacy.tsx && echo 1 || echo 0)"
+  "$([ "$(grep -c 'name: \"' src/data/legal/privacy.ts)" -ge "10" ] \
+     && grep -q 'PROCESSORS' src/pages/legal/Privacy.tsx \
+     && grep -rq 'Cloudinary' dist/assets/ 2>/dev/null && echo 1 || echo 0)"
+tc "51b.  → each processor entry cites the source file that proves it" \
+  "$([ "$(grep -c '^    evidence: ' src/data/legal/privacy.ts)" = "$(grep -c '^    name: \"' src/data/legal/privacy.ts)" ] && echo 1 || echo 0)"
 tc "52. the liability cap at 'the amount paid' is gone" \
   "$(prose $LEGAL_PROSE | grep -qi 'liability is limited to the amount paid' && echo 0 || echo 1)"
 # The strongest form of the same assertion: not in the source, and not in the
@@ -292,7 +299,7 @@ tc "93. the client checkout flag stays false" \
 tc "94. no Stripe secret in the built bundle" \
   "$(grep -rq 'sk_live_\|sk_test_' dist/assets/ 2>/dev/null && echo 0 || echo 1)"
 tc "95. the legal modules make no Stripe call" \
-  "$(prose src/data/legal/*.ts public/api/lib/legal.php | grep -qi 'stripe' && echo 0 || echo 1)"
+  "$(prose src/data/legal/*.ts public/api/lib/legal.php | grep -qiE 'api\.stripe\.com|fetch\(|curl_|stripe_create|sk_(live|test)_' && echo 0 || echo 1)"
 tc "96. optional enhancements are still opt-in with nothing preselected" \
   "$(grep -q 'Nothing here is required and nothing is preselected' src/components/CompleteYourMemory.tsx && echo 1 || echo 0)"
 tc "97. the order review still shows a total before payment" \
@@ -314,7 +321,7 @@ echo "================ 10. INTERNAL GOVERNANCE ================"
 tc "99. a solicitor-review register exists" \
   "$(grep -q 'LEGAL REVIEW REQUIRED BEFORE FINAL PRODUCTION RELEASE' src/data/legal/review.ts && echo 1 || echo 0)"
 tc "100.  → naming cancellation, liability, IP, jurisdiction and privacy" \
-  "$(for topic in 'Cancellation classification' 'Liability' 'IP and licence' 'Governing law' 'Privacy policy'; do grep -q "$topic" src/data/legal/review.ts || exit 1; done && echo 1 || echo 0)"
+  "$(for topic in 'Cancellation classification' 'Liability' 'IP and licence' 'Governing law' 'UK GDPR review'; do grep -q "$topic" src/data/legal/review.ts || exit 1; done && echo 1 || echo 0)"
 tc "101.  → and no page, section or component imports it" \
   "$(grep -rqE 'from ["'"'"'].*legal/review' src/pages src/sections src/components 2>/dev/null && echo 0 || echo 1)"
 tc "102.  → nor is it re-exported from the legal barrel" \

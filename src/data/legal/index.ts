@@ -13,3 +13,4 @@ export * from "./delivery";
 export * from "./consent";
 export * from "./terms";
 export * from "./refunds";
+export * from "./privacy";
