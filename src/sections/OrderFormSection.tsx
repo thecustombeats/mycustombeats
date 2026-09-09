@@ -15,7 +15,13 @@ import {
 } from "../data/packages";
 import { buildMemory } from "../lib/memory";
 import YourMemorySummary from "../components/YourMemorySummary";
+import MusicStyleSelector from "../components/MusicStyleSelector";
+import {
+  MAX_STYLE_LABEL_LENGTH,
+  OTHER_STYLE_VALUE,
+} from "../data/musicStyles";
 import { revealOnScroll } from "../lib/scrollReveal";
+import { trackEvent } from "../lib/analytics";
 import { createCheckoutSession } from "../lib/checkoutSession";
 
 const moodsList = [
@@ -356,6 +362,24 @@ const memory = buildMemory({
     return () => cleanups.forEach((cleanup) => cleanup());
   }, []);
 
+  /**
+   * Music-style analytics. Three events, and nothing else.
+   *
+   * WHAT IS DELIBERATELY NOT SENT: the customer's story, their personal
+   * touches, their custom style text, and anything identifying them. A style
+   * id is a product fact — "people pick Jazz" — and is all that is useful.
+   * Free text a customer typed is their words, and it does not go to GA.
+   *
+   * `style_id` is the stable catalogue id, not the label, so renaming a label
+   * for customers does not fragment a year of reporting.
+   */
+  const handleStyleEvent = (
+    event: "style_selected" | "mcb_choice_selected" | "explore_opened",
+    styleId?: string
+  ) => {
+    trackEvent(`music_${event}`, styleId ? { style_id: styleId } : undefined);
+  };
+
   const handleMoodToggle = (mood: string) => {
     if (mood === 'Other') {
       setShowOtherMood(!showOtherMood);
@@ -459,11 +483,25 @@ const validateForm = (): FormErrors => {
   if (formData.moods.length === 0 && !formData.otherMood.trim())
     newErrors.moods = "Select at least one mood";
 
+  /**
+   * MUSICAL STYLE.
+   *
+   * "Let MCB choose" is a real answer, so it satisfies this rule the same way
+   * a named style does — `genre` holds "MCB Choice", which is truthy. Nothing
+   * special-cases it, and nothing substitutes a plausible-sounding style in
+   * its place.
+   */
   if (!formData.genre)
-    newErrors.genre = "Select genre";
+    newErrors.genre = "Choose a musical style, or let MCB choose for you";
 
-  if (formData.genre === "Other" && !formData.otherGenre.trim())
-    newErrors.otherGenre = "Please specify genre";
+  if (formData.genre === OTHER_STYLE_VALUE) {
+    if (!formData.otherGenre.trim())
+      newErrors.otherGenre = "Tell us the style you have in mind";
+    // The server column is 120 characters and rejects anything longer with a
+    // 422, which would lose the CRM record silently. Caught here instead.
+    else if (formData.otherGenre.trim().length > MAX_STYLE_LABEL_LENGTH)
+      newErrors.otherGenre = `Please keep this under ${MAX_STYLE_LABEL_LENGTH} characters`;
+  }
 
   if (!formData.story.trim())
     newErrors.story = "Story required";
@@ -1152,61 +1190,31 @@ if (formData.artwork) {
   )}
 </div>
 
-            {/* Genre */}
-<div className="order-form-field space-y-4">
-  <h3 className="label-uppercase text-gold-deep">
-    Step 4 — Genre
-  </h3>
+            {/*
+              MUSICAL STYLE — the MCB Music Style Experience.
+              Replaces a nine-option <select> labelled "Genre".
 
-  {/* This select had NO accessible name at all: the "Step 4 — Genre" heading
-      above it is visual context only, and the first option reads as a value,
-      not as a label. A screen reader announced it as an unnamed combo box. */}
-  <FieldLabel name="genre">Genre (required)</FieldLabel>
-
-  <select
-    name="genre"
-    data-field="genre"
-    value={formData.genre}
-    onChange={(e) => handleChange("genre", e.target.value)}
-    {...fieldAria("genre", errors.genre)}
-    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gold ${
-      errors.genre ? 'border-red-500' : 'border-gray-300'
-    }`}
-  >
-    <option value="">Select Genre</option>
-    <option value="Hip Hop">Hip Hop</option>
-    <option value="R&B">R&B</option>
-    <option value="Pop">Pop</option>
-    <option value="Trap">Trap</option>
-    <option value="Drill">Drill</option>
-    <option value="Afrobeats">Afrobeats</option>
-    <option value="Gospel">Gospel</option>
-    <option value="Acoustic">Acoustic</option>
-    <option value="Other">Other</option>
-  </select>
-
-  <FieldError
-    name="genre"
-    message={errors.genre}
-    className="order-heading text-red-500 text-sm mt-1"
-  />
-
-  {/* If Genre = Other → show input field */}
-  {formData.genre === 'Other' && (
-    <div className="order-form-field mt-3">
-      <FieldLabel name="otherGenre">Tell us which genre</FieldLabel>
-      <input
-        name="otherGenre"
-        type="text"
-        placeholder="Please specify your genre"
-        value={formData.otherGenre || ''}
-        onChange={(e) => handleChange("otherGenre", e.target.value)}
-        {...fieldAria("otherGenre")}
-        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold"
-      />
-    </div>
-  )}
-</div>
+              THE STATE AND THE PAYLOAD ARE UNCHANGED. It still writes to
+              `formData.genre` and `formData.otherGenre`, still treats
+              `genre === "Other"` as the free-text sentinel, and still submits
+              one string. So `/api/order`, `orders.brief_genre` and the
+              fulfilment webhook see exactly the shape they always have — only
+              the range of values widened, and one new explicit value,
+              "MCB Choice", was added. No schema or endpoint changed.
+            */}
+            <MusicStyleSelector
+              value={formData.genre}
+              onChange={(next) => handleChange("genre", next)}
+              customValue={formData.otherGenre}
+              onCustomChange={(next) => handleChange("otherGenre", next)}
+              error={errors.genre}
+              customError={errors.otherGenre}
+              fieldId={fieldId("genre")}
+              errorId={fieldErrorId("genre")}
+              customFieldId={fieldId("otherGenre")}
+              customErrorId={fieldErrorId("otherGenre")}
+              onEvent={handleStyleEvent}
+            />
 
             {/* Step 4: Personal Touches */}
 <div className="order-form-field space-y-4">
