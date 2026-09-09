@@ -50,11 +50,29 @@ return [
         'webhook_secret' => '',   // whsec_…
         'secret_key'     => '',   // sk_live_… — server-side only, never shipped
 
-        // Server-created Checkout Sessions. OFF until sandbox testing and
-        // end-to-end verification are complete. While false, /api/checkout/
-        // session returns 503 and the site continues to use the Payment
-        // Links, which remain the live payment path.
+        // Server-created Checkout Sessions. OFF, and it stays OFF until a
+        // release decision says otherwise. While false, /api/checkout/session
+        // returns 503 and the site continues to use the Payment Links, which
+        // remain the live payment path.
+        //
+        // TURNING IT ON REQUIRES ALL OF:
+        //   - 'secret_key' above, a real sk_live_… (or sk_test_… to rehearse)
+        //   - 'webhook_secret' above, so payments can be confirmed at all
+        //   - 'app.site_origin' below, which builds the success/cancel URLs
+        //   - db/migrations/2026-09-09-checkout-sessions.sql applied, which
+        //     adds the checkout_sessions snapshot the webhook reconciles
+        //     against — without it every dynamic payment is unverifiable
+        //   - the client flag CHECKOUT_SESSIONS_ENABLED in
+        //     src/lib/checkoutSession.ts, which is a separate, deliberate edit
+        //
+        // Two independent switches, on purpose: a stray build cannot start
+        // charging through this route on its own.
         'checkout_sessions_enabled' => false,
+
+        // Stripe's API base. Test override ONLY — the acceptance suite points
+        // it at a local stub so tests never reach Stripe and need no key.
+        // Leave absent in production, which then uses api.stripe.com.
+        // 'api_base' => '',
     ],
 
     // ---- Customer communication ---------------------------------------

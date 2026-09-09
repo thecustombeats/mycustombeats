@@ -17,6 +17,21 @@ const MCB_STRIPE_API_BASE = 'https://api.stripe.com/v1';
 const MCB_STRIPE_TIMEOUT_SECONDS = 20;
 
 /**
+ * Where Stripe's API lives.
+ *
+ * Overridable through `stripe.api_base` for the acceptance suite ONLY, which
+ * points it at a local stub so the tests never reach Stripe, never need a
+ * secret key and can never create a real session. Production leaves the key
+ * unset and gets the constant — exactly the arrangement `resend.api_url`
+ * already uses for the customer email.
+ */
+function stripe_api_base(): string
+{
+    $configured = (string) mcb_setting('stripe.api_base', '');
+    return $configured !== '' ? rtrim($configured, '/') : MCB_STRIPE_API_BASE;
+}
+
+/**
  * Countries Stripe may collect a shipping address for.
  *
  * NOT a shipping-rate or delivery claim, and it charges nothing: no shipping
@@ -62,24 +77,48 @@ function stripe_form_encode(array $params): string
  * Returns the decoded session on success, or null — callers must treat null
  * as a refusal, not as a reason to fall back to an unpriced charge.
  *
- * An Idempotency-Key is sent so a retried request cannot create, or charge
- * for, a second session.
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE IDEMPOTENCY KEY MUST BE DETERMINISTIC
+ * ─────────────────────────────────────────────────────────────────────────
+ * This previously sent `bin2hex(random_bytes(16))` — a fresh key on every
+ * request. That is an idempotency key in name only: two requests could never
+ * share one, so it protected against nothing. A double-click created two
+ * payable sessions for the same basket.
+ *
+ * The caller now supplies a key derived from the basket fingerprint, so the
+ * same checkout retried is the same key and Stripe returns the original
+ * session rather than creating another.
+ *
+ * The key is SERVER-GENERATED. It is never taken from the request: a caller
+ * choosing the key could deliberately collide with someone else's checkout,
+ * or defeat its own protection by varying it.
+ *
+ * @param string $idempotencyKey Stable, server-derived. Required.
  */
-function stripe_create_checkout_session(string $secretKey, array $params): ?array
-{
+function stripe_create_checkout_session(
+    string $secretKey,
+    array $params,
+    string $idempotencyKey
+): ?array {
     if (!function_exists('curl_init')) {
         error_log('MCB checkout: cURL unavailable; cannot reach Stripe.');
         return null;
     }
 
-    $ch = curl_init(MCB_STRIPE_API_BASE . '/checkout/sessions');
+    if ($idempotencyKey === '') {
+        error_log('MCB checkout: refusing to create a session without an idempotency key.');
+        return null;
+    }
+
+    $ch = curl_init(stripe_api_base() . '/checkout/sessions');
     curl_setopt_array($ch, [
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => stripe_form_encode($params),
         CURLOPT_HTTPHEADER     => [
             'Authorization: Bearer ' . $secretKey,
             'Content-Type: application/x-www-form-urlencoded',
-            'Idempotency-Key: ' . bin2hex(random_bytes(16)),
+            // Stripe caps this at 255 characters.
+            'Idempotency-Key: ' . substr($idempotencyKey, 0, 255),
         ],
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => MCB_STRIPE_TIMEOUT_SECONDS,

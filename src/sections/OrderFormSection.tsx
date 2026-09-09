@@ -764,17 +764,44 @@ if (formData.artwork) {
    * DORMANT: the flag is off, so this returns immediately without a network
    * call and `finalUrl` — the existing Payment Link — is what the customer
    * gets. The live payment path is unchanged.
-   *
-   * When it is switched on, a refusal or an outage also falls through to the
-   * Payment Link rather than stranding someone mid-purchase.
    */
   const session = await createCheckoutSession({
     packageId: selectedPackage,
     formatId: orderedFormat,
     orderId: crmOrderId,
+    // No basket UI exists yet, so this is always a base-package checkout and
+    // the Payment Link fallback below stays permitted. When Complete Your
+    // Memory populates `items`, the same call starts refusing to fall back.
   });
 
-  window.location.href = session.ok ? session.url : finalUrl;
+  if (session.ok) {
+    window.location.href = session.url;
+    return;
+  }
+
+  /**
+   * THE FALLBACK GUARD.
+   *
+   * A fixed Payment Link charges one fixed amount. Falling back to one is
+   * safe only while the basket is exactly what that link sells — the base
+   * package. For anything more, sending the customer there would take the
+   * package price for a larger order and report success: MCB would ship
+   * £449 of goods against a £79 payment, and the order, the reference and
+   * the confirmation email would all look perfectly healthy.
+   *
+   * `mayFallBackToPaymentLink` decides by basket shape, not by error type,
+   * and this branch honours it. Today it is always true; it is written now
+   * so the basket sprint cannot forget it.
+   */
+  if (session.fallbackAllowed) {
+    window.location.href = finalUrl;
+    return;
+  }
+
+  setSubmitError(
+    "We couldn't start checkout just now. Your details are saved and nothing has been charged — please try again in a moment, or contact us and we'll complete your order personally."
+  );
+  setIsSubmitting(false);
 };
 
   return (

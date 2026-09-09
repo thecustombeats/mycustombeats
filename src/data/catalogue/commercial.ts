@@ -147,6 +147,20 @@ export const PENDING_DECISIONS: readonly PendingDecision[] = [
       "Nothing commercially — the product name, price and page are correct and live. But the artwork still reads 'Portable Gramophones' inside the image while the heading beside it reads 'Portable Record Player Suitcase', so the two visibly disagree. Known stale visual asset; the name is authoritative and must NOT be reverted to match the picture.",
   },
   {
+    id: "checkout-tax-treatment",
+    question:
+      "Should Stripe apply automatic tax to MCB's checkout, and on what basis? If so, is the advertised price tax-inclusive or does tax get added at the till?",
+    blocks:
+      "Enabling Stripe automatic tax on dynamic Checkout Sessions. It is deliberately OFF today: turning it on would change what a customer pays relative to the advertised GBP price, which is a commercial and legal decision rather than a technical one, and it needs a Stripe Tax registration and origin address nobody has supplied. Leaving it off also keeps amount_total exactly equal to the server's expected basket, which is what lets the webhook reconcile strictly — enabling tax later means revisiting that comparison so a legitimate tax component is not read as a mismatch.",
+  },
+  {
+    id: "checkout-shipping-double-entry",
+    question:
+      "When dynamic checkout is switched on, should Stripe collect a delivery address as well as MCB's own form, or should MCB's validated address be the only one the customer types?",
+    blocks:
+      "Nothing today — the path is dormant. But the customer would currently enter their address twice: once in MCB's form, where it is validated and stored as the authoritative fulfilment record, and again in Stripe, where it exists for payment-dispute evidence. That is a real friction cost at the last step of a purchase and should be a deliberate choice before activation, not a default nobody looked at.",
+  },
+  {
     id: "shipping-rates",
     question:
       "What is charged for delivery, and to which territories? A single rate, per-item, or by destination?",

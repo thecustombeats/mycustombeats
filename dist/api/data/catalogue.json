@@ -1,0 +1,161 @@
+{
+  "_generated": "Do not edit. Generated from src/data/catalogue/ by scripts/generate-packages-json.mjs",
+  "items": {
+    "lyrics-frame": {
+      "name": "Framed Lyric Artwork",
+      "kind": "PRODUCT",
+      "price_gbp": 100,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "vinyl-frame": {
+      "name": "Vinyl Frame",
+      "kind": "PRODUCT",
+      "price_gbp": 200,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "plaque": {
+      "name": "Engraved Music Plaque",
+      "kind": "PRODUCT",
+      "price_gbp": 100,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "music-box-experience": {
+      "name": "MCB Music Box Experience",
+      "kind": "PRODUCT",
+      "price_gbp": 600,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "gift-pop-up-card-anniversary": {
+      "name": "Anniversary Gift Pop-Up Card",
+      "kind": "PRODUCT",
+      "price_gbp": 50,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "gift-pop-up-card-birthday": {
+      "name": "Birthday Gift Pop-Up Card",
+      "kind": "PRODUCT",
+      "price_gbp": 50,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "gift-pop-up-card-wedding": {
+      "name": "Wedding Gift Pop-Up Card",
+      "kind": "PRODUCT",
+      "price_gbp": 50,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "gift-pop-up-card-mothers-day": {
+      "name": "Mother's Day Gift Pop-Up Card",
+      "kind": "PRODUCT",
+      "price_gbp": 50,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "gift-pop-up-card-christmas": {
+      "name": "Christmas Gift Pop-Up Card",
+      "kind": "PRODUCT",
+      "price_gbp": 50,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "gift-pop-up-card-easter": {
+      "name": "Easter Gift Pop-Up Card",
+      "kind": "PRODUCT",
+      "price_gbp": 50,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "gift-pop-up-card-thank-you": {
+      "name": "Thank You Gift Pop-Up Card",
+      "kind": "PRODUCT",
+      "price_gbp": 50,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "gift-pop-up-card-congratulations": {
+      "name": "Congratulations Gift Pop-Up Card",
+      "kind": "PRODUCT",
+      "price_gbp": 50,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "gift-pop-up-card-valentines-day": {
+      "name": "Valentine's Day Gift Pop-Up Card",
+      "kind": "PRODUCT",
+      "price_gbp": 50,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "gift-pop-up-card-cruise": {
+      "name": "Cruise / Voyage Gift Pop-Up Card",
+      "kind": "PRODUCT",
+      "price_gbp": 50,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "digital-player": {
+      "name": "Digital Player",
+      "kind": "PRODUCT",
+      "price_gbp": 250,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "portable-record-player-suitcase": {
+      "name": "Portable Record Player Suitcase",
+      "kind": "PRODUCT",
+      "price_gbp": 200,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "phone-gramophone": {
+      "name": "Mobile Phone Gramophone",
+      "kind": "PRODUCT",
+      "price_gbp": 100,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "vintage-gramophone": {
+      "name": "Vintage Collection Gramophone",
+      "kind": "PRODUCT",
+      "price_gbp": 1000,
+      "max_quantity": 1,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": null
+    },
+    "additional-vinyl-copy": {
+      "name": "Additional Vinyl Copy",
+      "kind": "ENHANCEMENT",
+      "price_gbp": 60,
+      "max_quantity": 4,
+      "fulfilment": "PHYSICAL",
+      "eligible_packages": [
+        "keepsake",
+        "journey",
+        "heirloom"
+      ]
+    }
+  }
+}

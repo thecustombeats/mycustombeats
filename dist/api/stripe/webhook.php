@@ -111,6 +111,68 @@ if ($orderId <= 0 || $sessionId === '') {
     json_response(200, ['received' => true, 'matched' => false, 'captured' => $captured]);
 }
 
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ * AMOUNT RECONCILIATION — dynamic Checkout Sessions only
+ * ─────────────────────────────────────────────────────────────────────────
+ * A signed event naming a real order is NOT, on its own, proof that the right
+ * money arrived. For a session MCB created itself, the server recorded what it
+ * expected to charge at creation time (`checkout_sessions`), so the two can be
+ * compared before anything is marked paid.
+ *
+ * WHY THE SNAPSHOT AND NOT TODAY'S CATALOGUE. Prices change. A customer who
+ * paid £449 in September must still reconcile after the catalogue is repriced
+ * in November; re-pricing the basket at webhook time would declare a perfectly
+ * good payment wrong. The expected figure is frozen once and never recomputed.
+ *
+ * WHY PAYMENT LINKS ARE NOT CHECKED THIS WAY. A Payment Link's amount is
+ * fixed inside Stripe, and MCB holds no snapshot for one. Its `amount_total`
+ * can legitimately differ from the order's stored amount — tax, or a Stripe
+ * setting nobody here can see — so applying a strict comparison would risk
+ * rejecting genuine production payments to guard against a case that cannot
+ * arise. Payment Link events therefore continue to reconcile exactly as they
+ * always have, by `client_reference_id`.
+ */
+$expected = null;
+if ($sessionId !== '') {
+    try {
+        $stmt = db()->prepare(
+            'SELECT expected_amount_gbp, currency FROM checkout_sessions
+              WHERE stripe_session_id = :sid LIMIT 1'
+        );
+        $stmt->execute([':sid' => $sessionId]);
+        $row = $stmt->fetch();
+        if ($row !== false) {
+            $expected = $row;
+        }
+    } catch (PDOException $e) {
+        // A missing table (not yet migrated) must not stop a real payment
+        // being recorded — the Payment Link path does not depend on it.
+        error_log('MCB CRM: checkout snapshot lookup failed: ' . $e->getMessage());
+    }
+}
+
+if ($expected !== null) {
+    $paidMinor     = (int) ($session['amount_total'] ?? -1);
+    $expectedMinor = (int) round(((float) $expected['expected_amount_gbp']) * 100);
+    $paidCurrency  = strtoupper((string) ($session['currency'] ?? ''));
+
+    if ($paidCurrency !== strtoupper((string) $expected['currency'])) {
+        error_log("MCB CRM: currency mismatch on {$sessionId}: got {$paidCurrency}.");
+        capture_unreconciled_payment(db(), $event, $session, 'CURRENCY_MISMATCH');
+        json_response(200, ['received' => true, 'matched' => false, 'reason' => 'currency_mismatch']);
+    }
+
+    if ($paidMinor !== $expectedMinor) {
+        // Deliberately does NOT mark the order paid. The money is real and is
+        // filed for a human rather than silently accepted against a basket it
+        // does not pay for.
+        error_log("MCB CRM: amount mismatch on {$sessionId}: got {$paidMinor}, expected {$expectedMinor}.");
+        capture_unreconciled_payment(db(), $event, $session, 'AMOUNT_MISMATCH');
+        json_response(200, ['received' => true, 'matched' => false, 'reason' => 'amount_mismatch']);
+    }
+}
+
 try {
     $outcome = db_transaction(function (PDO $pdo) use ($event, $session, $orderId, $sessionId, $intent): string {
         // Idempotency gate. UNIQUE(event_id) means a duplicate delivery loses
@@ -212,6 +274,19 @@ try {
 $notified = null;
 if ($outcome === 'recorded' || $outcome === 'already_paid' || $outcome === 'duplicate') {
     $notified = notify_customer_of_payment(db(), $orderId);
+}
+
+// Close the snapshot, for operators reading the checkout history. Purely a
+// record: the order's own status is what the rest of the system reads, and it
+// was already set inside the transaction above.
+if ($expected !== null && $outcome === 'recorded') {
+    try {
+        db()->prepare(
+            "UPDATE checkout_sessions SET status = 'COMPLETED' WHERE stripe_session_id = :sid"
+        )->execute([':sid' => $sessionId]);
+    } catch (PDOException $e) {
+        error_log('MCB CRM: could not close checkout snapshot: ' . $e->getMessage());
+    }
 }
 
 json_response(200, ['received' => true, 'outcome' => $outcome, 'customer_email' => $notified]);

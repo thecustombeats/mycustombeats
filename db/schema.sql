@@ -283,7 +283,12 @@ CREATE TABLE IF NOT EXISTS unreconciled_payments (
   -- NO_ORDER_REFERENCE: checkout carried no client_reference_id, so
   --                     /api/order almost certainly failed before Stripe.
   -- ORDER_NOT_FOUND:    it carried one, but no such order exists.
-  reason                ENUM('NO_ORDER_REFERENCE','ORDER_NOT_FOUND') NOT NULL,
+  -- AMOUNT_MISMATCH / CURRENCY_MISMATCH are the dynamic-checkout reasons:
+  -- a signed event named a real order, but Stripe took an amount or a
+  -- currency that is not what the server's snapshot expected. The order is
+  -- deliberately NOT marked paid; the money is filed here for a human.
+  reason                ENUM('NO_ORDER_REFERENCE','ORDER_NOT_FOUND',
+                             'AMOUNT_MISMATCH','CURRENCY_MISMATCH') NOT NULL,
 
   -- What Stripe collected at checkout. The only identity MCB has for this
   -- buyer when its own record is missing.
@@ -326,4 +331,71 @@ CREATE TABLE IF NOT EXISTS stripe_events (
   PRIMARY KEY (id),
   UNIQUE KEY uq_stripe_event (event_id),    -- the idempotency guarantee
   KEY idx_stripe_events_order (order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================================
+-- checkout_sessions — the immutable commercial snapshot of one checkout
+-- =====================================================================
+--
+-- WHY THIS TABLE EXISTS
+--
+-- A dynamic Checkout Session charges a basket the server totalled. The
+-- webhook must later confirm that Stripe took the RIGHT amount — and it
+-- cannot do that by re-pricing the basket, because prices change. A
+-- customer who paid £449 in September must still reconcile in November
+-- after the catalogue was repriced; recalculating would declare a good
+-- payment wrong.
+--
+-- So the expected total is frozen here at session creation and never
+-- recomputed. `lines` keeps the itemisation that produced it, so an
+-- operator can always see what was actually sold at what price.
+--
+-- IT ALSO PROVIDES IDEMPOTENCY. UNIQUE(order_id, basket_hash) means a
+-- repeated click, a retry or a double-submit finds the row that already
+-- exists and reuses its Stripe session instead of creating a second
+-- payable one. The same hash seeds Stripe's own Idempotency-Key.
+--
+-- Creating a row NEVER implies payment. Only the webhook moves an order
+-- PENDING -> PAID.
+CREATE TABLE IF NOT EXISTS checkout_sessions (
+  id                   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  order_id             INT UNSIGNED NOT NULL,
+
+  -- Fingerprint of the priced basket: order, package, format, and every
+  -- line's id, quantity and unit amount. Covers AMOUNTS as well as ids,
+  -- so a repriced basket is a new checkout rather than a shared one.
+  basket_hash          CHAR(64)     NOT NULL,
+
+  package              VARCHAR(32)  NOT NULL,
+  format               VARCHAR(16)  NULL,
+
+  -- The itemisation, as JSON. Immutable once written.
+  -- `lines` is reserved in MariaDB, hence the prefix.
+  basket_lines         MEDIUMTEXT   NOT NULL,
+
+  -- What the server expects Stripe to take. The webhook compares against
+  -- this and nothing else.
+  expected_amount_gbp  DECIMAL(10,2) NOT NULL,
+  currency             CHAR(3)       NOT NULL DEFAULT 'GBP',
+
+  stripe_session_id    VARCHAR(255) NULL,
+  stripe_session_url   TEXT         NULL,
+
+  status               ENUM('CREATED','COMPLETED','FAILED')
+                       NOT NULL DEFAULT 'CREATED',
+
+  -- Salted hash of the creating IP, for rate limiting. Never the raw address.
+  ip_hash              CHAR(64)     NULL,
+
+  created_at           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                    ON UPDATE CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_checkout_order_basket (order_id, basket_hash),
+  UNIQUE KEY uq_checkout_stripe_session (stripe_session_id),
+  KEY idx_checkout_order (order_id),
+  KEY idx_checkout_ip (ip_hash, created_at),
+  CONSTRAINT fk_checkout_order FOREIGN KEY (order_id)
+    REFERENCES orders (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
