@@ -17,6 +17,7 @@
   "packages": {
     "moment": {
       "name": "Moment",
+      "commercial_model": "FIXED_PRICE",
       "price_gbp": 10,
       "price_usd": 14,
       "price_prefix": null,
@@ -32,6 +33,7 @@
     },
     "keepsake": {
       "name": "Keepsake",
+      "commercial_model": "FIXED_PRICE",
       "price_gbp": 79,
       "price_usd": 99,
       "price_prefix": null,
@@ -51,6 +53,7 @@
     },
     "journey": {
       "name": "Journey",
+      "commercial_model": "FIXED_PRICE",
       "price_gbp": 199,
       "price_usd": 249,
       "price_prefix": null,
@@ -68,6 +71,7 @@
     },
     "heirloom": {
       "name": "Heirloom",
+      "commercial_model": "FIXED_PRICE",
       "price_gbp": 349,
       "price_usd": 449,
       "price_prefix": null,
@@ -84,12 +88,13 @@
       "default_fulfilment": null
     },
     "bespoke": {
-      "name": "Bespoke",
-      "price_gbp": 799,
-      "price_usd": 999,
-      "price_prefix": "From",
+      "name": "The Full Package",
+      "commercial_model": "CONCIERGE",
+      "price_gbp": null,
+      "price_usd": null,
+      "price_prefix": null,
       "song_count": null,
-      "delivery": "Dedicated 7-day production window",
+      "delivery": "Timeline agreed with you during the consultation",
       "formats": [],
       "fulfilment": {},
       "default_fulfilment": "DIGITAL"

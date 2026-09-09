@@ -8,7 +8,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Helmet } from "react-helmet-async";
-import { MOMENT, KEEPSAKE, JOURNEY, HEIRLOOM, BESPOKE, formatPrice } from '../data/packages';
+import { MOMENT, KEEPSAKE, JOURNEY, HEIRLOOM, FULL_PACKAGE, formatPrice } from '../data/packages';
 import { VINYL_12 } from '../data/catalogue/vinyl';
 import {
   GIFT_POP_UP_CARDS,
@@ -58,7 +58,15 @@ const faqs: { question: string; answer: string }[] = [
   },
   {
     question: 'How much does a personalised song cost?',
-    answer: `Personalised songs start at ${formatPrice(MOMENT)} for ${MOMENT.name}. ${KEEPSAKE.name} is ${formatPrice(KEEPSAKE)}, ${JOURNEY.name} is ${formatPrice(JOURNEY)} and ${HEIRLOOM.name} is ${formatPrice(HEIRLOOM)}. Bespoke commissions start ${formatPrice(BESPOKE).toLowerCase()}. The format you choose does not change the price.`,
+    /**
+     * FULL_PACKAGE IS DESCRIBED HERE WITHOUT A NUMBER, DELIBERATELY.
+     *
+     * These answers are also emitted as FAQPage structured data, so a price
+     * written here is a price published to search results. The Full Package
+     * has none until a proposal is agreed, and "from £799" would anchor an
+     * unbounded curation to the retired music-only commission.
+     */
+    answer: `Personalised songs start at ${formatPrice(MOMENT)} for ${MOMENT.name}. ${KEEPSAKE.name} is ${formatPrice(KEEPSAKE)}, ${JOURNEY.name} is ${formatPrice(JOURNEY)} and ${HEIRLOOM.name} is ${formatPrice(HEIRLOOM)}. ${FULL_PACKAGE.name} is curated individually, so it is priced in a written proposal after a private consultation rather than published as a figure. The format you choose does not change the price.`,
   },
   {
     question: `What is ${MOMENT.name}?`,
@@ -77,12 +85,12 @@ const faqs: { question: string; answer: string }[] = [
     answer: `${HEIRLOOM.name} is ${formatPrice(HEIRLOOM)} and preserves a whole life story as an album: six cohesive songs with a narrative arc, a custom intro and closing theme, producer-guided creative review, premium album artwork, a multi-page lyric and story booklet and a private streaming link. You choose vinyl or CD, delivered within 15 working days.`,
   },
   {
-    question: 'What is Bespoke?',
-    answer: `Bespoke is a fully commissioned project starting ${formatPrice(BESPOKE).toLowerCase()}. It includes a private one-to-one creative consultation, a dedicated seven-day production window, unlimited refinements during that window, exclusive arrangement usage rights and deluxe artwork.`,
+    question: `What is ${FULL_PACKAGE.name}?`,
+    answer: `${FULL_PACKAGE.description} It begins with an enquiry and a private consultation. We then put forward a proposal setting out exactly what is included, and nothing proceeds until you have agreed both the scope and the price. There is no published price because no two are the same.`,
   },
   {
     question: 'What is the difference between Moment, Keepsake, Journey and Heirloom?',
-    answer: `They differ in scale and in what you end up holding. ${MOMENT.name} is one song delivered digitally within the hour. ${KEEPSAKE.name} is one carefully crafted song you can have pressed to vinyl or CD. ${JOURNEY.name} is four songs written as a single connected experience. ${HEIRLOOM.name} is a six-song album telling a complete life story. Bespoke is an open commission shaped entirely around you.`,
+    answer: `They differ in scale and in what you end up holding. ${MOMENT.name} is one song delivered digitally within the hour. ${KEEPSAKE.name} is one carefully crafted song you can have pressed to vinyl or CD. ${JOURNEY.name} is four songs written as a single connected experience. ${HEIRLOOM.name} is a six-song album telling a complete life story. ${FULL_PACKAGE.name} is different in kind rather than in size: it is curated privately around one recipient and arranged through a consultation, not chosen from this list.`,
   },
   {
     question: 'Can I get my personalised song on vinyl?',

@@ -128,6 +128,27 @@ function price_basket(string $packageId, ?string $format, array $requestedItems)
         return BasketResult::refused('invalid_format', 'That format is not available for this experience.');
     }
 
+    /**
+     * A CONCIERGE COMMISSION IS NOT A BASKET LINE.
+     *
+     * Checked here rather than only in the endpoints, because this is the one
+     * function every paid path shares: the dynamic Checkout Session builder,
+     * the webhook's reconciliation and any future basket all price through
+     * it. One refusal covers them, including ones not written yet.
+     *
+     * It is checked BEFORE the price lookup so the reason is accurate.
+     * `package_price` returns 0 for a concierge id — the generator emits no
+     * figure for one — which would otherwise fall through to
+     * `unpriced_package`, a code that means "we meant to price this and
+     * something is wrong". Nothing is wrong. It is priced in a proposal.
+     */
+    if (package_is_concierge($packageId)) {
+        return BasketResult::refused(
+            'concierge_package',
+            'That experience is arranged personally with you rather than purchased online.'
+        );
+    }
+
     $packageMinor = gbp_to_minor(package_price($packageId)['gbp']);
     if ($packageMinor <= 0) {
         error_log("MCB checkout: no positive price for package '{$packageId}'.");

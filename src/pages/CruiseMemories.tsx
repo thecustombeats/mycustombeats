@@ -1,7 +1,25 @@
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { Ship, PenLine, Music, Package as PackageIcon } from "lucide-react";
-import { MOMENT, JOURNEY, KEEPSAKE } from "../data/packages";
+import {
+  MOMENT,
+  JOURNEY,
+  KEEPSAKE,
+  type AnyFixedPricePackage,
+} from "../data/packages";
+
+/**
+ * The three experiences shown against a voyage.
+ *
+ * Typed as priced packages rather than inferred, so the Full Package cannot be
+ * added to this comparison by anyone later: it has no price to put in the
+ * column, and a concierge commission is not chosen from a three-up grid.
+ */
+const CRUISE_COMPARISON: readonly AnyFixedPricePackage[] = [
+  JOURNEY,
+  KEEPSAKE,
+  MOMENT,
+];
 import Price from "../components/Price";
 import { stockedFamilies } from "../data/catalogue";
 import { SAMPLE_SONGS } from "../data/sampleSongs";
@@ -145,7 +163,7 @@ const CruiseMemories = () => {
             </div>
 
             <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
-              {[JOURNEY, KEEPSAKE, MOMENT].map((pkg) => (
+              {CRUISE_COMPARISON.map((pkg) => (
                 <div
                   key={pkg.id}
                   className="rounded-2xl border border-espresso/10 bg-ivory p-7 flex flex-col"

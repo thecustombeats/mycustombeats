@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/bootstrap.php';
 require_once __DIR__ . '/lib/basket.php';
+require_once __DIR__ . '/lib/attribution.php';
 
 require_method('POST');
 require_same_origin();
@@ -44,6 +45,31 @@ $package = $v->oneOf('package', valid_package_ids(), 'Package');
 
 $formatRaw = $v->str('format', 16);
 $format    = $formatRaw === '' ? null : $formatRaw;
+
+/**
+ * ---- A CONCIERGE COMMISSION IS NOT AN ORDER -------------------------
+ *
+ * This endpoint creates a row in `orders`: a package, a format, an amount and
+ * a fulfilment route, which the CRM lists as work to produce and the webhook
+ * reconciles a payment against. The Full Package has none of those settled at
+ * the point of enquiry — that is what the consultation is for — so accepting
+ * one here would write an order for an amount nobody agreed and put it in the
+ * production queue.
+ *
+ * Enquiries have their own endpoint, `concierge/enquiry.php`, and their own
+ * table. They are never labelled PAID or PENDING PAYMENT, because no payment
+ * has been discussed.
+ *
+ * Refused as a validation failure on `package` rather than a 500: the request
+ * is well-formed, it is simply asking this endpoint for something it does not
+ * do, and the customer needs to be told where to go instead.
+ */
+if ($package !== '' && package_is_concierge($package)) {
+    $v->fail(
+        'package',
+        'That experience is arranged personally with you rather than ordered online.'
+    );
+}
 
 // The combination must be one MCB actually sells. Checked before anything
 // is written, and independently of whatever the browser believed.
@@ -213,49 +239,18 @@ foreach ($basketLines as $line) {
 }
 
 // ---- Attribution, resolved server-side --------------------------------
-// The browser reports what it saw in the URL. The server decides what that
-// means. A browser cannot name an affiliate id and cannot award itself
-// attribution to an affiliate that does not exist.
-$referralRaw = trim((string) ($body['referral'] ?? ''));
-$partnerRaw  = trim((string) ($body['partner'] ?? ''));
+// Shared with the concierge enquiry endpoint, so an affiliate or partner is
+// credited identically whichever form the customer filled in. See
+// lib/attribution.php.
+$attribution = resolve_attribution(
+    (string) ($body['referral'] ?? ''),
+    (string) ($body['partner'] ?? '')
+);
 
-$sourceType  = 'DIRECT';
-$affiliateId = null;
-$partnerId   = null;
-
-if ($referralRaw !== '') {
-    $username = preg_replace('/[^a-z0-9]/', '', mb_strtolower($referralRaw)) ?? '';
-    if ($username !== '') {
-        $stmt = db()->prepare('SELECT id FROM affiliates WHERE username = :u LIMIT 1');
-        $stmt->execute([':u' => $username]);
-        $found = $stmt->fetchColumn();
-        if ($found !== false) {
-            $affiliateId = (int) $found;
-            $sourceType  = 'AFFILIATE';
-        }
-        // An unrecognised referral is recorded in referral_raw for audit but
-        // never credited — the order simply stays DIRECT.
-    }
-}
-
-// Partner attribution takes precedence: a partner relationship is a
-// commercial contract, an affiliate link is not.
-if ($partnerRaw !== '') {
-    $slug = mb_substr(preg_replace('/[^a-z0-9-]/', '', mb_strtolower($partnerRaw)) ?? '', 0, 64);
-    if ($slug !== '') {
-        $stmt = db()->prepare('SELECT id FROM partners WHERE slug = :s AND active = 1 LIMIT 1');
-        $stmt->execute([':s' => $slug]);
-        $found = $stmt->fetchColumn();
-        if ($found !== false) {
-            $partnerId   = (int) $found;
-            $sourceType  = 'PARTNER';
-            $affiliateId = null;   // one attribution per order
-        }
-    }
-}
-
-$referralStored = $referralRaw !== '' ? mb_substr($referralRaw, 0, 190)
-                 : ($partnerRaw !== '' ? mb_substr($partnerRaw, 0, 190) : null);
+$sourceType     = $attribution['source_type'];
+$affiliateId    = $attribution['affiliate_id'];
+$partnerId      = $attribution['partner_id'];
+$referralStored = $attribution['referral_raw'];
 
 // ---- Authoritative amounts -------------------------------------------
 $price = package_price($package);

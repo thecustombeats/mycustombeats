@@ -292,16 +292,25 @@ WITHADDR='{"firstName":"With","lastName":"Addr","email":"cswithaddr@example.com"
 t "32. and accepts it once supplied" 201 "$(post order "$WITHADDR")"
 
 echo ""
-echo "================ BESPOKE & PAYMENT LINKS ================"
-OIDB=$(mkorder "csb@example.com" bespoke "")
+echo "================ FULL PACKAGE & PAYMENT LINKS ================"
+# The Full Package (internal id `bespoke`) is a concierge commission: no
+# published price and no checkout. It used to check out here at £799. These
+# three assertions are the inverse of what they were, deliberately — the old
+# behaviour is now the regression.
+OIDK=$(mkorder "csb@example.com" keepsake "mp3")
 stub_reset
-B='{"package":"bespoke","orderId":'"$OIDB"'}'
-t "37. Bespoke checks out at its base commission" 200 "$(post checkout/session "$B")"
-tc "37. → charged £799.00, the approved floor" "$([ "$(q "SELECT expected_amount_gbp FROM checkout_sessions WHERE order_id=$OIDB")" = "799.00" ] && echo 1 || echo 0)"
-B='{"package":"bespoke","format":"vinyl","orderId":'"$OIDB"'}'
-t "37. Bespoke with a format is rejected (it sells none)" 422 "$(post checkout/session "$B")"
+B='{"package":"bespoke","orderId":'"$OIDK"'}'
+t "37. the Full Package is refused a checkout session" 422 "$(post checkout/session "$B")"
+tc "37.  → refused as concierge, not as an unpriced mistake" \
+  "$(body | grep -q 'concierge_package' && echo 1 || echo 0)"
+tc "37.  → and no checkout session was written for it" \
+  "$([ "$(q "SELECT COUNT(*) FROM checkout_sessions WHERE package='bespoke'")" = "0" ] && echo 1 || echo 0)"
+# SPRINT 7: the ninth link is the retired Bespoke one. It moved out of
+# packages.ts into data/legacy/retiredBespoke.ts — byte-identical, and in a
+# module nothing in src/ imports, so it no longer ships to a browser. Still
+# nine URLs; one of them is now unreachable rather than absent.
 tc "38. all nine Payment Links unchanged in source" \
-  "$([ "$(grep -c 'https://buy.stripe.com/' src/data/packages.ts)" = "9" ] && echo 1 || echo 0)"
+  "$([ "$(cat src/data/packages.ts src/data/legacy/retiredBespoke.ts | grep -c 'https://buy.stripe.com/')" = "9" ] && echo 1 || echo 0)"
 tc "33. a basket with items may NOT fall back to a Payment Link" \
   "$(grep -q 'mayFallBackToPaymentLink' src/lib/checkoutSession.ts && grep -q 'session.fallbackAllowed' src/sections/OrderFormSection.tsx && echo 1 || echo 0)"
 tc "34. a base-package-only checkout MAY fall back" \

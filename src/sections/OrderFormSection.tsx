@@ -10,6 +10,8 @@ import {
   MOMENT,
   getPackage,
   getCheckoutTarget,
+  isConcierge,
+  isFixedPrice,
   isFormatAllowed,
   requiresShippingAddress,
   formatPrice,
@@ -38,6 +40,22 @@ import { createCheckoutSession } from "../lib/checkoutSession";
 
 /** Stable empty array, so clearing the notice cannot re-trigger an effect. */
 const NO_REMOVALS: readonly string[] = [];
+
+/**
+ * The experiences this form can actually take an order for.
+ *
+ * This grid used to render every package, which meant the Full Package sat
+ * among them as a button with a name and a blank price — selectable, and
+ * leading to a submit that has no amount to charge. It is not ordered here;
+ * it is arranged through a consultation, and it has its own page for that.
+ *
+ * Filtered on the commercial model, so this stays correct without anyone
+ * remembering to exclude an id.
+ */
+const ORDERABLE_PACKAGES = PACKAGES.filter(isFixedPrice);
+
+/** Named in this form only to point at where it is actually arranged. */
+const CONCIERGE_PACKAGE = PACKAGES.find(isConcierge);
 
 const moodsList = [
   'Romantic','Adventurous','Relaxed','Upbeat','Celebration',
@@ -827,6 +845,28 @@ const handleChange = <K extends keyof FormDataType>(
     return;
   }
 
+  /**
+   * A CONCIERGE COMMISSION CANNOT BE SUBMITTED AS AN ORDER.
+   *
+   * This form creates a paid order: it posts a price to fulfilment and sends
+   * the customer to a Payment Link. The Full Package has no price to post and
+   * no link to send them to, and submitting one here would produce an order
+   * row for an amount nobody agreed.
+   *
+   * The Full Package is not selectable in this form, so this should be
+   * unreachable through the UI. It is checked anyway because "unreachable
+   * through the UI" is a statement about today's markup, not about the
+   * request that arrives — and `api/order.php` refuses the same thing
+   * independently, which is the actual enforcement.
+   */
+  if (isConcierge(orderedPackage) || !orderedPackage.price) {
+    setSubmitError(
+      `${orderedPackage.name} is arranged personally with you rather than ordered online. Please start a private consultation and we'll take it from there.`
+    );
+    setIsSubmitting(false);
+    return;
+  }
+
   const finalPrice = orderedPackage.price.gbp;
 
   let artworkUpload = null;
@@ -1262,7 +1302,7 @@ if (formData.artwork) {
   }`}
 >
   <div className="flex flex-wrap gap-3">
-    {PACKAGES.map((pkg) => (
+    {ORDERABLE_PACKAGES.map((pkg) => (
       <button
         key={pkg.id}
         type="button"
@@ -1297,6 +1337,25 @@ if (formData.artwork) {
       </button>
     ))}
   </div>
+
+  {/*
+    The Full Package is absent from the buttons above, so it is named here
+    instead. Leaving it out silently would read as MCB having quietly dropped
+    it — a customer who came from the packages section looking for it would
+    conclude it was gone, rather than that it is arranged a different way.
+  */}
+  {CONCIERGE_PACKAGE && (
+    <p className="text-sm text-espresso/55 leading-relaxed mt-4">
+      Looking for {CONCIERGE_PACKAGE.name}?{" "}
+      <Link
+        to="/full-package"
+        className="text-gold-deep underline underline-offset-4 hover:text-espresso focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep rounded-sm"
+      >
+        It is arranged personally with you
+      </Link>
+      , rather than ordered here.
+    </p>
+  )}
 </div>
 
 {errors.package && (

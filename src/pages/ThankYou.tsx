@@ -97,16 +97,16 @@ export default function ThankYou() {
    * What the customer paid, from the same authoritative package data the
    * checkout price and the analytics value come from.
    *
-   * Open-ended commissions price as "From £799", which is a starting point
-   * and not a sum anyone was charged, so those show the agreed-price wording
-   * instead of asserting a figure the customer would not recognise on their
+   * A package quoted from a floor, or with no published price at all, has no
+   * figure that was actually charged — so those show the agreed-price wording
+   * rather than asserting a number the customer would not recognise on their
    * statement.
    */
-  const amountPaid = orderedPackage
-    ? orderedPackage.price.prefix
+  const amountPaid = !orderedPackage
+    ? null
+    : !orderedPackage.price || orderedPackage.price.prefix
       ? "As agreed for your commission"
-      : `£${orderedPackage.price.gbp.toFixed(2)}`
-    : null;
+      : `£${orderedPackage.price.gbp.toFixed(2)}`;
 
   useEffect(() => {
     if (!sessionId) return;
@@ -117,7 +117,11 @@ export default function ThankYou() {
 
     // Price comes from the central package data so the analytics value can
     // never drift from the amount actually charged.
-    if (!orderedPackage) return;
+    // No published price means no purchase value to report. A concierge
+    // commission does not reach this page — it has no checkout session — but
+    // reporting 0 or the retired £799 would corrupt revenue reporting if one
+    // ever did, and neither is what was charged.
+    if (!orderedPackage?.price) return;
 
     trackPurchase(sessionId, orderedPackage.price.gbp, "GBP", orderedPackage.name);
     sessionStorage.setItem(trackedKey, "true");

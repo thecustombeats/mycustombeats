@@ -1,4 +1,5 @@
 import { activeSeasonalEditions, editionPackage } from "../data/seasonal";
+import { isFixedPrice } from "../data/packages";
 import Price from "./Price";
 
 /**
@@ -31,7 +32,15 @@ const SeasonalBanner = () => {
         <ul className="grid gap-6 md:grid-cols-2 list-none p-0 m-0">
           {editions.map((edition) => {
             const pkg = editionPackage(edition);
-            if (!pkg) return null;
+            /**
+             * A seasonal edition inherits its package's price, so an edition
+             * pointing at a concierge commission has no price to inherit. It
+             * is skipped rather than rendered without one: this banner's whole
+             * shape is a price and a buy button, and a concierge commission
+             * belongs on its own page with its own sequence, not in a
+             * campaign strip.
+             */
+            if (!pkg || !isFixedPrice(pkg)) return null;
 
             return (
               <li

@@ -2,17 +2,28 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, Music } from 'lucide-react';
 import { Sparkles } from "lucide-react";
 import { revealOnScroll } from '../lib/scrollReveal';
-import { PACKAGES, FORMATS } from '../data/packages';
+import { Link } from 'react-router-dom';
+import {
+  PACKAGES,
+  FORMATS,
+  CONCIERGE_SEQUENCE,
+  isConcierge,
+  isFixedPrice,
+} from '../data/packages';
 import Price from '../components/Price';
 import { scrollToSection } from '../utils/scrollToSection';
 
 /**
- * The four fixed experiences sit in the comparison grid. Bespoke is an
- * open-ended commission with no fixed format or song count, so it gets its
- * own band below rather than a fifth column that would never compare fairly.
+ * The comparison grid holds the experiences that can actually be compared:
+ * four fixed prices, four format choices, four delivery promises.
+ *
+ * Selected by COMMERCIAL MODEL rather than by excluding the id 'bespoke'.
+ * The old filter said "everything except this one package", which happened to
+ * be right and explained nothing; this one says why, and a second concierge
+ * experience would land in the right place without an edit here.
  */
-const CORE_PACKAGES = PACKAGES.filter((pkg) => pkg.id !== 'bespoke');
-const BESPOKE_PACKAGE = PACKAGES.find((pkg) => pkg.id === 'bespoke');
+const CORE_PACKAGES = PACKAGES.filter(isFixedPrice);
+const CONCIERGE_PACKAGE = PACKAGES.find(isConcierge);
 
 interface PackagesSectionProps {
   selectedPackage: string | null;
@@ -204,69 +215,105 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
   })}
       </div>
 
-      {/* ---- Bespoke: a commission, not a package. Presented as its own
-           editorial band so it reads as deliberate rather than a fifth
-           card left over at the end of a four-column grid. ---- */}
-      {BESPOKE_PACKAGE && (
-        <div
-          onClick={() => handleSelect(BESPOKE_PACKAGE.id)}
-          className="package-card mt-8 xl:mt-10 rounded-2xl bg-ink text-ivory p-8 md:p-12 grid md:grid-cols-[1fr_auto] gap-8 md:gap-12 items-center cursor-pointer"
-        >
-          <div>
-            <p className="text-[11px] tracking-[0.2em] uppercase text-gold mb-3">
-              {BESPOKE_PACKAGE.positioning}
-            </p>
-            <h3 className="font-serif text-3xl md:text-4xl text-ivory mb-3">
-              {BESPOKE_PACKAGE.name}
-            </h3>
-            <p className="text-ivory/70 max-w-xl leading-relaxed mb-6">
-              {BESPOKE_PACKAGE.description}
-            </p>
+      {/* ---- THE FULL PACKAGE ------------------------------------------
+           Its own band, and deliberately not a fifth column. The four cards
+           above compare on price, format and song count; this one has none of
+           those, and putting it in the grid would invite the reader to
+           compare it on axes it does not have — which is how it ended up
+           labelled "From £799", a figure that described the old music-only
+           commission and undersold a curated package.
 
-            {/* Every inclusion, not the first six. Bespoke is the most
-                expensive experience on the site and was the only one hiding
-                what it contains — five of its eleven inclusions were
-                unreachable, with no way to expand them. */}
-            <ul className="grid sm:grid-cols-2 gap-x-8 gap-y-2 max-w-2xl">
-              {BESPOKE_PACKAGE.features.map((feature, index) => (
-                <li key={index} className="flex gap-2.5">
-                  <Check size={15} className="text-gold mt-1 shrink-0" aria-hidden="true" />
-                  <span className="text-sm text-ivory/75 leading-snug">{feature}</span>
-                </li>
-              ))}
-            </ul>
+           So the band carries no price and no Price component. What sits
+           where the price used to sit is the commercial sequence: what
+           happens, in what order, and where payment falls in it. That is the
+           reassurance a customer actually needs from an unpriced offer.
+           ---------------------------------------------------------------- */}
+      {CONCIERGE_PACKAGE && (
+        <div className="package-card mt-8 xl:mt-10 rounded-2xl bg-ink text-ivory p-8 md:p-12">
+          <div className="grid lg:grid-cols-[1fr_auto] gap-8 lg:gap-14 items-start">
+            <div className="min-w-0">
+              <p className="text-[11px] tracking-[0.2em] uppercase text-gold mb-3">
+                {CONCIERGE_PACKAGE.conciergeLabel ?? CONCIERGE_PACKAGE.positioning}
+              </p>
+              <h3 className="font-serif text-3xl md:text-4xl text-ivory mb-3">
+                {CONCIERGE_PACKAGE.name}
+              </h3>
+              {/* The approved concierge copy, rendered from the package data
+                  rather than retyped here, so the card and the structured
+                  data cannot describe this differently. */}
+              <p className="text-ivory/70 max-w-xl leading-relaxed mb-6">
+                {CONCIERGE_PACKAGE.description}
+              </p>
 
-            {/* Delivery, which every other card states and this band did not. */}
-            <p className="font-mono text-[11px] tracking-[0.12em] uppercase text-ivory/50 mt-6 pt-5 border-t border-ivory/15">
-              {BESPOKE_PACKAGE.delivery}
-            </p>
-          </div>
+              <ul className="grid sm:grid-cols-2 gap-x-8 gap-y-2 max-w-2xl list-none p-0 m-0">
+                {CONCIERGE_PACKAGE.features.map((feature) => (
+                  <li key={feature} className="flex gap-2.5">
+                    <Check size={15} className="text-gold mt-1 shrink-0" aria-hidden="true" />
+                    <span className="text-sm text-ivory/75 leading-snug">{feature}</span>
+                  </li>
+                ))}
+              </ul>
 
-          <div className="text-left md:text-right shrink-0">
-            {/* Bespoke keeps its "From" qualifier in BOTH figures — it is a
-                commission with a starting price, not a fixed product, and an
-                estimate that dropped the "From" would read as a quote. */}
-            <div className="mb-6">
-              <Price
-                gbp={BESPOKE_PACKAGE.price.gbp}
-                prefix={BESPOKE_PACKAGE.price.prefix}
-                size="lg"
-                tone="light"
-              />
+              <p className="font-mono text-[11px] tracking-[0.12em] uppercase text-ivory/50 mt-6 pt-5 border-t border-ivory/15">
+                {CONCIERGE_PACKAGE.delivery}
+              </p>
             </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                // The band is clickable now, so stop the click reaching it
-                // twice — the same guard the four cards' buttons use.
-                e.stopPropagation();
-                handleSelect(BESPOKE_PACKAGE.id);
-              }}
-              className="px-7 py-3 text-[11px] tracking-[0.2em] uppercase rounded-full bg-gold text-ink hover:bg-gold-light transition-all duration-300"
-            >
-              {BESPOKE_PACKAGE.cta}
-            </button>
+
+            <div className="lg:w-[19rem] shrink-0">
+              {/*
+                WHERE THE PRICE WOULD HAVE BEEN.
+
+                Stated plainly rather than left blank. A missing price reads
+                as an oversight or as something being withheld; saying that it
+                is set in a written proposal, and that nothing proceeds until
+                it is agreed, turns the absence into the offer.
+              */}
+              <p className="font-serif text-2xl text-ivory leading-snug">
+                Priced individually
+              </p>
+              <p className="text-sm text-ivory/60 leading-relaxed mt-2">
+                There is no set price, because no two are the same. Your price
+                is agreed with you in writing before anything begins.
+              </p>
+
+              <Link
+                to="/full-package"
+                className="mt-6 inline-flex min-h-11 items-center px-7 py-3 text-[11px] tracking-[0.2em] uppercase rounded-full bg-gold text-ink transition-colors duration-300 hover:bg-gold-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-light focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+              >
+                {CONCIERGE_PACKAGE.cta}
+              </Link>
+
+              {/*
+                Said next to the button, not after it. This is the moment a
+                customer decides whether clicking commits them to anything.
+              */}
+              <p className="text-xs text-ivory/45 leading-relaxed mt-3">
+                An enquiry, not an order. Nothing is charged.
+              </p>
+            </div>
           </div>
+
+          {/* ---- The commercial sequence --------------------------------
+               Rendered as an ordered list because it IS ordered: the price
+               comes after the proposal, and payment comes after agreement.
+               That ordering is the commitment being made.
+               ------------------------------------------------------------ */}
+          <ol className="mt-10 pt-8 border-t border-ivory/15 grid gap-6 sm:grid-cols-2 lg:grid-cols-5 list-none p-0">
+            {CONCIERGE_SEQUENCE.map((step, index) => (
+              <li key={step.title}>
+                <p className="font-mono text-[10px] tracking-[0.16em] text-gold mb-2">
+                  {/* Numbered visibly: the order is the point. */}
+                  {String(index + 1).padStart(2, '0')}
+                </p>
+                <p className="text-sm text-ivory mb-1.5 leading-snug">
+                  {step.title}
+                </p>
+                <p className="text-xs text-ivory/55 leading-relaxed">
+                  {step.detail}
+                </p>
+              </li>
+            ))}
+          </ol>
         </div>
       )}
     </div>

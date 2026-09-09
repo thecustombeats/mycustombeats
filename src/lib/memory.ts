@@ -45,6 +45,7 @@ import {
   formatPrice,
   getCheckoutTarget,
   getPackage,
+  isConcierge,
   isFormatAllowed,
   type AnyPackage,
   type CheckoutTarget,
@@ -54,6 +55,7 @@ import {
   getProduct,
   gbp,
   isPriced,
+  TBD,
   type CatalogueProduct,
   type ProductPrice,
 } from "../data/catalogue";
@@ -105,6 +107,15 @@ export type CheckoutBlocker =
   | { code: "NO_PACKAGE"; message: string }
   | { code: "NO_FORMAT"; message: string }
   | { code: "NO_PAYMENT_LINK"; message: string }
+  /**
+   * Not a fault, and not a missing configuration — a different commercial
+   * model. Distinct from NO_PAYMENT_LINK because that one means "we intend to
+   * sell this online and haven't finished wiring it up", which is a bug worth
+   * chasing; this one means "this is never sold online", which is the design.
+   * Conflating them would have put a concierge commission on a list of things
+   * to fix in Stripe.
+   */
+  | { code: "CONCIERGE_ONLY"; message: string }
   | { code: "UNPRICED_ENHANCEMENTS"; message: string };
 
 export interface MemorySummary {
@@ -214,8 +225,15 @@ export const buildMemory = (selection: MemorySelection): MemorySummary => {
       kind: "PACKAGE",
       label: pkg.name,
       detail: pkg.delivery,
-      price: gbp(pkg.price.gbp),
-      ...(pkg.price.prefix ? { pricePrefix: pkg.price.prefix } : {}),
+      /**
+       * A concierge commission is priced in a proposal, so there is no figure
+       * to put on this line. `TBD` is the summary's existing vocabulary for
+       * "this is quoted individually" — it is what the made-to-order products
+       * already use — so the line renders honestly rather than as £0 or as a
+       * price borrowed from the retired Bespoke tier.
+       */
+      price: pkg.price ? gbp(pkg.price.gbp) : TBD,
+      ...(pkg.price?.prefix ? { pricePrefix: pkg.price.prefix } : {}),
       includedInPackage: false,
     });
 
@@ -245,7 +263,7 @@ export const buildMemory = (selection: MemorySelection): MemorySummary => {
 
   // Only the package price can be charged by a fixed Payment Link, so that is
   // what the total claims — never the subtotal of a basket Stripe will not see.
-  const chargeableTotal: Money = pkg
+  const chargeableTotal: Money = pkg?.price
     ? { gbp: pkg.price.gbp, usd: pkg.price.usd }
     : ZERO_MONEY;
 
@@ -255,6 +273,18 @@ export const buildMemory = (selection: MemorySelection): MemorySummary => {
     blockers.push({
       code: "NO_PACKAGE",
       message: "Choose an experience to begin your memory.",
+    });
+  } else if (isConcierge(pkg)) {
+    /**
+     * Checked BEFORE format and payment link, because for a concierge
+     * commission neither question is meaningful: it has no formats to choose
+     * and no link to be missing. Asking them first would produce "choose how
+     * your memory should arrive" for something whose delivery is agreed in a
+     * consultation.
+     */
+    blockers.push({
+      code: "CONCIERGE_ONLY",
+      message: `${pkg.name} is arranged personally with you, not bought online.`,
     });
   } else if (pkg.formats.length > 1 && !format) {
     blockers.push({

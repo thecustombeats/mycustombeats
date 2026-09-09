@@ -59,6 +59,27 @@ function package_allows_format(string $packageId, ?string $format): bool
 }
 
 /**
+ * True when this experience is commissioned privately rather than sold.
+ *
+ * READ FROM THE GENERATED DATA, not from a hard-coded id list. The commercial
+ * model is decided once in `src/data/packages.ts` and compiled into
+ * `packages.json`, so PHP enforces the same boundary the site presents rather
+ * than a second opinion about it that could drift.
+ *
+ * Fails CLOSED for an unknown id: a package the server cannot describe is not
+ * one it should accept a payment for either, and every caller of this treats
+ * true as "refuse".
+ */
+function package_is_concierge(string $packageId): bool
+{
+    $pkg = package_def($packageId);
+    if ($pkg === null) {
+        return true;
+    }
+    return ($pkg['commercial_model'] ?? 'FIXED_PRICE') === 'CONCIERGE';
+}
+
+/**
  * Server-derived fulfilment type. The browser never supplies this.
  *
  * Returns DIGITAL or PHYSICAL, or null if the combination is not sold —

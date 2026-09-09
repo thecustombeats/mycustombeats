@@ -89,6 +89,23 @@ export interface CheckoutTarget {
 export type PackageId = "moment" | "keepsake" | "journey" | "heirloom" | "bespoke";
 
 /**
+ * How an experience is bought.
+ *
+ * `FIXED_PRICE` — a published GBP price, an online checkout, a basket. The
+ * four standard experiences.
+ *
+ * `CONCIERGE` — no published price and no checkout. The Full Package is
+ * scoped in a private consultation and priced per commission, so a website
+ * that quoted a figure for it would be inventing one. This is the single
+ * discriminator every other rule reads: the package card, the checkout
+ * resolver, the enhancement basket, the structured data and the server all
+ * branch on it rather than on the literal id `bespoke`, so the boundary is
+ * one decision rather than five places that must agree.
+ */
+export type CommercialModel = "FIXED_PRICE" | "CONCIERGE";
+
+
+/**
  * `F` is the exact set of formats a package offers. Because `checkout` is
  * keyed by `F`, a package cannot declare a format without also declaring
  * where that format checks out, and cannot declare a checkout for a format
@@ -105,7 +122,32 @@ export interface McbPackage<F extends FormatId = FormatId> {
    */
   positioning: string;
   description: string;
-  price: {
+  /**
+   * Whether this is bought online or commissioned privately. Defaults are
+   * never assumed — every package states it.
+   */
+  commercialModel: CommercialModel;
+  /**
+   * Secondary label for a concierge experience, e.g. "Private Concierge".
+   * Absent on the fixed-price packages, which need no qualifier.
+   */
+  conciergeLabel?: string;
+  /**
+   * The published price — ABSENT on a concierge experience.
+   *
+   * Optional is the whole mechanism. A concierge commission has no figure to
+   * publish, and the cheap way to express that would have been `gbp: 0` or
+   * keeping the old £799 and "just not rendering it". Both leave a number
+   * sitting in the field every price component reads, one `<Price gbp={...}>`
+   * away from being quoted at a customer.
+   *
+   * Removing the field instead makes the compiler the enforcement: every one
+   * of the dozen call sites that renders, sums, converts or submits a package
+   * price now has to say what it does when there is no price. There is no
+   * route from a concierge package to a displayed amount, because there is no
+   * amount.
+   */
+  price?: {
     /**
      * THE COMMERCIAL PRICE. The only figure MCB charges, the only one Stripe
      * takes, and the basis of every local-currency estimate on the site.
@@ -142,7 +184,7 @@ export interface McbPackage<F extends FormatId = FormatId> {
   /** Formats the customer chooses between. Empty = no format choice. */
   formats: readonly F[];
   checkout: Readonly<Record<F, CheckoutTarget>>;
-  /** Used when `formats` is empty (Bespoke). */
+  /** Used when `formats` is empty. */
   fallbackCheckout?: CheckoutTarget;
   /** Visually emphasised as the recommended experience. */
   popular: boolean;
@@ -159,6 +201,22 @@ export interface McbPackage<F extends FormatId = FormatId> {
  * though (`checkout` is invariant), so collections and general-purpose helpers
  * work against this widened view instead of casting.
  */
+/**
+ * A package that genuinely has a published price.
+ *
+ * `price` is optional on `McbPackage` because concierge experiences have none.
+ * That optionality is correct for the general case and wrong for the four
+ * fixed-price experiences, where the price is not merely usually present — it
+ * is the product. Typing them as this means `KEEPSAKE.price.gbp` stays a plain
+ * expression rather than acquiring a `?.` and a fallback that could never run,
+ * and it makes a fixed-price package defined without a price a compile error.
+ */
+export type FixedPricePackage<F extends FormatId = FormatId> =
+  McbPackage<F> & {
+    commercialModel: "FIXED_PRICE";
+    price: NonNullable<McbPackage<F>["price"]>;
+  };
+
 export type AnyPackage = Omit<McbPackage<FormatId>, "formats" | "checkout"> & {
   formats: readonly FormatId[];
   checkout: Partial<Readonly<Record<FormatId, CheckoutTarget>>>;
@@ -182,13 +240,30 @@ const gbp = (value: number) => `£${value}`;
  * discouraged. `price.usd` still exists — see the note on `usd` in the price
  * type — but nothing customer-facing can reach it through here.
  */
-export const formatPrice = (pkg: Pick<AnyPackage, "price">): string => {
+/**
+ * Overloaded so a package KNOWN to have a price still types as `string`.
+ *
+ * Without this, adding the concierge case would have made every existing call
+ * site nullable and forced a `?? ""` onto four FAQ answers and a package card
+ * that can never actually see null. The overload keeps the null exactly where
+ * it is real — on a package whose type admits no price — so the compiler
+ * flags the concierge callers and leaves the other twenty alone.
+ */
+export function formatPrice(pkg: Pick<AnyFixedPricePackage, "price">): string;
+export function formatPrice(pkg: Pick<AnyPackage, "price">): string | null;
+export function formatPrice(pkg: Pick<AnyPackage, "price">): string | null {
+  // A concierge commission has no published price, and the honest answer to
+  // "format this package's price" is that there isn't one to format. Returning
+  // null makes each caller decide what to say instead; returning "" or "POA"
+  // here would quietly put this function's wording on five different pages.
+  if (!pkg.price) return null;
   const amount = gbp(pkg.price.gbp);
   return pkg.price.prefix ? `${pkg.price.prefix} ${amount}` : amount;
-};
+}
 
-export const MOMENT: McbPackage<"mp3"> = {
+export const MOMENT: FixedPricePackage<"mp3"> = {
   id: "moment",
+  commercialModel: "FIXED_PRICE",
   name: "Moment",
   positioning: "A memory, made instantly.",
   description:
@@ -217,8 +292,9 @@ export const MOMENT: McbPackage<"mp3"> = {
   cta: "Begin This Experience",
 };
 
-export const KEEPSAKE: McbPackage<"vinyl" | "cd" | "mp3"> = {
+export const KEEPSAKE: FixedPricePackage<"vinyl" | "cd" | "mp3"> = {
   id: "keepsake",
+  commercialModel: "FIXED_PRICE",
   name: "Keepsake",
   positioning: "Turn the memory into something you can hold.",
   description:
@@ -260,8 +336,9 @@ export const KEEPSAKE: McbPackage<"vinyl" | "cd" | "mp3"> = {
   cta: "Begin This Experience",
 };
 
-export const JOURNEY: McbPackage<"vinyl" | "cd"> = {
+export const JOURNEY: FixedPricePackage<"vinyl" | "cd"> = {
   id: "journey",
+  commercialModel: "FIXED_PRICE",
   name: "Journey",
   positioning: "Four chapters. One unforgettable story.",
   description:
@@ -299,8 +376,9 @@ export const JOURNEY: McbPackage<"vinyl" | "cd"> = {
   cta: "Choose Best Value",
 };
 
-export const HEIRLOOM: McbPackage<"vinyl" | "cd"> = {
+export const HEIRLOOM: FixedPricePackage<"vinyl" | "cd"> = {
   id: "heirloom",
+  commercialModel: "FIXED_PRICE",
   name: "Heirloom",
   positioning: "Six memories. One family story.",
   description:
@@ -340,48 +418,134 @@ export const HEIRLOOM: McbPackage<"vinyl" | "cd"> = {
 };
 
 /**
- * Bespoke's inclusions are all digital deliverables (artwork files,
- * instrumental versions, story booklet), and its existing Payment Link
- * collects no shipping address, so no shipping change is applied here.
+ * THE FULL PACKAGE — MCB's private concierge commission.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * WHY IT HAS NO PRICE
+ * ─────────────────────────────────────────────────────────────────────────
+ * This was "Bespoke — From £799". That figure described a music commission
+ * with a fixed set of deliverables. The Full Package is not that: it combines
+ * MCB's own creations with gifts and experiences selected for one recipient,
+ * so two Full Packages are not the same object and no single number describes
+ * both. A published figure would either understate the work or invent a
+ * ceiling nobody agreed to, and "From £799" would do both at once by
+ * anchoring an unbounded commission to the cheapest one imaginable.
+ *
+ * So the price is not hidden here — it does not exist here. It is established
+ * in the consultation, written into a proposal, and agreed before any payment
+ * is arranged. See `CONCIERGE_SEQUENCE`.
+ *
+ * The old figures and the old Payment Link are retired but intact, in
+ * `data/legacy/retiredBespoke.ts` — kept because historical orders and a live
+ * Stripe object still reference them, and deliberately in a module NOTHING in
+ * `src/` imports, so neither the £799 nor the retired link ships to a
+ * browser. Unreachable from the journey, and absent from the bundle.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * THE INTERNAL ID STAYS `bespoke`
+ * ─────────────────────────────────────────────────────────────────────────
+ * Renaming it would rewrite `orders.package`, the generated packages JSON, the
+ * CRM's filters and every historical row, to change a string no customer sees.
+ * The id is an internal key; the customer-facing identity is `name`. They were
+ * never required to match.
  */
-export const BESPOKE: AnyPackage = {
+export const FULL_PACKAGE: AnyPackage = {
   id: "bespoke",
-  name: "Bespoke",
-  positioning: "Your story. Your sound. Your heirloom.",
+  commercialModel: "CONCIERGE",
+  name: "The Full Package",
+  conciergeLabel: "Private Concierge",
+  positioning: "Curated entirely around one person.",
   /**
-   * Bespoke's full editorial description. It previously lived hard-coded in
-   * PackagesSection while this field held a one-line stub, so the band and
-   * the data said different things and only one of them was reusable.
+   * The approved concierge description, verbatim. It is the sentence that
+   * explains why there is no price on this card, so it must not be paraphrased
+   * in a component or trimmed to fit a layout.
    */
   description:
-    "A completely unique commission — scored, arranged and produced around a single story, with a private creative consultation and a dedicated production window.",
-  price: { gbp: 799, usd: 999, prefix: "From" },
+    "Every Full Package is individually curated. We combine MCB's signature creations with carefully selected gifts and experiences chosen specifically for your recipient, story and occasion.",
   songCount: null,
-  revisions: "Unlimited refinements during production window",
+  revisions: "Refinement continues until the agreed scope is met",
+  /**
+   * What a Full Package MAY include — not a fixed inclusion list, because the
+   * scope is what the consultation decides. Worded so that no line reads as a
+   * promise made before anyone has spoken to the customer.
+   */
   features: [
-    "Fully commissioned custom project",
-    "Private 1:1 creative consultation",
-    "Dedicated 7-day production window",
-    "Unlimited refinements during production window",
-    "Exclusive arrangement usage rights",
-    "Custom instrumentation & arrangement requests",
-    "Deluxe album artwork (multiple concepts)",
-    "5–10 page premium story & lyric booklet",
-    "Instrumental versions included",
-    "High-resolution artwork files",
-    "White-glove delivery experience",
+    "A private consultation, one to one",
+    "MCB signature creations, chosen for the story",
+    "Carefully selected gifts and experiences",
+    "Presentation and packaging designed for the occasion",
+    "Scope, timeline and price agreed in writing before anything begins",
+    "A single point of contact throughout",
+    "White-glove delivery",
   ],
-  delivery: "Dedicated 7-day production window",
+  delivery: "Timeline agreed with you during the consultation",
   formats: [],
+  /**
+   * No checkout, and no `fallbackCheckout`.
+   *
+   * This is the boundary itself. `getCheckoutTarget` reads `fallbackCheckout`
+   * when a package has no formats, so leaving the old link there would have
+   * kept the Full Package silently checking out at the retired price — the
+   * exact outcome this change exists to prevent. The link now lives in
+   * `data/legacy/retiredBespoke.ts`, which nothing in the app imports.
+   */
   checkout: {},
-  fallbackCheckout: {
-    url: "https://buy.stripe.com/5kQ8wO9vKcLR3KO3eabsc09",
-    requiresShipping: false,
-    stripeProductName: "MCB Bespoke",
-  },
   popular: false,
-  cta: "Begin This Experience",
+  cta: "Begin a private consultation",
 };
+
+/**
+ * BESPOKE — the previous export name.
+ *
+ * Kept as an alias so existing imports keep resolving to the same object
+ * rather than every consumer being edited in the same commit that changes what
+ * the object means. New code should import `FULL_PACKAGE`.
+ *
+ * @deprecated Use `FULL_PACKAGE`.
+ */
+export const BESPOKE = FULL_PACKAGE;
+
+/**
+ * THE COMMERCIAL SEQUENCE for a concierge commission.
+ *
+ * Stated as data because it is a commercial commitment, not decoration: it is
+ * the customer's assurance that nothing is charged before a scope and a price
+ * are agreed. Rendering it is what makes "there is no price on this page" read
+ * as deliberate rather than as an omission.
+ *
+ * Note where payment sits — last, and after agreement. An enquiry is not an
+ * order and creates no obligation on either side.
+ */
+export const CONCIERGE_SEQUENCE: readonly {
+  title: string;
+  detail: string;
+}[] = [
+  {
+    title: "Your enquiry",
+    detail:
+      "Tell us who this is for, the occasion, and what you have in mind. Nothing is committed and nothing is charged.",
+  },
+  {
+    title: "A private consultation",
+    detail:
+      "We speak properly — about the recipient, the story, the moment you are creating and what you would like to spend.",
+  },
+  {
+    title: "Your proposal",
+    detail:
+      "We put forward a curation designed for this person, with everything it includes set out in writing.",
+  },
+  {
+    title: "Agreed scope and price",
+    detail:
+      "You refine it until it is right. Nothing proceeds until you have agreed both what is included and what it costs.",
+  },
+  {
+    title: "Payment arranged",
+    detail:
+      "Only then, and on the terms agreed with you.",
+  },
+];
 
 /** Display order across the whole site. */
 export const PACKAGES: readonly AnyPackage[] = [
@@ -389,7 +553,7 @@ export const PACKAGES: readonly AnyPackage[] = [
   KEEPSAKE,
   JOURNEY,
   HEIRLOOM,
-  BESPOKE,
+  FULL_PACKAGE,
 ];
 
 /* ------------------------------------------------------------------ */
@@ -398,6 +562,62 @@ export const PACKAGES: readonly AnyPackage[] = [
 
 export const getPackage = (id: string): AnyPackage | undefined =>
   PACKAGES.find((pkg) => pkg.id === id);
+
+/**
+ * A published-price package with its exact format set widened away.
+ *
+ * The collection-level counterpart to `FixedPricePackage`, standing to it as
+ * `AnyPackage` stands to `McbPackage`. Lists that are only ever the buyable
+ * experiences — a cruise comparison, a seasonal edition — annotate with this,
+ * and get `price` as a required field rather than an optional one they would
+ * otherwise have to defend against for a case they have excluded by
+ * construction.
+ */
+export type AnyFixedPricePackage = Omit<AnyPackage, "price"> & {
+  commercialModel: "FIXED_PRICE";
+  price: NonNullable<AnyPackage["price"]>;
+};
+
+/**
+ * Narrows a package to one that has a price.
+ *
+ * For the places that receive an arbitrary package and can only render a
+ * priced one. Using this rather than a non-null assertion means the concierge
+ * case is handled — by the caller, visibly — instead of being asserted away.
+ */
+export const isFixedPrice = (pkg: AnyPackage): pkg is AnyFixedPricePackage =>
+  pkg.commercialModel === "FIXED_PRICE" && pkg.price !== undefined;
+
+/**
+ * True when this experience is commissioned privately rather than bought.
+ *
+ * THE ONE PREDICATE. The package card, the order form, the enhancement
+ * basket, the structured data, the FAQ and the server all ask this rather than
+ * comparing against the string `"bespoke"`. If MCB ever adds a second
+ * concierge experience, or moves this one back to a fixed price, that is one
+ * edit in `packages.ts` and not a search for every place someone hard-coded an
+ * id.
+ */
+export const isConcierge = (
+  pkg: Pick<AnyPackage, "commercialModel">
+): boolean => pkg.commercialModel === "CONCIERGE";
+
+/** True when `id` names a concierge experience. Guards untrusted input. */
+export const isConciergePackageId = (id: string): boolean => {
+  const pkg = getPackage(id);
+  return pkg !== undefined && isConcierge(pkg);
+};
+
+/**
+ * The published GBP price, or `null` when there is not one.
+ *
+ * The single accessor for "what does this cost?", so a concierge package
+ * answers "there is no price" everywhere rather than answering it correctly in
+ * the places someone remembered to check.
+ */
+export const publishedPriceGbp = (
+  pkg: Pick<AnyPackage, "price">
+): number | null => pkg.price?.gbp ?? null;
 
 /** True when `format` is offered by `pkg`. Guards runtime input. */
 export const isFormatAllowed = (
@@ -415,6 +635,16 @@ export const getCheckoutTarget = (
   pkg: AnyPackage,
   format: string | null
 ): CheckoutTarget | undefined => {
+  /**
+   * A concierge commission does not check out, at any price, in any format.
+   *
+   * First and unconditional, ahead of every other branch, because this is the
+   * function every payment path in the site funnels through: the package card,
+   * the order form's submit, the Payment Link fallback and the dynamic session
+   * builder all ask it where to send the customer. One refusal here closes all
+   * of them, and closes any added later without their author having to know.
+   */
+  if (isConcierge(pkg)) return undefined;
   if (pkg.formats.length === 0) return pkg.fallbackCheckout;
   if (!format || !isFormatAllowed(pkg, format)) return undefined;
   return pkg.checkout[format];

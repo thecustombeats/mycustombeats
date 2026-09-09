@@ -44,6 +44,7 @@ import NotFound from "./pages/NotFound";
 
 const AnniversarySong = lazy(() => import("./pages/AnniversarySong"));
 const CruiseMemories = lazy(() => import("./pages/CruiseMemories"));
+const FullPackage = lazy(() => import("./pages/FullPackage"));
 const SongShowcaseSection = lazy(() => import("./sections/SongShowcaseSection"));
 const HowItWorksSection = lazy(() => import("./sections/HowItWorksSection"));
 const TestimonialsSection = lazy(() => import("./sections/TestimonialsSection"));
@@ -384,6 +385,10 @@ function App() {
           }
         />
         <Route path="/cruise" element={<Layout><CruiseMemories /></Layout>} />
+        {/* The Full Package. Its own route rather than a section of the
+            homepage: it is an enquiry journey, not a card, and a customer
+            needs to be able to be sent a link to it. */}
+        <Route path="/full-package" element={<Layout><FullPackage /></Layout>} />
         <Route path="/about" element={<Layout><About /></Layout>} />
         <Route path="/faq" element={<Layout><FAQ /></Layout>} />
 

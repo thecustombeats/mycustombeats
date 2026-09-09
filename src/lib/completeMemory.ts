@@ -35,7 +35,7 @@ import {
   type CatalogueEnhancement,
   type CatalogueProduct,
 } from "../data/catalogue";
-import { getPackage, type AnyPackage } from "../data/packages";
+import { getPackage, isConcierge, type AnyPackage } from "../data/packages";
 
 /* ------------------------------------------------------------------ */
 /* Basket state                                                        */
@@ -149,6 +149,25 @@ export const offersFor = (
 ): readonly Offer[] => {
   const pkg = getPackage(packageId);
   if (!pkg) return [];
+
+  /**
+   * A CONCIERGE COMMISSION IS NEVER OFFERED ENHANCEMENTS.
+   *
+   * Complete Your Memory exists to add finishing touches to a fixed-price
+   * order: it is a checkbox list with unit prices and a running total, and it
+   * assumes the customer is about to check out. None of that is true of the
+   * Full Package. Its additions are chosen for the recipient in a
+   * consultation and priced in a proposal, so presenting the same £50 card and
+   * £60 second pressing as tick boxes would both undercut the curation and
+   * imply an online basket that does not exist.
+   *
+   * Returning an empty list is what removes the stage entirely: the component
+   * renders nothing when there are no offers, so this is the only edit needed
+   * to take the Full Package out of it. `api/lib/basket.php` refuses the same
+   * combination independently, so an empty list here is a presentation
+   * decision and not the enforcement.
+   */
+  if (isConcierge(pkg)) return [];
 
   const products = ALL_PRODUCTS.flatMap((product) => {
     // Card variants are folded into one offer below.
@@ -264,7 +283,14 @@ export const priceBasket = (
   return {
     lines,
     enhancementsGbp,
-    totalGbp: pkg.price.gbp + enhancementsGbp,
+    /**
+     * A concierge package contributes nothing to a basket total, because it
+     * does not go through a basket at all — `offersFor` returns an empty list
+     * for one, so `lines` is empty and this reduces to zero. Written as `?? 0`
+     * rather than asserted, so the arithmetic stays correct if this is ever
+     * reached rather than producing NaN silently.
+     */
+    totalGbp: (pkg.price?.gbp ?? 0) + enhancementsGbp,
     requiresShipping: lines.some((line) => line.physical),
   };
 };

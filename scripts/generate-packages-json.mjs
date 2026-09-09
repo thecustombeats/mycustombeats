@@ -86,9 +86,27 @@ const packages = {};
 for (const pkg of PACKAGES) {
   packages[pkg.id] = {
     name: pkg.name,
-    price_gbp: pkg.price.gbp,
-    price_usd: pkg.price.usd,
-    price_prefix: pkg.price.prefix ?? null,
+    /**
+     * FIXED_PRICE or CONCIERGE, carried across so the server enforces the
+     * same boundary the browser presents rather than inferring it from a
+     * missing price. A null price could mean "concierge" or it could mean
+     * "the generator broke"; these must not be the same signal on an
+     * endpoint that decides whether to charge someone.
+     */
+    commercial_model: pkg.commercialModel,
+    /**
+     * NULL for a concierge commission — it has no published price, so there
+     * is no figure to compile into the server's copy. `package_price` reads
+     * these, and `price_basket` refuses a package that prices to zero, so a
+     * concierge id cannot be talked into a checkout even if it reached one.
+     *
+     * The retired figures stay in `packages.ts` under `legacy` and are
+     * deliberately NOT emitted here: nothing the server does should be able
+     * to find £799 attached to this id.
+     */
+    price_gbp: pkg.price?.gbp ?? null,
+    price_usd: pkg.price?.usd ?? null,
+    price_prefix: pkg.price?.prefix ?? null,
     song_count: pkg.songCount,
     delivery: pkg.delivery,
     formats: [...pkg.formats],
@@ -96,7 +114,7 @@ for (const pkg of PACKAGES) {
     fulfilment: Object.fromEntries(
       pkg.formats.map((f) => [f, FORMATS[f].isPhysical ? "PHYSICAL" : "DIGITAL"])
     ),
-    // Packages with no selectable format (Bespoke) are digital by default.
+    // Packages with no selectable format are digital by default.
     default_fulfilment: pkg.formats.length === 0 ? "DIGITAL" : null,
   };
 }

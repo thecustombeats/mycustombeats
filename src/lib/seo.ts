@@ -30,7 +30,12 @@
  * identities for one business.
  */
 
-import { PACKAGES, FORMATS, type AnyPackage } from "../data/packages";
+import {
+  PACKAGES,
+  FORMATS,
+  isConcierge,
+  type AnyPackage,
+} from "../data/packages";
 import {
   CATALOGUE,
   capacityLabel,
@@ -327,19 +332,23 @@ const deliveryDays = (pkg: AnyPackage): number | null => {
  * same offer invites a crawler to pick one arbitrarily. Sterling leads
  * everywhere on the site, so sterling is what is declared.
  *
- * Bespoke is quoted "From £799" — a floor, not a price. That is expressed as
- * one Offer whose `priceSpecification` carries `minPrice`, which is precisely
- * what schema.org defines minPrice for: "the lowest price if the price is a
- * range".
+ * A package with a price prefix is quoted from a floor rather than at a fixed
+ * figure. That is expressed as one Offer whose `priceSpecification` carries
+ * `minPrice`, which is precisely what schema.org defines minPrice for: "the
+ * lowest price if the price is a range".
  *
  * It is deliberately NOT an AggregateOffer. AggregateOffer means "this product
  * has several offers, and here are their bounds" — it aggregates over multiple
- * offers, which is why it carries `offerCount`. Bespoke is a single commission
- * from a single seller; an aggregate of one is not an aggregate, and it would
- * describe the floor price as the cheapest of several competing offers that do
- * not exist.
+ * offers, which is why it carries `offerCount`. A single commission from a
+ * single seller is not an aggregate of one, and the markup would describe the
+ * floor as the cheapest of several competing offers that do not exist.
+ *
+ * RETURNS `null` FOR A CONCIERGE COMMISSION, and the caller omits `offers`
+ * entirely. See `packageEntity`.
  */
-const packageOffer = (pkg: AnyPackage): Node => {
+const packageOffer = (pkg: AnyPackage): Node | null => {
+  if (!pkg.price) return null;
+
   const base = {
     "@type": "Offer",
     priceCurrency: "GBP",
@@ -361,12 +370,13 @@ const packageOffer = (pkg: AnyPackage): Node => {
 };
 
 /**
- * A package with a price prefix has no fixed price.
+ * A package with a single concrete figure a customer pays.
  *
- * "From £799" is a floor. Bespoke is scoped per commission and the final
- * figure may exceed it, so there is no single number that is true.
+ * False both for a "from" price, which is a floor rather than a price, and for
+ * a concierge commission, which has no published figure at all.
  */
-const hasFixedPrice = (pkg: AnyPackage): boolean => !pkg.price.prefix;
+const hasFixedPrice = (pkg: AnyPackage): boolean =>
+  pkg.price !== undefined && !pkg.price.prefix;
 
 /**
  * A package as a Product.
@@ -399,6 +409,7 @@ const hasFixedPrice = (pkg: AnyPackage): boolean => !pkg.price.prefix;
  */
 export const packageEntity = (pkg: AnyPackage): Node => {
   const days = deliveryDays(pkg);
+  const offer = packageOffer(pkg);
 
   return {
     ...(hasFixedPrice(pkg)
@@ -406,7 +417,9 @@ export const packageEntity = (pkg: AnyPackage): Node => {
       : {
           "@type": "Service",
           provider: ref(ENTITY.organization),
-          serviceType: "Bespoke personalised music commission",
+          serviceType: isConcierge(pkg)
+            ? "Private concierge gift curation and music commission"
+            : "Personalised music commission",
         }),
     "@id": packageEntityId(pkg.id),
     name: `MCB ${pkg.name}`,
@@ -440,16 +453,32 @@ export const packageEntity = (pkg: AnyPackage): Node => {
           : []),
       ],
     }),
-    offers: {
-      ...packageOffer(pkg),
-      ...(days !== null && {
-        deliveryLeadTime: {
-          "@type": "QuantitativeValue",
-          value: days,
-          unitCode: /hour/i.test(pkg.delivery) ? "HUR" : "DAY",
-        },
-      }),
-    },
+    /**
+     * NO `offers` NODE AT ALL for a concierge commission.
+     *
+     * Not an Offer with the price omitted, and not one carrying the retired
+     * £799 as a minPrice. There is no figure that is true before the
+     * consultation has happened, so any Offer this emitted would be publishing
+     * a number MCB has not agreed with the customer — into the one place a
+     * customer never sees it and cannot correct it. `minPrice: 799` would be
+     * the worst of them: it would restate the exact anchor this sprint
+     * removed from the page, in a search result.
+     *
+     * The Service still describes what the commission is. It simply makes no
+     * price claim, which is the accurate state of the world.
+     */
+    ...(offer !== null && {
+      offers: {
+        ...offer,
+        ...(days !== null && {
+          deliveryLeadTime: {
+            "@type": "QuantitativeValue",
+            value: days,
+            unitCode: /hour/i.test(pkg.delivery) ? "HUR" : "DAY",
+          },
+        }),
+      },
+    }),
     isRelatedTo: ref(ENTITY.service),
   };
 };
@@ -466,7 +495,7 @@ export const packageListEntity = (): Node => ({
   "@id": ENTITY.packageList,
   name: "MCB experiences",
   description:
-    "The five My Custom Beats experiences, from a one-hour Moment to a fully commissioned Bespoke project.",
+    "The five My Custom Beats experiences, from a one-hour Moment to a privately curated Full Package.",
   url: canonical("/#packages"),
   numberOfItems: PACKAGES.length,
   itemListElement: PACKAGES.map((pkg, index) => ({
