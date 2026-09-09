@@ -6,6 +6,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   PACKAGES,
   FORMATS,
+  KEEPSAKE,
+  MOMENT,
   getPackage,
   getCheckoutTarget,
   isFormatAllowed,
@@ -16,6 +18,8 @@ import {
 import { buildMemory } from "../lib/memory";
 import YourMemorySummary from "../components/YourMemorySummary";
 import MusicStyleSelector from "../components/MusicStyleSelector";
+import UpgradeInvitation from "../components/UpgradeInvitation";
+import { isUpgradeEligible, type UpgradeDecision } from "../lib/upgrade";
 import {
   MAX_STYLE_LABEL_LENGTH,
   OTHER_STYLE_VALUE,
@@ -313,6 +317,53 @@ const [submitError, setSubmitError] = useState<string | null>(null);
 const activePackage = getPackage(formData.package);
 const availableFormats = activePackage?.formats ?? [];
 const offersFormatChoice = availableFormats.length > 1;
+
+/**
+ * THE MOMENT → KEEPSAKE UPGRADE.
+ *
+ * `formData.package` stays the ONE canonical package. This is the only extra
+ * state, and it holds a UI decision rather than a second package truth: it
+ * decides whether the invitation is shown, never what anything costs. Every
+ * figure — the total, the format rules, the shipping requirement, the
+ * checkout target, the CRM payload — is still derived from
+ * `formData.package`, exactly as it was before this existed.
+ */
+const [upgradeDecision, setUpgradeDecision] = useState<UpgradeDecision>(null);
+
+/**
+ * The invitation waits until the customer has actually said something.
+ *
+ * Asked on page load it is an advertisement; asked after they have written
+ * their story, chosen a mood and picked a musical direction it is the next
+ * question in the same conversation. Mirrors the same three fields the
+ * validator treats as the creative brief.
+ */
+const briefReady =
+  formData.story.trim().length > 0 &&
+  (formData.moods.length > 0 || formData.otherMood.trim().length > 0) &&
+  formData.genre.trim().length > 0;
+
+/**
+ * Reported ONCE, the first time the invitation is actually seen.
+ *
+ * A ref rather than state: this must not re-render anything, and it must not
+ * fire again as the customer keeps editing their story — which would turn one
+ * impression into dozens and make the acceptance rate meaningless.
+ *
+ * Package ids only. No story, no style text, no contact details.
+ */
+const upgradeShownRef = useRef(false);
+useEffect(() => {
+  if (upgradeShownRef.current) return;
+  if (!briefReady || !isUpgradeEligible(formData.package)) return;
+  if (upgradeDecision !== null) return;
+
+  upgradeShownRef.current = true;
+  trackEvent("moment_keepsake_upgrade_shown", {
+    from_package: MOMENT.id,
+    to_package: KEEPSAKE.id,
+  });
+}, [briefReady, formData.package, upgradeDecision]);
 const needsShipping = activePackage
   ? requiresShippingAddress(activePackage, formData.format)
   : false;
@@ -378,6 +429,75 @@ const memory = buildMemory({
     styleId?: string
   ) => {
     trackEvent(`music_${event}`, styleId ? { style_id: styleId } : undefined);
+  };
+
+  /**
+   * ACCEPTING THE UPGRADE.
+   *
+   * Writes ONE value — the package — and lets everything else re-derive:
+   * the total, the format options, the shipping requirement, the checkout
+   * target and the CRM payload all read `formData.package` already. There is
+   * no arithmetic here and no second package kept underneath.
+   *
+   * The format is reset rather than guessed. Keepsake sells vinyl, CD and
+   * MP3; carrying over Moment's MP3 would quietly keep a customer digital
+   * after they asked for something to hold, and picking a physical format for
+   * them would commit them to a delivery address they never agreed to.
+   * `defaultFormatFor` leaves it empty, so they choose — and the existing
+   * validator already refuses to submit without one.
+   */
+  const acceptUpgrade = () => {
+    setFormData((prev) => ({
+      ...prev,
+      package: KEEPSAKE.id,
+      format: defaultFormatFor(KEEPSAKE.id),
+    }));
+    setUpgradeDecision("accepted");
+    trackEvent("moment_keepsake_upgrade_accepted", {
+      from_package: MOMENT.id,
+      to_package: KEEPSAKE.id,
+    });
+
+    /**
+     * The upgrade introduces a required field the customer has already
+     * scrolled past, so focus goes to it rather than leaving them to
+     * discover it at submit. Deferred a frame so the selector has rendered
+     * Keepsake's options first.
+     */
+    window.setTimeout(() => {
+      const target = document.querySelector<HTMLElement>(
+        '[data-field="format"] input, [data-field="format"] button'
+      );
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      target?.focus();
+    }, 0);
+  };
+
+  const declineUpgrade = () => {
+    // Nothing changes but the decision. The customer keeps Moment, keeps its
+    // price, and is asked for no physical-format or delivery details.
+    setUpgradeDecision("declined");
+    trackEvent("moment_keepsake_upgrade_declined", {
+      from_package: MOMENT.id,
+      to_package: KEEPSAKE.id,
+    });
+  };
+
+  /**
+   * Back to Moment, before payment.
+   *
+   * One click up must not be a commitment. The creative brief is untouched —
+   * story, mood, musical style, personal touches and contact details all stay
+   * exactly as written; only the package and its format rules revert, so the
+   * shipping fields stop governing validation.
+   */
+  const revertUpgrade = () => {
+    setFormData((prev) => ({
+      ...prev,
+      package: MOMENT.id,
+      format: defaultFormatFor(MOMENT.id),
+    }));
+    setUpgradeDecision("declined");
   };
 
   const handleMoodToggle = (mood: string) => {
@@ -1003,14 +1123,23 @@ if (formData.artwork) {
         key={pkg.id}
         type="button"
         aria-pressed={formData.package === pkg.id}
-        onClick={() =>
+        onClick={() => {
           setFormData((prev) => ({
             ...prev,
             package: pkg.id,
             // Reset the format: the previous choice may not be sold here.
             format: defaultFormatFor(pkg.id),
-          }))
-        }
+          }));
+          /**
+           * Choosing a package HERE overrides any earlier upgrade decision,
+           * so the invitation state is cleared rather than left contradicting
+           * the selection. Without this a customer who declined, then picked
+           * Moment again from this grid, would never be offered the upgrade a
+           * second time — and one who accepted, then chose Journey, would
+           * still be marked as having upgraded to Keepsake.
+           */
+          setUpgradeDecision(isUpgradeEligible(pkg.id) ? null : "declined");
+        }}
         className={`px-5 py-3 rounded-xl transition-all text-left ${
           formData.package === pkg.id
             ? "bg-gold text-ink"
@@ -1414,6 +1543,26 @@ if (formData.artwork) {
                 {wordCount} / 2000 words
               </p>
             </div>
+
+            {/*
+              MOMENT → KEEPSAKE.
+
+              Placed here, after the story, deliberately: this is the first
+              point at which the customer has described something worth
+              holding. Rendered inline in document order rather than as a
+              modal — a dialog over a half-finished form would trap focus and
+              interrupt someone mid-thought.
+
+              It shows only for Moment, and only once the brief is ready.
+            */}
+            <UpgradeInvitation
+              currentPackage={formData.package}
+              decision={upgradeDecision}
+              onAccept={acceptUpgrade}
+              onDecline={declineUpgrade}
+              onRevert={revertUpgrade}
+              briefReady={briefReady}
+            />
 
   {/* TERMS */}
 <h3 className="label-uppercase text-gold-deep">
