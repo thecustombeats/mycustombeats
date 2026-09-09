@@ -18,6 +18,10 @@ import {
   type FormatId,
 } from "../data/packages";
 import {
+  REFERRAL_STORAGE_KEY,
+  readStoredReferral,
+} from "../data/referral";
+import {
   CONSENTS,
   INITIAL_CONSENT_STATE,
   getConsent,
@@ -330,6 +334,29 @@ const OrderFormSection = ({ selectedPackage }: OrderFormSectionProps) => {
    */
   const getRef = () => localStorage.getItem("referral") || "";
   const getPartner = () => localStorage.getItem("partner") || "";
+
+  /**
+   * The customer share code, if this visitor arrived through one.
+   *
+   * A SEPARATE read from `getRef` above, and separate all the way down: that
+   * one names an affiliate and may pay commission, this one names a customer
+   * and pays nobody. Expired and malformed values return null rather than
+   * being sent, so the server is not asked to resolve something that has
+   * already lapsed.
+   *
+   * The server resolves who the code belongs to. Nothing here names a
+   * referring customer, and there is no field in which it could.
+   */
+  const getCustomerReferral = (): string | null => {
+    try {
+      return (
+        readStoredReferral(localStorage.getItem(REFERRAL_STORAGE_KEY), Date.now())
+          ?.code ?? null
+      );
+    } catch {
+      return null;
+    }
+  };
   const sectionRef = useRef<HTMLDivElement>(null);
 
   const [showOtherMood, setShowOtherMood] = useState(false);
@@ -1110,6 +1137,15 @@ if (formData.artwork) {
      * rather than looking up the current ones, so an order stays readable
      * against the words that were actually on the page.
      */
+    /**
+     * The public share code, where there is one.
+     *
+     * The affiliate `referral` and `partner` fields above are untouched and
+     * still resolve exactly as they did — an order introduced by an affiliate
+     * keeps its affiliate credit whether or not a customer share also touched
+     * the journey. This is recorded alongside as influence, not instead.
+     */
+    ...(getCustomerReferral() ? { customerReferral: getCustomerReferral() } : {}),
     consents: formData.consents,
     termsVersion: TERMS_VERSION,
     refundPolicyVersion: REFUND_POLICY_VERSION,

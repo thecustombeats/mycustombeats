@@ -26,6 +26,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/bootstrap.php';
+require_once __DIR__ . '/../lib/referral.php';
 
 require_method('POST');
 
@@ -189,7 +190,7 @@ try {
         }
 
         $stmt = $pdo->prepare(
-            'SELECT id, status, affiliate_id, mcb_reference FROM orders WHERE id = :id FOR UPDATE'
+            'SELECT id, status, affiliate_id, customer_id, mcb_reference FROM orders WHERE id = :id FOR UPDATE'
         );
         $stmt->execute([':id' => $orderId]);
         $order = $stmt->fetch();
@@ -232,6 +233,38 @@ try {
         if ($order['affiliate_id'] !== null) {
             $pdo->prepare('UPDATE affiliates SET sales = sales + 1 WHERE id = :id')
                 ->execute([':id' => (int) $order['affiliate_id']]);
+        }
+
+        /**
+         * ---- Customer referral, confirmed --------------------------------
+         *
+         * SEPARATE FROM THE AFFILIATE CREDIT ABOVE, and it does not touch it.
+         * `affiliates.sales` is a commission counter; this is a record that a
+         * friend's recommendation led to a purchase. An order can have both,
+         * and when it does the affiliate is still paid exactly once.
+         *
+         * Conditional on the conversion currently being ATTRIBUTED, so a
+         * replayed event matches no rows and confirms nothing twice. A
+         * SELF_REFERRAL stays a self-referral: paying for it does not change
+         * what it was.
+         */
+        confirm_referral_conversion($pdo, $orderId);
+
+        /**
+         * ---- Referral eligibility ----------------------------------------
+         *
+         * A customer becomes able to share MCB at the moment their payment is
+         * verified, and not before. `order.php` deliberately does not do this:
+         * an order that has merely been created may never be paid, and minting
+         * codes for abandoned checkouts would hand share links to people who
+         * are not customers.
+         *
+         * Idempotent — a second delivery returns the existing code — so this
+         * is safe on the replay path that reaches here.
+         */
+        $customerIdForReferral = (int) ($order['customer_id'] ?? 0);
+        if ($customerIdForReferral > 0) {
+            ensure_customer_referral($pdo, $customerIdForReferral, $orderId);
         }
 
         return 'recorded';

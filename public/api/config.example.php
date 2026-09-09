@@ -107,6 +107,23 @@ return [
         // 'api_url' => '',
     ],
 
+    // ---- Reviews ------------------------------------------------------
+    // Where a customer is sent to say what their memory meant to them.
+    //
+    // REQUIRED IN PRODUCTION BEFORE REVIEW REQUESTS CAN BE SENT. It is empty
+    // here because no verified MCB review URL exists anywhere in this
+    // repository, and writing a plausible-looking Trustpilot address would
+    // send real customers to a page that may not be MCB's.
+    //
+    // While it is empty, POST /api/crm/review-request answers
+    // `not_configured` and sends nothing. Orders, completion and every other
+    // part of the lifecycle are unaffected.
+    //
+    // Must be http(s). Anything else is refused rather than put in an inbox.
+    'reviews' => [
+        'url' => '',   // e.g. https://uk.trustpilot.com/evaluate/...
+    ],
+
     // ---- Behaviour ----------------------------------------------------
     'app' => [
         // Origin allowed to call the write endpoints. Requests whose Origin

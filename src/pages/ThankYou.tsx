@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import { trackPurchase } from "../lib/analytics";
 import { getPackage, FORMATS, type FormatId } from "../data/packages";
 import { Helmet } from "react-helmet-async";
+import ShareMcb from "../components/ShareMcb";
 
 /**
  * How long to wait for the MCB reference to appear.
@@ -64,6 +65,17 @@ export default function ThankYou() {
    * number, not the Stripe session id, and not an internal database id.
    */
   const [reference, setReference] = useState<string | null>(null);
+  /**
+   * The customer's own share code, and only once their commission is
+   * COMPLETE.
+   *
+   * The server decides: `/api/order-reference` returns it only for an order
+   * whose production stage is COMPLETED, so this page cannot show a share
+   * invitation early even if someone changed the condition below. Immediately
+   * after payment there is nothing to render, which is the point — see
+   * `ShareMcb`.
+   */
+  const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referencePending, setReferencePending] = useState<boolean>(!!sessionId);
   /** Order status as MCB's own record reports it — not as Stripe's URL implies. */
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
@@ -146,6 +158,12 @@ export default function ThankYou() {
           if (cancelled) return;
           if (typeof data?.status === "string") {
             setOrderStatus(data.status);
+          }
+          // Present only for a completed commission. Set before the early
+          // return below so it is captured on the same response that carries
+          // the reference — a returning customer gets both in one poll.
+          if (typeof data?.referral === "string" && data.referral !== "") {
+            setReferralCode(data.referral);
           }
           if (typeof data?.reference === "string" && data.reference !== "") {
             setReference(data.reference);
@@ -334,6 +352,24 @@ export default function ThankYou() {
             Send Photos, Memories or Voice Notes
           </a>
         </div>
+
+        {/*
+          ---- The share invitation, and only once the work is done ---------
+
+          ABSENT ON THE PAGE A CUSTOMER SEES AFTER PAYING. This surface's job
+          in that first minute is to confirm the payment and hand over the
+          reference; adding "now tell your friends" to it would turn a
+          confirmation into a request, and would be asking someone to
+          recommend a record that has not been pressed.
+
+          The thank-you link is durable — the same URL minutes after payment
+          and weeks after delivery — so the page simply means something
+          different by then. The server decides when: `/api/order-reference`
+          returns the code only for an order whose production stage is
+          COMPLETED, so this cannot appear early even if the condition here
+          were loosened.
+        */}
+        {referralCode && <ShareMcb code={referralCode} />}
 
         <p className={`mt-12 text-center text-sm ${TEXT_PRIMARY}`}>
           MyCustomBeats • Turning memories into music

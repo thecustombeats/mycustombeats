@@ -34,6 +34,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/bootstrap.php';
 require_once __DIR__ . '/../lib/legal.php';
+require_once __DIR__ . '/../lib/lifecycle.php';
 
 require_crm_key();
 
@@ -67,6 +68,17 @@ function production_row(array $r): array
         ],
         'production_locked_at' => $r['production_locked_at'],
         'production_note'      => $r['production_note'],
+        /**
+         * When MCB regarded the commission as fulfilled.
+         *
+         * NOT a delivery confirmation — there is no carrier integration, and
+         * pretending a dispatch date is an arrival date would be inventing
+         * one. FULFILMENT means made and sent; this means done.
+         *
+         * The lifecycle messages hang off it: asking someone what their
+         * memory meant is a question about something they have.
+         */
+        'completed_at'         => $r['completed_at'],
         'terms_version'        => $r['terms_version'],
         // Payment state, returned ALONGSIDE and never as a substitute. An
         // operator can see both and the difference between them at a glance.
@@ -179,12 +191,14 @@ try {
         $stmt = $pdo->prepare(
             'INSERT INTO order_production (
                 order_id, stage, approved_at, approval_channel, approval_reference,
-                approved_item, approved_by, production_locked_at, production_note
+                approved_item, approved_by, production_locked_at, completed_at,
+                production_note
              ) VALUES (
                 :oid, :stage,
                 CASE WHEN :needs1 = 1 THEN UTC_TIMESTAMP() ELSE NULL END,
                 :chan, :ref, :item, :by,
                 CASE WHEN :stage2 = \'PRODUCTION_LOCKED\' THEN UTC_TIMESTAMP() ELSE NULL END,
+                CASE WHEN :stage4 = \'COMPLETED\' THEN UTC_TIMESTAMP() ELSE NULL END,
                 :note
              )
              ON DUPLICATE KEY UPDATE
@@ -200,6 +214,13 @@ try {
                     WHEN :stage3 = \'PRODUCTION_LOCKED\'
                     THEN COALESCE(production_locked_at, UTC_TIMESTAMP())
                     ELSE production_locked_at END,
+                -- Set once, on the first transition to COMPLETED. COALESCE so
+                -- a later note or correction cannot move the date the
+                -- lifecycle messages are timed from.
+                completed_at = CASE
+                    WHEN :stage5 = \'COMPLETED\'
+                    THEN COALESCE(completed_at, UTC_TIMESTAMP())
+                    ELSE completed_at END,
                 production_note = COALESCE(VALUES(production_note), production_note)'
         );
 
@@ -208,6 +229,12 @@ try {
             ':stage'  => $stage,
             ':stage2' => $stage,
             ':stage3' => $stage,
+            ':stage4' => $stage,
+            // A distinct placeholder for each OCCURRENCE, not each value.
+            // PDO binds by position once emulation is off, so reusing
+            // :stage4 in the ON DUPLICATE clause makes the parameter count
+            // disagree with the statement and every write fails.
+            ':stage5' => $stage,
             ':needs1' => $needsApproval ? 1 : 0,
             ':needs2' => $needsApproval ? 1 : 0,
             ':chan'   => $channel === '' ? null : $channel,

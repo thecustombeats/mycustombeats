@@ -28,6 +28,7 @@ require_once __DIR__ . '/lib/bootstrap.php';
 require_once __DIR__ . '/lib/basket.php';
 require_once __DIR__ . '/lib/attribution.php';
 require_once __DIR__ . '/lib/legal.php';
+require_once __DIR__ . '/lib/referral.php';
 
 require_method('POST');
 require_same_origin();
@@ -313,6 +314,27 @@ $attribution = resolve_attribution(
     (string) ($body['partner'] ?? '')
 );
 
+/**
+ * ---- The customer referral, resolved separately -----------------------
+ *
+ * A DIFFERENT THING FROM THE ATTRIBUTION ABOVE, and deliberately resolved
+ * apart from it. `resolve_attribution` decides who gets commercial credit —
+ * an affiliate or a partner — and that answer is unchanged by anything here.
+ *
+ * A customer share is not commercial. If both are present, the affiliate
+ * keeps `source_type = AFFILIATE` and is credited exactly as before, and the
+ * share is recorded in `customer_referral_conversions` as influence. One
+ * sale, one commission, and no information discarded.
+ *
+ * The browser sends only the public code it found in the URL. Who that code
+ * belongs to is resolved here, from the database — there is no field through
+ * which a request can name a referring customer.
+ */
+$referralCode = trim((string) ($body['customerReferral'] ?? ''));
+$referral     = $referralCode === ''
+    ? null
+    : resolve_referral_code(db(), $referralCode);
+
 $sourceType     = $attribution['source_type'];
 $affiliateId    = $attribution['affiliate_id'];
 $partnerId      = $attribution['partner_id'];
@@ -330,7 +352,8 @@ try {
         $package, $format, $fulfilment, $price,
         $sourceType, $affiliateId, $partnerId, $referralStored,
         $brief, $address, $basketLines,
-        $termsVersion, $refundVersion, $privacyVersion, $hasDigitalDelivery
+        $termsVersion, $refundVersion, $privacyVersion, $hasDigitalDelivery,
+        $referral
     ): int {
         $fullName = trim($firstName . ' ' . $lastName);
 
@@ -449,6 +472,23 @@ try {
             ':stage' => initial_production_stage(),
             ':tv'    => $termsVersion,
         ]);
+
+        /**
+         * The customer referral, if this order arrived through one.
+         *
+         * Written inside the order transaction so an order and its
+         * acquisition story commit together. `record_referral_attribution`
+         * marks it ATTRIBUTED, never CONFIRMED — only the Stripe webhook
+         * knows a payment happened, and a pending order is not a successful
+         * referral.
+         *
+         * Self-referral is checked here, where both identities are known: the
+         * buyer's customer row was just resolved from their email, and the
+         * referrer's is on the referral record.
+         */
+        if ($referral !== null) {
+            record_referral_attribution($pdo, $referral, $orderId, $customerId);
+        }
 
         if ($address !== null) {
             $stmt = $pdo->prepare(

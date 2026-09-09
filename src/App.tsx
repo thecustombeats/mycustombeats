@@ -4,6 +4,13 @@ import FloatingCTA from "./components/FloatingCTA";
 import { useLocation } from "react-router-dom";
 import Navigation from "./components/Navigation";
 import { trackPageView } from "./lib/analytics";
+import {
+  REFERRAL_PARAM,
+  REFERRAL_STORAGE_KEY,
+  isReferralCode,
+  readStoredReferral,
+  shouldReplaceStoredReferral,
+} from "./data/referral";
 import PersonalizationModal from "./components/PersonalizationModal";
 import HeroSection from "./sections/HeroSection";
 
@@ -99,6 +106,50 @@ function MainSite() {
   // the journey to the order form and on to Stripe.
   if (ref) localStorage.setItem("referral", ref);
   if (partner) localStorage.setItem("partner", partner);
+
+  /**
+   * ---- A CUSTOMER'S SHARE, WHICH IS NOT AN AFFILIATE LINK --------------
+   *
+   * Read from `?r=`, deliberately NOT `?ref=`. That parameter belongs to the
+   * affiliate programme: whatever appears in it is posted to
+   * /api/affiliate/click and resolved against `affiliates.username`. Putting
+   * customer codes there would send every personal share to the affiliate
+   * endpoint, and a customer code that happened to match an affiliate's
+   * username would credit a real commission to the wrong party.
+   *
+   * FIRST TOUCH WINS, for 30 days. Two friends may both send a link; the one
+   * whose link actually brought the visitor is the one who prompted the
+   * visit, and letting a later arrival overwrite it would hand the credit to
+   * whoever the customer happened to click most recently — including MCB's
+   * own re-marketing of the same page. Once the window lapses the slate
+   * clears, so a link from January cannot claim a purchase in November.
+   *
+   * No click is recorded. The affiliate ledger exists to compute commission;
+   * a personal recommendation pays nobody, and counting visits to it would be
+   * building an analytics product nobody asked for out of customers' friends.
+   */
+  const sharedCode = params.get(REFERRAL_PARAM);
+  if (sharedCode && isReferralCode(sharedCode)) {
+    try {
+      const now = Date.now();
+      const existing = readStoredReferral(
+        localStorage.getItem(REFERRAL_STORAGE_KEY),
+        now
+      );
+      if (shouldReplaceStoredReferral(existing, now)) {
+        localStorage.setItem(
+          REFERRAL_STORAGE_KEY,
+          // The public code and a timestamp. Nothing about who sent it —
+          // there is nothing else to store, and the code itself means
+          // nothing without the database.
+          JSON.stringify({ code: sharedCode, seenAt: now })
+        );
+      }
+    } catch {
+      // Private browsing, or storage disabled. Attribution is a nicety; the
+      // visit must not fail because it could not be recorded.
+    }
+  }
 
   if (!ref) return;
 
