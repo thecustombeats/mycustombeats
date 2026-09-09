@@ -52,9 +52,9 @@ import {
 } from "../data/packages";
 import {
   getProduct,
+  gbp,
   isPriced,
   type CatalogueProduct,
-  type Money,
   type ProductPrice,
 } from "../data/catalogue";
 import { pressingOptionsForPackage, type PressingOption } from "../data/catalogue/vinyl";
@@ -81,6 +81,16 @@ export interface MemoryLine {
   /** Secondary line, e.g. delivery promise or record configuration. */
   detail?: string;
   price: ProductPrice;
+  /**
+   * Qualifier rendered before the amount, e.g. "From" for an open-ended
+   * commission.
+   *
+   * It lives on the LINE, not on `ProductPrice`. A price is an approved
+   * number; "from £799" is a statement about how that number is being
+   * presented. Keeping it out of `ProductPrice` is what stops the catalogue
+   * growing an optional field every product would have to consider.
+   */
+  pricePrefix?: string;
   /** True when the line is included at no extra cost rather than free. */
   includedInPackage: boolean;
 }
@@ -103,9 +113,22 @@ export interface MemorySummary {
   lines: readonly MemoryLine[];
   /** Enhancement lines with no approved price. Excluded from the total. */
   quotedLines: readonly MemoryLine[];
-  /** Sum of every approved price in the memory. */
-  subtotal: Money;
-  /** What the customer pays online today. */
+  /**
+   * Sum of every approved price in the memory, in GBP.
+   *
+   * GBP only, because the catalogue is GBP only — see `ProductPrice`. A
+   * second currency here would have to be either a stale hard-coded figure or
+   * a conversion this module is in no position to make.
+   */
+  subtotal: number;
+  /**
+   * What the customer pays online today.
+   *
+   * Carries both approved package figures, because a PACKAGE has both and
+   * they are business-approved rather than converted. This is the one place
+   * the two-currency shape survives, and it is why `Money` lives here now
+   * rather than in the catalogue.
+   */
   chargeableTotal: Money;
   /** Where this memory checks out, if anywhere. */
   checkout: CheckoutTarget | undefined;
@@ -116,21 +139,38 @@ export interface MemorySummary {
   requiresShipping: boolean;
 }
 
-const ZERO: Money = { gbp: 0, usd: 0 };
+/**
+ * A PACKAGE amount, in both approved currencies.
+ *
+ * Defined here rather than in the catalogue because it is now a
+ * package-only shape. `data/packages.ts` carries a business-approved GBP and
+ * USD figure for each experience; the physical catalogue carries GBP alone
+ * (see `ProductPrice`), so nothing outside packages has a second currency to
+ * describe.
+ */
+export interface Money {
+  gbp: number;
+  usd: number;
+}
 
-const addMoney = (a: Money, b: Money): Money => ({
-  gbp: a.gbp + b.gbp,
-  usd: a.usd + b.usd,
-});
+const ZERO_MONEY: Money = { gbp: 0, usd: 0 };
 
-const priceAsMoney = (price: ProductPrice): Money =>
-  isPriced(price) ? { gbp: price.gbp, usd: price.usd } : ZERO;
+/** The approved GBP amount, or 0 where none is approved. */
+const priceAsGbp = (price: ProductPrice): number =>
+  isPriced(price) ? price.gbp : 0;
 
 /** "£199" / "$249". Kept here so every memory renders money identically. */
 export const formatMoney = (
   money: Money,
   currency: "gbp" | "usd" = "gbp"
-): string => (currency === "gbp" ? `£${money.gbp}` : `$${money.usd}`);
+): string =>
+  currency === "gbp"
+    ? `£${money.gbp.toLocaleString("en-GB")}`
+    : `$${money.usd.toLocaleString("en-US")}`;
+
+/** "£259" — a bare GBP total, matching catalogue price formatting. */
+export const formatGbp = (amount: number): string =>
+  `£${amount.toLocaleString("en-GB")}`;
 
 /* ------------------------------------------------------------------ */
 /* Build                                                               */
@@ -183,12 +223,8 @@ export const buildMemory = (selection: MemorySelection): MemorySummary => {
       kind: "PACKAGE",
       label: pkg.name,
       detail: pkg.delivery,
-      price: {
-        status: "APPROVED",
-        gbp: pkg.price.gbp,
-        usd: pkg.price.usd,
-        ...(pkg.price.prefix ? { prefix: pkg.price.prefix } : {}),
-      },
+      price: gbp(pkg.price.gbp),
+      ...(pkg.price.prefix ? { pricePrefix: pkg.price.prefix } : {}),
       includedInPackage: false,
     });
 
@@ -200,7 +236,7 @@ export const buildMemory = (selection: MemorySelection): MemorySummary => {
         // Pressing detail only where vinyl actually resolved to one.
         detail: format === "vinyl" ? pressing?.label : undefined,
         // Format never changes the price — it selects a fulfilment route.
-        price: { status: "APPROVED", gbp: 0, usd: 0 },
+        price: gbp(0),
         includedInPackage: true,
       });
     }
@@ -212,15 +248,15 @@ export const buildMemory = (selection: MemorySelection): MemorySummary => {
 
   const subtotal = lines
     .filter((line) => !line.includedInPackage)
-    .reduce((total, line) => addMoney(total, priceAsMoney(line.price)), ZERO);
+    .reduce((total, line) => total + priceAsGbp(line.price), 0);
 
   const checkout = pkg ? getCheckoutTarget(pkg, format) : undefined;
 
   // Only the package price can be charged by a fixed Payment Link, so that is
   // what the total claims — never the subtotal of a basket Stripe will not see.
-  const chargeableTotal = pkg
+  const chargeableTotal: Money = pkg
     ? { gbp: pkg.price.gbp, usd: pkg.price.usd }
-    : ZERO;
+    : ZERO_MONEY;
 
   const blockers: CheckoutBlocker[] = [];
 

@@ -15,6 +15,13 @@ const NotFound = () => (
   <>
     <Helmet>
       <title>Page not found | My Custom Beats</title>
+      {/* Stated rather than inherited. index.html's fallback description is
+          removed before render, so a page that sets none now has none — and
+          a 404 describing itself as the homepage was never right anyway. */}
+      <meta
+        name="description"
+        content="This page could not be found. Browse personalised songs, keepsakes and the rest of My Custom Beats."
+      />
       <meta name="robots" content="noindex, follow" />
     </Helmet>
 

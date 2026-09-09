@@ -29,17 +29,30 @@
     <link rel="apple-touch-icon" href="/images/brand/MCB-Favicon-Square.png" />
     <meta name="theme-color" content="#0D1B2A" />
 
-    <!-- Fallback head tags. Each route overrides title/description/canonical
-         via react-helmet-async; these serve crawlers that read the raw HTML. -->
-    <title>Personalised Songs on Vinyl, CD & MP3 | My Custom Beats</title>
-    <meta name="description" content="Turn a memory into a personalised song, from £10. Choose vinyl, CD or MP3. Made for cruises, weddings, anniversaries and celebrations." />
+    <!-- Fallback head tags, for crawlers that read the raw HTML and never run
+         the app. Everything carrying HOMEPAGE-SPECIFIC copy is marked
+         data-static-seo and removed by src/main.tsx before React renders.
+
+         WHY THEY MUST BE REMOVED: react-helmet-async cannot replace a tag it
+         did not create. It only appends its own. So these stayed in the head
+         on every route, ahead of the per-page tags, and a crawler reads the
+         FIRST of a duplicated meta — which meant /products, /faq and every
+         other page reported the homepage description and the homepage og:url
+         while their own sat below, ignored. The <title> was the exception and
+         looked fine, because a document has one title element and helmet
+         rewrites it in place.
+
+         Tags WITHOUT the marker are route-independent and stay: they are true
+         of every page, so there is nothing for a route to override. -->
+    <title>Personalised Songs on Vinyl, CD &amp; MP3 | My Custom Beats</title>
+    <meta data-static-seo name="description" content="Turn a memory into a personalised song, from £10. Choose vinyl, CD or MP3. Made for cruises, weddings, anniversaries and celebrations." />
 
     <!-- Social -->
     <meta property="og:site_name" content="My Custom Beats" />
-    <meta property="og:title" content="Personalised Songs on Vinyl, CD & MP3 | My Custom Beats" />
-    <meta property="og:description" content="Turn a memory into a personalised song, from £10. Choose vinyl, CD or MP3." />
-    <meta id="static-og-image" property="og:image" content="https://www.mycustombeats.com/images/hero-1.jpg" />
-    <meta property="og:url" content="https://www.mycustombeats.com/" />
+    <meta data-static-seo property="og:title" content="Personalised Songs on Vinyl, CD &amp; MP3 | My Custom Beats" />
+    <meta data-static-seo property="og:description" content="Turn a memory into a personalised song, from £10. Choose vinyl, CD or MP3." />
+    <meta data-static-seo property="og:image" content="https://www.mycustombeats.com/images/hero-1.jpg" />
+    <meta data-static-seo property="og:url" content="https://www.mycustombeats.com/" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
 

@@ -136,6 +136,12 @@ if (blockedDomains.includes(domain)) {
     <>
       <Helmet>
         <title>Affiliate Program | My Custom Beats</title>
+        {/* Stated rather than inherited — index.html's fallback description
+            is removed before render, so a page that sets none has none. */}
+        <meta
+          name="description"
+          content="Earn commission introducing people to My Custom Beats. Share your link, track your clicks and sales, and get paid for every personalised song you refer."
+        />
       </Helmet>
 
       <div className="bg-[#FBF9F6] text-black">

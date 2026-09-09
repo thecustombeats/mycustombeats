@@ -2,15 +2,15 @@
 import { Helmet } from "react-helmet-async";
 import { stockedFamilies, relatedFamilies } from "../data/catalogue";
 import CatalogueFamily from "../components/CatalogueFamily";
-import { canonical, productsPageStructuredData } from "../lib/seo";
+import { PRODUCTS_DESCRIPTION, productsPageStructuredData } from "../lib/seo";
 
 /**
  * Families with an approved product, in catalogue order.
  *
- * Families with none — Digital Players, Portable Gramophones, the
- * Mobile-phone Gramophone and Frames — are not given a block of their own.
- * They still appear by name wherever a relationship names them, which is
- * honest about what exists without inventing a product to photograph.
+ * Every family now has one: Frames gained the Vinyl Frame, and the four
+ * playback families — Digital Players, the Portable Record Player Suitcase,
+ * the Mobile-phone Gramophone and the Vintage Collection — each gained their
+ * first priced product, so all eleven render a full block of their own.
  */
 const FAMILIES = stockedFamilies();
 
@@ -18,6 +18,11 @@ const FAMILIES = stockedFamilies();
  * Approved families with nothing catalogued yet, discovered through the
  * relationship map rather than listed here, so this cannot drift out of step
  * with the catalogue.
+ *
+ * EMPTY TODAY, and deliberately kept. Every family is stocked, so the section
+ * below renders nothing — but the moment a future family is declared ahead of
+ * its first product, it reappears here by itself. Deleting the mechanism
+ * because the list happens to be empty would mean rebuilding it then.
  */
 const AWAITED_FAMILIES = FAMILIES.flatMap((family) =>
   relatedFamilies(family.id).filter((related) => related.products.length === 0)
@@ -32,17 +37,16 @@ const Products = () => {
   return (
     <>
       <Helmet>
-        <title>Music Keepsakes — Vinyl, Frames, Memory Boxes & Cards | My Custom Beats</title>
-        <meta
-          name="description"
-          content="Turn your personalised song into something you can hold: vinyl in 7, 10 and 12-inch, CD, lyrics frames, engraved plaques, luxury memory boxes and gift pop-up cards."
-        />
+        <title>Music Keepsakes — Vinyl, Frames, Players & Cards | My Custom Beats</title>
+        {/* The SAME sentence the CollectionPage node states. It was written
+            out twice and both copies went stale together, still advertising
+            7-inch and 10-inch records long after both were withdrawn. */}
+        <meta name="description" content={PRODUCTS_DESCRIPTION} />
         <meta property="og:title" content="Music Keepsakes | My Custom Beats" />
         <meta
           property="og:description"
-          content="Vinyl, CD, lyrics frames, engraved plaques, luxury memory boxes and gift pop-up cards — your song, made physical."
+          content="Vinyl, CD, framed lyric artwork, engraved plaques, vinyl frames, gift pop-up cards and the players to hear them on — your song, made physical."
         />
-        <meta property="og:url" content={canonical("/products")} />
         <script type="application/ld+json">
           {JSON.stringify(productsPageStructuredData())}
         </script>

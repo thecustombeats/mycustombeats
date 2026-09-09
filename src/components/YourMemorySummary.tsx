@@ -16,7 +16,7 @@
  */
 
 import { formatProductPrice, isPriced } from "../data/catalogue";
-import { formatMoney, type MemorySummary } from "../lib/memory";
+import { formatGbp, formatMoney, type MemorySummary } from "../lib/memory";
 
 interface YourMemorySummaryProps {
   memory: MemorySummary;
@@ -47,6 +47,10 @@ const LinePrice = ({
 
   return (
     <span className="font-mono text-sm text-espresso">
+      {/* "From £799" for an open-ended commission. The qualifier lives on the
+          line rather than inside the price, so a bare amount can never be
+          rendered as if it were the final figure. */}
+      {line.pricePrefix ? `${line.pricePrefix} ` : ""}
       {formatProductPrice(line.price)}
     </span>
   );
@@ -120,7 +124,10 @@ const YourMemorySummary = ({ memory, className }: YourMemorySummaryProps) => {
         <div className="flex justify-between items-baseline gap-4 py-3">
           <dt className="text-espresso/60">Subtotal</dt>
           <dd className="font-mono text-sm text-espresso text-right">
-            {formatMoney(memory.subtotal)}
+            {/* GBP only — the catalogue lines this sums carry no other
+                currency. The package total below still shows both approved
+                package figures. */}
+            {formatGbp(memory.subtotal)}
           </dd>
         </div>
 

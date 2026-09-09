@@ -9,7 +9,28 @@ import {
 } from '@/components/ui/accordion';
 import { Helmet } from "react-helmet-async";
 import { MOMENT, KEEPSAKE, JOURNEY, HEIRLOOM, BESPOKE, formatPrice } from '../data/packages';
-import { canonical, faqPageStructuredData } from '../lib/seo';
+import { VINYL_12 } from '../data/catalogue/vinyl';
+import {
+  GIFT_POP_UP_CARDS,
+  LYRICS_FRAME,
+  PLAQUE,
+  VINYL_FRAME,
+  capacityLabel,
+  formatProductPrice,
+} from '../data/catalogue';
+import { faqPageStructuredData } from '../lib/seo';
+
+/**
+ * The record MCB presses to, described from catalogue data.
+ *
+ * `songCapacity` is optional on a product because most products do not hold
+ * audio, so it is read defensively rather than asserted. If it were ever
+ * absent the sentence simply drops the capacity clause instead of rendering
+ * "undefined" into an FAQ answer and into FAQPage structured data.
+ */
+const VINYL_CAPACITY = VINYL_12.songCapacity
+  ? capacityLabel(VINYL_12.songCapacity)
+  : null;
 
 
 gsap.registerPlugin(ScrollTrigger);
@@ -64,7 +85,17 @@ const faqs: { question: string; answer: string }[] = [
   },
   {
     question: 'Can I get my personalised song on vinyl?',
-    answer: `Yes. A vinyl pressing is included at no extra cost with ${KEEPSAKE.name}, ${JOURNEY.name} and ${HEIRLOOM.name}. The record is sized to your music: a 7-inch holds one song, a 10-inch holds two, and a 12-inch holds five to six — so a four-song ${JOURNEY.name} presses to a single 12-inch or a pair of 10-inch records, and a six-song ${HEIRLOOM.name} to one 12-inch. Choose vinyl when you place your order and we will ask for a delivery address.`,
+    /**
+     * The record size is READ FROM THE CATALOGUE, not written out here.
+     *
+     * This answer previously described 7-inch and 10-inch records by hand.
+     * Both sizes were withdrawn from `catalogue/vinyl.ts`, and because the
+     * sentence was prose rather than data it kept describing them — to
+     * customers, and inside this page's FAQPage structured data. Deriving the
+     * name and capacity means withdrawing or adding a size updates the answer
+     * and the schema together, with no edit here.
+     */
+    answer: `Yes. A vinyl pressing is included at no extra cost with ${KEEPSAKE.name}, ${JOURNEY.name} and ${HEIRLOOM.name}. Every record is a ${VINYL_12.name.toLowerCase()}${VINYL_CAPACITY ? `, which holds ${VINYL_CAPACITY}` : ""} — so a one-song ${KEEPSAKE.name}, a four-song ${JOURNEY.name} and a six-song ${HEIRLOOM.name} each press to a single record. Choose vinyl when you place your order and we will ask for a delivery address.`,
   },
   {
     question: 'Can I get a CD?',
@@ -89,7 +120,13 @@ const faqs: { question: string; answer: string }[] = [
   {
     question: 'What physical keepsakes do you offer?',
     answer:
-      'Beyond vinyl and CD, we make lyrics frames — your words set as typography and framed for the wall — engraved crystal or wood music plaques with a scannable code to your song, luxury memory boxes holding lyrics and photos alongside your music, and gift pop-up cards that open to reveal your song, with designs for anniversaries, birthdays, weddings, Christmas and more. These are made to order — contact us for pricing.',
+      /**
+       * Prices are named here because they are approved and published on
+       * /products; the memory box is described WITHOUT one because it has
+       * none, and "contact us" now applies to that alone rather than to the
+       * whole list as it did when nothing was priced.
+       */
+      `Beyond vinyl and CD, we make framed lyric artwork — your words set as typography and framed for the wall, ${formatProductPrice(LYRICS_FRAME.price)} — engraved crystal or wood music plaques with a scannable code to your song, ${formatProductPrice(PLAQUE.price)}, a vinyl frame that turns your record into a display piece, ${formatProductPrice(VINYL_FRAME.price)}, and gift pop-up cards that open to reveal your song, ${formatProductPrice(GIFT_POP_UP_CARDS[0].price)}, with designs for anniversaries, birthdays, weddings, Christmas and more. We also make luxury memory boxes holding lyrics and photos alongside your music — contact us for those. Everything is made to order.`,
   },
   {
     question: 'Do I need to write lyrics?',
@@ -174,7 +211,6 @@ const FAQSection = () => {
     name="description"
     content="How personalised songs work, what Moment, Keepsake, Journey and Heirloom include, whether you can get vinyl, CD or MP3, and how quickly your music arrives."
   />
-  <meta property="og:url" content={canonical("/faq")} />
   {/* FAQPage, breadcrumb and page identity in one graph. `mainEntity` is
       built from the same `faqs` array the accordion renders below, so the
       markup cannot answer a question the page does not ask. */}

@@ -56,11 +56,55 @@ const AVAILABILITY_COPY: Record<CatalogueProduct["availability"], string> = {
   COMING_SOON: "Coming soon",
 };
 
-/** "£120" where approved, otherwise the enquiry line the page already used. */
-const PriceLine = ({ product }: { product: CatalogueProduct }) => {
-  const price = formatProductPrice(product.price);
+/**
+ * What a family costs, read from its products rather than assumed.
+ *
+ * A family whose products all share one approved price states it plainly. A
+ * family whose products differ says "From" the lowest, which is true of a
+ * range and does not pretend the dearest piece costs the same as the
+ * cheapest. A family with nothing approved returns `null` and the caller
+ * falls back to the enquiry line the page has always used.
+ *
+ * Reading the whole family matters now that families hold priced products:
+ * the previous version let `products[0]` speak for everything behind it,
+ * which was harmless while every price was TBD and would quietly misprice a
+ * range the moment one was not.
+ */
+const familyPrice = (
+  family: ProductFamily
+): { amount: string; from: boolean } | null => {
+  const priced = family.products
+    .map((product) => product.price)
+    .filter(isPriced);
 
-  if (!isPriced(product.price) || price === null) {
+  if (priced.length === 0) return null;
+
+  const amounts = priced.map((price) => price.gbp);
+  const lowest = Math.min(...amounts);
+  const uniform =
+    priced.length === family.products.length &&
+    amounts.every((amount) => amount === lowest);
+
+  const formatted = formatProductPrice(
+    priced.find((price) => price.gbp === lowest) ?? priced[0]
+  );
+  if (formatted === null) return null;
+
+  return { amount: formatted, from: !uniform };
+};
+
+/**
+ * "£200" where approved, otherwise the enquiry line the page already used.
+ *
+ * Set in the page's own light serif rather than mono — a price on a luxury
+ * catalogue reads as part of the writing, not as a field in a spreadsheet.
+ * GBP only: there is no second currency in `ProductPrice` to render, and a
+ * converted figure beside it would be a rate this component invented.
+ */
+const PriceLine = ({ family }: { family: ProductFamily }) => {
+  const price = familyPrice(family);
+
+  if (price === null) {
     return (
       <p className="text-sm italic text-black/50">
         Each piece is custom made — enquire for pricing
@@ -69,11 +113,13 @@ const PriceLine = ({ product }: { product: CatalogueProduct }) => {
   }
 
   return (
-    <p className="font-mono text-base text-black">
-      {price}
-      <span className="text-black/45 text-sm ml-2">
-        {formatProductPrice(product.price, "usd")}
-      </span>
+    <p className="text-xl font-light text-black">
+      {price.from && (
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-black/45 mr-2 align-middle">
+          From
+        </span>
+      )}
+      {price.amount}
     </p>
   );
 };
@@ -266,10 +312,20 @@ const CatalogueFamily = ({ family, reverse = false }: CatalogueFamilyProps) => {
         and the plaque beside them. A square well lets those two fill their
         space with the same visual weight, still uncropped and undistorted.
       */}
+      {/*
+        `contain` wells take their shape from the artwork, because contain
+        letterboxes instead of cropping and the wrong shape strands the
+        picture in empty space. The playback-collection images are landscape
+        (~3:2) with their titles printed near the bottom edge, so they need a
+        landscape well AND contain — a crop would clip the title, and a square
+        well would shrink the photograph to a band across the middle.
+      */}
       <div
         className={`rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition duration-500 ${
           family.imageFit === "contain"
-            ? "aspect-square"
+            ? family.imageAspect === "landscape"
+              ? "aspect-[3/2]"
+              : "aspect-square"
             : "h-[280px] sm:h-[360px] md:h-[400px]"
         } ${reverse ? "md:order-2" : ""}`}
       >
@@ -408,9 +464,7 @@ const CatalogueFamily = ({ family, reverse = false }: CatalogueFamilyProps) => {
         })()}
 
         <div className="mt-7 space-y-1">
-          {/* Every product in a family shares its pricing basis today, so the
-              first product speaks for the family. */}
-          {family.products[0] && <PriceLine product={family.products[0]} />}
+          <PriceLine family={family} />
 
           {leadTime ? (
             <p className="font-mono text-xs text-black/50">{leadTime}</p>

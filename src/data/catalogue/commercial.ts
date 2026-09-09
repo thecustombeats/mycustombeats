@@ -2,10 +2,15 @@
  * COMMERCIAL TERMS — the structure, and an honest record of what is missing.
  *
  * A product page can only sell what the business has approved. MCB has
- * approved five package prices and nothing else: no physical product price,
- * no shipping rate, no return, exchange or damage policy. Those are commercial
- * decisions, and inventing any of them would put a claim on the site that
- * nobody has agreed to honour.
+ * approved five package prices and, now, a GBP price for most of the physical
+ * catalogue — but still no shipping rate, and no return, exchange or damage
+ * policy. Those are commercial decisions, and inventing any of them would put
+ * a claim on the site that nobody has agreed to honour.
+ *
+ * A PRICE IS NOT A POLICY. Pricing a frame at £200 says what it costs; it
+ * says nothing about what happens when it arrives broken. The terms below
+ * stayed PENDING through that pricing round, deliberately, because approving
+ * one did not approve the other.
  *
  * So this file does two things and refuses to do a third:
  *
@@ -111,11 +116,18 @@ export interface PendingDecision {
  */
 export const PENDING_DECISIONS: readonly PendingDecision[] = [
   {
-    id: "keepsake-pricing",
+    id: "remaining-keepsake-pricing",
     question:
-      "What does each physical product cost? Vinyl by size, CD, lyrics frames, plaques, memory boxes, and each of the ten Gift Pop-Up Card occasions.",
+      "What do the personalised vinyl record, the CD and the Luxury Memory Box cost on their own? Frames, plaques, cards and the playback collection are now priced; these three are not.",
     blocks:
-      "Selling any keepsake. A basket cannot be totalled and no Offer can be published.",
+      "Totalling a basket that contains them, and publishing an Offer for the vinyl and CD families. Note the £60 Additional Vinyl Copy is the price of a DUPLICATE pressing, not of the record itself — see catalogue/enhancements.ts.",
+  },
+  {
+    id: "music-box-identity",
+    question:
+      "Is the proposed £600 MCB Music Box Experience the existing Luxury Memory Box under a new name, a replacement for it, or a separate product? If it is separate or new, what does it physically contain?",
+    blocks:
+      "Publishing the £600 experience at all. The repository holds an approved Luxury Memory Box with an approved photograph and no approved price, and nothing anywhere defines a 'Music Box Experience' or connects £600 to it. The two names also denote different objects in ordinary use — a keepsake box that holds things, versus a music box that plays. Pricing the existing Memory Box at £600 on that resemblance would put a figure and a set of contents in front of customers that nobody has approved, so the £600 experience is deliberately absent from the catalogue until this is answered.",
   },
   {
     id: "shipping-rates",

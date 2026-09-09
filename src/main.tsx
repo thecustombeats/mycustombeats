@@ -6,18 +6,30 @@ import './index.css'
 import App from './App.tsx'
 
 /**
- * Remove the static Open Graph image before React renders.
+ * Remove the static, homepage-specific SEO tags before React renders.
  *
- * index.html carries one so a crawler that does not execute JavaScript —
- * which is most social crawlers — still finds a share image in the raw HTML.
- * But react-helmet-async cannot replace a tag it did not create, so once the
- * app emits the per-route image the page would carry two og:image tags and
- * crawlers read the first: every page would share the homepage photograph.
+ * index.html carries a description, an og:title, an og:description, an
+ * og:url and an og:image so a crawler that does not execute JavaScript —
+ * which is most social crawlers — still finds them in the raw HTML.
  *
- * Dropping the static tag here leaves exactly one og:image in a rendered
- * page, while the raw HTML keeps its default untouched.
+ * But react-helmet-async cannot REPLACE a tag it did not create; it only
+ * appends its own. Left in place, each static tag stayed in the head on every
+ * route, positioned above the per-page tag that was supposed to supersede it.
+ * Crawlers read the first of a duplicated meta, so /products and /faq
+ * advertised the homepage description and the homepage og:url while their own
+ * values sat below, unread. Only <title> escaped, because a document has one
+ * title element and helmet rewrites that in place — which is exactly why the
+ * problem was invisible: the titles all looked right.
+ *
+ * Dropping them here leaves exactly ONE of each in a rendered page, while the
+ * raw HTML a non-JS crawler fetches keeps its defaults untouched.
+ *
+ * Marked in the HTML with `data-static-seo` rather than listed here by id, so
+ * adding a fallback tag there does not require remembering to edit this file.
  */
-document.getElementById('static-og-image')?.remove()
+document
+  .querySelectorAll('head meta[data-static-seo]')
+  .forEach((tag) => tag.remove())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -30,46 +30,62 @@ import type { PackageId } from "../packages";
 /* Money                                                               */
 /* ------------------------------------------------------------------ */
 
-export interface Money {
-  gbp: number;
-  usd: number;
-}
-
 /**
  * A catalogue price.
  *
- * `TBD` is not "£0" and not "price unknown, guess something" — it is a
- * positive statement that the business has not approved a customer-facing
- * figure. It deliberately has no numeric field, so there is nothing for a
- * component to read and render by mistake. Every physical product in the
- * catalogue is TBD today; none of the prices below were invented.
+ * GBP ONLY, DELIBERATELY.
+ * -----------------------
+ * GBP is MCB's canonical commercial currency: it is what Stripe charges and
+ * what the business approves. The previous shape carried a `usd` field beside
+ * every `gbp` one, which meant approving a price meant inventing a second
+ * number — and a hard-coded USD figure is a stale exchange rate the moment it
+ * is written. Local-currency presentation is a rendering concern for a later
+ * sprint, driven by a live rate at display time; it is not a second column in
+ * the catalogue. There is therefore nowhere here to put a USD, EUR, INR, AUD
+ * or CAD amount, which is the point.
+ *
+ * TWO STATES, AND NO THIRD.
+ * -------------------------
+ * `FIXED_GBP` carries an amount the business has approved. `TBD` is not "£0"
+ * and not "price unknown, guess something" — it is a positive statement that
+ * no customer-facing figure has been approved, and it deliberately has no
+ * numeric field, so there is nothing for a component to read and render by
+ * mistake. A price is one or the other; there is no partially-priced state to
+ * represent, and no optional number that could be silently absent.
  */
 export type ProductPrice =
-  | { status: "APPROVED"; gbp: number; usd: number; prefix?: string }
+  | { status: "FIXED_GBP"; gbp: number }
   | { status: "TBD" };
 
 export const TBD: ProductPrice = { status: "TBD" };
 
+/**
+ * An approved GBP price.
+ *
+ * The only way to construct a priced product, so every price in the catalogue
+ * is written in one recognisable form and grep finds all of them.
+ */
+export const gbp = (amount: number): ProductPrice => ({
+  status: "FIXED_GBP",
+  gbp: amount,
+});
+
 export const isPriced = (
   price: ProductPrice
-): price is Extract<ProductPrice, { status: "APPROVED" }> =>
-  price.status === "APPROVED";
+): price is Extract<ProductPrice, { status: "FIXED_GBP" }> =>
+  price.status === "FIXED_GBP";
 
 /**
- * Renders a catalogue price, or `null` when there is no approved figure.
+ * Renders a catalogue price in GBP, or `null` when none is approved.
  *
  * Callers must handle `null` with their own copy rather than being handed a
  * placeholder like "—" that reads as a price of nothing.
+ *
+ * Grouped with `en-GB` separators so £1,000 reads as a price rather than as a
+ * part number.
  */
-export const formatProductPrice = (
-  price: ProductPrice,
-  currency: "gbp" | "usd" = "gbp"
-): string | null => {
-  if (!isPriced(price)) return null;
-  const amount =
-    currency === "gbp" ? `£${price.gbp}` : `$${price.usd}`;
-  return price.prefix ? `${price.prefix} ${amount}` : amount;
-};
+export const formatProductPrice = (price: ProductPrice): string | null =>
+  isPriced(price) ? `£${price.gbp.toLocaleString("en-GB")}` : null;
 
 /* ------------------------------------------------------------------ */
 /* Availability and fulfilment                                         */
@@ -379,6 +395,17 @@ export interface ProductFamily {
    * clipped a title would be worse than letterboxing. Defaults to `cover`.
    */
   imageFit?: "cover" | "contain";
+  /**
+   * The shape of the well the image sits in.
+   *
+   * Only meaningful alongside `contain`, which letterboxes rather than crops:
+   * a well the wrong shape leaves the artwork stranded in empty space. The
+   * Memory Box and Gift Pop-Up Card photographs are near-square (760x792,
+   * 755x792) and fill a `square` well; the playback-collection artwork is
+   * landscape (~3:2) and fills a `landscape` one. Defaults to `square`, which
+   * is what the two original `contain` families already used.
+   */
+  imageAspect?: "square" | "landscape";
   /** True where the family is also selectable as a delivery format. */
   isCheckoutFormat: boolean;
   products: readonly CatalogueProduct[];

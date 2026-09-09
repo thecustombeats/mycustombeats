@@ -5,7 +5,7 @@ import { MOMENT, JOURNEY, KEEPSAKE, formatPrice } from "../data/packages";
 import { stockedFamilies } from "../data/catalogue";
 import { SAMPLE_SONGS } from "../data/sampleSongs";
 import CruiseMarquee from "../components/CruiseMarquee";
-import { canonical, cruisePageStructuredData } from "../lib/seo";
+import { cruisePageStructuredData } from "../lib/seo";
 
 /**
  * The cruise guest funnel.
@@ -61,7 +61,6 @@ const CruiseMemories = () => {
           name="description"
           content="Turn a cruise or voyage into a personalised song written from your own story. Delivered digitally or pressed to vinyl or CD."
         />
-        <meta property="og:url" content={canonical("/cruise")} />
         <script type="application/ld+json">
           {JSON.stringify(cruisePageStructuredData())}
         </script>

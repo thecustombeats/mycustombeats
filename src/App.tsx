@@ -125,7 +125,6 @@ function MainSite() {
       name="description"
       content="Turn a memory into a personalised song, from £10. Choose vinyl, CD or MP3. Made for cruises, weddings, anniversaries and celebrations."
     />
-    <meta property="og:url" content={canonical("/")} />
     <script type="application/ld+json">
       {JSON.stringify(homepageStructuredData())}
     </script>
@@ -269,12 +268,21 @@ function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {/* One canonical and one share image per page, derived from the route.
-          Kept here rather than in each page so no route can be missed or
-          emit two. Titles and descriptions stay with their pages; crawlers
-          fall back to them when og:title is absent. */}
+      {/* Everything derived from the ROUTE lives here — one canonical, one
+          og:url, one share image per page. Kept in Layout rather than in each
+          page so no route can be missed or emit two.
+
+          og:url moved here this sprint. Four pages set it themselves and the
+          rest inherited the static homepage value from index.html, so most of
+          the site told crawlers every page lived at the site root. It is a
+          pure function of the path, exactly like the canonical beside it, so
+          no page has any business restating it.
+
+          Titles and descriptions stay with their pages; crawlers fall back to
+          them when og:title and og:description are absent. */}
       <Helmet>
         <link rel="canonical" href={canonical(pathname)} />
+        <meta property="og:url" content={canonical(pathname)} />
         <meta property="og:image" content={share.url} />
         <meta property="og:image:alt" content={share.alt} />
         <meta name="twitter:image" content={share.url} />

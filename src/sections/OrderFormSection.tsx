@@ -23,6 +23,88 @@ const moodsList = [
   'Nostalgia','Gratitude','Calm','Excitement','Reflection','Cinematic'
 ];
 
+/* ------------------------------------------------------------------ */
+/* Field accessibility                                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * WHY THESE EXIST
+ *
+ * Every control on this form was labelled by its `placeholder` alone, and the
+ * genre select had no accessible name at all. A placeholder is not a label:
+ * it is a hint that DISAPPEARS the moment someone types, so a screen-reader
+ * user reviewing a half-completed form hears "edit text, blank" with no way
+ * to find out what the field wanted, and anyone relying on magnification
+ * loses the only description of the field they were filling in.
+ *
+ * The errors were worse. They were rendered as ordinary paragraphs next to
+ * the input, visually adjacent and programmatically unrelated — so a screen
+ * reader announced the invalid field exactly as it announced a valid one, and
+ * never read the reason.
+ *
+ * The fix keeps the design exactly as it is. Labels are real `<label>`
+ * elements that are visually hidden, so the placeholders still carry the
+ * visible design and assistive technology gets a stable name underneath it.
+ */
+
+/** Stable DOM ids, derived from the field name so they cannot drift apart. */
+const fieldId = (name: string) => `order-${name}`;
+const fieldErrorId = (name: string) => `order-${name}-error`;
+
+/**
+ * ARIA wiring for one control.
+ *
+ * `aria-invalid` marks the field itself as failing; `aria-describedby` points
+ * at the message explaining why, so both are announced together on focus.
+ * Both are omitted entirely when valid rather than set to "false", which
+ * keeps the rendered markup honest about which fields are actually in error.
+ */
+const fieldAria = (name: string, error?: string) => ({
+  id: fieldId(name),
+  ...(error
+    ? { "aria-invalid": true as const, "aria-describedby": fieldErrorId(name) }
+    : {}),
+});
+
+/**
+ * The accessible name for a control, hidden from sight.
+ *
+ * `sr-only` rather than `hidden` or `display:none` — a hidden label is not
+ * read by anything and would leave the field exactly as nameless as before.
+ */
+const FieldLabel = ({
+  name,
+  children,
+}: {
+  name: string;
+  children: React.ReactNode;
+}) => (
+  <label htmlFor={fieldId(name)} className="sr-only">
+    {children}
+  </label>
+);
+
+/**
+ * One field's error message, tied to the control that owns it.
+ *
+ * `role="alert"` so it is announced when it appears after a failed submit,
+ * not only when the field is next focused.
+ */
+const FieldError = ({
+  name,
+  message,
+  className = "text-red-500 text-xs mt-1",
+}: {
+  name: string;
+  message?: string;
+  className?: string;
+}) =>
+  message ? (
+    <p id={fieldErrorId(name)} role="alert" className={className}>
+      {message}
+    </p>
+  ) : null;
+
 /**
  * Order-capture endpoints. These are ANCILLARY: they record the order for
  * fulfilment and automation. They must never gate the customer's payment.
@@ -433,7 +515,22 @@ const handleChange = <K extends keyof FormDataType>(
 
     if (element) {
       element.scrollIntoView({ behavior: "smooth", block: "center" });
-      element.focus();
+
+      /**
+       * Focus the CONTROL, not the wrapper.
+       *
+       * `data-field` sits on a plain <div> for most fields, and a div is not
+       * focusable — so `element.focus()` silently did nothing and a keyboard
+       * or screen-reader user was scrolled to the problem without being put
+       * in it, hearing no error at all. Where the marker is on the control
+       * itself, `closest` finds it and this behaves exactly as before.
+       */
+      const control =
+        element.matches("input, select, textarea")
+          ? element
+          : element.querySelector<HTMLElement>("input, select, textarea");
+
+      (control ?? element).focus();
     }
 
     return; // 🚨 BLOCKS STRIPE
@@ -670,50 +767,74 @@ if (formData.artwork) {
 
   {/* First + Last Name */}
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <input
-  name="firstName"
-      data-field="firstName"
-      placeholder="First Name *"
-      value={formData.firstName}
-      onChange={(e) => handleChange("firstName", e.target.value)}
-      className={`w-full px-4 py-3 border rounded-xl ${
-        errors.firstName ? 'border-red-500' : 'border-espresso/10'
-      }`}
-    />
+    <div>
+      <FieldLabel name="firstName">First name (required)</FieldLabel>
+      <input
+        name="firstName"
+        data-field="firstName"
+        placeholder="First Name *"
+        autoComplete="given-name"
+        value={formData.firstName}
+        onChange={(e) => handleChange("firstName", e.target.value)}
+        {...fieldAria("firstName", errors.firstName)}
+        className={`w-full px-4 py-3 border rounded-xl ${
+          errors.firstName ? 'border-red-500' : 'border-espresso/10'
+        }`}
+      />
+      <FieldError name="firstName" message={errors.firstName} />
+    </div>
 
-    <input
-    name="lastName"
-      data-field="lastName"
-      placeholder="Last Name *"
-      value={formData.lastName}
-      onChange={(e) => handleChange("lastName", e.target.value)}
-      className={`w-full px-4 py-3 border rounded-xl ${
-        errors.lastName ? 'border-red-500' : 'border-espresso/10'
-      }`}
-    />
+    <div>
+      <FieldLabel name="lastName">Last name (required)</FieldLabel>
+      <input
+        name="lastName"
+        data-field="lastName"
+        placeholder="Last Name *"
+        autoComplete="family-name"
+        value={formData.lastName}
+        onChange={(e) => handleChange("lastName", e.target.value)}
+        {...fieldAria("lastName", errors.lastName)}
+        className={`w-full px-4 py-3 border rounded-xl ${
+          errors.lastName ? 'border-red-500' : 'border-espresso/10'
+        }`}
+      />
+      <FieldError name="lastName" message={errors.lastName} />
+    </div>
   </div>
 
   {/* Email */}
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <input
-    name="email"
-      data-field="email"
-      type="email"
-      placeholder="Email Address *"
-      value={formData.email}
-     onChange={(e) => handleChange("email", e.target.value)}
-      className={`w-full px-4 py-3 border rounded-xl ${
-        errors.email ? 'border-red-500' : 'border-espresso/10'
-      }`}
-    />
+    <div>
+      <FieldLabel name="email">Email address (required)</FieldLabel>
+      <input
+        name="email"
+        data-field="email"
+        type="email"
+        placeholder="Email Address *"
+        autoComplete="email"
+        value={formData.email}
+        onChange={(e) => handleChange("email", e.target.value)}
+        {...fieldAria("email", errors.email)}
+        className={`w-full px-4 py-3 border rounded-xl ${
+          errors.email ? 'border-red-500' : 'border-espresso/10'
+        }`}
+      />
+      <FieldError name="email" message={errors.email} />
+    </div>
 
     {/* WhatsApp */}
 <div className="order-form-field" data-field="whatsapp">
+  <FieldLabel name="whatsapp">
+    WhatsApp number, including country code (required)
+  </FieldLabel>
   <input
     name="whatsapp"
     placeholder="WhatsApp (+country code) *"
+    autoComplete="tel"
+    inputMode="tel"
     value={formData.whatsapp}
     onChange={(e) => handleChange("whatsapp", e.target.value)}
+    {...fieldAria("whatsapp", errors.whatsapp)}
     className={`w-full px-4 py-3 border rounded-xl ${
       errors.whatsapp
         ? "border-red-500"
@@ -721,11 +842,7 @@ if (formData.artwork) {
     }`}
   />
 
-  {errors.whatsapp && (
-    <p className="text-red-500 text-xs mt-1">
-      {errors.whatsapp}
-    </p>
-  )}
+  <FieldError name="whatsapp" message={errors.whatsapp} />
 </div>
 </div>
 </div>
@@ -887,85 +1004,85 @@ if (formData.artwork) {
 
     <div className="space-y-4">
       <div data-field="shippingName">
+        <FieldLabel name="shippingName">Recipient name (required)</FieldLabel>
         <input
           name="shippingName"
           placeholder="Recipient name *"
           value={formData.shippingName}
           onChange={(e) => handleChange("shippingName", e.target.value)}
           autoComplete="name"
+          {...fieldAria("shippingName", errors.shippingName)}
           className={`w-full px-4 py-3 border rounded-xl ${
             errors.shippingName ? "border-red-500" : "border-espresso/10"
           }`}
         />
-        {errors.shippingName && (
-          <p className="text-red-500 text-xs mt-1">{errors.shippingName}</p>
-        )}
+        <FieldError name="shippingName" message={errors.shippingName} />
       </div>
 
       <div data-field="shippingAddress">
+        <FieldLabel name="shippingAddress">Delivery address (required)</FieldLabel>
         <input
           name="shippingAddress"
           placeholder="Address *"
           value={formData.shippingAddress}
           onChange={(e) => handleChange("shippingAddress", e.target.value)}
           autoComplete="street-address"
+          {...fieldAria("shippingAddress", errors.shippingAddress)}
           className={`w-full px-4 py-3 border rounded-xl ${
             errors.shippingAddress ? "border-red-500" : "border-espresso/10"
           }`}
         />
-        {errors.shippingAddress && (
-          <p className="text-red-500 text-xs mt-1">{errors.shippingAddress}</p>
-        )}
+        <FieldError name="shippingAddress" message={errors.shippingAddress} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div data-field="shippingCity">
+          <FieldLabel name="shippingCity">Town or city (required)</FieldLabel>
           <input
             name="shippingCity"
             placeholder="Town or city *"
             value={formData.shippingCity}
             onChange={(e) => handleChange("shippingCity", e.target.value)}
             autoComplete="address-level2"
+            {...fieldAria("shippingCity", errors.shippingCity)}
             className={`w-full px-4 py-3 border rounded-xl ${
               errors.shippingCity ? "border-red-500" : "border-espresso/10"
             }`}
           />
-          {errors.shippingCity && (
-            <p className="text-red-500 text-xs mt-1">{errors.shippingCity}</p>
-          )}
+          <FieldError name="shippingCity" message={errors.shippingCity} />
         </div>
 
         <div data-field="shippingPostcode">
+          <FieldLabel name="shippingPostcode">Postcode or ZIP (required)</FieldLabel>
           <input
             name="shippingPostcode"
             placeholder="Postcode or ZIP *"
             value={formData.shippingPostcode}
             onChange={(e) => handleChange("shippingPostcode", e.target.value)}
             autoComplete="postal-code"
+            {...fieldAria("shippingPostcode", errors.shippingPostcode)}
             className={`w-full px-4 py-3 border rounded-xl ${
               errors.shippingPostcode ? "border-red-500" : "border-espresso/10"
             }`}
           />
-          {errors.shippingPostcode && (
-            <p className="text-red-500 text-xs mt-1">{errors.shippingPostcode}</p>
-          )}
+          <FieldError name="shippingPostcode" message={errors.shippingPostcode} />
         </div>
       </div>
 
       <div data-field="shippingCountry">
+        <FieldLabel name="shippingCountry">Country (required)</FieldLabel>
         <input
           name="shippingCountry"
           placeholder="Country *"
           value={formData.shippingCountry}
           onChange={(e) => handleChange("shippingCountry", e.target.value)}
           autoComplete="country-name"
+          {...fieldAria("shippingCountry", errors.shippingCountry)}
           className={`w-full px-4 py-3 border rounded-xl ${
             errors.shippingCountry ? "border-red-500" : "border-espresso/10"
           }`}
         />
-        {errors.shippingCountry && (
-          <p className="text-red-500 text-xs mt-1">{errors.shippingCountry}</p>
-        )}
+        <FieldError name="shippingCountry" message={errors.shippingCountry} />
       </div>
     </div>
   </div>
@@ -974,12 +1091,20 @@ if (formData.artwork) {
 
 {/* MOOD */}
 <div className="order-form-field space-y-4">
-  <h3 className="label-uppercase text-gold-deep">
+  <h3 id="order-moods-heading" className="label-uppercase text-gold-deep">
     Step 3 — Mood
   </h3>
 
+  {/* A group with a name, and buttons that report their own state.
+      Without aria-pressed a selected mood was announced identically to an
+      unselected one — the only signal was the colour change. */}
   <div
     data-field="moods"
+    role="group"
+    aria-labelledby="order-moods-heading"
+    {...(errors.moods
+      ? { "aria-invalid": true, "aria-describedby": fieldErrorId("moods") }
+      : {})}
     className={`${
       errors.moods ? 'border border-red-500 p-3 rounded-xl' : ''
     } flex flex-wrap gap-3`}
@@ -988,6 +1113,7 @@ if (formData.artwork) {
       <button
         key={mood}
         type="button"
+        aria-pressed={formData.moods.includes(mood)}
         onClick={() => handleMoodToggle(mood)}
         className={`px-4 py-2 rounded-full text-sm ${
           formData.moods.includes(mood)
@@ -1001,6 +1127,7 @@ if (formData.artwork) {
 
     <button
       type="button"
+      aria-pressed={showOtherMood}
       onClick={() => handleMoodToggle('Other')}
       className="px-4 py-2 rounded-full text-sm bg-ivory border border-espresso/10"
     >
@@ -1008,13 +1135,20 @@ if (formData.artwork) {
     </button>
   </div>
 
+  <FieldError name="moods" message={errors.moods} />
+
   {showOtherMood && (
-    <input
-      placeholder="Enter your mood..."
-      value={formData.otherMood}
-      onChange={(e) => handleChange("otherMood", e.target.value)}
-      className="w-full px-4 py-3 border border-espresso/10 rounded-xl"
-    />
+    <>
+      <FieldLabel name="otherMood">Tell us the mood</FieldLabel>
+      <input
+        name="otherMood"
+        placeholder="Enter your mood..."
+        value={formData.otherMood}
+        onChange={(e) => handleChange("otherMood", e.target.value)}
+        {...fieldAria("otherMood")}
+        className="w-full px-4 py-3 border border-espresso/10 rounded-xl"
+      />
+    </>
   )}
 </div>
 
@@ -1024,9 +1158,17 @@ if (formData.artwork) {
     Step 4 — Genre
   </h3>
 
+  {/* This select had NO accessible name at all: the "Step 4 — Genre" heading
+      above it is visual context only, and the first option reads as a value,
+      not as a label. A screen reader announced it as an unnamed combo box. */}
+  <FieldLabel name="genre">Genre (required)</FieldLabel>
+
   <select
+    name="genre"
+    data-field="genre"
     value={formData.genre}
     onChange={(e) => handleChange("genre", e.target.value)}
+    {...fieldAria("genre", errors.genre)}
     className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gold ${
       errors.genre ? 'border-red-500' : 'border-gray-300'
     }`}
@@ -1043,18 +1185,23 @@ if (formData.artwork) {
     <option value="Other">Other</option>
   </select>
 
-  {errors.genre && (
-    <p className="order-heading text-red-500 text-sm mt-1">{errors.genre}</p>
-  )}
+  <FieldError
+    name="genre"
+    message={errors.genre}
+    className="order-heading text-red-500 text-sm mt-1"
+  />
 
   {/* If Genre = Other → show input field */}
   {formData.genre === 'Other' && (
     <div className="order-form-field mt-3">
+      <FieldLabel name="otherGenre">Tell us which genre</FieldLabel>
       <input
+        name="otherGenre"
         type="text"
         placeholder="Please specify your genre"
         value={formData.otherGenre || ''}
         onChange={(e) => handleChange("otherGenre", e.target.value)}
+        {...fieldAria("otherGenre")}
         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gold"
       />
     </div>
@@ -1067,19 +1214,28 @@ if (formData.artwork) {
     Step 5 — Personal Touches (Optional)
   </h3>
 
+  <FieldLabel name="personalTouches">
+    Personal touches — names, dates or phrases to include (optional)
+  </FieldLabel>
   <input
+    name="personalTouches"
     type="text"
     placeholder="Names, dates, phrases to include..."
     value={formData.personalTouches}
     onChange={(e) => handleChange("personalTouches", e.target.value)}
+    {...fieldAria("personalTouches")}
     className="w-full px-4 py-3 bg-ivory border border-espresso/10 rounded-xl text-espresso placeholder:text-espresso/40 focus:outline-none focus:ring-2 focus:ring-gold/30 transition-all duration-fast"
   />
 
-  {/* Hidden File Input */}
+  {/* Hidden File Input.
+      `display: none` keeps it out of the accessibility tree entirely, so the
+      Browse button below is what a keyboard or screen-reader user actually
+      reaches. It is named anyway, for any tool that surfaces it regardless. */}
   <input
     type="file"
     accept="image/png, image/jpeg"
     id="artworkUpload"
+    aria-label="Album artwork image file"
     style={{ display: 'none' }}
     onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0] || null;
@@ -1120,8 +1276,15 @@ if (formData.artwork) {
       </p>
     </div>
 
+    {/* The real control, as far as assistive technology is concerned — so it
+        carries the description and the error, not the hidden input. "Browse"
+        alone gave no clue what was being browsed for. */}
     <button
       type="button"
+      aria-label="Browse for album artwork to upload"
+      {...(errors.artwork
+        ? { "aria-invalid": true, "aria-describedby": fieldErrorId("artwork") }
+        : {})}
       onClick={() =>
         document.getElementById('artworkUpload')?.click()
       }
@@ -1131,9 +1294,7 @@ if (formData.artwork) {
     </button>
   </div>
 
-  {errors.artwork && (
-    <p className="text-red-500 text-xs mt-1">{errors.artwork}</p>
-  )}
+  <FieldError name="artwork" message={errors.artwork} />
 </div>
 
             {/* STORY */}
@@ -1151,14 +1312,28 @@ if (formData.artwork) {
   {/* Textarea */}
 </div>
             <div className="order-form-field space-y-2">
+              <FieldLabel name="story">
+                Your story (required, up to 2000 words)
+              </FieldLabel>
               <textarea
+                name="story"
                 data-field="story"
                 placeholder="Tell us about your journey, your celebration, your story *"
                 value={formData.story}
                 onChange={(e) => handleChange("story", e.target.value)}
+                id={fieldId("story")}
+                {...(errors.story ? { "aria-invalid": true } : {})}
+                /* Always describes the field, so the running word count is
+                   announced alongside any error rather than replacing it. */
+                aria-describedby={`${fieldErrorId("story")} order-story-count`}
                 className={`w-full h-48 px-4 py-3 border rounded-xl ${errors.story?'border-red-500':'border-espresso/10'}`}
               />
-              <p className={`text-sm text-right ${wordCount>2000?'text-red-500':'text-espresso/50'}`}>
+              <FieldError name="story" message={errors.story} />
+              <p
+                id="order-story-count"
+                aria-live="polite"
+                className={`text-sm text-right ${wordCount>2000?'text-red-500':'text-espresso/50'}`}
+              >
                 {wordCount} / 2000 words
               </p>
             </div>

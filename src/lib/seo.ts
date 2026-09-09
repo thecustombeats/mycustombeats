@@ -532,12 +532,30 @@ export const sampleListEntity = (): Node => ({
 /* ------------------------------------------------------------------ */
 
 /**
- * A catalogue product, with NO offer.
+ * How the catalogue's availability states map to schema.org's.
  *
- * Not one physical product in the MCB catalogue has an approved customer-facing
- * price — every one is quoted per commission. `isPriced` gates the offer, so
- * the moment a real price is approved this emits one, and until then it emits
- * nothing rather than a placeholder.
+ * `MADE_TO_ORDER` is a real `ItemAvailability` member, and it is the honest
+ * one for MCB: these pieces are produced against an order, not picked off a
+ * shelf. Declaring `InStock` for them would be the convenient answer and a
+ * false one — a crawler would infer stock that does not exist.
+ */
+const SCHEMA_AVAILABILITY: Record<CatalogueProduct["availability"], string> = {
+  AVAILABLE: "https://schema.org/InStock",
+  MADE_TO_ORDER: "https://schema.org/MadeToOrder",
+  COMING_SOON: "https://schema.org/PreOrder",
+};
+
+/**
+ * A catalogue product, with an Offer only where a price is approved.
+ *
+ * `isPriced` is the gate. Most of the physical catalogue now carries an
+ * approved GBP price and therefore emits a real Offer; the pieces that do not
+ * — the vinyl record itself, the CD, the Luxury Memory Box — emit no `offers`
+ * key at all rather than an Offer with a placeholder or a zero in it.
+ *
+ * The Offer is GBP because GBP is what Stripe charges. No second currency is
+ * emitted, since the catalogue holds no second approved figure and a
+ * converted one would be this file inventing a rate.
  */
 const catalogueProductEntity = (product: CatalogueProduct): Node => ({
   "@type": "Product",
@@ -562,6 +580,8 @@ const catalogueProductEntity = (product: CatalogueProduct): Node => ({
           "@type": "Offer",
           price: product.price.gbp,
           priceCurrency: "GBP",
+          availability: SCHEMA_AVAILABILITY[product.availability],
+          url: canonical("/products"),
           seller: ref(ENTITY.organization),
         },
       }
@@ -597,10 +617,26 @@ const vinylProductGroupEntity = (family: ProductFamily): Node => ({
  * A family with a single product is that product, not a group of one. A group
  * wrapper around one item asserts variation that the catalogue does not have.
  */
-const familyEntity = (family: ProductFamily): Node =>
-  family.id === "vinyl"
-    ? vinylProductGroupEntity(family)
-    : {
+const familyEntity = (family: ProductFamily): Node => {
+  if (family.id === "vinyl") return vinylProductGroupEntity(family);
+
+  /**
+   * A single-product family IS that product, so it must carry that product's
+   * Offer.
+   *
+   * Without this the family emitted a bare `Product` with a name and an image
+   * and no commercial data at all — precisely the shape Search Console
+   * reports as invalid, and precisely what this file's `familyIsPurchasable`
+   * comment set out to avoid. It went unnoticed while every physical price
+   * was TBD, because no single-product family qualified as purchasable in the
+   * first place. The moment one was priced, it would have.
+   */
+  const soleProduct = family.products.length === 1 ? family.products[0] : undefined;
+  const soleOffer = soleProduct
+    ? (catalogueProductEntity(soleProduct).offers as Node | undefined)
+    : undefined;
+
+  return {
         /**
          * A family that emits `hasVariant` must be a ProductGroup: schema.org
          * defines `hasVariant` on ProductGroup alone, so a plain Product
@@ -614,6 +650,7 @@ const familyEntity = (family: ProductFamily): Node =>
         brand: ref(ENTITY.organization),
         url: canonical("/products"),
         ...(family.image ? { image: `${SITE_URL}${family.image}` } : {}),
+        ...(soleOffer ? { offers: soleOffer } : {}),
         ...(family.products.length > 1 && {
           hasVariant: family.products.map(catalogueProductEntity),
         }),
@@ -629,19 +666,22 @@ const familyEntity = (family: ProductFamily): Node =>
             .map((id) => ref(familyEntityId(id))),
         }),
       };
+};
 
 /**
  * A family that can legitimately be a Product: one with an approved price.
  *
  * Google requires a Product to carry offers, a review or an aggregateRating
- * to be eligible for its product treatment. MCB has no approved price for any
- * physical product and publishes no reviews or ratings, so every catalogue
- * Product it emitted was, correctly, reported as invalid by Search Console.
+ * to be eligible for its product treatment. Every catalogue Product MCB
+ * emitted while nothing was priced was, correctly, reported as invalid by
+ * Search Console.
  *
- * The answer is not to manufacture an Offer. It is to stop claiming these are
- * purchasable products until they are. This predicate is the switch: the day a
- * price is approved in the catalogue, that family becomes a Product with a
- * real Offer again and nothing else has to change.
+ * The answer was never to manufacture an Offer — it was to stop claiming
+ * these were purchasable products until they were. This predicate is the
+ * switch, and it has now flipped for most of the catalogue on its own: the
+ * families given an approved price this sprint became Products carrying real
+ * Offers without a line changing here. The vinyl, CD and memory-box families
+ * remain unpriced and are still described as `Thing` rather than promoted.
  */
 const familyIsPurchasable = (family: ProductFamily): boolean =>
   family.products.some((product) => isPriced(product.price));
@@ -688,7 +728,7 @@ export const keepsakeListEntity = (): Node => {
     "@id": ENTITY.keepsakeList,
     name: "MCB memory keepsakes",
     description:
-      "Physical pieces a personalised song can become: vinyl records, CDs, lyrics frames, engraved plaques, luxury memory boxes and gift pop-up cards.",
+      "Physical pieces a personalised song can become: vinyl records, CDs, framed lyric artwork, engraved plaques, vinyl frames, luxury memory boxes, gift pop-up cards and the players to hear them on.",
     url: canonical("/products"),
     numberOfItems: families.length,
     itemListElement: families.map((family, index) => ({
@@ -740,6 +780,21 @@ export const homepageStructuredData = () =>
  * so they merge to one node — but each page then stands on its own if it is
  * the first or only page a crawler fetches.
  */
+/**
+ * The one description of the keepsake collection.
+ *
+ * Exported so `/products` renders the SAME sentence in its meta description
+ * as the CollectionPage node states. The two were written out separately and
+ * both went stale together, still advertising 7-inch and 10-inch records
+ * months after both sizes were withdrawn from the catalogue. One string, one
+ * place to correct.
+ *
+ * It names 12-inch alone because that is the only size `catalogue/vinyl.ts`
+ * still holds, and no size is mentioned that is not sold.
+ */
+export const PRODUCTS_DESCRIPTION =
+  "Turn your personalised song into something you can hold: 12-inch vinyl, CD, framed lyric artwork, engraved plaques, vinyl frames, luxury memory boxes, gift pop-up cards and players to hear it on.";
+
 export const productsPageStructuredData = () =>
   graph([
     organizationEntity(),
@@ -747,8 +802,7 @@ export const productsPageStructuredData = () =>
     webPageEntity({
       path: "/products",
       name: "Music Keepsakes | My Custom Beats",
-      description:
-        "Turn your personalised song into something you can hold: vinyl in 7, 10 and 12-inch, CD, lyrics frames, engraved plaques, luxury memory boxes and gift pop-up cards.",
+      description: PRODUCTS_DESCRIPTION,
       type: "CollectionPage",
       mainEntity: ENTITY.keepsakeList,
       breadcrumb: `${canonical("/products")}#breadcrumb`,

@@ -115,7 +115,7 @@ export interface PressingOption {
   id: string;
   product: CatalogueProduct;
   records: number;
-  /** "1 × 12-inch vinyl", "2 × 10-inch vinyl". */
+  /** "1 × 12-inch vinyl". */
   label: string;
   /** Songs this configuration must carry. */
   songCount: number;

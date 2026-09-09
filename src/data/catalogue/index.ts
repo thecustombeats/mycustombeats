@@ -32,6 +32,14 @@ export * from "./giftCards";
 export * from "./keepsakeProducts";
 export * from "./relationships";
 export * from "./commercial";
+/**
+ * Enhancements are exported for the surfaces that will offer them, but they
+ * are deliberately NOT folded into `CATALOGUE` or `ALL_PRODUCTS` below. An
+ * additional vinyl copy is bought alongside an order, not browsed as a
+ * product — see the header of `enhancements.ts` for why that separation
+ * matters commercially.
+ */
+export * from "./enhancements";
 
 /** Every family, in the order the site presents them. */
 export const CATALOGUE: readonly ProductFamily[] = [
