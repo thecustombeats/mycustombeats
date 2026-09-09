@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { HelmetProvider } from "react-helmet-async";
+import { CurrencyProvider } from "./lib/currencyContext";
 import './index.css'
 import App from './App.tsx'
 
@@ -34,9 +35,15 @@ document
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <HelmetProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      {/* Display currency is site-wide: a package card, a product block and
+          the order summary must never disagree about which currency the
+          customer is reading. Mounted above the router so the choice also
+          survives navigation between routes. */}
+      <CurrencyProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </CurrencyProvider>
     </HelmetProvider>
   </StrictMode>,
 )

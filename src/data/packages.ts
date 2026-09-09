@@ -106,7 +106,30 @@ export interface McbPackage<F extends FormatId = FormatId> {
   positioning: string;
   description: string;
   price: {
+    /**
+     * THE COMMERCIAL PRICE. The only figure MCB charges, the only one Stripe
+     * takes, and the basis of every local-currency estimate on the site.
+     */
     gbp: number;
+    /**
+     * LEGACY. A RECORD, NOT A RATE — and never a display value.
+     *
+     * A hand-approved dollar figure that predates local-currency display. It
+     * is kept because it is operationally live: the build compiles it into
+     * `api/data/packages.json`, `order.php` writes it to `orders.amount_usd`
+     * on every order, and `GET /api/crm/orders` reads it back out. Removing
+     * it would change a database column, a CRM response shape and the
+     * fulfilment webhook's `priceUSD` field — three live integrations — to
+     * delete a number nothing customer-facing uses.
+     *
+     * It is NOT an exchange rate and must never be shown to a customer or
+     * used to convert anything. It is a fixed figure that drifts from the
+     * real rate the moment the market moves, and the site now has exactly one
+     * way to answer "what is this in dollars?" — GBP times a live rate, in
+     * `lib/currency.ts`. `formatPrice` was deliberately stripped of the
+     * argument that could render this, so there is no route from here to a
+     * price a customer reads.
+     */
     usd: number;
     /** Rendered as "From £799" for open-ended commissions. */
     prefix?: string;
@@ -142,14 +165,25 @@ export type AnyPackage = Omit<McbPackage<FormatId>, "formats" | "checkout"> & {
 };
 
 const gbp = (value: number) => `£${value}`;
-const usd = (value: number) => `$${value}`;
-
-/** Formats a package price for display, e.g. "£199" or "From £799". */
-export const formatPrice = (
-  pkg: Pick<AnyPackage, "price">,
-  currency: "gbp" | "usd" = "gbp"
-): string => {
-  const amount = currency === "gbp" ? gbp(pkg.price.gbp) : usd(pkg.price.usd);
+/**
+ * Formats a package price for display, e.g. "£199" or "From £799".
+ *
+ * GBP ONLY, AND THAT IS DELIBERATE.
+ *
+ * This used to take a `currency` argument and could render `price.usd` — a
+ * fixed, hand-approved dollar figure. Local-currency display is now derived
+ * live from the pound amount (see `lib/currency.ts` and `components/Price`),
+ * so keeping that argument would leave TWO different answers to "what is this
+ * in dollars?": a hard-coded $99 and a converted ~$101. Which one a customer
+ * saw would depend on which component happened to render it, and one of them
+ * would always be wrong.
+ *
+ * Removing the parameter is what makes that impossible rather than merely
+ * discouraged. `price.usd` still exists — see the note on `usd` in the price
+ * type — but nothing customer-facing can reach it through here.
+ */
+export const formatPrice = (pkg: Pick<AnyPackage, "price">): string => {
+  const amount = gbp(pkg.price.gbp);
   return pkg.price.prefix ? `${pkg.price.prefix} ${amount}` : amount;
 };
 

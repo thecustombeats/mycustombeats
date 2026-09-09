@@ -159,15 +159,6 @@ const ZERO_MONEY: Money = { gbp: 0, usd: 0 };
 const priceAsGbp = (price: ProductPrice): number =>
   isPriced(price) ? price.gbp : 0;
 
-/** "£199" / "$249". Kept here so every memory renders money identically. */
-export const formatMoney = (
-  money: Money,
-  currency: "gbp" | "usd" = "gbp"
-): string =>
-  currency === "gbp"
-    ? `£${money.gbp.toLocaleString("en-GB")}`
-    : `$${money.usd.toLocaleString("en-US")}`;
-
 /** "£259" — a bare GBP total, matching catalogue price formatting. */
 export const formatGbp = (amount: number): string =>
   `£${amount.toLocaleString("en-GB")}`;
@@ -313,8 +304,12 @@ export const buildMemory = (selection: MemorySelection): MemorySummary => {
 export const canCheckout = (memory: MemorySummary): boolean =>
   memory.blockers.every((blocker) => blocker.code === "UNPRICED_ENHANCEMENTS");
 
-/** The package price as displayed elsewhere on the site, e.g. "From £799". */
-export const memoryHeadlinePrice = (
-  memory: MemorySummary,
-  currency: "gbp" | "usd" = "gbp"
-): string | null => (memory.pkg ? formatPrice(memory.pkg, currency) : null);
+/**
+ * The package price as displayed elsewhere on the site, e.g. "From £799".
+ *
+ * GBP only. Local-currency display belongs to `lib/currency.ts` and reads the
+ * pound amount; a second currency argument here would be a second way to
+ * produce the same estimate.
+ */
+export const memoryHeadlinePrice = (memory: MemorySummary): string | null =>
+  memory.pkg ? formatPrice(memory.pkg) : null;

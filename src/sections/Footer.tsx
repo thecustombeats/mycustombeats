@@ -1,4 +1,5 @@
 import { Instagram, Youtube, MessageCircle } from "lucide-react";
+import CurrencySelector from "../components/CurrencySelector";
 import CruiseMarquee from "../components/CruiseMarquee";
 import { Link } from "react-router-dom";
 import { trackWhatsAppClick, trackEvent } from "../lib/analytics";
@@ -101,8 +102,28 @@ const Footer = () => {
           <Link to="/legal/refund" className="hover:text-gold transition">Refund</Link>
         </div>
 
+        {/*
+          ===== DISPLAY CURRENCY =====
+          In the footer rather than the header: it is a reading preference, not
+          a step in the journey, and a currency switcher in the navigation of a
+          luxury storefront reads like a duty-free counter.
+
+          The site-level explanation lives here too, once — so the relationship
+          between the estimate and the charge is stated plainly somewhere
+          permanent, instead of a legal sentence following every price around
+          the site.
+        */}
+        <div className="border-t border-ivory/10 pt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+          <CurrencySelector tone="light" />
+          <p className="max-w-md text-center text-xs leading-relaxed text-ivory/40 sm:text-right">
+            Prices are set in GBP. Other currencies are shown as an estimate;
+            payment is taken in GBP and your bank sets its own rate and any
+            fees.
+          </p>
+        </div>
+
         {/* ===== BOTTOM ===== */}
-        <div className="border-t border-ivory/10 pt-6 text-xs text-ivory/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="border-t border-ivory/10 mt-6 pt-6 text-xs text-ivory/40 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>© My Custom Beats. All rights reserved.</p>
           <p>Crafted with <span className="text-gold">♥</span></p>
         </div>

@@ -16,7 +16,9 @@
  */
 
 import { formatProductPrice, isPriced } from "../data/catalogue";
-import { formatGbp, formatMoney, type MemorySummary } from "../lib/memory";
+import { formatGbp, type MemorySummary } from "../lib/memory";
+import { approximateLabel } from "../lib/currency";
+import { useCurrency } from "../lib/useCurrency";
 
 interface YourMemorySummaryProps {
   memory: MemorySummary;
@@ -57,7 +59,13 @@ const LinePrice = ({
 };
 
 const YourMemorySummary = ({ memory, className }: YourMemorySummaryProps) => {
+  const { currency, rates } = useCurrency();
   const { pkg } = memory;
+
+  // The estimate for the amount actually being charged. `null` for GBP and
+  // whenever rates are unavailable, in which case only the pound total shows.
+  const approx = approximateLabel(memory.chargeableTotal.gbp, currency, rates);
+
   if (!pkg) return null;
 
   const hasQuoted = memory.quotedLines.length > 0;
@@ -131,18 +139,47 @@ const YourMemorySummary = ({ memory, className }: YourMemorySummaryProps) => {
           </dd>
         </div>
 
+        {/*
+          THE FINAL FIGURE BEFORE PAYMENT.
+
+          The pound amount is the large, primary number here — not the local
+          estimate — because this is the last thing a customer reads before
+          Stripe, and the amount Stripe takes is this one. Everywhere else on
+          the site the estimate can lead; on the row that means "this is what
+          you are about to be charged", GBP does.
+
+          The estimate follows underneath, explicitly approximate. The legacy
+          hard-coded package USD that used to sit here is gone: it was a fixed
+          figure that disagreed with the live rate, and a total is the worst
+          possible place to show a customer two different dollar amounts.
+        */}
         <div className="flex justify-between items-baseline gap-4 pt-4">
           <dt className="text-espresso font-medium">Total</dt>
           <dd className="text-right">
             <span className="font-serif text-2xl text-ink">
-              {formatMoney(memory.chargeableTotal)}
+              {formatGbp(memory.chargeableTotal.gbp)}
             </span>
-            <span className="font-mono text-espresso/50 text-xs ml-2">
-              {formatMoney(memory.chargeableTotal, "usd")}
-            </span>
+            {approx && (
+              <span className="mt-0.5 block font-mono text-espresso/55 text-xs">
+                {approx}
+              </span>
+            )}
           </dd>
         </div>
       </dl>
+
+      {/*
+        Stated once, under the total, rather than beside every price on the
+        page. It also stops short of promising what the customer's card will
+        actually cost them — their own bank sets that rate and may add a fee,
+        and MCB is in no position to guarantee either.
+      */}
+      {approx && (
+        <p className="mt-3 text-xs leading-relaxed text-espresso/55">
+          Local amounts are estimates. Payment is taken in GBP, and your bank
+          sets its own rate and any fees.
+        </p>
+      )}
 
       {/*
         Shown only when something in the memory has no approved price. It

@@ -1,5 +1,5 @@
 import { activeSeasonalEditions, editionPackage } from "../data/seasonal";
-import { formatPrice } from "../data/packages";
+import Price from "./Price";
 
 /**
  * Seasonal editions, presented only when the business has switched one on.
@@ -52,11 +52,13 @@ const SeasonalBanner = () => {
 
                 <div className="shrink-0 text-left sm:text-right">
                   {/* Inherited from the package. Never restated by the edition. */}
-                  <div className="font-serif text-3xl text-ivory">
-                    {formatPrice(pkg)}
-                  </div>
-                  <div className="font-mono text-xs text-ivory/50 mb-4">
-                    {formatPrice(pkg, "usd")}
+                  <div className="mb-4">
+                    <Price
+                      gbp={pkg.price.gbp}
+                      prefix={pkg.price.prefix}
+                      size="lg"
+                      tone="light"
+                    />
                   </div>
                   <a
                     href="#order"

@@ -563,10 +563,22 @@ const handleChange = <K extends keyof FormDataType>(
        * in it, hearing no error at all. Where the marker is on the control
        * itself, `closest` finds it and this behaves exactly as before.
        */
-      const control =
-        element.matches("input, select, textarea")
-          ? element
-          : element.querySelector<HTMLElement>("input, select, textarea");
+      /**
+       * Buttons count as controls here.
+       *
+       * Two required fields — preferred contact and mood — are groups of
+       * <button>s, not inputs, so a selector that looked only for
+       * `input, select, textarea` found nothing and focus silently stayed put.
+       * Those were exactly the fields a customer could get stuck on, since
+       * neither showed a message either. A checked radio is preferred over the
+       * first one so focus lands on the current answer rather than resetting
+       * the customer to the start of the group.
+       */
+      const SELECTOR = "input, select, textarea, button";
+      const control = element.matches(SELECTOR)
+        ? element
+        : element.querySelector<HTMLElement>("input:checked") ??
+          element.querySelector<HTMLElement>(SELECTOR);
 
       (control ?? element).focus();
     }
@@ -885,14 +897,38 @@ if (formData.artwork) {
 </div>
 </div>
 
-{/* Preferred Contact Method */}
+{/*
+  Preferred Contact Method.
+
+  THIS WAS A FORM TRAP. The field is required, but a failed submit rendered
+  no message anywhere — only a red border. Nothing was announced, nothing was
+  associated, and the focus helper skipped it entirely because it looks for
+  `input, select, textarea` and these are buttons. A customer could be blocked
+  from checkout with no stated reason, and a screen-reader user with no signal
+  at all.
+
+  Brought to the same standard as the mood group: a named group, buttons that
+  report their own pressed state, and an error that is both visible and tied
+  to the group. No visual redesign.
+*/}
 <div className="order-form-field space-y-3">
   <div
     data-field="preferredContact"
+    role="group"
+    aria-labelledby="order-preferred-contact-label"
+    {...(errors.preferredContact
+      ? {
+          "aria-invalid": true,
+          "aria-describedby": fieldErrorId("preferredContact"),
+        }
+      : {})}
     className={`${errors.preferredContact ? 'border border-red-500 p-3 rounded-xl' : ''}`}
   >
     <div className="flex flex-wrap gap-3 items-center">
-      <span className="order-heading text-sm text-espresso/60">
+      <span
+        id="order-preferred-contact-label"
+        className="order-heading text-sm text-espresso/60"
+      >
         Preferred contact: *
       </span>
 
@@ -900,10 +936,11 @@ if (formData.artwork) {
         <button
           key={method}
           type="button"
+          aria-pressed={formData.preferredContact === method}
           onClick={() =>
             setFormData({ ...formData, preferredContact: method })
           }
-          className={`px-4 py-2 rounded-full text-sm transition-all duration-fast ${
+          className={`min-h-11 px-4 py-2 rounded-full text-sm transition-all duration-fast ${
             formData.preferredContact === method
               ? 'bg-gold text-espresso'
               : 'bg-ivory border border-espresso/10 text-espresso/70 hover:border-gold'
@@ -914,6 +951,11 @@ if (formData.artwork) {
       ))}
     </div>
   </div>
+
+  <FieldError
+    name="preferredContact"
+    message={errors.preferredContact}
+  />
 </div>
  
 

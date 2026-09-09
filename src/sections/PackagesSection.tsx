@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, Music } from 'lucide-react';
 import { Sparkles } from "lucide-react";
 import { revealOnScroll } from '../lib/scrollReveal';
-import { PACKAGES, FORMATS, formatPrice } from '../data/packages';
+import { PACKAGES, FORMATS } from '../data/packages';
+import Price from '../components/Price';
 import { scrollToSection } from '../utils/scrollToSection';
 
 /**
@@ -116,15 +117,15 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
             {pkg.positioning}
           </p>
 
-          {/* PRICE */}
+          {/* PRICE
+              The legacy hard-coded USD that used to sit beside the pound
+              figure is gone. It was a fixed number from the package data, so
+              it disagreed with the live conversion the moment rates moved —
+              two different answers to "what is this in dollars?". <Price>
+              owns that question now, and always derives it from GBP. */}
           <div className="mb-5 text-center">
-            <div className="flex items-baseline justify-center gap-2">
-              <span className="text-4xl font-serif text-espresso">
-                {formatPrice(pkg)}
-              </span>
-              <span className="font-mono text-sm text-espresso/45">
-                {formatPrice(pkg, 'usd')}
-              </span>
+            <div className="flex flex-col items-center">
+              <Price gbp={pkg.price.gbp} prefix={pkg.price.prefix} size="lg" />
             </div>
 
             {pkg.popular && (
@@ -242,11 +243,16 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
           </div>
 
           <div className="text-left md:text-right shrink-0">
-            <div className="font-serif text-4xl text-ivory mb-1">
-              {formatPrice(BESPOKE_PACKAGE)}
-            </div>
-            <div className="font-mono text-sm text-ivory/50 mb-6">
-              {formatPrice(BESPOKE_PACKAGE, 'usd')}
+            {/* Bespoke keeps its "From" qualifier in BOTH figures — it is a
+                commission with a starting price, not a fixed product, and an
+                estimate that dropped the "From" would read as a quote. */}
+            <div className="mb-6">
+              <Price
+                gbp={BESPOKE_PACKAGE.price.gbp}
+                prefix={BESPOKE_PACKAGE.price.prefix}
+                size="lg"
+                tone="light"
+              />
             </div>
             <button
               type="button"

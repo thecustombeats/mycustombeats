@@ -1,7 +1,8 @@
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { Ship, PenLine, Music, Package as PackageIcon } from "lucide-react";
-import { MOMENT, JOURNEY, KEEPSAKE, formatPrice } from "../data/packages";
+import { MOMENT, JOURNEY, KEEPSAKE } from "../data/packages";
+import Price from "../components/Price";
 import { stockedFamilies } from "../data/catalogue";
 import { SAMPLE_SONGS } from "../data/sampleSongs";
 import CruiseMarquee from "../components/CruiseMarquee";
@@ -153,13 +154,8 @@ const CruiseMemories = () => {
                   <p className="text-[11px] tracking-[0.14em] uppercase text-espresso/45 mb-4 leading-[1.5] min-h-[3.4em]">
                     {pkg.positioning}
                   </p>
-                  <div className="flex items-baseline gap-2 mb-4">
-                    <span className="font-serif text-3xl text-espresso">
-                      {formatPrice(pkg)}
-                    </span>
-                    <span className="font-mono text-xs text-espresso/45">
-                      {formatPrice(pkg, "usd")}
-                    </span>
+                  <div className="mb-4">
+                    <Price gbp={pkg.price.gbp} prefix={pkg.price.prefix} size="lg" />
                   </div>
                   <p className="text-sm text-espresso/65 leading-relaxed mb-5 flex-1">
                     {pkg.description}

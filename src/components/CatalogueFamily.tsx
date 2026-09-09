@@ -22,13 +22,13 @@
 
 import { useState } from "react";
 import CdDiscMark from "./CdDiscMark";
+import Price from "./Price";
 import KeepsakeMark from "./KeepsakeMark";
 import { PACKAGES } from "../data/packages";
 import {
   OCCASIONS,
   availableOptionValues,
   capacityLabel,
-  formatProductPrice,
   isPriced,
   relatedFamilies,
   relationLabel,
@@ -72,7 +72,7 @@ const AVAILABILITY_COPY: Record<CatalogueProduct["availability"], string> = {
  */
 const familyPrice = (
   family: ProductFamily
-): { amount: string; from: boolean } | null => {
+): { gbp: number; from: boolean } | null => {
   const priced = family.products
     .map((product) => product.price)
     .filter(isPriced);
@@ -85,21 +85,19 @@ const familyPrice = (
     priced.length === family.products.length &&
     amounts.every((amount) => amount === lowest);
 
-  const formatted = formatProductPrice(
-    priced.find((price) => price.gbp === lowest) ?? priced[0]
-  );
-  if (formatted === null) return null;
-
-  return { amount: formatted, from: !uniform };
+  // The RAW pound amount, not a formatted string: <Price> needs the number so
+  // it can convert it. Formatting is not this function's job.
+  return { gbp: lowest, from: !uniform };
 };
 
 /**
  * "£200" where approved, otherwise the enquiry line the page already used.
  *
- * Set in the page's own light serif rather than mono — a price on a luxury
- * catalogue reads as part of the writing, not as a field in a spreadsheet.
- * GBP only: there is no second currency in `ProductPrice` to render, and a
- * converted figure beside it would be a rate this component invented.
+ * Renders through <Price>, so a physical product shows the customer's chosen
+ * currency exactly as a package does — and, just as importantly, an UNPRICED
+ * product still shows the enquiry line. There is no GBP figure to convert,
+ * so nothing is converted; a catalogue price that does not exist cannot
+ * acquire one by changing currency.
  */
 const PriceLine = ({ family }: { family: ProductFamily }) => {
   const price = familyPrice(family);
@@ -113,14 +111,11 @@ const PriceLine = ({ family }: { family: ProductFamily }) => {
   }
 
   return (
-    <p className="text-xl font-light text-black">
-      {price.from && (
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-black/45 mr-2 align-middle">
-          From
-        </span>
-      )}
-      {price.amount}
-    </p>
+    <Price
+      gbp={price.gbp}
+      prefix={price.from ? "From" : undefined}
+      size="md"
+    />
   );
 };
 
