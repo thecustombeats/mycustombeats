@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Check } from "lucide-react";
+import { Check, Clock, HelpCircle } from "lucide-react";
 import { trackPurchase } from "../lib/analytics";
-import { getPackage, FORMATS, type FormatId } from "../data/packages";
+import { getPackage } from "../data/packages";
 import { Helmet } from "react-helmet-async";
 import ShareMcb from "../components/ShareMcb";
 
@@ -26,6 +26,50 @@ const REFERENCE_POLL_ATTEMPTS = 8;   // ~12 seconds
  * returning to /thank-you on the same device still answers the question.
  */
 const STORED_REFERENCE_KEY = "mcb_last_reference";
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ * WHAT THIS PAGE MAY AND MAY NOT ASSERT
+ * ─────────────────────────────────────────────────────────────────────────
+ * This page told every visitor "Payment confirmed", and filled an "Order" and
+ * an "Amount paid" row from `localStorage`. Production verification proved the
+ * consequence: a fabricated `session_id` produced a page reading "Payment
+ * confirmed · Moment — MP3 · AMOUNT PAID £10.00". Nothing had been paid.
+ *
+ * Two separate faults produced that. Both are closed here.
+ *
+ *   1. `last_order_package` and `last_order_format` are browser values. They
+ *      say what this DEVICE last built in the order form — not what anyone
+ *      paid for, not that anyone paid at all. They are no longer rendered.
+ *      They survive in one place only, to give the analytics event a value,
+ *      and that event now fires only after the payment is verified.
+ *
+ *   2. When the reference lookup gave up, the page asserted success anyway.
+ *      Every outcome now maps to one of four states, and only ONE of them may
+ *      use the word confirmed.
+ *
+ * `VERIFIED` is reached solely by MCB's own server returning a reference for
+ * the session id in the address bar. A reference is minted only inside the
+ * paid transaction of a signature-verified Stripe webhook, so its presence is
+ * itself the proof of payment — and it is the only proof this page accepts.
+ *
+ * The server cannot distinguish a fabricated session id from a real payment
+ * whose webhook is three seconds late: it learns of a session only when the
+ * webhook arrives, and asking Stripe directly would create a second source of
+ * payment truth. So the honest distinction is time, not certainty — PENDING
+ * while the retries run, UNVERIFIED once they are spent. Neither claims
+ * payment, which is what makes guessing unnecessary.
+ */
+type Verification = "NO_SESSION" | "PENDING" | "VERIFIED" | "UNVERIFIED";
+
+/** localStorage throws in some privacy modes. Nothing here is essential. */
+const readLocal = (key: string): string | null => {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
 
 /**
  * COLOUR CONTRACT FOR THIS PAGE
@@ -76,9 +120,14 @@ export default function ThankYou() {
    * `ShareMcb`.
    */
   const [referralCode, setReferralCode] = useState<string | null>(null);
-  const [referencePending, setReferencePending] = useState<boolean>(!!sessionId);
   /** Order status as MCB's own record reports it — not as Stripe's URL implies. */
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
+  /**
+   * Whether the lookup has stopped asking — retries spent, or the server
+   * rejected the session id outright. Never means "unpaid"; it means this
+   * page has no verified answer and must not invent one.
+   */
+  const [lookupFinished, setLookupFinished] = useState(false);
 
   /**
    * Shown only to a visitor arriving WITHOUT a session id — someone returning
@@ -86,58 +135,20 @@ export default function ThankYou() {
    * acceptable answer, because a remembered number could belong to a
    * different order than the one just paid for.
    */
-  const [storedReference] = useState<string | null>(() => {
-    if (sessionId) return null;
-    try {
-      return localStorage.getItem(STORED_REFERENCE_KEY);
-    } catch {
-      return null;
-    }
-  });
-
-  // What the customer just bought, carried over from the order form.
-  const orderedPackage = getPackage(
-    localStorage.getItem("last_order_package") || ""
+  const [storedReference] = useState<string | null>(() =>
+    sessionId ? null : readLocal(STORED_REFERENCE_KEY)
   );
-  const orderedFormat = localStorage.getItem("last_order_format") || "";
-  const formatName =
-    orderedFormat && orderedFormat in FORMATS
-      ? FORMATS[orderedFormat as FormatId].name
-      : null;
 
   /**
-   * What the customer paid, from the same authoritative package data the
-   * checkout price and the analytics value come from.
+   * NOT AUTHORITATIVE, AND NEVER RENDERED.
    *
-   * A package quoted from a floor, or with no published price at all, has no
-   * figure that was actually charged — so those show the agreed-price wording
-   * rather than asserting a number the customer would not recognise on their
-   * statement.
+   * The one surviving use of the browser's memory of the last order built on
+   * this device: it gives the analytics purchase event a value. It cannot
+   * reach the page — no heading, no row, no delivery line reads it — and the
+   * event it feeds is gated on a verified payment below, so a fabricated
+   * session id reports no revenue at all.
    */
-  const amountPaid = !orderedPackage
-    ? null
-    : !orderedPackage.price || orderedPackage.price.prefix
-      ? "As agreed for your commission"
-      : `£${orderedPackage.price.gbp.toFixed(2)}`;
-
-  useEffect(() => {
-    if (!sessionId) return;
-
-    // Prevent duplicate purchase tracking per session/refresh
-    const trackedKey = `mcb_tracked_${sessionId}`;
-    if (sessionStorage.getItem(trackedKey)) return;
-
-    // Price comes from the central package data so the analytics value can
-    // never drift from the amount actually charged.
-    // No published price means no purchase value to report. A concierge
-    // commission does not reach this page — it has no checkout session — but
-    // reporting 0 or the retired £799 would corrupt revenue reporting if one
-    // ever did, and neither is what was charged.
-    if (!orderedPackage?.price) return;
-
-    trackPurchase(sessionId, orderedPackage.price.gbp, "GBP", orderedPackage.name);
-    sessionStorage.setItem(trackedKey, "true");
-  }, [sessionId, orderedPackage]);
+  const analyticsPackage = getPackage(readLocal("last_order_package") ?? "");
 
   // Ask MCB's own record for the reference belonging to this checkout
   // session, retrying while the payment webhook lands. Aborts on unmount so a
@@ -153,6 +164,18 @@ export default function ThankYou() {
         const response = await fetch(
           `/api/order-reference?session_id=${encodeURIComponent(sessionId)}`
         );
+
+        /**
+         * 400 is the server refusing the SHAPE of the id — see the regex in
+         * `api/order-reference.php`. A malformed id cannot become valid by
+         * being asked again, so stop here rather than spending twelve seconds
+         * implying something is on its way.
+         */
+        if (response.status === 400) {
+          if (!cancelled) setLookupFinished(true);
+          return;
+        }
+
         if (response.ok) {
           const data = await response.json();
           if (cancelled) return;
@@ -167,7 +190,7 @@ export default function ThankYou() {
           }
           if (typeof data?.reference === "string" && data.reference !== "") {
             setReference(data.reference);
-            setReferencePending(false);
+            setLookupFinished(true);
             try {
               localStorage.setItem(STORED_REFERENCE_KEY, data.reference);
             } catch {
@@ -177,13 +200,14 @@ export default function ThankYou() {
           }
         }
       } catch {
-        // A lookup failure is not a payment failure. Fall through and retry;
-        // giving up simply shows the fallback message below.
+        // A network failure is not a payment failure — and it is not a
+        // payment success either. Retry; when the attempts are spent the page
+        // says it could not verify, rather than deciding for the server.
       }
 
       if (cancelled) return;
       if (attempt >= REFERENCE_POLL_ATTEMPTS) {
-        setReferencePending(false);
+        setLookupFinished(true);
         return;
       }
       timer = setTimeout(() => void poll(attempt + 1), REFERENCE_POLL_INTERVAL_MS);
@@ -198,13 +222,46 @@ export default function ThankYou() {
   }, [sessionId]);
 
   /**
-   * A reference is only ever issued to an order Stripe has confirmed paid, so
-   * its presence is itself proof of payment. The server's own status is
-   * preferred where it answered, rather than inferring from the URL.
+   * The page's single source of truth about what it is allowed to say.
+   *
+   * `VERIFIED` requires a reference the SERVER returned. No browser value,
+   * no inference from the presence of a session id in the URL, and no
+   * fallback on timeout can reach it.
    */
-  const paymentStatus =
-    orderStatus === "PAID" || reference ? "Paid" : orderStatus ? "Processing" : null;
+  const verification: Verification = !sessionId
+    ? "NO_SESSION"
+    : reference
+      ? "VERIFIED"
+      : lookupFinished
+        ? "UNVERIFIED"
+        : "PENDING";
 
+  // Analytics fires for a VERIFIED payment only. Previously any session id in
+  // the address bar reported a purchase, so a fabricated one corrupted
+  // revenue reporting as readily as it misled the customer.
+  useEffect(() => {
+    if (verification !== "VERIFIED" || !sessionId) return;
+
+    // Prevent duplicate purchase tracking per session/refresh
+    const trackedKey = `mcb_tracked_${sessionId}`;
+    if (sessionStorage.getItem(trackedKey)) return;
+
+    // No published price means no purchase value to report. A concierge
+    // commission does not reach this page — it has no checkout session — but
+    // reporting 0 or the retired £799 would corrupt revenue reporting if one
+    // ever did, and neither is what was charged.
+    if (!analyticsPackage?.price) return;
+
+    trackPurchase(
+      sessionId,
+      analyticsPackage.price.gbp,
+      "GBP",
+      analyticsPackage.name
+    );
+    sessionStorage.setItem(trackedKey, "true");
+  }, [verification, sessionId, analyticsPackage]);
+
+  /** The reference this visit may legitimately display, if any. */
   const shownReference = reference ?? storedReference;
   const isRemembered = !reference && !!storedReference;
 
@@ -219,39 +276,73 @@ export default function ThankYou() {
     <div className="min-h-screen bg-ink">
       <div className="mx-auto w-full max-w-2xl px-5 py-14 sm:px-6 sm:py-20">
 
-        {/* 1 — Payment confirmed */}
+        {/*
+          1 — The status badge and the headline.
+
+          The tick and the word "confirmed" belong to VERIFIED and to nothing
+          else. Each other state gets its own icon, so the difference is
+          carried by shape as well as by wording.
+        */}
         <div className="text-center">
-          <p className={`inline-flex items-center gap-2 rounded-full border border-gold bg-gold/15 px-4 py-1.5 text-sm font-bold tracking-wide ${TEXT_ACCENT}`}>
-            <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
-            Payment confirmed
-          </p>
+          {verification === "VERIFIED" && (
+            <p className={`inline-flex items-center gap-2 rounded-full border border-gold bg-gold/15 px-4 py-1.5 text-sm font-bold tracking-wide ${TEXT_ACCENT}`}>
+              <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Payment confirmed
+            </p>
+          )}
+
+          {verification === "PENDING" && (
+            <p className={`inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/[0.08] px-4 py-1.5 text-sm font-bold tracking-wide ${TEXT_PRIMARY}`}>
+              <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Verifying your order
+            </p>
+          )}
+
+          {verification === "UNVERIFIED" && (
+            <p className={`inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/[0.08] px-4 py-1.5 text-sm font-bold tracking-wide ${TEXT_PRIMARY}`}>
+              <HelpCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Not verified
+            </p>
+          )}
 
           <h1 className={`mt-6 text-4xl font-light leading-tight tracking-wide sm:text-5xl ${TEXT_PRIMARY}`}>
-            Your Song Is Now In Motion
+            {verification === "VERIFIED"
+              ? "Your Song Is Now In Motion"
+              : verification === "PENDING"
+                ? "Your order is being verified"
+                : verification === "UNVERIFIED"
+                  ? "We couldn't verify this payment reference"
+                  : "Your MCB order"}
           </h1>
         </div>
 
-        {/* 2 — The MCB reference. The dominant element on this page. */}
+        {/*
+          2 — The MCB reference.
+
+          The gold-bordered card is the celebratory one, so it appears only
+          where there is a real reference in it. The unverified state gets a
+          plain border: nothing about that outcome should look like a
+          confirmation.
+        */}
         <section
           aria-labelledby="mcb-reference-label"
-          className="mt-10 rounded-2xl border-2 border-gold bg-white/[0.06] p-5 text-center sm:p-8"
+          className={`mt-10 rounded-2xl p-5 text-center sm:p-8 ${
+            shownReference
+              ? "border-2 border-gold bg-white/[0.06]"
+              : "border border-white/25"
+          }`}
         >
           <h2
             id="mcb-reference-label"
-            className={`text-xs font-bold uppercase tracking-[0.22em] sm:text-sm ${TEXT_PRIMARY}`}
+            className={`font-mono text-xs font-semibold uppercase tracking-[0.2em] ${TEXT_ACCENT}`}
           >
-            Your MCB Reference
+            {shownReference ? "Your MCB reference" : "Reference"}
           </h2>
 
           {shownReference ? (
             <>
               {/*
-                Set in Manrope with tabular figures, not the display serif:
-                this is a code to be read aloud and copied down, so character
-                shapes matter more than elegance. `select-all` makes one tap
-                or click select the whole reference on a phone.
-
-                The floor and the tracking are measured, not guessed. Inside
+                Sized to fit MCB-YYYY-NNNNNN on the narrowest phone. Inside
                 this card a 320px screen leaves 232px of line; the reference
                 at 28px with 0.04em tracking wants 272px, so it broke across
                 two lines on the narrowest phones. At 24px with 0.02em it
@@ -274,49 +365,86 @@ export default function ThankYou() {
                 </p>
               )}
             </>
-          ) : referencePending ? (
+          ) : verification === "PENDING" ? (
             <p className={`mt-4 text-lg ${TEXT_PRIMARY}`} role="status" aria-live="polite">
               Confirming your payment and issuing your reference…
             </p>
-          ) : (
+          ) : verification === "UNVERIFIED" ? (
             <p className={`mx-auto mt-4 max-w-md text-base leading-relaxed ${TEXT_PRIMARY}`} role="status">
-              Your reference is on its way. Your payment is complete and
-              nothing is outstanding — contact us and we will confirm it.
+              We could not match this link to a payment on our records, so we
+              are not able to confirm one here. Nothing is lost, and there is
+              nothing for you to pay again.
+            </p>
+          ) : (
+            <p className={`mx-auto mt-4 max-w-md text-base leading-relaxed ${TEXT_PRIMARY}`}>
+              Open the link in your confirmation to see the reference for a
+              particular order, or contact us and we will look it up for you.
             </p>
           )}
         </section>
 
-        {/* 3, 4, 5 — Order, amount paid, payment status */}
-        {(orderedPackage || paymentStatus) && (
+        {/*
+          3 — Payment status, and ONLY as MCB's own record reports it.
+
+          The "Order" and "Amount paid" rows that used to sit here read
+          `localStorage`, so they described whatever this device last built in
+          the order form rather than anything that was bought. They are gone.
+          `/api/order-reference` deliberately returns no amount — see its
+          header — so an amount shown here could not have been verified, and
+          the customer's Stripe receipt carries the figure that was charged.
+        */}
+        {verification === "VERIFIED" && orderStatus === "PAID" && (
           <dl className="mt-8 divide-y divide-white/20 overflow-hidden rounded-2xl border border-white/25">
-            {orderedPackage && (
-              <DetailRow
-                label="Order"
-                value={`${orderedPackage.name}${formatName ? ` — ${formatName}` : ""}`}
-              />
-            )}
-            {amountPaid && <DetailRow label="Amount paid" value={amountPaid} />}
-            {paymentStatus && <DetailRow label="Payment" value={paymentStatus} />}
+            <DetailRow label="Payment" value="Paid" />
           </dl>
         )}
 
-        {/* 6 — What happens next */}
-        <section className="mt-8 rounded-2xl border border-white/25 p-6 sm:p-8">
-          <h2 className={`text-xl font-semibold tracking-wide ${TEXT_ACCENT}`}>
-            What happens next
-          </h2>
+        {/* 4 — What happens next */}
+        {verification === "UNVERIFIED" ? (
+          <section className="mt-8 rounded-2xl border border-white/25 p-6 sm:p-8">
+            <h2 className={`text-xl font-semibold tracking-wide ${TEXT_ACCENT}`}>
+              What to do next
+            </h2>
 
-          <ul className={`mt-5 space-y-3 text-base leading-relaxed ${TEXT_PRIMARY}`}>
-            <li>Our creative team reviews your story and inspiration.</li>
-            <li>Your custom composition begins within 24 hours.</li>
-            <li>We may reach out if we need a few more details.</li>
-            <li>
-              {orderedPackage
-                ? `${orderedPackage.delivery}.`
-                : "Your finished song is delivered on your package timeline."}
-            </li>
-          </ul>
-        </section>
+            <ul className={`mt-5 space-y-3 text-base leading-relaxed ${TEXT_PRIMARY}`}>
+              <li>
+                If you have just paid, your confirmation may still be arriving.
+                Reload this page in a moment.
+              </li>
+              <li>
+                If you opened an old or edited link, that alone does not affect
+                any order you have placed.
+              </li>
+              <li>
+                Either way, email us and we will confirm your order by hand —
+                the fastest thing to quote is the email address you ordered
+                with.
+              </li>
+            </ul>
+          </section>
+        ) : (
+          <section className="mt-8 rounded-2xl border border-white/25 p-6 sm:p-8">
+            <h2 className={`text-xl font-semibold tracking-wide ${TEXT_ACCENT}`}>
+              What happens next
+            </h2>
+
+            <ul className={`mt-5 space-y-3 text-base leading-relaxed ${TEXT_PRIMARY}`}>
+              <li>Our creative team reviews your story and inspiration.</li>
+              <li>Your custom composition begins within 24 hours.</li>
+              <li>We may reach out if we need a few more details.</li>
+              {/*
+                The package-specific delivery line that used to close this list
+                was read from `localStorage`, which made it a delivery promise
+                about an order this page had not verified. The timeline the
+                customer chose is on their package and in their confirmation.
+              */}
+              <li>
+                Your finished song is delivered on the timeline for the
+                experience you chose.
+              </li>
+            </ul>
+          </section>
+        )}
 
         {/* Support */}
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
@@ -335,23 +463,25 @@ export default function ThankYou() {
           </a>
         </div>
 
-        {/* Upload */}
-        <div className="mt-10 space-y-4 text-center">
-          <p className={`text-base ${TEXT_PRIMARY}`}>
-            If you forgot to include photos, artwork, or voice notes, you can
-            securely send them to us here — quote your MCB reference.
-          </p>
+        {/* Upload — only where there is a reference to quote. */}
+        {shownReference && (
+          <div className="mt-10 space-y-4 text-center">
+            <p className={`text-base ${TEXT_PRIMARY}`}>
+              If you forgot to include photos, artwork, or voice notes, you can
+              securely send them to us here — quote your MCB reference.
+            </p>
 
-          {/* `/submit-memories` was never a registered route, so this button
-              used to lead nowhere. Point it at the contact section until an
-              upload page exists. */}
-          <a
-            href="/#contact"
-            className="inline-block rounded-md bg-gold px-8 py-3 font-bold text-ink transition hover:bg-gold-light"
-          >
-            Send Photos, Memories or Voice Notes
-          </a>
-        </div>
+            {/* `/submit-memories` was never a registered route, so this button
+                used to lead nowhere. Point it at the contact section until an
+                upload page exists. */}
+            <a
+              href="/#contact"
+              className="inline-block rounded-md bg-gold px-8 py-3 font-bold text-ink transition hover:bg-gold-light"
+            >
+              Send Photos, Memories or Voice Notes
+            </a>
+          </div>
+        )}
 
         {/*
           ---- The share invitation, and only once the work is done ---------

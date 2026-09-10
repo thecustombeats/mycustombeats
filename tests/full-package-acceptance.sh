@@ -50,10 +50,28 @@ post_raw() { curl -s -o /tmp/fp.json -w '%{http_code}' -X POST "$BASE/$1" -H "Co
 post() {
   local ep="$1" data="$2"
   [ "$ep" = "order" ] && data="$(with_consent "$data")"
+  [ "$ep" = "order" ] && release_order_limit
   post_raw "$ep" "$data"
 }
 body() { cat /tmp/fp.json; }
 q() { docker exec mcb-db mariadb -umcb -ptestpass -N -B -e "$1" mcb_crm 2>/dev/null; }
+
+# ---- The order endpoint is rate limited -------------------------------
+#
+# `POST /api/order` gained a limit of ten orders an hour per source in the
+# final release hardening — it was the only unauthenticated write surface in
+# the API without one. It counts rows in `order_consents`, keyed on the salted
+# IP hash, because that table already carries the hash and gets exactly one row
+# per successful order.
+#
+# These suites place far more than ten orders from a single address, so the
+# attribution is released before each one — the same device already used for
+# the concierge limiter. The rows themselves are untouched; only their
+# rate-limit attribution is, and no assertion anywhere reads that column.
+#
+# That the limiter still fires is proved deliberately, once, in
+# tests/hardening-acceptance.sh.
+release_order_limit() { q "UPDATE order_consents SET ip_hash = NULL" >/dev/null 2>&1; }
 qerr() { docker exec mcb-db mariadb -umcb -ptestpass -e "$1" mcb_crm 2>&1; }
 CRMKEY="test_crm_key_not_real_000000000000000000000"
 
@@ -131,6 +149,7 @@ tc "25.  → refused on the package field, with a human explanation" \
   "$(body | grep -q '"package":"That experience is arranged personally' && echo 1 || echo 0)"
 tc "26.  → and no order row was written for it" \
   "$([ "$(q "SELECT COUNT(*) FROM orders WHERE package='bespoke'")" = "0" ] && echo 1 || echo 0)"
+release_order_limit
 OIDK=$(curl -s -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" \
   -d '{'"$CONSENT_BLOCK"',"firstName":"Con","lastName":"Trol","email":"fp-control@example.com","package":"keepsake","format":"mp3","story":"x"}' \
   | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')

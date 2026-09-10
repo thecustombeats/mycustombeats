@@ -25,10 +25,31 @@ tc() { local name="$1" ok="$2"
   else printf "  FAIL  %-64s\n" "$name"; FAIL=$((FAIL+1)); FAILED+=("$name"); fi }
 
 CONSENT='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2026-09-09.4","cruiseCompanions":"My husband David"'
-post() { curl -s -o /tmp/lc.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$2"; }
+post_raw() { curl -s -o /tmp/lc.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$2"; }
+post() {
+  [ "$1" = "order" ] && release_order_limit
+  post_raw "$1" "$2"
+}
 get()  { curl -s -o /tmp/lc.json -w '%{http_code}' "$BASE/$1"; }
 body() { cat /tmp/lc.json; }
 q() { docker exec mcb-db mariadb -umcb -ptestpass -N -B -e "$1" mcb_crm 2>/dev/null; }
+
+# ---- The order endpoint is rate limited -------------------------------
+#
+# `POST /api/order` gained a limit of ten orders an hour per source in the
+# final release hardening — it was the only unauthenticated write surface in
+# the API without one. It counts rows in `order_consents`, keyed on the salted
+# IP hash, because that table already carries the hash and gets exactly one row
+# per successful order.
+#
+# These suites place far more than ten orders from a single address, so the
+# attribution is released before each one — the same device already used for
+# the concierge limiter. The rows themselves are untouched; only their
+# rate-limit attribution is, and no assertion anywhere reads that column.
+#
+# That the limiter still fires is proved deliberately, once, in
+# tests/hardening-acceptance.sh.
+release_order_limit() { q "UPDATE order_consents SET ip_hash = NULL" >/dev/null 2>&1; }
 K="test_crm_key_not_real_000000000000000000000"
 crm()  { curl -s -o /tmp/lc.json -w '%{http_code}' "$BASE/$1" -H "Authorization: Bearer $K"; }
 crmp() { curl -s -o /tmp/lc.json -w '%{http_code}' -X POST "$BASE/$1" -H "Authorization: Bearer $K" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$2"; }
@@ -42,6 +63,7 @@ hook() { curl -s -o /tmp/wh.json -w '%{http_code}' -X POST "$BASE/stripe/webhook
 
 # Places an order and returns its id.
 mkorder() {
+  release_order_limit
   curl -s -o /tmp/mk.json -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" \
     -d '{'"$CONSENT"',"firstName":"'"$1"'","lastName":"T","email":"'"$2"'","package":"'"$3"'","format":"mp3","story":"A story."'"$4"'}' >/dev/null
   sed -n 's/.*"order_id":\([0-9]*\).*/\1/p' /tmp/mk.json

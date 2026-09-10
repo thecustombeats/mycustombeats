@@ -48,10 +48,28 @@ post_raw() { curl -s -o /tmp/c.json -w '%{http_code}' -X POST "$BASE/$1" -H "Con
 post() {
   local ep="$1" data="$2"
   [ "$ep" = "order" ] && data="$(with_consent "$data")"
+  [ "$ep" = "order" ] && release_order_limit
   post_raw "$ep" "$data"
 }
 body() { cat /tmp/c.json; }
 q() { docker exec mcb-db mariadb -umcb -ptestpass -N -B -e "$1" mcb_crm 2>/dev/null; }
+
+# ---- The order endpoint is rate limited -------------------------------
+#
+# `POST /api/order` gained a limit of ten orders an hour per source in the
+# final release hardening — it was the only unauthenticated write surface in
+# the API without one. It counts rows in `order_consents`, keyed on the salted
+# IP hash, because that table already carries the hash and gets exactly one row
+# per successful order.
+#
+# These suites place far more than ten orders from a single address, so the
+# attribution is released before each one — the same device already used for
+# the concierge limiter. The rows themselves are untouched; only their
+# rate-limit attribution is, and no assertion anywhere reads that column.
+#
+# That the limiter still fires is proved deliberately, once, in
+# tests/hardening-acceptance.sh.
+release_order_limit() { q "UPDATE order_consents SET ip_hash = NULL" >/dev/null 2>&1; }
 stub() { docker exec mcb-api sh -c "echo '$1' > /tmp/stripe-mode"; }
 stub_log() { docker exec mcb-api sh -c 'cat /tmp/stripe-stub.log 2>/dev/null'; }
 stub_reset() { docker exec mcb-api sh -c 'rm -f /tmp/stripe-stub.log'; }
@@ -62,6 +80,7 @@ stub_reset
 
 # An order to check out against.
 mkorder() {
+  release_order_limit
   curl -s -o /tmp/o.json -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" \
     -d "{$CONSENT_BLOCK,\"firstName\":\"Cs\",\"lastName\":\"Tester\",\"email\":\"$1\",\"whatsapp\":\"+447000000123\",\"package\":\"$2\",\"format\":\"$3\",\"shippingName\":\"Cs Tester\",\"shippingAddress\":\"1 Test St\",\"shippingCity\":\"London\",\"shippingPostcode\":\"E1 1AA\",\"shippingCountry\":\"United Kingdom\",\"story\":\"A story.\"}" >/dev/null
   sed -n 's/.*"order_id":\([0-9]*\).*/\1/p' /tmp/o.json
@@ -69,6 +88,7 @@ mkorder() {
 
 # An order carrying the full Complete Your Memory basket.
 mkorder_basket() {
+  release_order_limit
   curl -s -o /tmp/o.json -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" \
     -d '{'"$CONSENT_BLOCK"',"firstName":"Cs","lastName":"Tester","email":"'"$1"'","whatsapp":"+447000000123","package":"'"$2"'","format":"'"$3"'","shippingName":"Cs Tester","shippingAddress":"1 Test St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom","story":"A story.","enhancements":[{"id":"vinyl-frame","quantity":1},{"id":"gift-pop-up-card-anniversary","quantity":1},{"id":"additional-vinyl-copy","quantity":2}]}' >/dev/null
   sed -n 's/.*"order_id":\([0-9]*\).*/\1/p' /tmp/o.json

@@ -33,6 +33,38 @@ require_once __DIR__ . '/lib/referral.php';
 require_method('POST');
 require_same_origin();
 
+/**
+ * Ten orders an hour from one source.
+ *
+ * This endpoint was the only write surface in the API with no limit at all,
+ * while every sibling had one — concierge enquiries 5/hour, checkout sessions
+ * 20/hour, referral checks 60/hour, affiliate clicks 30/hour. It is
+ * unauthenticated and it inserts into `customers`, `orders`, `order_consents`,
+ * `order_production` and, for a physical order, `delivery_addresses`. A script
+ * could fill all five.
+ *
+ * WHAT IS COUNTED, AND WHY IT IS `order_consents`
+ * The limiter counts rows already written, keyed on a salted IP hash — see
+ * `enforce_rate_limit`. `orders` carries no `ip_hash` column, and adding one
+ * is a schema change. `order_consents` already carries the hash, and it gets
+ * exactly one row per SUCCESSFUL order, written inside the same transaction.
+ * So the thing being counted is completed orders from this source, which is
+ * precisely the row flooding worth preventing. A request that fails validation
+ * writes nothing and therefore costs a would-be flooder nothing here — but it
+ * also creates nothing, so there is nothing to flood.
+ *
+ * WHY TEN
+ * One order is the normal case; several is a believable one — somebody buying
+ * keepsakes for a family, or a group aboard one ship sharing an address. Ten
+ * leaves that comfortably alone. The refusal is a 429 with `Retry-After`, so
+ * the honest edge case is delayed rather than turned away.
+ *
+ * `order_consents` has no `(ip_hash, created_at)` index, unlike the sibling
+ * tables, so this COUNT scans. At one row per order that is immaterial, and
+ * the index cannot be added without a migration.
+ */
+enforce_rate_limit('order_consents', 'ip_hash', hash_ip(client_ip()), 10, 3600);
+
 $body = read_json_body();
 $v    = new Validator($body);
 

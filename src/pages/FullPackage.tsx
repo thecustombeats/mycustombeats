@@ -188,7 +188,20 @@ const FullPackage = () => {
   return (
     <>
       <Helmet>
-        <title>{name} | A Private Concierge Commission | My Custom Beats</title>
+        {/*
+          ONE string child, deliberately.
+
+          This read `{name} | A Private Concierge Commission | My Custom
+          Beats`, which JSX hands to Helmet as an ARRAY of children — and
+          react-helmet-async renders an empty <title> for anything that is not
+          a single string. Production served this page with no title at all,
+          while the <meta name="description"> in the same block applied
+          normally, which is what isolated it to the interpolation.
+
+          Composed with a template literal so the package name still comes
+          from the commercial data rather than being typed out here.
+        */}
+        <title>{`${name} | A Private Concierge Commission | My Custom Beats`}</title>
         <meta
           name="description"
           content={
