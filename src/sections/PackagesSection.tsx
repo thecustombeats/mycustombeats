@@ -26,7 +26,7 @@ const packages = [
   {
     id: 'keepsake',
     name: 'Keepsake',
-    price: { gbp: '£79', usd: '$99' },
+    price: { gbp: '£99', usd: '$129' },
     description: 'Perfect for a heartfelt gift, proposal, anniversary, or meaningful personal moment.',
     features: [
       '1 fully personalised song (3–4 minutes)',
