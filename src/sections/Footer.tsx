@@ -17,7 +17,6 @@ const Footer = () => {
   onClick={scrollToTop}
   className="flex items-center justify-center gap-3 mb-10 mx-auto hover:opacity-80 transition"
 >
-  {/* Logo */}
   <img
     src="/logo-light.png"
     alt="My Custom Beats"
@@ -41,6 +40,7 @@ const Footer = () => {
           <Link to="/faq" className="hover:text-gold transition">FAQ</Link>
           <Link to="/press" className="hover:text-gold transition">Press</Link>
           <Link to="/affiliate" className="hover:text-gold transition">Affiliate</Link>
+          <Link to="/priority-replacement" className="hover:text-gold transition">Priority Replacement</Link>
           <a
             href="/luxury/index.html"
             className="hover:text-gold transition"
