@@ -69,29 +69,17 @@ export type CheckoutSessionResult =
       fallbackAllowed: boolean;
     };
 
-/**
- * WHETHER A FAILED SESSION MAY FALL BACK TO A FIXED PAYMENT LINK.
- *
- * This is the most dangerous decision in the checkout, and it is why the
- * function exists rather than the rule living inline at a call site.
- *
- * A Payment Link charges ONE fixed amount. A customer whose basket is a £79
- * Keepsake plus a £200 frame, a £50 card and two £60 records owes £449 — and
- * the Keepsake Payment Link would take £79 and report success. MCB would ship
- * £449 of goods against a £79 payment, and every part of the system would
- * look healthy: the order is PAID, the reference is issued, the confirmation
- * email goes out.
- *
- * So the rule is by BASKET SHAPE, not by error type:
- *
- *   base package only  →  the link charges exactly the same thing, so falling
- *                         back is commercially identical and stays allowed.
- *   anything more      →  NEVER. Fail closed, keep the customer on MCB, and
- *                         let them retry or make contact.
+/** Only the founder-verified £10 Moment link may be used as a fallback.
+ * A matching basket shape does not establish that an older link has the
+ * current price. An authoritative recorded order is required for fulfilment.
  */
 export const mayFallBackToPaymentLink = (
-  selection: Pick<CheckoutSelection, "items">
-): boolean => (selection.items?.length ?? 0) === 0;
+  selection: Pick<CheckoutSelection, "items" | "packageId" | "formatId" | "orderId">
+): boolean => selection.packageId === "moment"
+  && selection.formatId === "mp3"
+  && Number.isSafeInteger(selection.orderId)
+  && (selection.orderId ?? 0) > 0
+  && (selection.items?.length ?? 0) === 0;
 
 const REQUEST_TIMEOUT_MS = 15000;
 
@@ -152,3 +140,4 @@ export const createCheckoutSession = async (
     clearTimeout(timer);
   }
 };
+

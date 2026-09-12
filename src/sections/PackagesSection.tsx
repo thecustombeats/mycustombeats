@@ -11,6 +11,7 @@ import {
   isFixedPrice,
 } from '../data/packages';
 import Price from '../components/Price';
+import MemoryConcierge from '../components/MemoryConcierge';
 import { scrollToSection } from '../utils/scrollToSection';
 
 /**
@@ -92,6 +93,7 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
         </div>
         
 
+<MemoryConcierge onChoose={handleSelect} />
 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 xl:gap-10 items-stretch">
     {CORE_PACKAGES.map((pkg) => {
     const isExpanded = expandedPackages.includes(pkg.id);

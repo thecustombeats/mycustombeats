@@ -21,18 +21,7 @@ const HeroSection = () => {
     }
   }, []);
 
-  // ✅ Modal timing logic
-  useEffect(() => {
-    const seen = localStorage.getItem("personalizationSeen");
-
-    if (!seen) {
-      const timer = setTimeout(() => {
-        setShowModal(true);
-      }, 4500);
-
-      return () => clearTimeout(timer);
-    }
-  }, []);
+  // Guidance is customer-initiated; never interrupt reading with a timed dialog.
 
   // ✅ GSAP Animations
   useEffect(() => {

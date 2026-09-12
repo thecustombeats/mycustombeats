@@ -1139,7 +1139,7 @@ if (formData.artwork) {
   const stripeUrl = checkout.url;
 
   // MCB's own record first, so the order id can identify this purchase to
-  // Stripe. Non-blocking: null simply means we fall back to today's behaviour.
+  // Stripe. Fail closed if the authoritative order cannot be recorded.
   const crmOrderId = await recordOrderInCrm({
     firstName: formData.firstName,
     lastName: formData.lastName,
@@ -1207,6 +1207,12 @@ if (formData.artwork) {
     refundPolicyVersion: REFUND_POLICY_VERSION,
     privacyPolicyVersion: PRIVACY_POLICY_VERSION,
   });
+
+  if (crmOrderId === null) {
+    setSubmitError("We couldn't save your order. Your details are still here and nothing has been charged. Please try again before continuing to payment.");
+    setIsSubmitting(false);
+    return;
+  }
 
   if (crmOrderId !== null) {
     zapierData.append("mcbOrderId", String(crmOrderId));

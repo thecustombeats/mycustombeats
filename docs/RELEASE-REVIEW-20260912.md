@@ -119,3 +119,21 @@ This access step is for a separate preview/test environment. It does not authori
 6. Deploy only after Bella/Lewis approves that exact review build.
 
 **Current production recommendation: DO NOT DEPLOY this checkpoint.**
+
+
+## Continuation checkpoint — expanded founder authority
+
+The active authority is recorded in `docs/FOUNDER-AUTHORITY-20260912.md`. The preservation-only design restriction is superseded. Production and financial restrictions remain fully in force.
+
+Implemented in the next source checkpoint:
+- Canonical Keepsake price changed to £99, with generated server package data updated.
+- Journey feature copy explicitly permits a different style for each memory. This is copy alignment; the multi-memory form remains outstanding.
+- Package identity changed from The Full Package to Bespoke; existing concierge enquiry implementation and route retained.
+- Removed automatic timed welcome-modal activation.
+- Added optional three-question Memory Concierge to package selection. This is working rules-based guidance, not live AI. It preserves requested memory scope, states budget mismatch and allows browsing without guidance. No answers are transmitted or stored by this component.
+- Payment Link fallback restricted to the founder-verified digital Moment with a positive recorded order ID and no extras. Older package links cannot be used as automatic fallback merely because their basket shape matches. Dynamic checkout remains disabled pending integration testing.
+- Order submission stops before payment handoff if MCB's authoritative order record fails. Form details remain available for retry.
+
+Remaining limitations: these are source improvements, not a finished release candidate. The original outstanding implementation table still applies except for the narrow changes above. Old package inclusions, legacy USD bookkeeping, backend/payment association, uploads, multi-memory persistence, account-credit ledger, fulfilment and visual QA still require work. The original public assets remain preserved in the GitHub tree; locally generated dist is not a deployable review artifact and is not included in this commit.
+
+Hostinger access was checked after the founders reported successful sign-in. The browser available to this task began with only a blank tab; hPanel again served “Performing security verification.” One reload returned the same screen. The challenge loop was reported and no further automated attempts or bypass were made. This does not contradict the founders being signed in elsewhere; the signed-in session is not available to this task's current browser. A handoff in this task's browser is needed for the separate staging environment.

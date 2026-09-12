@@ -34,7 +34,7 @@
     "keepsake": {
       "name": "Keepsake",
       "commercial_model": "FIXED_PRICE",
-      "price_gbp": 79,
+      "price_gbp": 99,
       "price_usd": 99,
       "price_prefix": null,
       "song_count": 1,
@@ -88,7 +88,7 @@
       "default_fulfilment": null
     },
     "bespoke": {
-      "name": "The Full Package",
+      "name": "Bespoke",
       "commercial_model": "CONCIERGE",
       "price_gbp": null,
       "price_usd": null,

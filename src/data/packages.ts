@@ -338,7 +338,7 @@ export const KEEPSAKE: FixedPricePackage<"vinyl" | "cd" | "mp3"> = {
   positioning: "Turn the memory into something you can hold.",
   description:
     "Perfect for a heartfelt gift, proposal, or meaningful personal moment.",
-  price: { gbp: 79, usd: 99 },
+  price: { gbp: 99, usd: 99 },
   songCount: 1,
   songDuration: "3–4 minutes",
   revisions: "1 refinement revision",
@@ -388,7 +388,7 @@ export const JOURNEY: FixedPricePackage<"vinyl" | "cd"> = {
   revisions: "1 refinement per song",
   features: [
     "4 personalised songs",
-    "Unified musical theme across all tracks",
+    "Choose a different music style for every memory",
     "Structured emotional journey (beginning → middle → finale)",
     "1 refinement per song",
     "Priority production handling",
@@ -494,7 +494,7 @@ export const HEIRLOOM: FixedPricePackage<"vinyl" | "cd"> = {
 export const FULL_PACKAGE: AnyPackage = {
   id: "bespoke",
   commercialModel: "CONCIERGE",
-  name: "The Full Package",
+  name: "Bespoke",
   conciergeLabel: "Private Concierge",
   positioning: "Curated entirely around one person.",
   /**
@@ -698,3 +698,4 @@ export const requiresShippingAddress = (
   pkg: AnyPackage,
   format: string | null
 ): boolean => Boolean(getCheckoutTarget(pkg, format)?.requiresShipping);
+
