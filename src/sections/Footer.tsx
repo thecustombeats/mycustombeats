@@ -38,6 +38,8 @@ const Footer = () => {
 
         {/* ===== NAVIGATION (SIMPLE ROW) ===== */}
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-ivory/70 mb-8">
+          <Link to="/mcb-live" className="hover:text-gold transition">MCB LIVE</Link>
+          <Link to="/priority-replacement" className="hover:text-gold transition">Priority Replacement</Link>
           <Link to="/products" className="hover:text-gold transition">Products</Link>
           <Link to="/occasions" className="hover:text-gold transition">Occasions</Link>
           <Link to="/artists" className="hover:text-gold transition">Artists</Link>
@@ -56,7 +58,7 @@ const Footer = () => {
 
         {/* ===== TRUST LINE ===== */}
         <p className="text-ivory/40 text-xs tracking-wide mb-6">
-          Crafted by professional artists worldwide • Trusted by private clients, event planners & luxury guests worldwide
+          Personalised music and keepsakes, created around your story.
         </p>
 
         {/* ===== SOCIALS ===== */}

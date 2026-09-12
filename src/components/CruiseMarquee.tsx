@@ -1,7 +1,7 @@
 import { CRUISE_BRANDS } from "../data/cruiseBrands";
 
 /**
- * "Used by guests on board" — the cruise and luxury-travel band that closes
+ * "Made for your cruise memories" — the cruise and luxury-travel band that closes
  * the footer.
  *
  * Motion follows MVIS: slow (a full pass takes 90s), linear, continuous, with
@@ -32,7 +32,7 @@ const CruiseMarquee = () => {
         id="cruise-marquee-heading"
         className="label-uppercase block w-full text-ivory/40 text-center mb-8 font-sans"
       >
-        Used by guests on board
+        Made for your cruise memories
       </h2>
 
       <div className="mcb-marquee-mask overflow-hidden">

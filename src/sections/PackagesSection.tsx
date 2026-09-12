@@ -141,7 +141,7 @@ const PackagesSection = ({ selectedPackage, setSelectedPackage }: PackagesSectio
 
             {pkg.popular && (
               <p className="text-xs text-gold-deep mt-2 tracking-wide">
-                Most chosen by customers
+                Four memories, individually personalised
               </p>
             )}
           </div>

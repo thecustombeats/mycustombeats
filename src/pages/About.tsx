@@ -239,7 +239,7 @@ const AboutSection = () => {
             'Professionally curated by experienced producers',
             'Emotion-led storytelling, not automated templates',
             'Luxury guest experience from start to delivery',
-            'Trusted by private clients and cruise guests worldwide',
+            'Created for personal celebrations and cruise memories',
           ].map((item, index) => (
             <div key={index} className="flex items-center gap-3 bg-white px-6 py-3 rounded-full">
               <span className="w-2 h-2 rounded-full bg-gold" />

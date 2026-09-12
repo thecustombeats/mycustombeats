@@ -164,7 +164,7 @@ const scrollToOrder = () => {
         <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6 text-center">
 
           <span className="label-uppercase text-ivory/60 mb-6 tracking-[0.2em]">
-            Featured on BBC Radio • Trusted by global clients
+            YOUR MEMORIES. YOUR MUSIC.
           </span>
 
           <h1

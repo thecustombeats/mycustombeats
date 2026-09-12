@@ -11,7 +11,6 @@ import {
   readStoredReferral,
   shouldReplaceStoredReferral,
 } from "./data/referral";
-import PersonalizationModal from "./components/PersonalizationModal";
 import HeroSection from "./sections/HeroSection";
 
 import Footer from "./sections/Footer";
@@ -22,6 +21,8 @@ const Occasions = lazy(() => import("./pages/Occasions"));
 const Products = lazy(() => import("./pages/Products"));
 const Partners = lazy(() => import("./pages/Partners"));
 const Press = lazy(() => import("./pages/Press"));
+const MCBLive = lazy(() => import("./pages/MCBLive"));
+const PriorityReplacement = lazy(() => import("./pages/PriorityReplacement"));
 const Artists = lazy(() => import("./pages/Artists"));
 
 import Terms from "./pages/legal/Terms";
@@ -54,7 +55,7 @@ const CruiseMemories = lazy(() => import("./pages/CruiseMemories"));
 const FullPackage = lazy(() => import("./pages/FullPackage"));
 const SongShowcaseSection = lazy(() => import("./sections/SongShowcaseSection"));
 const HowItWorksSection = lazy(() => import("./sections/HowItWorksSection"));
-const TestimonialsSection = lazy(() => import("./sections/TestimonialsSection"));
+// Testimonials stay unpublished until their source evidence is verified.
 const PackagesSection = lazy(() => import("./sections/PackagesSection"));
 const OrderFormSection = lazy(() => import("./sections/OrderFormSection"));
 const ContactSection = lazy(() => import("./sections/ContactSection"));
@@ -65,31 +66,7 @@ const HospitalityCTASection = lazy(() => import("./sections/HospitalityCTASectio
 
 // 👇 This becomes your homepage
 function MainSite() {
-  const [showPersonalization, setShowPersonalization] = useState(false);
-  const [, setVisitorType] = useState<string | null>(() => {
-    return localStorage.getItem("customBeats_visitorType");
-  });
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
-
-  useEffect(() => {
-    const seen = sessionStorage.getItem("modalShown");
-    const savedType = localStorage.getItem("customBeats_visitorType");
-
-    if (!seen && !savedType) {
-      const timer = setTimeout(() => {
-        setShowPersonalization(true);
-        sessionStorage.setItem("modalShown", "true");
-      }, 1500);
-
-      return () => clearTimeout(timer);
-    }
-  }, []);
-
-  const handleVisitorSelect = (type: string) => {
-  setVisitorType(type);
-  localStorage.setItem("customBeats_visitorType", type);
-  setShowPersonalization(false);
-  };
 
   useEffect(() => {
   // Capture attribution once per arrival, then tell the server.
@@ -204,9 +181,7 @@ function MainSite() {
   <HowItWorksSection />
 </Suspense>
 
-<Suspense fallback={<div className="h-40" />}>
-  <TestimonialsSection />
-</Suspense>
+
 
 {/* ---- Make the memory physical ----
     Connects the music experience to the keepsake ecosystem. Rendered from
@@ -304,12 +279,6 @@ function MainSite() {
       </main>
       </div>
 
-      {/* ✅ THIS IS THE FIX — MODAL GOES HERE */}
-      <PersonalizationModal
-        isOpen={showPersonalization}
-        onClose={() => setShowPersonalization(false)}
-        onSelect={handleVisitorSelect}
-      />
 </>
   );
 }
@@ -400,6 +369,8 @@ function App() {
           } 
         />
 
+        <Route path="/mcb-live" element={<Layout><MCBLive /></Layout>} />
+        <Route path="/priority-replacement" element={<Layout><PriorityReplacement /></Layout>} />
         {/* Pages */}
         <Route path="/artists" element={<Layout><Artists /></Layout>} />
         <Route path="/partners" element={<Layout><Partners /></Layout>} />
