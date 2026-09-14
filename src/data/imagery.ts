@@ -59,6 +59,20 @@ export const IMAGES = {
     1536,
     "Artwork for the 25th Anniversary MCB Example"
   ),
+  // Founder-approved photographs of Rinaldi (Sprint 3.2). No cruise line is
+  // visible or named. Masters: assets/originals/.
+  rinaldiAtSea: image(
+    "rinaldi-at-sea",
+    941,
+    1672,
+    "DJ Rinaldi holding an MCB vinyl record while looking out to sea from a ship's deck at sunset"
+  ),
+  rinaldiPortrait: image(
+    "rinaldi-portrait",
+    941,
+    1672,
+    "DJ Rinaldi holding an MCB vinyl record on a ship's deck at sunset"
+  ),
   lyricsFrame: image("lyrics-frame", 1024, 1024, "A framed lyrics print on a sideboard"),
   phoneGramophone: image("phone-gramophone", 752, 520, "A vintage-style acoustic gramophone built around a mobile phone"),
   brassGramophone: image("brass-gramophone", 768, 522, "A classic gramophone with a large decorated horn on an ornate case"),

@@ -30,6 +30,7 @@ const sections = {
   Bespoke: "src/pages/Bespoke.tsx",
   MCBLive: "src/pages/MCBLive.tsx",
   PriorityReplacement: "src/pages/PriorityReplacement.tsx",
+  About: "src/pages/About.tsx",
 };
 const entry = `
 import { createElement as h } from "react";
@@ -228,6 +229,30 @@ test("the example's Princess Cruises branding is a blocking pre-production clear
   assert.match(entry[0], /founder clearance before production/i);
   assert.match(review, /item: "25th Anniversary MCB Example — no captions or transcript"/);
   assert.ok(!/princess/i.test(text(S.render(S.SongShowcaseSection))), "page copy claims no cruise-line relationship");
+});
+
+test("the Rinaldi at-sea photograph leads the homepage cruise section, lazily and without a cruise line", () => {
+  const cruise = S.render(S.CruiseSpecialism);
+  assert.match(cruise, /<source type="image\/webp" srcSet="\/images\/responsive\/rinaldi-at-sea-480\.webp/);
+  assert.match(cruise, /alt="DJ Rinaldi holding an MCB vinyl record while looking out to sea/);
+  assert.match(cruise, /loading="lazy"/);
+  assert.match(cruise, /width="941" height="1672"/, "dimensions reserved");
+  assert.ok(!/solo-deck/.test(cruise), "the stock photograph is replaced");
+  assert.ok(!/princess|carnival|royal caribbean|p&amp;o|cunard|celebrity/i.test(text(cruise)), "no cruise line named");
+});
+
+test("the Rinaldi portrait appears only on Our Story, and the founder note stays typographic", () => {
+  const about = S.render(S.About, {}, "/about");
+  assert.equal((about.match(/rinaldi-portrait-960\.jpg"/g) ?? []).length, 1, "once on Our Story");
+  assert.match(about, /alt="DJ Rinaldi holding an MCB vinyl record on a ship&#x27;s deck at sunset"/);
+  const elsewhere = [...Object.keys(sections).filter((name) => !["About", "ProductPage"].includes(name)).map((name) => S.render(S[name])), ...productPages.map(([, html]) => html)].join("");
+  assert.ok(!/rinaldi-portrait/.test(elsewhere), "not on the homepage or product pages");
+  assert.ok(!/<img/.test(S.render(S.FounderNote)), "no photograph in the homepage founder note");
+  assert.ok(!/rinaldi-at-sea/.test(about), "the two photographs are not doubled up");
+  for (const master of ["rinaldi-looking-out-to-sea-mcb-vinyl.png", "rinaldi-holding-mcb-vinyl.png"]) {
+    assert.ok(existsSync(join(root, "assets/originals", master)));
+    assert.ok(!existsSync(join(root, "public/images", master)), "masters are not publicly served");
+  }
 });
 
 test("checkout remains disabled on both switches", () => {

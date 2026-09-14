@@ -5,12 +5,16 @@ import { trackEvent, trackWhatsAppClick } from "../lib/analytics";
 import { aboutPageStructuredData } from "../lib/seo";
 import SectionHeading from "../components/mcb/SectionHeading";
 import { McbButtonLink } from "../components/mcb/McbButton";
+import ResponsiveImage from "../components/ResponsiveImage";
+import { IMAGES } from "../data/imagery";
 
 /**
  * ABOUT — who MCB is, told plainly.
  *
- * No founder portraits, no figures, no scale, no endorsements. The founder
- * note reuses the approved homepage founder-note wording.
+ * No figures, no scale, no endorsements. The founder note reuses the approved
+ * homepage founder-note wording. The one photograph is the founder-approved
+ * portrait of Rinaldi with an MCB vinyl (Sprint 3.2); the homepage founder note
+ * stays typographic.
  */
 
 /** From the approved founder note (src/sections/home/FounderNote.tsx). Keep verbatim. */
@@ -98,7 +102,15 @@ const About = () => (
       <section aria-labelledby="founders" className="px-5 py-20 sm:px-8 md:py-24">
         <div className="mx-auto max-w-5xl">
           <SectionHeading id="founders" eyebrow="The founders" title="The people behind every song" />
-          <ul className="m-0 mt-12 grid list-none gap-6 p-0 md:grid-cols-2">
+          <div className="mt-12 grid items-center gap-8 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-10">
+          <div className="mx-auto aspect-[4/5] w-full max-w-sm overflow-hidden rounded-3xl bg-ink/5 md:max-w-none">
+            <ResponsiveImage
+              image={IMAGES.rinaldiPortrait}
+              sizes="(min-width: 1024px) 26rem, (min-width: 768px) 40vw, 92vw"
+              className="h-full w-full object-cover object-[50%_35%]"
+            />
+          </div>
+          <ul className="m-0 grid list-none gap-6 p-0">
             {FOUNDERS.map((founder) => (
               <li key={founder.name} className="flex flex-col rounded-3xl border border-ink/10 bg-white p-6 md:p-8">
                 <span aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-full bg-ink font-serif text-xl text-gold">
@@ -110,6 +122,7 @@ const About = () => (
               </li>
             ))}
           </ul>
+          </div>
 
           <div className="mt-8 flex flex-col items-center gap-3 text-center">
             <p className="text-base text-espresso/80">Say hello</p>

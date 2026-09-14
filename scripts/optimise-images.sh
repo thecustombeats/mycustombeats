@@ -43,6 +43,9 @@ SOURCES=(
   "keepsake-sleeve-wall:../../assets/originals/mcb-wall-art-sleeves.png"
   "picture-disc-wall:../../assets/originals/mcb-wall-art-picture-discs.png"
   "anniversary-example-poster:../../assets/originals/mcb-25th-anniversary-poster.png"
+  # Founder-approved photographs of Rinaldi with an MCB vinyl (Sprint 3.2).
+  "rinaldi-at-sea:../../assets/originals/rinaldi-looking-out-to-sea-mcb-vinyl.png"
+  "rinaldi-portrait:../../assets/originals/rinaldi-holding-mcb-vinyl.png"
 )
 
 for entry in "${SOURCES[@]}"; do

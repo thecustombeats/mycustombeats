@@ -6,16 +6,18 @@ import { IMAGES } from "../../data/imagery";
  * The cruise specialism — visible, proportionate, and honest. It rests on the
  * founders' own time at sea; it names no cruise line and claims no
  * partnership, endorsement or customer numbers.
+ *
+ * The photograph is founder-approved: Rinaldi on deck with an MCB vinyl. The
+ * portrait 4:5 crop keeps his face, the record and the sea in frame.
  */
 const CruiseSpecialism = () => (
   <section aria-labelledby="cruise-heading" className="bg-ivory px-5 py-20 sm:px-8 md:py-28">
     <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 md:grid-cols-2 lg:gap-16">
-      <div className="aspect-[16/11] overflow-hidden rounded-[1.5rem] bg-ink/5">
+      <div className="mx-auto aspect-[4/5] w-full max-w-md overflow-hidden rounded-[1.5rem] bg-ink/5">
         <ResponsiveImage
-          image={IMAGES.soloDeck}
-          alt="A woman in a sun hat looking out to sea from the deck of a ship at sunset"
-          sizes="(min-width: 768px) 46vw, 92vw"
-          className="h-full w-full object-cover"
+          image={IMAGES.rinaldiAtSea}
+          sizes="(min-width: 768px) 28rem, 92vw"
+          className="h-full w-full object-cover object-[50%_45%]"
         />
       </div>
 
