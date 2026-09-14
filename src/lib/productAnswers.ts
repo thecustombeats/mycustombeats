@@ -38,13 +38,13 @@ const recordLine = (v: Variant): string => {
 export const AFTER_YOU_ORDER: Answer = {
   question: "What happens after I order?",
   answer:
-    "You receive an email with your MCB reference. We write and produce your music from the story you shared, then send you a private link to listen. You approve it or tell us what you would like changed. A digital song is then yours to keep; a record is made for you and posted, with tracking where the carrier provides it. You can follow each stage on your private order page.",
+    "You receive an email with your MCB reference. We write and produce your music from the story you shared, then send you a private link to listen. You approve it or tell us what you would like changed. A digital song is then yours to keep; a record is made for you and posted, with tracking where the carrier provides it. The emails we send about your music include a private link to your order page, where you can follow each stage.",
 };
 
 export const HOW_APPROVAL_WORKS: Answer = {
   question: "How does approval work?",
   answer:
-    "When your music is ready we email you a private link. On that page you listen, then choose \"I'm happy — approve it\" or \"I'd like some changes\" and tell us what to adjust. Nothing is treated as approved until you say so. For a record, approval is the point after which we begin making it, so the music can no longer be changed — but if anything arrives wrong, that is ours to put right.",
+    "When your music is ready we email you a private link. On that page you listen, then choose \"I'm happy — approve it\" or \"I'd like some changes\" and tell us what to adjust. Nothing is treated as approved until you say so. For a record, approval is the point after which we begin making it, so the music can no longer be changed. If anything arrives damaged or faulty, tell us — your normal consumer rights are not affected.",
 };
 
 export const KEEPSAKE_SONG_CAPACITY: Answer = {

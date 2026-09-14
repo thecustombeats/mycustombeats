@@ -5,11 +5,10 @@ export default function Press() {
   return (
     <>
     <Helmet>
-  <title>For press inquiries | My Custom Beats</title>
+  <title>Press and media enquiries | My Custom Beats</title>
   <meta
     name="description"
-    content="MyCustomBeats collaborates with media outlets, music networks
-          and lifestyle publications around the world."
+    content="Press and media enquiries for My Custom Beats, the personalised song and keepsake studio."
   />
 </Helmet>
 
@@ -18,19 +17,19 @@ export default function Press() {
       {/* HERO */}
       <section className="pt-40 pb-24 text-center px-6">
         <h1 className="text-5xl md:text-7xl font-light mb-6">
-          Media & Affiliations
+          Press &amp; media
         </h1>
 
         <p className="text-black/75 max-w-2xl mx-auto mb-10 leading-relaxed">
-          MyCustomBeats collaborates with media outlets, music networks
-          and lifestyle publications around the world.
+          Journalists, editors and producers are welcome to get in touch about
+          My Custom Beats and the personalised music we create.
         </p>
       </section>
 
       {/* CONTACT */}
       <section className="text-center pb-24">
         <p className="text-black/75 mb-4">
-          For press inquiries, please contact:
+          For press enquiries, please email:
         </p>
 
         <p className="text-lg font-medium">

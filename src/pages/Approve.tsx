@@ -138,7 +138,7 @@ const Approve = () => {
                 <div className="mt-5 space-y-4">
                   <p className="text-lg leading-relaxed">
                     {physical
-                      ? "Once you approve, we begin making your keepsake and the music can no longer be changed. If anything arrives wrong, that is still ours to put right."
+                      ? "Once you approve, we begin making your keepsake and the music can no longer be changed. If anything arrives damaged or faulty, tell us — your normal consumer rights are not affected."
                       : "Please confirm you are happy with your song."}
                   </p>
                   <div className="flex flex-col gap-3 sm:flex-row">

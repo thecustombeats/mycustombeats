@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, Clock, HelpCircle } from "lucide-react";
-import { getProduct } from "../data/catalogue";
+import { getProduct, getVariant } from "../data/catalogue";
 import { trackPurchase, type ConfirmedPurchase } from "../lib/analytics";
 import { Helmet } from "react-helmet-async";
 import ShareMcb from "../components/ShareMcb";
@@ -385,7 +385,10 @@ export default function ThankYou() {
 
           <h1 className={`mt-6 text-4xl font-light leading-tight tracking-wide sm:text-5xl ${TEXT_PRIMARY}`}>
             {verification === "VERIFIED"
-              ? "Your Song Is Now In Motion"
+              ? // Plural wherever the order carries more than one song (Keepsake 3/4, Journey, several Moments).
+                (purchase?.items.reduce((n, item) => n + (getVariant(item.sku)?.variant.songCount ?? 0) * item.quantity, 0) ?? 1) > 1
+                ? "Your Songs Are Now In Motion"
+                : "Your Song Is Now In Motion"
               : verification === "PENDING"
                 ? "Your order is being verified"
                 : verification === "UNVERIFIED"

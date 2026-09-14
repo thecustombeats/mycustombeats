@@ -90,9 +90,17 @@ export const PROCESSORS: readonly Processor[] = [
     name: "Google Analytics",
     purpose: "Tells us how people use the site so we can improve it.",
     receives:
-      "Pages viewed, actions taken, and an identifier your browser is given. We do not send it your name, your email or anything you wrote to us.",
+      "Only if you accept analytics cookies: pages viewed (without any private link or payment identifier in the address), actions taken, and an identifier your browser is given. We do not send it your name, your email or anything you wrote to us.",
     evidence: "lib/analytics.ts",
     scope: "EVERY_VISITOR",
+  },
+  {
+    name: "Google reCAPTCHA",
+    purpose: "Checks that an artist application is not an automated submission.",
+    receives:
+      "Your IP address and information about your browser and how the page is used, on the artist application page only.",
+    evidence: "pages/ArtistApply.tsx",
+    scope: "SIDE_JOURNEY",
   },
   {
     name: "Google Fonts",
@@ -188,8 +196,9 @@ export const BROWSER_STORAGE: readonly StoredValue[] = [
       "Lets your thank-you page still show your MCB reference if you return to it.",
   },
   {
-    key: "userType / personalizationSeen / modalShown",
-    purpose: "Remembers your choices about what the site shows you.",
+    key: "mcb_analytics_consent",
+    purpose: "Remembers whether you accepted or rejected analytics cookies.",
+    note: "Holds only \"granted\" or \"denied\". Change it from \"Cookie settings\".",
   },
   {
     key: "mcb_create_draft_v1",
@@ -280,7 +289,8 @@ export const PRIVACY_SECTIONS: readonly PrivacySection[] = [
     heading: "Cookies and similar technology",
     body: [
       "The site stores a small number of values in your browser, listed below. Most simply remember what you chose.",
-      "Analytics and embedded video also set their own cookies. We are reviewing how consent for those is obtained, and this section will be updated when that review is complete.",
+      "Google Analytics sets its own cookies. It is switched off until you choose \"Accept analytics cookies\", and you can change your mind at any time from \"Cookie settings\" at the foot of every page. Your private order and approval pages never use analytics.",
+      "The artist application form uses Google reCAPTCHA to keep out automated submissions; it loads only on that page.",
     ],
   },
   {

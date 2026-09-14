@@ -64,6 +64,7 @@ const Operations = () => {
   const [action, setAction] = useState("");
   const [fields, setFields] = useState<Record<string, string | boolean>>({});
   const [busy, setBusy] = useState(false);
+  const [brief, setBrief] = useState<Json | null>(null);
 
   const api = useCallback(
     async (path: string, body?: Json): Promise<Json> => {
@@ -93,10 +94,14 @@ const Operations = () => {
 
   const openOrder = async (orderId: number) => {
     setEnquiry(null);
+    setBrief(null);
     setAction("");
     setFields({});
     try {
       setOrder(await api(`/api/crm/operations?order=${orderId}`));
+      // The creative brief: every memory, style, plaque and frame detail, the
+      // delivery address and the photos, so staff never need the database.
+      setBrief(await api(`/api/crm/order-personalisation?order_id=${orderId}`));
     } catch (e) {
       setMessage((e as Error).message);
     }
@@ -104,6 +109,7 @@ const Operations = () => {
 
   const openEnquiry = async (reference: string) => {
     setOrder(null);
+    setBrief(null);
     try {
       setEnquiry(await api(`/api/crm/operations?enquiry=${encodeURIComponent(reference)}`));
     } catch (e) {
@@ -142,6 +148,22 @@ const Operations = () => {
       setMessage((e as Error).message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  /** Photos are private: fetched with the CRM key and saved as a download. */
+  const downloadPhoto = async (photoId: string) => {
+    try {
+      const response = await fetch(`/api/crm/upload?id=${encodeURIComponent(photoId)}`, { headers: { Authorization: `Bearer ${key}` } });
+      if (!response.ok) throw new Error("That photo could not be downloaded.");
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `mcb-photo-${photoId}`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (e) {
+      setMessage((e as Error).message);
     }
   };
 
@@ -287,8 +309,54 @@ const Operations = () => {
                     <p className="mt-2">Revisions: {order.operations.revisions.used} used of {order.operations.revisions.included ?? "no numeric allowance — decide"}</p>
                     <p>Fulfilment: {humanise(order.operations.fulfilment.state)}{order.operations.fulfilment.pending_reason ? ` (waiting on ${humanise(order.operations.fulfilment.pending_reason)})` : ""}</p>
                     {order.operations.delivery.carrier && <p>Delivery: {order.operations.delivery.carrier} {order.operations.delivery.tracking_reference ?? ""} · sent {order.operations.delivery.dispatched_on ?? "—"} · delivered {order.operations.delivery.delivered_on ?? "not recorded"}</p>}
-                    <p className="mt-2 text-sm">The full creative brief, photos and address are at {order.brief}.</p>
                   </Section>
+
+                  {brief && (
+                    <Section title="Creative brief">
+                      {brief.songs.map((song: Json, i: number) => (
+                        <div key={i} className="mb-5">
+                          <p className="font-semibold text-ink">
+                            {humanise(song.product_id)} {song.unit}
+                            {song.format ? ` · ${song.format.size_inches}-inch ${song.format.picture_disc ? "picture disc" : "standard vinyl"}${song.format.shape === "HEART" ? " (heart)" : ""}${song.format.disc_count > 1 ? ` · ${song.format.disc_count} records` : ""}${song.format.gatefold ? " · gatefold" : ""}` : " · digital"}
+                            {song.priority_replacement ? " · Priority Replacement" : ""}
+                          </p>
+                          <ol className="m-0 mt-2 list-decimal space-y-3 pl-5">
+                            {song.memories.map((m: Json) => (
+                              <li key={m.song}>
+                                <p className="whitespace-pre-wrap">{m.story}</p>
+                                <p className="text-sm text-espresso/75">
+                                  {m.about ? `About: ${m.about} · ` : ""}{m.occasion ? `Occasion: ${m.occasion} · ` : ""}Style: {m.style_choice === "MCB_CHOICE" ? "MCB to choose" : m.style}
+                                </p>
+                                {m.photo && (m.photo.id
+                                  ? <button className={`${ghost} mt-1`} onClick={() => downloadPhoto(m.photo.id)}>Download photo</button>
+                                  : <p className="text-sm font-semibold text-[#9B2C2C]">Photo expected but not received</p>)}
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      ))}
+                      {brief.plaques.map((pl: Json) => (
+                        <div key={`p${pl.plaque}`} className="mb-4">
+                          <p className="font-semibold text-ink">Music plaque {pl.plaque}: “{pl.song_title}” — {pl.artist}</p>
+                          {pl.photo_id ? <button className={`${ghost} mt-1`} onClick={() => downloadPhoto(pl.photo_id)}>Download photo</button> : <p className="text-sm font-semibold text-[#9B2C2C]">Photo not received</p>}
+                        </div>
+                      ))}
+                      {brief.frames.map((f: Json) => (
+                        <p key={`f${f.sku}${f.frame}`} className="mb-2">
+                          Lyrics frame {f.frame} ({f.sku}): {f.lyrics ? `lyrics of ${humanise(brief.order.package)} ${f.lyrics.unit}, song ${f.lyrics.song}` : "no song chosen"}{f.heading ? ` · heading “${f.heading}”` : ""}
+                        </p>
+                      ))}
+                      {brief.delivery_address && (
+                        <div className="mt-4">
+                          <p className="font-semibold text-ink">Deliver to</p>
+                          <p className="whitespace-pre-line">
+                            {[brief.delivery_address.recipient_name, brief.delivery_address.address_line_1, brief.delivery_address.address_line_2, brief.delivery_address.city, brief.delivery_address.state_region, brief.delivery_address.postal_code, brief.delivery_address.country, brief.delivery_address.phone].filter(Boolean).join("\n")}
+                          </p>
+                          {brief.order.delivery?.label && <p className="text-sm text-espresso/75">Delivery quoted: {brief.order.delivery.label}{brief.order.delivery.test_only ? " (TEST rate)" : ""}</p>}
+                        </div>
+                      )}
+                    </Section>
+                  )}
 
                   {order.operations.revisions.requests.length > 0 && (
                     <Section title="Change requests">

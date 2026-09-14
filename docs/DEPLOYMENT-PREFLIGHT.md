@@ -76,7 +76,7 @@ Back up, then apply `db/migrations/2026-09-14-sprint4-order-persistence.sql` and
 1. Open the homepage, a product page, `/create` (through to Stripe), `/blog`, `/partners` (Formspree/Calendly), `/affiliate` (Apps Script, QR image) and `/luxury/` with the browser console open. There must be no `Content-Security-Policy` violations other than `…/ads/ga-audiences`.
 2. `curl -sI https://www.mycustombeats.com/your-order` shows `X-Robots-Tag: noindex, nofollow`; `curl -sI https://www.mycustombeats.com/api/checkout/status` shows `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`.
 3. **HSTS is prepared but commented out.** Enable `Strict-Transport-Security: max-age=31536000` only after confirming every mycustombeats.com host (including any mail or subdomain hosts) serves HTTPS; add `includeSubDomains`/`preload` later, deliberately.
-4. Google Analytics admin: turn **off** Google signals and "Page changes based on browser history events" (the app sends its own page views). See `docs/SECURITY-NOTES.md`.
+4. Analytics only loads after a visitor accepts the cookie banner (Sprint 7). Google Analytics admin: turn **off** Google signals and "Page changes based on browser history events" (the app sends its own page views). See `docs/SECURITY-NOTES.md`.
 5. If Hostinger/LiteSpeed ignores `<If>` blocks, the page-level `noindex` meta tags and `robots.txt` still apply; check step 2.
 
 ## 7. Delivery
@@ -84,5 +84,8 @@ Back up, then apply `db/migrations/2026-09-14-sprint4-order-persistence.sql` and
 No production delivery rates are authorised. Until `api/data/delivery-rates.json` exists, preflight WARNs `delivery_rate_table` and physical orders cannot be paid online; a digital Moment can. TEST_ONLY rates are refused with a live key.
 
 ## 8. Then
+
+The complete ordered deployment, rollback, first live order and first-24-hours plans are in `docs/LAUNCH-RUNBOOK.md`.
+
 
 Only when `ready_for_live_checkout` is `true`, and with the Founder's launch approval: set `stripe.live_checkout_approved => true` and run preflight again. Whether to make a live smoke-test purchase, and how to handle it afterwards, is the Founder's decision at launch.

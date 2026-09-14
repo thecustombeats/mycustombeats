@@ -55,7 +55,7 @@ Prepared in `public/.htaccess`, **commented out**. Hostinger terminates TLS at a
 
 | Service | Purpose | Data sent | Private pages |
 |---|---|---|---|
-| Google Analytics 4 | Page views and catalogue-derived commerce events | Sanitised URL, catalogue SKUs/prices, MCB reference on purchase (from the server), device/IP as Google collects | Not loaded on `/approve`, `/your-order`, `/operations` |
+| Google Analytics 4 | Page views and catalogue-derived commerce events — only after consent | Sanitised URL, catalogue SKUs/prices, MCB reference on purchase (from the server), device/IP as Google collects | Not loaded on `/approve`, `/your-order`, `/operations` |
 | Google Fonts | Typography | IP address, user agent | Loaded (no customer data) |
 | Stripe Checkout | Payment (redirect) | Order lines and amount; email entered at Stripe | Not on MCB pages |
 | Formspree / Apps Script / Zapier | Partner, affiliate, artist forms | What those forms collect (not customer orders) | No |
@@ -66,7 +66,7 @@ Prepared in `public/.htaccess`, **commented out**. Hostinger terminates TLS at a
 
 **Apollo and LiveIntent are absent** (tests in `tests/order.test.mjs` and `tests/operations.test.mjs`). No analytics event carries story text, names, email, phone, address, feedback, tokens, Stripe session ids or photo data (`tests/release.test.mjs`).
 
-Consent: GA runs without a consent banner, as before; the cookie/analytics consent position remains an open legal item in `src/data/legal/review.ts`.
+Consent (Sprint 7): Google Analytics is not loaded, and sends nothing, until the visitor chooses "Accept analytics cookies"; rejecting is equally prominent and the choice can be changed from "Cookie settings" in the footer. reCAPTCHA loads only on `/artists/apply` (anti-abuse for that form); Google Fonts load for every visitor (no cookies; IP address visible to Google). Whether any of these need consent under current UK law is recorded as a legal question in `docs/FOUNDER-DECISIONS-PACK.md`.
 
 ## 6. Unchanged guarantees (re-verified)
 

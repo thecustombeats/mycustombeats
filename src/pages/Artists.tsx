@@ -10,7 +10,7 @@ export default function Artists() {
   <title>Join Our Artists Network | My Custom Beats</title>
   <meta
     name="description"
-    content="Join our global network of musicians and creators. Work on premium custom music projects with My Custom Beats."
+    content="Singers, songwriters and producers: apply to create personalised music with My Custom Beats."
   />
 </Helmet>
 
@@ -23,8 +23,8 @@ export default function Artists() {
         </h1>
 
         <p className="text-black/75 max-w-2xl mx-auto mb-10 leading-relaxed">
-          We collaborate with talented singers, songwriters and producers 
-          to create deeply personal, world-class music experiences for our clients.
+          We are looking for talented singers, songwriters and producers
+          to help create deeply personal music for our customers.
         </p>
 
         <Link
@@ -45,8 +45,8 @@ export default function Artists() {
         </h2>
 
         <p className="text-black/75 leading-relaxed">
-          Work on meaningful projects, collaborate with global clients, and turn real stories 
-          into music that lasts forever. Every project is unique, emotional, and creatively fulfilling.
+          Work on meaningful projects and turn real stories into music
+          that people keep. Every project is unique, emotional, and creatively fulfilling.
         </p>
       </section>
 

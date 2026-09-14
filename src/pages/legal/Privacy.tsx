@@ -83,12 +83,13 @@ const Privacy = () => (
               */}
               {section.heading === "Where your information goes" && (
                 <>
-                  <div className="mt-6 overflow-x-auto rounded-2xl border border-espresso/10 bg-white">
+                  {/* Keyboard users can focus the table to scroll it sideways on a phone. */}
+                  <div className="mt-6 overflow-x-auto rounded-2xl border border-espresso/10 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep" tabIndex={0} role="region" aria-label="Services that handle your information (scrolls sideways)">
                     {/*
                       A real table, and it scrolls inside its own container
                       rather than pushing the page sideways at 320px.
                     */}
-                    <table className="w-full min-w-[34rem] border-collapse text-left text-sm">
+                    <table className="w-full min-w-[34rem] border-collapse text-left text-base">
                       <thead>
                         <tr className="border-b border-espresso/10">
                           <th scope="col" className="p-4 font-medium text-espresso">

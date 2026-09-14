@@ -20,7 +20,7 @@ const AnniversarySong = () => {
         </title>
         <meta
           name="description"
-          content="Commission a personalised anniversary song crafted by professional musicians. A refined, deeply personal gift designed to capture your story in music."
+          content="Commission a personalised anniversary song, written and produced for you by My Custom Beats. A refined, deeply personal gift designed to capture your story in music."
         />
       </Helmet>
 
@@ -76,7 +76,7 @@ const AnniversarySong = () => {
             1. Share your story — moments, memories, and details that matter
           </p>
           <p>
-            2. Composition & production by professional musicians and vocalists
+            2. Your song is written and produced for you
           </p>
           <p>
             3. A refined, personal piece delivered for your private moment

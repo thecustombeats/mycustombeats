@@ -620,7 +620,7 @@ export default function PartnersPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               {[
                 "Every song written from one guest's own story",
-                "Written and produced by professional musicians",
+                "Written and produced by My Custom Beats",
                 "Delivered digitally, or as a keepsake posted to you",
                 `${MOMENT.turnaround?.label ?? ""} digitally; for physical keepsakes, ${(KEEPSAKE.turnaround?.label ?? "").toLowerCase()}`,
                 "One point of contact for your team",
@@ -908,7 +908,7 @@ export default function PartnersPage() {
       <section style={{ background: "#f4efe8", borderTop: "1px solid #e8e0d4", padding: "40px 48px" }}>
         <div style={{ maxWidth: "1280px", margin: "0 auto", display: "flex", justifyContent: "center", gap: "60px", flexWrap: "wrap" }}>
           {[
-            { title: "Written by", sub: "Professional Musicians" },
+            { title: "Written and produced", sub: "by My Custom Beats" },
             { title: "Every Guest", sub: "Individually" },
             { title: "Digital or", sub: "Physical Keepsakes" },
             { title: "Designed for Modern", sub: "Guest Engagement" },

@@ -312,7 +312,7 @@ tc "88b.  → and the policy does not claim the review is done" \
   "$(grep -q 'It does NOT constitute the review' src/data/legal/review.ts && echo 1 || echo 0)"
 tc "88c.  → the page says openly which parts are still being settled" \
   "$(grep -q 'this section will state them precisely when that work is finished' src/data/legal/privacy.ts \
-     && grep -q 'updated when that review is complete' src/data/legal/privacy.ts && echo 1 || echo 0)"
+     && grep -q 'switched off until you choose' src/data/legal/privacy.ts && echo 1 || echo 0)"
 tc "89. the register is still not imported by any page" \
   "$(grep -rqE 'from ["'"'"'].*legal/review' src/pages src/sections src/components 2>/dev/null && echo 0 || echo 1)"
 tc "90.  → nor re-exported from the legal barrel" \

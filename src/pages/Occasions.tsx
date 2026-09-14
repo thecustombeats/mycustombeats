@@ -65,7 +65,7 @@ export default function Occasions() {
     <>
       <Helmet>
         <title>Custom Songs for Every Occasion | Weddings, Birthdays & More</title>
-        <meta name="description" content="Celebrate weddings, birthdays, anniversaries and special moments with a personalised song crafted by professional musicians." />
+        <meta name="description" content="Celebrate weddings, birthdays, anniversaries and special moments with a personalised song written and produced for you by My Custom Beats." />
         <meta name="keywords" content="custom song, personalized music gift, wedding song, anniversary song, birthday song, proposal song, bespoke song, music gift for pets, corporate music gift" />
       </Helmet>
 
@@ -114,7 +114,7 @@ export default function Occasions() {
                   <p className="italic text-black/75 mb-3">{item.hook}</p>
                   <p className="text-black/75 mb-6">
   {item.title === "Wedding Songs" &&
-    "Celebrate your wedding day with a custom wedding song crafted by professional musicians. Each personalised track captures your love story, creating a timeless music gift for your first dance and beyond."}
+    "Celebrate your wedding day with a custom wedding song written from your story. Each personalised track captures your love story, creating a timeless music gift for your first dance and beyond."}
 
   {item.title === "Anniversary Songs" &&
     "Mark your anniversary with a personalised song that reflects your journey together. Our bespoke music gifts turn memories into melodies you can relive every year."}

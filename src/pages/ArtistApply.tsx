@@ -82,7 +82,7 @@ const ArtistApply = () => {
       </h1>
 
       <p className="text-espresso/70 mb-10">
-        Join our network of talented musicians creating custom songs for clients around the world.
+        Apply to create personalised songs with My Custom Beats.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-6">

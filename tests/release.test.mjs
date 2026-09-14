@@ -332,3 +332,49 @@ test("occasion loops never autoplay on load and respect reduced motion", () => {
   assert.match(anniversary, /controls\s+preload="none"\s+playsInline/);
   assert.doesNotMatch(anniversary, /autoPlay/);
 });
+
+/* ------------------------------------------------------------------ */
+/* Sprint 7 — final release gate                                       */
+/* ------------------------------------------------------------------ */
+
+test("analytics is consent-gated: nothing loads before 'Accept', and rejecting is as easy as accepting", () => {
+  const init = read("public/analytics-init.js");
+  // gtag starts as a no-op; the loader only runs on a stored "granted" or an explicit enable().
+  assert.match(init, /window\.gtag = noop;/);
+  assert.match(init, /if \(readConsent\(\) === "granted"\) load\(\);/);
+  assert.equal((init.match(/document\.head\.appendChild\(script\)/g) ?? []).length, 1);
+  assert.ok(init.indexOf("var load = function") < init.indexOf("document.head.appendChild(script)"), "the GA script is appended only inside load()");
+  assert.match(init, /if \(loaded \|\| PRIVATE\.test\(window\.location\.pathname\)\) return false;/, "never on private pages");
+  const banner = read("src/components/ConsentBanner.tsx");
+  const accept = banner.match(/>\s*Accept analytics cookies\s*</);
+  const reject = banner.match(/>\s*Reject analytics cookies\s*</);
+  assert.ok(accept && reject, "both choices are offered");
+  const classes = [...banner.matchAll(/onClick=\{\(\) => choose\("(granted|denied)"\)\}\s*className="([^"]+)"/g)].map((m) => m[2]);
+  assert.equal(classes.length, 2);
+  assert.equal(classes[0], classes[1], "accept and reject look the same (no nudging)");
+  assert.match(banner, /isPrivateAnalyticsPath\(pathname\)/);
+  assert.match(read("src/App.tsx"), /<ConsentBanner \/>/);
+  assert.match(read("src/sections/Footer.tsx"), /Cookie settings/);
+  const privacy = read("src/data/legal/privacy.ts");
+  assert.match(privacy, /key: "mcb_analytics_consent"/);
+  assert.match(privacy, /switched off until you choose/);
+  assert.doesNotMatch(privacy, /userType \/ personalizationSeen/, "no stale storage keys in the inventory");
+});
+
+test("staff can read the whole creative brief and fetch photos from the console, without the database", () => {
+  const ops = read("src/pages/Operations.tsx");
+  assert.match(ops, /\/api\/crm\/order-personalisation\?order_id=/);
+  assert.match(ops, /\/api\/crm\/upload\?id=/);
+  assert.match(ops, /Authorization: `Bearer \$\{key\}`/);
+  for (const label of ["Creative brief", "Download photo", "Photo expected but not received", "Deliver to", "Music plaque", "Lyrics frame"]) assert.ok(ops.includes(label), label);
+  assert.doesNotMatch(ops, /are at \{order\.brief\}/, "no raw API path left for staff to decode");
+});
+
+test("customer copy added in Sprints 5–7 promises no remedy beyond the Terms", () => {
+  for (const file of ["src/lib/productAnswers.ts", "src/pages/Approve.tsx", "src/data/blog/posts.ts", "src/pages/YourOrder.tsx", "public/api/lib/lifecycle-messages.php"]) {
+    assert.doesNotMatch(read(file), /ours to put right|we will replace|guaranteed/i, file);
+  }
+  for (const [file, claim] of [["src/pages/Press.tsx", /collaborates with media outlets/], ["src/pages/Artists.tsx", /global network|world-class/], ["src/pages/ArtistApply.tsx", /around the world/], ["src/pages/Partners.tsx", /Professional Musicians/], ["src/pages/Occasions.tsx", /professional musicians/], ["src/pages/AnniversarySong.tsx", /professional musicians/]]) {
+    assert.doesNotMatch(read(file), claim, `${file}: unsupported claim`);
+  }
+});

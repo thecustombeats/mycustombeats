@@ -254,7 +254,7 @@ export const BLOG_POSTS: readonly BlogPost[] = [
         "If you display it, choose a spot out of strong sun and where it will not be knocked.",
         "Dust it gently with a soft, dry anti-static cloth before playing.",
       ] },
-      { type: "p", text: "If your record arrives damaged or faulty, tell us as soon as you can — that is ours to put right, and your normal consumer rights always apply." },
+      { type: "p", text: "If your record arrives damaged or faulty, tell us as soon as you can and we will help. Your normal consumer rights are not affected." },
 
       { type: "h2", id: "planning", text: "Planning ahead" },
       { type: "p", text: `Each Keepsake is made to order: the music is written and produced, you approve it, and then the record is made. Allow at least ${RECOMMENDED_PLANNING_DAYS} working days, and if you need it for a specific date, tell us before you order.` },

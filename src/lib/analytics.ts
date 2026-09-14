@@ -76,8 +76,8 @@ export const analyticsSafeLocation = (href: string): string => {
  * per route change. Consecutive calls for the same path (React StrictMode's
  * double effect in development, or a re-render) are ignored.
  */
-export const trackPageView = (path: string) => {
-  if (path === lastTrackedPath) return;
+export const trackPageView = (path: string, force = false) => {
+  if (path === lastTrackedPath && !force) return;
   const gtag = getGtag();
   if (!gtag) return;
   lastTrackedPath = path;

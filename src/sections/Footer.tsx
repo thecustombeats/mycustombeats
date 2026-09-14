@@ -173,6 +173,15 @@ const Footer = () => (
               Refunds
             </Link>
           </li>
+          <li>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new Event("mcb:open-cookie-settings"))}
+              className={linkClass}
+            >
+              Cookie settings
+            </button>
+          </li>
         </ul>
       </div>
     </div>

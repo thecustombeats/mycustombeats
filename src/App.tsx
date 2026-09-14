@@ -54,6 +54,7 @@ import {
 import { scrollToSection } from "./utils/scrollToSection";
 import RouteErrorBoundary from "./components/RouteErrorBoundary";
 import NoIndex from "./components/NoIndex";
+import ConsentBanner from "./components/ConsentBanner";
 import NotFound from "./pages/NotFound";
 
 const AnniversarySong = lazy(() => import("./pages/AnniversarySong"));
@@ -239,6 +240,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       <main id="main-content">{children}</main>
       <FloatingCTA />
       <Footer />
+      <ConsentBanner />
     </>
   );
 }
