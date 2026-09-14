@@ -1,7 +1,7 @@
 #!/bin/bash
-# Generates the responsive JPEG derivatives in public/images/responsive/ from
-# the approved source images. macOS `sips` only; re-run after replacing a
-# source image. Outputs are committed so the build needs no image tooling.
+# Generates the responsive JPEG and WebP derivatives in public/images/responsive/
+# from the approved source images. macOS `sips` plus `cwebp`; re-run after
+# replacing a source image. Outputs are committed so the build needs no image tooling.
 #
 #   bash scripts/optimise-images.sh
 #
@@ -52,6 +52,10 @@ for entry in "${SOURCES[@]}"; do
     # Never upscale: a derivative wider than its source is larger, not sharper.
     w=$(( width < srcw ? width : srcw ))
     sips -s format jpeg -s formatOptions 72 --resampleWidth "$w" "$src" --out "$OUT/$name-$width.jpg" >/dev/null
+    # WebP twin, encoded from the source (not the JPEG). ResponsiveImage offers
+    # it through <picture>; the JPEG stays as the fallback and for share images.
+    # Needs cwebp (brew install webp).
+    cwebp -quiet -q 75 -m 6 -sharp_yuv -metadata none -resize "$w" 0 "$src" -o "$OUT/$name-$width.webp"
   done
 done
 echo "responsive images written to public/images/$OUT"

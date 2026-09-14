@@ -165,6 +165,14 @@ export const LEGAL_REVIEW_REQUIRED: readonly ReviewItem[] = [
     severity: "BLOCKING",
   },
   {
+    topic: "25th Anniversary MCB Example — Princess Cruises branding requires founder clearance before production",
+    positionTaken:
+      "Sprint 3.1 features the founder-approved 25th Anniversary MCB Example on the homepage (public/videos/mcb-25th-anniversary-example.mp4, poster anniversary-example-poster-*). Its artwork shows the Princess Cruises name, logo and 'You love, we care.' strapline, and names 'DJ RINALDI'. The video content has deliberately NOT been altered; the page copy claims no relationship with any cruise line.",
+    question:
+      "Before production deployment the Founder must confirm, with evidence, that MCB may display Princess Cruises' name, logo and strapline in its own marketing (written permission or an applicable licence), and that the 'DJ RINALDI' credit is approved. Otherwise supply a version of the example without third-party branding and regenerate the web video and poster. Displaying a cruise line's marks on MCB's homepage can imply endorsement or partnership that does not exist.",
+    severity: "BLOCKING",
+  },
+  {
     topic: "Founder Terms comparison",
     positionTaken:
       "RESOLVED. The Founder's complete nine-section source was compared against the implementation by the supervising certification process: PASS, commercial intent preserved across clauses 12-18, 21 and 25.",
@@ -276,5 +284,12 @@ export const RECORDED_NON_BLOCKERS: readonly {
       "Every page carries the static title from index.html plus the one react-helmet-async adds. The effective title resolves correctly on every route. Site-wide and pre-existing.",
     action:
       "Remove the static <title> from index.html when a sprint is touching that file anyway.",
+  },
+  {
+    item: "25th Anniversary MCB Example — no captions or transcript",
+    detail:
+      "The homepage example video contains sung content and has no captions track or transcript. None has been invented: captions written without the verified lyrics would misrepresent the work.",
+    action:
+      "Before launch, obtain the accurate lyrics from the Founder and add a WebVTT captions track (<track kind=\"captions\">) and/or a transcript link beside the video.",
   },
 ];

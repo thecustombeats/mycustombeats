@@ -51,7 +51,7 @@ export const IMAGES = {
     "picture-disc-wall",
     1448,
     1086,
-    "Seven personalised picture discs, each carrying a different photograph and message, displayed together"
+    "Several personalised picture discs, each carrying a different photograph and message, displayed together"
   ),
   anniversaryExamplePoster: image(
     "anniversary-example-poster",
@@ -67,11 +67,14 @@ export const IMAGES = {
 
 export type ImageKey = keyof typeof IMAGES;
 
-export const imageSrc = (img: McbImage, width: (typeof WIDTHS)[number] = 960): string =>
-  `/images/responsive/${img.name}-${width}.jpg`;
+/** Every derivative exists as JPEG (fallback, share images) and WebP. */
+export type ImageFormat = "jpg" | "webp";
 
-export const imageSrcSet = (img: McbImage): string =>
-  WIDTHS.map((w) => `${imageSrc(img, w)} ${Math.min(w, img.width)}w`).join(", ");
+export const imageSrc = (img: McbImage, width: (typeof WIDTHS)[number] = 960, format: ImageFormat = "jpg"): string =>
+  `/images/responsive/${img.name}-${width}.${format}`;
+
+export const imageSrcSet = (img: McbImage, format: ImageFormat = "jpg"): string =>
+  WIDTHS.map((w) => `${imageSrc(img, w, format)} ${Math.min(w, img.width)}w`).join(", ");
 
 /** The visual identity of each primary experience. */
 export const PACKAGE_IMAGERY = {

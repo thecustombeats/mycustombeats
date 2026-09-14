@@ -20,6 +20,10 @@ import { trackEvent } from "../lib/analytics";
  * original AAC audio, faststart). Master: assets/originals/. No captions exist
  * yet; none are invented.
  *
+ * PRODUCTION BLOCKER: the example's artwork carries Princess Cruises branding
+ * and a "DJ RINALDI" credit. It needs founder clearance before production —
+ * see BLOCKING_REVIEW_ITEMS in src/data/legal/review.ts. Do not alter the video.
+ *
  * Each list item appears once (the old carousel duplicated every card for an
  * auto-scrolling loop), nothing moves by itself, and no audio is downloaded
  * until someone presses play (`preload="none"`). One sample plays at a time.
@@ -106,7 +110,7 @@ const SongShowcaseSection = () => {
               height={1536}
               poster={
                 nearViewport
-                  ? imageSrc(IMAGES.anniversaryExamplePoster, typeof window !== "undefined" && window.devicePixelRatio > 1 ? 960 : 480)
+                  ? imageSrc(IMAGES.anniversaryExamplePoster, typeof window !== "undefined" && window.devicePixelRatio > 1 ? 960 : 480, "webp")
                   : undefined
               }
               aria-labelledby="anniversary-example-title"

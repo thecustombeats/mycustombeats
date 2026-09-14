@@ -165,7 +165,9 @@ test("Keepsake leads with the approved sleeve-artwork wall, not a drawn disc", (
 test("the multiple-memories sections use the approved picture-disc wall", () => {
   const home = S.render(S.EveryMemoryKeepsakes);
   assert.match(home, /picture-disc-wall-/);
-  assert.match(home, /alt="Seven personalised picture discs/);
+  assert.match(home, /alt="Several personalised picture discs/);
+  // The picture shows seven discs; nothing may suggest seven records are included.
+  assert.ok(!/alt="[^"]*\bseven\b/i.test(home + productPages.find(([id]) => id === "keepsake")[1]), "no count of discs in the alt text");
   assert.match(text(home), /wall mounting isn't included/);
   assert.match(productPages.find(([id]) => id === "keepsake")[1], /picture-disc-wall-/);
 });
@@ -200,6 +202,32 @@ test("approved asset files exist, with the web video smaller than its master", (
     for (const w of [480, 960, 1600]) assert.ok(existsSync(join(root, `public/images/responsive/${name}-${w}.jpg`)), `${name}-${w}`);
   }
   assert.ok(!existsSync(join(root, "public/images/mcb-wall-art-sleeves.png")), "masters are not in the public delivery path");
+});
+
+test("every responsive image has a smaller WebP twin, offered first with the JPEG as fallback", () => {
+  const dir = join(root, "public/images/responsive");
+  const jpegs = readdirSync(dir).filter((f) => f.endsWith(".jpg"));
+  assert.ok(jpegs.length > 0);
+  for (const jpg of jpegs) {
+    const webp = join(dir, jpg.replace(/\.jpg$/, ".webp"));
+    assert.ok(existsSync(webp), `${jpg} has a WebP twin`);
+    assert.ok(statSync(webp).size < statSync(join(dir, jpg)).size, `${jpg}: WebP is smaller`);
+  }
+  const html = S.render(S.EveryMemoryKeepsakes);
+  assert.match(html, /<picture[^>]*><source type="image\/webp" srcSet="\/images\/responsive\/picture-disc-wall-480\.webp 480w/);
+  assert.match(html, /<img src="\/images\/responsive\/picture-disc-wall-960\.jpg" srcSet="[^"]*\.jpg 480w/, "JPEG fallback");
+  assert.match(S.render(S.SongShowcaseSection), /preload="none"/);
+  assert.match(readFileSync(join(root, "src/sections/SongShowcaseSection.tsx"), "utf8"), /anniversaryExamplePoster,[^)]*"webp"\)/, "poster uses WebP");
+});
+
+test("the example's Princess Cruises branding is a blocking pre-production clearance item", () => {
+  const review = readFileSync(join(root, "src/data/legal/review.ts"), "utf8");
+  const entry = review.match(/topic: "25th Anniversary MCB Example — Princess Cruises branding[\s\S]*?severity: "(\w+)"/);
+  assert.ok(entry, "clearance item recorded");
+  assert.equal(entry[1], "BLOCKING");
+  assert.match(entry[0], /founder clearance before production/i);
+  assert.match(review, /item: "25th Anniversary MCB Example — no captions or transcript"/);
+  assert.ok(!/princess/i.test(text(S.render(S.SongShowcaseSection))), "page copy claims no cruise-line relationship");
 });
 
 test("checkout remains disabled on both switches", () => {

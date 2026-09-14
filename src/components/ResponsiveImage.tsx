@@ -14,21 +14,27 @@ interface ResponsiveImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>,
 /**
  * An approved MCB photograph with a srcset and reserved dimensions, so it
  * neither over-downloads on a phone nor shifts the layout as it loads.
+ *
+ * Browsers take the WebP source; the JPEG <img> is the fallback. The <picture>
+ * is `display: contents`, so the <img> is laid out exactly as it was alone.
  */
 const ResponsiveImage = ({ image, sizes, priority = false, alt, className, ...rest }: ResponsiveImageProps) => (
-  <img
-    src={imageSrc(image)}
-    srcSet={imageSrcSet(image)}
-    sizes={sizes}
-    width={image.width}
-    height={image.height}
-    alt={alt ?? image.alt}
-    loading={priority ? "eager" : "lazy"}
-    decoding={priority ? "sync" : "async"}
-    {...(priority ? { fetchPriority: "high" as const } : {})}
-    className={className}
-    {...rest}
-  />
+  <picture style={{ display: "contents" }}>
+    <source type="image/webp" srcSet={imageSrcSet(image, "webp")} sizes={sizes} />
+    <img
+      src={imageSrc(image)}
+      srcSet={imageSrcSet(image)}
+      sizes={sizes}
+      width={image.width}
+      height={image.height}
+      alt={alt ?? image.alt}
+      loading={priority ? "eager" : "lazy"}
+      decoding={priority ? "sync" : "async"}
+      {...(priority ? { fetchPriority: "high" as const } : {})}
+      className={className}
+      {...rest}
+    />
+  </picture>
 );
 
 export default ResponsiveImage;
