@@ -8,3 +8,6 @@ dist/api/config.php
 
 # Build output. Deploy a fresh `npm run build` of the approved commit.
 dist/
+
+# Local visual preview output (scripts/preview)
+preview-output/

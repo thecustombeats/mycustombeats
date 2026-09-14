@@ -1,237 +1,176 @@
-import { useEffect, useRef } from 'react';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { Instagram, Youtube, Facebook, MessageCircle, Music } from 'lucide-react';
 import { Helmet } from "react-helmet-async";
-import { trackWhatsAppClick, trackEvent } from '../lib/analytics';
-import { aboutPageStructuredData } from '../lib/seo';
+import { Link } from "react-router-dom";
+import { Instagram, MessageCircle } from "lucide-react";
+import { trackEvent, trackWhatsAppClick } from "../lib/analytics";
+import { aboutPageStructuredData } from "../lib/seo";
+import SectionHeading from "../components/mcb/SectionHeading";
+import { McbButtonLink } from "../components/mcb/McbButton";
 
-gsap.registerPlugin(ScrollTrigger);
+/**
+ * ABOUT — who MCB is, told plainly.
+ *
+ * No founder portraits, no figures, no scale, no endorsements. The founder
+ * note reuses the approved homepage founder-note wording.
+ */
 
-const AboutSection = () => {
-  const sectionRef = useRef<HTMLDivElement>(null);
+/** From the approved founder note (src/sections/home/FounderNote.tsx). Keep verbatim. */
+const FOUNDER_NOTE = [
+  "For years, we’ve watched people make extraordinary memories — celebrations, journeys, friendships, families and moments at sea that seem to pass far too quickly.",
+  "MCB was created because we wanted those moments to have somewhere to live after the day itself was over.",
+  "Thank you for allowing us to help turn your memories into something you can keep, hear and relive.",
+];
 
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
+const FOUNDERS: readonly { name: string; role: string; initials: string; about: string }[] = [
+  {
+    name: "Rinaldi",
+    role: "Founder & Executive Producer",
+    initials: "R",
+    about: "Leads the musical direction of My Custom Beats and the production of every song, from the first idea to the final mix.",
+  },
+  {
+    name: "Shobha (Bella) Menezes",
+    role: "Creative Director & Co-Founder",
+    initials: "SM",
+    about: "Leads the artistic direction and looks after each project from your first message to final delivery, so your story is kept at the centre.",
+  },
+];
 
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        '.about-trust',
-        { y: 30, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.4,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
+const PRINCIPLES: readonly { title: string; detail: string }[] = [
+  { title: "Made from your story", detail: "Every song begins with your words and your memories. No lyrics or rhymes needed." },
+  { title: "Made to order", detail: "Nothing is pulled from a shelf. Each song and each piece is created for one order." },
+  { title: "Clear before you pay", detail: "The price, what is included and the timing are shown before payment." },
+  { title: "Room to refine", detail: "Refinements are included, so the finished song feels right." },
+];
 
-      gsap.fromTo(
-        '.founder-card',
-        { y: 60, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.35,
-          stagger: 0.1,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '.founders-grid',
-            start: 'top 80%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
+const iconLink =
+  "flex h-12 w-12 items-center justify-center rounded-full border border-ink/15 text-ink transition-colors hover:border-gold hover:bg-gold/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2";
 
-    }, section);
-
-    
-
-    return () => ctx.revert();
-  }, []);
-
-  return (
-
-    <>
+const About = () => (
+  <>
     <Helmet>
-  <title>Our Story — The People Behind My Custom Beats</title>
-  <meta
-    name="description"
-    content="Meet the founders of My Custom Beats and the musicians who turn your memories into personalised songs and keepsakes."
-  />
-  {/* The About page is where the organisation is actually described, so it
-      is where the AboutPage + Organization graph belongs. */}
-  <script type="application/ld+json">
-    {JSON.stringify(aboutPageStructuredData())}
-  </script>
-</Helmet>
+      <title>Our Story — The People Behind My Custom Beats</title>
+      <meta
+        name="description"
+        content="Meet the founders of My Custom Beats and the musicians who turn your memories into personalised songs and keepsakes."
+      />
+      {/* The About page is where the organisation is actually described, so it
+          is where the AboutPage + Organization graph belongs. */}
+      <script type="application/ld+json">{JSON.stringify(aboutPageStructuredData())}</script>
+    </Helmet>
 
-
-    <div ref={sectionRef} id="about" className="relative w-full bg-ivory py-24 overflow-hidden">
-      {/* Trust Strip */}
-      <div className="about-trust text-center mb-20 px-[7vw]">
-        <div className="w-14 h-14 rounded-xl bg-gold/10 flex items-center justify-center mx-auto mb-6">
-          <Music size={24} className="text-gold" />
+    <main id="about" className="bg-ivory text-espresso">
+      {/* ---- Opening ------------------------------------------------------ */}
+      <section className="px-5 pb-16 pt-28 sm:px-8 md:pb-24 md:pt-36">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="label-uppercase text-gold-deep">Our story</p>
+          <h1 className="mt-4 font-serif text-5xl leading-[1.05] text-ink md:text-6xl">
+            We make music from the moments you want to keep.
+          </h1>
+          <p className="mt-6 text-lg leading-relaxed text-espresso/80 md:text-xl">
+            My Custom Beats is a memory company with music at its heart. You bring the story — a day, a person, a place — and we turn it into a song you can relive, hold and give.
+          </p>
         </div>
-        <h3 className="font-serif text-2xl text-espresso mb-3">
-          Crafted by Real Musicians
-        </h3>
-        <p className="text-espresso/70 max-w-xl mx-auto leading-relaxed">
-          Each Custom Beat is crafted under the direction of our founders, working with the musicians they choose for your story.
-        </p>
-        <div className="w-16 h-px bg-gold mx-auto mt-8" />
-      </div>
+      </section>
 
-      {/* Heading */}
-      <div className="text-center mb-16 px-[7vw]">
-        <span className="label-uppercase text-gold-deep mb-4 block tracking-[0.15em]">
-          Our Founders
-        </span>
-        <h1 className="font-serif text-espresso">
-          The Vision Behind My Custom Beats
-        </h1>
-      </div>
+      {/* ---- Founder note ------------------------------------------------- */}
+      {/* Approved founder-note wording (as on the homepage), shortened. Typography only. */}
+      <section aria-labelledby="founder-note" className="bg-ink px-5 py-20 sm:px-8 md:py-28">
+        <figure className="mx-auto m-0 max-w-3xl">
+          <h2 id="founder-note" className="text-center font-serif text-3xl leading-tight !text-ivory md:text-4xl">
+            Why MCB exists
+          </h2>
+          <div aria-hidden="true" className="mx-auto mb-10 mt-6 h-px w-16 bg-gold" />
+          <blockquote className="m-0 space-y-6">
+            {FOUNDER_NOTE.map((paragraph) => (
+              <p key={paragraph} className="font-serif text-2xl leading-relaxed !text-ivory/90">
+                {paragraph}
+              </p>
+            ))}
+          </blockquote>
+          <figcaption className="mt-10 border-t border-ivory/15 pt-6 text-center">
+            <span className="block font-serif text-3xl italic text-gold">Bella &amp; Lewis</span>
+            <span className="mt-2 block text-base text-ivory/75">Founders, MCB™ — My Custom Beats</span>
+          </figcaption>
+        </figure>
+      </section>
 
-      {/* Founders Grid */}
-      <div className="founders-grid flex flex-col lg:flex-row items-stretch justify-center gap-8 px-[7vw] mb-20">
-        {/* Rinaldi */}
-        <div className="founder-card flex-1 max-w-lg bg-white rounded-2xl shadow-luxury overflow-hidden transition-all duration-fast hover:-translate-y-1 hover:shadow-luxury-hover">
-          <div className="aspect-[16/10] overflow-hidden">
-            <img src="/images/founder1-rinaldi.jpg" 
-            alt="Rinaldi - Founder and Executive Producer at My Custom Beats" 
-            loading="lazy"
-            className="w-full h-full object-cover" />
-          </div>
+      {/* ---- Founders ----------------------------------------------------- */}
+      <section aria-labelledby="founders" className="px-5 py-20 sm:px-8 md:py-24">
+        <div className="mx-auto max-w-5xl">
+          <SectionHeading id="founders" eyebrow="The founders" title="The people behind every song" />
+          <ul className="m-0 mt-12 grid list-none gap-6 p-0 md:grid-cols-2">
+            {FOUNDERS.map((founder) => (
+              <li key={founder.name} className="flex flex-col rounded-3xl border border-ink/10 bg-white p-6 md:p-8">
+                <span aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-full bg-ink font-serif text-xl text-gold">
+                  {founder.initials}
+                </span>
+                <h3 className="mt-5 font-serif text-3xl leading-tight text-ink">{founder.name}</h3>
+                <p className="mt-1 text-base font-semibold text-gold-deep">{founder.role}</p>
+                <p className="mt-4 text-base leading-relaxed text-espresso/80 md:text-lg">{founder.about}</p>
+              </li>
+            ))}
+          </ul>
 
-<div className="p-8">
-  <h3 className="font-serif text-2xl text-espresso mb-1">Rinaldi</h3>
-  <p className="text-gold text-sm uppercase tracking-wider mb-4">
-    Founder & Executive Producer
-  </p>
-
-  <p className="text-espresso/70 text-sm leading-relaxed mb-4">
-    Rinaldi is the driving force behind the musical excellence of My Custom Beats, bringing over a decade of international experience as a DJ, producer, and songwriter.
-  </p>
-
-  <p className="text-espresso/70 text-sm leading-relaxed mb-4">
-    He has performed on luxury cruise lines and at private events.
-  </p>
-
-  <p className="text-espresso/70 text-sm leading-relaxed mb-6">
-    As Executive Producer, he leads the musical vision, ensuring every composition meets the highest standards of quality, emotion, and production.
-  </p>
-            <div className="flex items-center gap-4">
-              <a 
-                href="https://wa.me/447340742009?text=Hi%20Rinaldi%2C%20I%27m%20writing%20from%20the%20About%20page%20on%20your%20website%20and%20would%20like%20to%20chat." 
+          <div className="mt-8 flex flex-col items-center gap-3 text-center">
+            <p className="text-base text-espresso/80">Say hello</p>
+            <div className="flex items-center gap-3">
+              <a
+                href="https://wa.me/447340742009?text=Hi%20Rinaldi%2C%20I%27m%20writing%20from%20the%20About%20page%20on%20your%20website%20and%20would%20like%20to%20chat."
                 onClick={() => trackWhatsAppClick("about_founders")}
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="w-10 h-10 rounded-full bg-misty-stone flex items-center justify-center text-espresso hover:bg-gold hover:text-espresso transition-colors duration-fast" 
-                aria-label="WhatsApp"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={iconLink}
+                aria-label="Message us on WhatsApp (opens in a new window)"
               >
-                <MessageCircle size={18} />
+                <MessageCircle size={20} aria-hidden="true" />
               </a>
-              <a 
-                href="https://instagram.com/djrinaldiofficial?utm_source=mycustombeats.com&utm_medium=referral&utm_campaign=about_founders" 
+              <a
+                href="https://instagram.com/djrinaldiofficial?utm_source=mycustombeats.com&utm_medium=referral&utm_campaign=about_founders"
                 onClick={() => trackEvent("outbound_social_click", { platform: "instagram", location: "about_founders" })}
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="w-10 h-10 rounded-full bg-misty-stone flex items-center justify-center text-espresso hover:bg-gold hover:text-espresso transition-colors duration-fast" 
-                aria-label="Instagram"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={iconLink}
+                aria-label="Instagram (opens in a new window)"
               >
-                <Instagram size={18} />
-              </a>
-              <a 
-                href="https://facebook.com?utm_source=mycustombeats.com&utm_medium=referral&utm_campaign=about_founders" 
-                onClick={() => trackEvent("outbound_social_click", { platform: "facebook", location: "about_founders" })}
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="w-10 h-10 rounded-full bg-misty-stone flex items-center justify-center text-espresso hover:bg-gold hover:text-espresso transition-colors duration-fast" 
-                aria-label="Facebook"
-              >
-                <Facebook size={18} />
-              </a>
-              <a 
-                href="https://youtube.com?utm_source=mycustombeats.com&utm_medium=referral&utm_campaign=about_founders" 
-                onClick={() => trackEvent("outbound_social_click", { platform: "youtube", location: "about_founders" })}
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="w-10 h-10 rounded-full bg-misty-stone flex items-center justify-center text-espresso hover:bg-gold hover:text-espresso transition-colors duration-fast" 
-                aria-label="YouTube"
-              >
-                <Youtube size={18} />
+                <Instagram size={20} aria-hidden="true" />
               </a>
             </div>
           </div>
-          
         </div>
+      </section>
 
-        {/* Shobha (Bella) Menezes */}
-        <div className="founder-card flex-1 max-w-lg bg-white rounded-2xl shadow-luxury overflow-hidden transition-all duration-fast hover:-translate-y-1 hover:shadow-luxury-hover">
-          <div className="aspect-[16/10] overflow-hidden">
-            <img 
-            src="/images/founder2-lakh.jpg" 
-            alt="Shobha (Bella) Menezes - Creative Director & Co-Founder at My Custom Beats" 
-            loading="lazy"
-            className="w-full h-full object-cover" />
+      {/* ---- How we work -------------------------------------------------- */}
+      <section aria-labelledby="how-we-work" className="bg-[#F1ECE3] px-5 py-20 sm:px-8 md:py-24">
+        <div className="mx-auto max-w-5xl">
+          <SectionHeading id="how-we-work" eyebrow="How we work" title="Care in the details" />
+          <ul className="m-0 mt-12 grid list-none gap-5 p-0 sm:grid-cols-2">
+            {PRINCIPLES.map((item) => (
+              <li key={item.title} className="rounded-2xl bg-white p-6">
+                <h3 className="font-serif text-2xl leading-snug text-ink">{item.title}</h3>
+                <p className="mt-2 text-base leading-relaxed text-espresso/80">{item.detail}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* ---- Closing ------------------------------------------------------ */}
+      <section className="px-5 py-20 text-center sm:px-8 md:py-24">
+        <div className="mx-auto max-w-2xl">
+          <h2 className="font-serif text-4xl leading-tight text-ink md:text-5xl">Have a memory in mind?</h2>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <McbButtonLink to="/create">Create Your Memory</McbButtonLink>
+            <Link
+              to="/products"
+              className="inline-flex min-h-12 items-center justify-center px-2 text-base font-semibold text-ink underline underline-offset-4 hover:text-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
+            >
+              See the experiences
+            </Link>
           </div>
-<div className="p-8">
-  <h3 className="font-serif text-2xl text-espresso mb-1">Shobha (Bella) Menezes</h3>
-  <p className="text-gold text-sm uppercase tracking-wider mb-4">
-    Creative Director & Co-Founder
-  </p>
-
-  <p className="text-espresso/70 text-sm leading-relaxed mb-4">
-    A creative force behind My Custom Beats, Shobha (Bella) Menezes leads the artistic direction and end-to-end production of every project.
-  </p>
-
-  <p className="text-espresso/70 text-sm leading-relaxed mb-4">
-    With a background rooted in both corporate structure and creative passion, she brings a refined balance of precision, storytelling, and emotional depth to each composition.
-  </p>
-
-  <p className="text-espresso/70 text-sm leading-relaxed mb-6">
-    From client collaboration to final delivery, she personally oversees the entire creative journey — ensuring every piece is thoughtfully crafted, deeply personal, and delivered to the highest standard.
-  </p>
-</div>      
-  </div>
-      </div>
-
-      {/* Global Collective */}
-      <div className="text-center mb-20 px-[7vw]">
-        <h3 className="font-serif text-xl text-espresso mb-4">Our Creative Collective</h3>
-        <p className="text-espresso/70 max-w-3xl mx-auto leading-relaxed">
-          Behind Custom Beats are two experienced artists whose combined expertise spans live performance, events and professional music production. They work with musicians chosen for each story — from pianists and vocalists to DJs and specialist instrumentalists.
-        </p>
-      </div>
-
-      {/* What Makes Us Different */}
-      <div className="bg-misty-stone py-16 px-[7vw] mb-20">
-        <h3 className="font-serif text-xl text-espresso text-center mb-8">What Makes Custom Beats Different</h3>
-        <div className="flex flex-wrap justify-center gap-4 max-w-4xl mx-auto">
-          {[
-            'Fully personalised, made-to-order music',
-            'Professionally curated by experienced producers',
-            'Emotion-led storytelling, not automated templates',
-            'Luxury guest experience from start to delivery',
-            'Created for personal celebrations and cruise memories',
-          ].map((item, index) => (
-            <div key={index} className="flex items-center gap-3 bg-white px-6 py-3 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-gold" />
-              <span className="text-sm text-espresso">{item}</span>
-            </div>
-          ))}
         </div>
-      </div>
+      </section>
+    </main>
+  </>
+);
 
-    </div>
-    </>
-  );
-};
-
-export default AboutSection;
+export default About;

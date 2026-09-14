@@ -1,7 +1,6 @@
-import { useEffect, useState, lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, lazy, Suspense } from "react";
+import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import FloatingCTA from "./components/FloatingCTA";
-import { useLocation } from "react-router-dom";
 import Navigation from "./components/Navigation";
 import { trackPageView } from "./lib/analytics";
 import {
@@ -12,6 +11,9 @@ import {
   shouldReplaceStoredReferral,
 } from "./data/referral";
 import HeroSection from "./sections/HeroSection";
+import MemoryPromise from "./sections/home/MemoryPromise";
+import PackagesSection from "./sections/PackagesSection";
+import SeasonalBanner from "./components/SeasonalBanner";
 
 import Footer from "./sections/Footer";
 
@@ -24,6 +26,7 @@ const Press = lazy(() => import("./pages/Press"));
 const MCBLive = lazy(() => import("./pages/MCBLive"));
 const PriorityReplacement = lazy(() => import("./pages/PriorityReplacement"));
 const Artists = lazy(() => import("./pages/Artists"));
+const CreateMemory = lazy(() => import("./pages/CreateMemory"));
 
 import Terms from "./pages/legal/Terms";
 import Privacy from "./pages/legal/Privacy";
@@ -36,16 +39,6 @@ import Affiliate from "./pages/Affiliate";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
 
 import { Helmet } from "react-helmet-async";
-import { Package } from "lucide-react";
-import { Link } from "react-router-dom";
-import {
-  KEEPSAKE,
-  priceSummary,
-  publicProducts,
-} from "./data/catalogue";
-import AudienceSplitSection from "./sections/AudienceSplitSection";
-import SeasonalBanner from "./components/SeasonalBanner";
-import KeepsakeMark from "./components/KeepsakeMark";
 import {
   HOMEPAGE_DESCRIPTION,
   HOMEPAGE_TITLE,
@@ -57,37 +50,38 @@ import { scrollToSection } from "./utils/scrollToSection";
 import RouteErrorBoundary from "./components/RouteErrorBoundary";
 import NotFound from "./pages/NotFound";
 
-
-
 const AnniversarySong = lazy(() => import("./pages/AnniversarySong"));
 const CruiseMemories = lazy(() => import("./pages/CruiseMemories"));
 const Bespoke = lazy(() => import("./pages/Bespoke"));
 const ProductPage = lazy(() => import("./pages/ProductPage"));
-const SongShowcaseSection = lazy(() => import("./sections/SongShowcaseSection"));
+
+/* Homepage sections below the first two screens load as their own chunks. */
+const EveryMemoryKeepsakes = lazy(() => import("./sections/home/EveryMemoryKeepsakes"));
 const HowItWorksSection = lazy(() => import("./sections/HowItWorksSection"));
-const PackagesSection = lazy(() => import("./sections/PackagesSection"));
-const OrderFormSection = lazy(() => import("./sections/OrderFormSection"));
+const SongShowcaseSection = lazy(() => import("./sections/SongShowcaseSection"));
+const HelpMeChoose = lazy(() => import("./sections/home/HelpMeChoose"));
+const CruiseSpecialism = lazy(() => import("./sections/home/CruiseSpecialism"));
+const CuratedAdditions = lazy(() => import("./sections/home/CuratedAdditions"));
+const FounderNote = lazy(() => import("./sections/home/FounderNote"));
 const ContactSection = lazy(() => import("./sections/ContactSection"));
-const HospitalityCTASection = lazy(() => import("./sections/HospitalityCTASection"));
-
-
-
 
 /**
- * The homepage "make the memory physical" band, projected straight from the
- * canonical catalogue: the picture-disc Keepsake, then personalised decor and
- * the players. Order is catalogue order.
+ * Old homepage order links — `/?product=…`, `/?sku=…` and `/#order` — from
+ * emails, product pages and bookmarks. The order form now lives at /create,
+ * so these are forwarded there with their query string intact (product, sku
+ * and any attribution parameters).
  */
-const PHYSICAL_SHOWCASE = publicProducts().filter(
-  (product) =>
-    product.id === KEEPSAKE.id ||
-    product.category === "PERSONALISED_DECOR" ||
-    product.category === "PLAYER"
-);
+const legacyCreateTarget = (search: string, hash: string): string | null => {
+  const params = new URLSearchParams(search);
+  if (!params.has("product") && !params.has("sku") && hash !== "#order") return null;
+  return `/create${search}`;
+};
 
 // 👇 This becomes your homepage
 function MainSite() {
-  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const legacyTarget = legacyCreateTarget(location.search, location.hash);
 
   useEffect(() => {
   // Capture attribution once per arrival, then tell the server.
@@ -163,148 +157,46 @@ function MainSite() {
   }).catch(() => {});
 }, []);
 
+  // Runs after attribution above has been captured, so nothing is lost.
+  useEffect(() => {
+    if (legacyTarget) navigate(legacyTarget, { replace: true });
+  }, [legacyTarget, navigate]);
+
+  if (legacyTarget) return <div className="min-h-screen bg-ivory" />;
+
   return (
     <>
-  {/* The homepage's single source of head tags. HeroSection and
-      PackagesSection previously each set their own <title>, and whichever
-      mounted last won — which is why the homepage was serving the packages
-      title. Sections no longer set titles. */}
-  <Helmet>
-    <title>{HOMEPAGE_TITLE}</title>
-    <meta name="description" content={HOMEPAGE_DESCRIPTION} />
-    <script type="application/ld+json">
-      {JSON.stringify(homepageStructuredData())}
-    </script>
-  </Helmet>
+      {/* The homepage's single source of head tags. Sections never set their
+          own <title>. */}
+      <Helmet>
+        <title>{HOMEPAGE_TITLE}</title>
+        <meta name="description" content={HOMEPAGE_DESCRIPTION} />
+        <script type="application/ld+json">
+          {JSON.stringify(homepageStructuredData())}
+        </script>
+      </Helmet>
 
-    <div className="relative min-h-screen bg-ivory">
-      <div className="grain-overlay" />
-
-      <main className="relative">
-       
+      <main id="main-content" className="relative bg-ivory">
         <HeroSection />
 
-        {/* Renders only when a seasonal edition is switched on and in
-            window. Nothing is active today. */}
+        {/* Renders only when a seasonal edition is switched on and in window. */}
         <SeasonalBanner />
 
-        {/* The two commercial paths, immediately after the hero. */}
-        <AudienceSplitSection />
+        <MemoryPromise />
+        <PackagesSection />
 
-<Suspense fallback={<div className="h-40" />}>
-  <SongShowcaseSection />
-</Suspense>
-
-<Suspense fallback={<div className="h-40" />}>
-  <HowItWorksSection />
-</Suspense>
-
-
-
-{/* ---- Make the memory physical ----
-    Connects the music experience to the physical products. Rendered from
-    the canonical catalogue so it can never drift from /products. ---- */}
-<section
-  aria-labelledby="make-physical-heading"
-  className="py-24 px-6 bg-ivory"
->
-  <div className="max-w-6xl mx-auto">
-    <div className="text-center max-w-2xl mx-auto mb-16">
-      <p className="label-uppercase text-gold-deep mb-4">Beyond the music</p>
-
-      <h2 id="make-physical-heading" className="text-espresso mb-5">
-        Make the memory physical
-      </h2>
-
-      <p className="text-espresso/65 leading-relaxed">
-        A song holds the feeling. A record, a plaque or a framed lyric puts it
-        somewhere you'll see it — on a shelf, on a wall, in someone's hands.
-      </p>
-    </div>
-
-    <ul className="grid grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 list-none m-0 p-0">
-      {PHYSICAL_SHOWCASE.map((item) => (
-        <li key={item.id}>
-          <article className="h-full">
-            <div className="overflow-hidden rounded-2xl mb-4 bg-white border border-espresso/10">
-              {item.image ? (
-                <img
-                  src={item.image}
-                  alt={item.imageAlt ?? item.name}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-[240px] object-cover"
-                />
-              ) : (
-                <div className="w-full h-[240px] flex items-center justify-center bg-ivory p-6">
-                  <KeepsakeMark name={item.name} />
-                </div>
-              )}
-            </div>
-
-            <h3 className="font-serif text-xl text-espresso mb-1">
-              {item.route ? (
-                <Link to={item.route} className="hover:text-gold-deep transition-colors">
-                  {item.name}
-                </Link>
-              ) : (
-                item.name
-              )}
-            </h3>
-            <p className="text-sm text-espresso/60 leading-relaxed">
-              {item.shortDescription}
-            </p>
-            <p className="mt-2 text-sm text-espresso">{priceSummary(item)}</p>
-            {item.disclosures.map((disclosure) => (
-              <p key={disclosure} className="mt-1 text-xs text-espresso/50 leading-relaxed">
-                {disclosure}
-              </p>
-            ))}
-          </article>
-        </li>
-      ))}
-    </ul>
-
-    <div className="text-center mt-16">
-      <Link
-        to="/products"
-        className="inline-flex items-center gap-2 px-9 py-4 bg-ink text-ivory rounded-full font-medium transition-colors duration-300 hover:bg-gold hover:text-ink"
-      >
-        <Package className="w-5 h-5" aria-hidden="true" />
-        Explore all products
-      </Link>
-
-      <p className="mt-4 text-sm text-espresso/50">
-        Every personalised piece is made to order for you.
-      </p>
-    </div>
-  </div>
-</section>
-
-
-<Suspense fallback={<div className="h-40" />}>
-  <PackagesSection 
-    selectedPackage={selectedPackage}
-    setSelectedPackage={setSelectedPackage}
-  />
-</Suspense>
-
-<Suspense fallback={<div className="h-40" />}>
-  <OrderFormSection selectedPackage={selectedPackage} />
-</Suspense>
-
-<Suspense fallback={<div className="h-40" />}>
-  <HospitalityCTASection />
-</Suspense>
-
-<Suspense fallback={<div className="h-40" />}>
-  <ContactSection />
-</Suspense>
-
+        <Suspense fallback={<div className="min-h-[100vh] bg-ivory" />}>
+          <EveryMemoryKeepsakes />
+          <HowItWorksSection />
+          <SongShowcaseSection />
+          <HelpMeChoose />
+          <CruiseSpecialism />
+          <CuratedAdditions />
+          <FounderNote />
+          <ContactSection />
+        </Suspense>
       </main>
-      </div>
-
-</>
+    </>
   );
 }
 
@@ -437,6 +329,9 @@ function App() {
           }
         />
         <Route path="/cruise" element={<Layout><CruiseMemories /></Layout>} />
+        {/* The guided order and personalisation flow. Deep links:
+            /create?product=<productId> or /create?sku=<sku>. */}
+        <Route path="/create" element={<Layout><CreateMemory /></Layout>} />
         {/* Song experiences — one catalogue-driven page component. */}
         <Route path="/moment" element={<Layout><ProductPage productId="moment" /></Layout>} />
         <Route path="/keepsake" element={<Layout><ProductPage productId="keepsake" /></Layout>} />

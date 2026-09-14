@@ -155,6 +155,10 @@ export const KEEPSAKE: Product = {
  */
 export const STANDARD_VINYL_NOT_PICTURE_DISC = "Standard vinyl — not a Picture Disc";
 
+/** The customer-facing way of saying the same thing, warmly. */
+export const JOURNEY_FORMAT_NOTE =
+  "Pressed on classic black vinyl with your personalised sleeve artwork and mastering. Journey is not a Picture Disc.";
+
 export const JOURNEY: Product = {
   id: "journey",
   slug: "journey",

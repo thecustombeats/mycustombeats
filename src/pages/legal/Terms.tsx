@@ -75,7 +75,7 @@ const Terms = () => {
             aria-label="On this page"
             className="mt-12 rounded-2xl border border-espresso/10 bg-white p-6"
           >
-            <h2 className="font-mono text-[10px] uppercase tracking-[0.16em] text-espresso/45">
+            <h2 className="font-mono text-xs uppercase tracking-[0.16em] text-espresso/45">
               On this page
             </h2>
             <ul className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">

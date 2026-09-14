@@ -80,6 +80,8 @@ interface MusicStyleSelectorProps {
   customErrorId: string;
   /** Fired for the parent's analytics. Never given free text. */
   onEvent?: (event: "style_selected" | "mcb_choice_selected" | "explore_opened", styleId?: string) => void;
+  /** The group's visible heading. */
+  heading?: string;
 }
 
 /**
@@ -178,7 +180,7 @@ const StyleGroup = ({
   onSelect: (style: MusicStyle) => void;
 }) => (
   <div className="mt-6 first:mt-0">
-    <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-gold-deep">
+    <p className="font-mono text-xs uppercase tracking-[0.14em] text-gold-deep">
       {heading}
     </p>
     {blurb && (
@@ -211,6 +213,7 @@ const MusicStyleSelector = ({
   customFieldId,
   customErrorId,
   onEvent,
+  heading = "Choose Your Musical Style",
 }: MusicStyleSelectorProps) => {
   const uid = useId();
   const radioName = `music-style-${uid}`;
@@ -279,8 +282,8 @@ const MusicStyleSelector = ({
   return (
     <div className="order-form-field space-y-4">
       <div>
-        <h3 id={fieldId} className="label-uppercase text-gold-deep">
-          Step 4 — Choose Your Musical Style
+        <h3 id={fieldId} className="!font-sans !text-lg !font-semibold !leading-snug text-ink">
+          {heading}
         </h3>
         <p className="mt-2 text-sm leading-relaxed text-espresso/60">
           Choose a direction you love, explore more styles, or leave the
@@ -355,13 +358,21 @@ const MusicStyleSelector = ({
               <span className="mt-1 block text-sm leading-relaxed text-espresso/60">
                 Not sure what fits your story? Leave the musical direction to MCB.
               </span>
+              {isMcbChoice && (
+                <span className="mt-2 block text-sm leading-relaxed text-espresso/75">
+                  You're trusting our creative judgement for this song. Refinements
+                  within that direction are included; if you later want an entirely
+                  different genre once the song is produced, that becomes a remake
+                  rather than a refinement.
+                </span>
+              )}
             </span>
           </span>
         </label>
 
         {/* ---- Featured styles --------------------------------------- */}
         <div className="mt-5">
-          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-espresso/45">
+          <p className="text-sm font-medium text-espresso/70">
             Or choose a direction
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -504,7 +515,7 @@ const MusicStyleSelector = ({
           non-visual confirmation of the selected state. */}
       {summary && (
         <p id={summaryId} className="text-sm text-espresso/70">
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-espresso/45">
+          <span className="font-mono text-xs uppercase tracking-[0.14em] text-espresso/45">
             Your musical direction
           </span>
           <span className="mt-1 block font-medium text-espresso">{summary}</span>

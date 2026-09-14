@@ -1,142 +1,76 @@
-import { useEffect, useRef } from 'react';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { Mail, MessageCircle, Instagram, ArrowRight } from 'lucide-react';
-import { trackWhatsAppClick, trackEvent } from '../lib/analytics';
+import { Mail, MessageCircle } from "lucide-react";
+import { McbButtonLink } from "../components/mcb/McbButton";
+import { trackEvent, trackWhatsAppClick } from "../lib/analytics";
 
-gsap.registerPlugin(ScrollTrigger);
+/**
+ * Closing call to action and the two ways to reach a person.
+ */
+const CONTACTS = [
+  {
+    label: "WhatsApp",
+    value: "+44 7340 742009",
+    href: "https://wa.me/447340742009?text=Hi%20MyCustomBeats%2C%20I%27m%20writing%20from%20the%20contact%20section%20on%20your%20website%20and%20would%20like%20to%20get%20in%20touch.",
+    icon: MessageCircle,
+    external: true,
+    onClick: () => trackWhatsAppClick("contact_section"),
+  },
+  {
+    label: "Email",
+    value: "hello@mycustombeats.com",
+    href: "mailto:hello@mycustombeats.com",
+    icon: Mail,
+    external: false,
+    onClick: () => trackEvent("contact_email_click", { location: "contact_section" }),
+  },
+] as const;
 
-const ContactSection = () => {
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
-
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        '.contact-content',
-        { y: 40, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.4,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 75%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
-
-      gsap.fromTo(
-        '.contact-card',
-        { y: 50, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.45,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 70%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
-    }, section);
-
-    return () => ctx.revert();
-  }, []);
-
-  const scrollToOrder = () => {
-    const element = document.querySelector('#order');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  return (
-    <div ref={sectionRef} id="contact" className="relative w-full bg-ocean py-24 overflow-hidden">
-      <div className="px-[7vw]">
-        <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20 max-w-5xl mx-auto">
-          {/* Content */}
-          <div className="contact-content flex-1 text-center lg:text-left">
-            <span className="label-uppercase text-gold mb-4 block tracking-[0.15em]">
-              Get In Touch
-            </span>
-            <h2 className="font-serif text-ivory mb-6">
-              Ready to soundtrack your story?
-            </h2>
-            <p className="text-lg text-ivory/70 mb-8 leading-relaxed">
-              Tell us where you are headed. We will handle the music.
-            </p>
-            <button
-              onClick={scrollToOrder}
-              className="group px-8 py-4 bg-gold text-espresso rounded-full font-medium transition-all duration-fast hover:bg-ivory hover:scale-[1.02] flex items-center gap-3 mx-auto lg:mx-0"
-            >
-              Start Your Custom Beat
-              <ArrowRight size={18} className="transition-transform duration-fast group-hover:translate-x-1" />
-            </button>
-          </div>
-
-          {/* Contact Card */}
-          <div className="contact-card w-full max-w-md bg-ivory/5 backdrop-blur-sm rounded-3xl border border-ivory/10 p-8">
-            <h3 className="font-serif text-xl text-ivory mb-8">Contact Us</h3>
-
-            <div className="space-y-6">
-              <a 
-                href="mailto:hello@mycustombeats.com" 
-                onClick={() => trackEvent("contact_email_click", { location: "contact_section" })}
-                className="flex items-center gap-4 group"
-              >
-                <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center transition-colors duration-fast group-hover:bg-gold">
-                  <Mail size={20} className="text-gold group-hover:text-espresso transition-colors duration-fast" />
-                </div>
-                <div>
-                  <p className="text-xs text-ivory/50 uppercase tracking-wider mb-1">Email us</p>
-                  <p className="text-ivory group-hover:text-gold transition-colors duration-fast">hello@mycustombeats.com</p>
-                </div>
-              </a>
-
-              <a 
-                href="https://wa.me/447340742009?text=Hi%20MyCustomBeats%2C%20I%27m%20writing%20from%20the%20contact%20section%20on%20your%20website%20and%20would%20like%20to%20get%20in%20touch." 
-                onClick={() => trackWhatsAppClick("contact_section")}
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="flex items-center gap-4 group"
-              >
-                <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center transition-colors duration-fast group-hover:bg-gold">
-                  <MessageCircle size={20} className="text-gold group-hover:text-espresso transition-colors duration-fast" />
-                </div>
-                <div>
-                  <p className="text-xs text-ivory/50 uppercase tracking-wider mb-1">WhatsApp</p>
-                  <p className="text-ivory group-hover:text-gold transition-colors duration-fast">+44 7340 742009</p>
-                </div>
-              </a>
-
-              <a 
-                href="https://instagram.com/djrinaldiofficial?utm_source=mycustombeats.com&utm_medium=referral&utm_campaign=contact_section" 
-                onClick={() => trackEvent("outbound_social_click", { platform: "instagram", location: "contact_section" })}
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="flex items-center gap-4 group"
-              >
-                <div className="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center transition-colors duration-fast group-hover:bg-gold">
-                  <Instagram size={20} className="text-gold group-hover:text-espresso transition-colors duration-fast" />
-                </div>
-                <div>
-                  <p className="text-xs text-ivory/50 uppercase tracking-wider mb-1">Instagram</p>
-                  <p className="text-ivory group-hover:text-gold transition-colors duration-fast">@djrinaldiofficial</p>
-                </div>
-              </a>
-            </div>
-          </div>
+const ContactSection = () => (
+  <section id="contact" aria-labelledby="contact-heading" className="scroll-mt-24 bg-ivory px-5 py-20 sm:px-8 md:py-28">
+    <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 lg:grid-cols-[1.2fr_1fr] lg:gap-20">
+      <div className="min-w-0 text-center lg:text-left">
+        <p className="label-uppercase !text-[0.8125rem] mb-4 text-gold-deep">Begin</p>
+        <h2 id="contact-heading" className="text-ink">
+          Which moment would you like to keep?
+        </h2>
+        <p className="mt-6 text-lg leading-relaxed text-espresso/80">
+          Start with the story. We&rsquo;ll guide you through the rest, one simple step at a time.
+        </p>
+        <div className="mt-9">
+          <McbButtonLink to="/create" className="min-h-14 px-9 text-lg">
+            Create Your Memory
+          </McbButtonLink>
         </div>
       </div>
+
+      <div className="min-w-0 rounded-[1.5rem] border border-ink/10 bg-white p-6 sm:p-8">
+        <h3 className="text-ink">Prefer to talk first?</h3>
+        <p className="mt-2 text-base leading-relaxed text-espresso/80">
+          Ask us anything — about an idea, a date or which experience suits your story.
+        </p>
+        <ul className="mt-6 list-none space-y-3 p-0">
+          {CONTACTS.map(({ label, value, href, icon: Icon, external, onClick }) => (
+            <li key={label}>
+              <a
+                href={href}
+                onClick={onClick}
+                {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                className="flex min-h-16 items-center gap-4 rounded-2xl border border-ink/10 px-4 py-3 transition-colors hover:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-ivory text-ink">
+                  <Icon size={22} aria-hidden="true" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold uppercase tracking-[0.12em] text-espresso/75">{label}</span>
+                  <span className="block text-lg text-ink [overflow-wrap:anywhere]">{value}</span>
+                </span>
+                {external && <span className="sr-only">(opens in a new tab)</span>}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
-  );
-};
+  </section>
+);
 
 export default ContactSection;

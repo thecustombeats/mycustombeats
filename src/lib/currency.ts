@@ -10,9 +10,8 @@
  * A converted figure is an estimate that changes with the market. The GBP
  * amount does not change, the Stripe charge is GBP, and no amount computed
  * here is ever sent to a server, written to an order, or used to decide what
- * anyone pays. See `lib/memory.ts` and `sections/OrderFormSection.tsx`: the
- * checkout total and the Payment Link are both resolved from package data,
- * and neither has any access to a rate.
+ * anyone pays. The server prices every order from the catalogue in pence and
+ * has no access to a rate.
  *
  * That is why this file exports no "price" type and nothing that looks like
  * one. It converts numbers and formats strings.

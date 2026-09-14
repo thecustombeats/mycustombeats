@@ -1,166 +1,90 @@
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
-import { Check } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import {
+  BESPOKE,
+  JOURNEY,
+  KEEPSAKE,
+  LYRICS_FRAME,
+  MOMENT,
+  PERSONALISED_MUSIC_PLAQUE,
   PRIORITY_REPLACEMENT,
   formatMoney,
   priceSummary,
   publicProducts,
-  type Category,
   type Product,
 } from "../data/catalogue";
-import KeepsakeMark from "../components/KeepsakeMark";
+import { PACKAGE_IMAGERY, PRODUCT_IMAGERY } from "../data/imagery";
+import ResponsiveImage from "../components/ResponsiveImage";
+import FormatVisual from "../components/FormatVisual";
+import SectionHeading from "../components/mcb/SectionHeading";
+import { McbButtonLink } from "../components/mcb/McbButton";
+import { DELIVERY_NOTE, priorityReplacementLine } from "../lib/productDetail";
 import { PRODUCTS_DESCRIPTION, productsPageStructuredData } from "../lib/seo";
 
 /**
- * /products — every public, active product in the canonical catalogue,
- * grouped by category. Names, descriptions, prices, sizes, song counts and
- * disclosures are all read from `data/catalogue`; nothing commercial is
- * written in this file.
+ * /products — the collection.
  *
- * Products without a public page or checkout of their own (education, stored
- * value) are excluded by the catalogue flags, not by id.
+ * The four experiences first, each linking to its own page; then a small,
+ * curated set of pieces to keep alongside a song. Names, descriptions,
+ * prices, sizes and disclosures are read from `data/catalogue`; nothing
+ * commercial is written in this file. Products that are not sold to consumers
+ * online (the DJ guide, stored value) are not shown here.
  */
-const GROUPS: readonly { category: Category; title: string; intro: string }[] = [
-  {
-    category: "SONG_EXPERIENCE",
-    title: "Song experiences",
-    intro: "Every order begins with a personalised song made from your story.",
-  },
-  {
-    category: "COMMISSION",
-    title: "Individually curated",
-    intro: "For something shaped entirely around one person.",
-  },
-  {
-    category: "PERSONALISED_DECOR",
-    title: "Personalised decor",
-    intro: "Pieces made to display, designed from your photograph, song or lyrics.",
-  },
-  {
-    category: "PLAYER",
-    title: "Players",
-    intro: "Ways to play the records you keep.",
-  },
-  {
-    category: "LIVE_PERFORMANCE",
-    title: "Live",
-    intro: "For selected events.",
-  },
-];
 
-const PUBLIC = publicProducts();
+const FAMILIES: readonly Product[] = [MOMENT, KEEPSAKE, JOURNEY, BESPOKE].filter((p) => p.active && p.public);
 
-const productsIn = (category: Category) =>
-  PUBLIC.filter((product) => product.category === category);
+const listed = (product: Product) => product.active && product.public && product.onlineCheckout;
 
-const songsLabel = (count: number | null) =>
-  count === null ? null : count === 1 ? "1 song" : `${count} songs`;
+const PLAQUE = listed(PERSONALISED_MUSIC_PLAQUE) ? PERSONALISED_MUSIC_PLAQUE : null;
+const FRAMES = listed(LYRICS_FRAME) ? LYRICS_FRAME : null;
+const PLAYERS = publicProducts().filter((p) => p.category === "PLAYER" && p.onlineCheckout);
 
-const orderHref = (product: Product) =>
-  product.route ?? `/?product=${encodeURIComponent(product.id)}#order`;
+/** What a customer provides for the plaque. Matches the order flow's fields. */
+const PLAQUE_FIELDS = ["A photograph", "A song title", "The artist"];
 
-const ProductBlock = ({ product, reverse }: { product: Product; reverse: boolean }) => {
-  const listsVariants = product.variants.length > 1;
-  const single = product.variants.length === 1 ? product.variants[0] : null;
-  const dimensions = single?.dimensions;
+const linkClass =
+  "inline-flex min-h-12 items-center gap-2 text-base font-semibold text-ink underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2";
 
+const FamilyCard = ({ product }: { product: Product }) => {
+  const photo = PACKAGE_IMAGERY[product.id as keyof typeof PACKAGE_IMAGERY];
   return (
-    <article className="grid md:grid-cols-2 gap-10 lg:gap-12 items-center">
-      <div
-        className={`rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition duration-500 ${
-          product.image ? "aspect-[3/2]" : "h-[280px] sm:h-[360px]"
-        } ${reverse ? "md:order-2" : ""}`}
-      >
-        {product.image ? (
-          <img
-            src={product.image}
-            alt={product.imageAlt ?? product.name}
-            loading="lazy"
-            decoding="async"
-            className="w-full h-full object-contain"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-ivory border border-espresso/10 rounded-2xl p-10">
-            <KeepsakeMark name={product.name} />
-          </div>
+    <li className="flex">
+      <article className="flex w-full flex-col overflow-hidden rounded-3xl border border-ink/10 bg-white">
+        {photo && (
+          <ResponsiveImage image={photo} sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" className="aspect-[4/3] w-full object-cover" alt="" />
         )}
-      </div>
-
-      <div className={`min-w-0 ${reverse ? "md:order-1" : ""}`}>
-        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold-deep mb-3">
-          {product.positioning}
-        </p>
-        <h3 className="text-3xl md:text-4xl font-light mb-4">{product.name}</h3>
-        <p className="text-black/60 mb-6 leading-relaxed">{product.shortDescription}</p>
-
-        {listsVariants && (
-          <ul className="space-y-3 list-none p-0 m-0">
-            {product.variants.map((variant) => (
-              <li
-                key={variant.sku}
-                className="flex items-baseline justify-between gap-4 border-b border-black/5 pb-3"
-              >
-                <span className="min-w-0">
-                  <span className="block text-sm text-black">{variant.label}</span>
-                  {songsLabel(variant.songCount) && (
-                    <span className="block text-xs text-black/50">
-                      {songsLabel(variant.songCount)}
-                    </span>
-                  )}
-                </span>
-                <span className="text-sm text-black shrink-0">{formatMoney(variant.price)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {single && single.features.length > 0 && (
-          <ul className="space-y-2 list-none p-0 m-0">
-            {single.features.map((feature) => (
-              <li key={feature} className="flex gap-2.5 text-sm text-black/70">
-                <Check size={15} className="text-gold-deep mt-0.5 shrink-0" aria-hidden="true" />
-                {feature}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {dimensions && (
-          <p className="mt-4 text-sm text-black/60">
-            {`${dimensions.approximate ? "Approx. " : ""}${dimensions.widthInches} × ${dimensions.heightInches} inches`}
-          </p>
-        )}
-
-        {product.disclosures.length > 0 && (
-          <ul className="mt-5 space-y-1.5 list-none p-0 m-0">
-            {product.disclosures.map((disclosure) => (
-              <li key={disclosure} className="text-sm font-medium text-black/75 leading-relaxed">
-                {disclosure}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div className="mt-7 space-y-1">
-          <p className="text-xl font-light text-black">{priceSummary(product)}</p>
-          {product.turnaround && (
-            <p className="font-mono text-xs text-black/50">{product.turnaround.label}</p>
+        <div className="flex flex-1 flex-col p-6">
+          <h3 className="font-serif text-3xl leading-tight text-ink">{product.name}</h3>
+          <p className="mt-2 text-base leading-relaxed text-espresso/80">{product.positioning}</p>
+          <p className="mt-4 font-mono text-lg text-ink">{priceSummary(product)}</p>
+          {product.route && (
+            <Link to={product.route} className={`${linkClass} mt-auto pt-4`}>
+              {`Explore ${product.name}`}
+              <ArrowRight size={18} aria-hidden="true" />
+            </Link>
           )}
         </div>
-
-        <Link
-          to={orderHref(product)}
-          className="mt-6 inline-flex items-center rounded-full bg-gold px-7 py-3 text-espresso font-medium transition hover:scale-[1.02]"
-        >
-          {product.route ? `Explore ${product.name}` : product.cta}
-        </Link>
-      </div>
-    </article>
+      </article>
+    </li>
   );
 };
 
+const Disclosures = ({ product }: { product: Product }) =>
+  product.disclosures.length > 0 ? (
+    <ul className="m-0 mt-4 list-none space-y-2 p-0">
+      {product.disclosures.map((disclosure) => (
+        <li key={disclosure} className="border-l-2 border-gold pl-3 text-base leading-relaxed text-ink">
+          {disclosure}
+        </li>
+      ))}
+    </ul>
+  ) : null;
+
 const Products = () => {
+  const priority = priorityReplacementLine();
+  const frameImage = PRODUCT_IMAGERY["lyrics-frame"];
+
   return (
     <>
       <Helmet>
@@ -168,210 +92,170 @@ const Products = () => {
         <meta name="description" content={PRODUCTS_DESCRIPTION} />
         <meta property="og:title" content="Products | My Custom Beats" />
         <meta property="og:description" content={PRODUCTS_DESCRIPTION} />
-        <script type="application/ld+json">
-          {JSON.stringify(productsPageStructuredData())}
-        </script>
+        <script type="application/ld+json">{JSON.stringify(productsPageStructuredData())}</script>
       </Helmet>
 
-      <div className="bg-[#FBF9F6] text-black">
-        {/* PRODUCT HERO — MATCHED STYLE */}
-<section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
+      <main className="bg-ivory text-espresso">
+        {/* ---- Opening ---------------------------------------------------- */}
+        <section className="px-5 pb-12 pt-28 sm:px-8 md:pb-16 md:pt-36">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="label-uppercase text-gold-deep">The collection</p>
+            <h1 className="mt-4 font-serif text-5xl leading-[1.05] text-ink md:text-6xl">Choose how your memory is kept.</h1>
+            <p className="mt-6 text-lg leading-relaxed text-espresso/80">
+              Every order begins with a personalised song made from your story. Then, if you would like, add something to display it or play it.
+            </p>
+          </div>
+        </section>
 
-  {/* VIDEO */}
-  <div className="absolute inset-0 overflow-hidden">
-    <video
-  className="w-full h-full object-cover scale-[1.05] animate-heroZoom"
-  autoPlay
-  loop
-  muted
-  playsInline
-  preload="none"
-  poster="/images/products-poster.jpg"
->
-      <source src="/videos/products.mp4" type="video/mp4" />
-    </video>
-  </div>
+        {/* ---- The four experiences --------------------------------------- */}
+        <section aria-labelledby="experiences" className="px-5 pb-20 sm:px-8 md:pb-28">
+          <div className="mx-auto max-w-6xl">
+            <h2 id="experiences" className="sr-only">
+              The experiences
+            </h2>
+            <ul className="m-0 grid list-none gap-5 p-0 sm:grid-cols-2 lg:grid-cols-4">
+              {FAMILIES.map((product) => (
+                <FamilyCard key={product.id} product={product} />
+              ))}
+            </ul>
+          </div>
+        </section>
 
-  {/* SAME OVERLAY STYLE */}
-  <div className="absolute inset-0 bg-gradient-to-t from-espresso/80 via-espresso/50 to-espresso/30 backdrop-blur-[2px]" />
+        {/* ---- Curated additions ------------------------------------------ */}
+        <section aria-labelledby="additions" className="bg-[#F1ECE3] px-5 py-20 sm:px-8 md:py-28">
+          <div className="mx-auto max-w-6xl">
+            <SectionHeading
+              id="additions"
+              eyebrow="Curated additions"
+              title="Pieces to keep alongside your song"
+              intro={
+                <p>
+                  A few things chosen to live with the music. Add-ons are ordered alongside a song experience — you add them when you create your memory.
+                </p>
+              }
+            />
 
-  {/* CONTENT */}
-  <div className="relative z-10 text-center px-6">
+            <div className="mt-14 grid gap-6 lg:grid-cols-2">
+              {PLAQUE && PLAQUE.variants[0] && (
+                <article aria-labelledby="plaque" className="flex flex-col rounded-3xl bg-white p-6 sm:flex-row sm:gap-8 md:p-8">
+                  <div className="mx-auto w-40 shrink-0 sm:mx-0" aria-hidden="true">
+                    <FormatVisual product={PLAQUE} variant={PLAQUE.variants[0]} className="h-auto w-full" />
+                  </div>
+                  <div className="mt-6 min-w-0 sm:mt-0">
+                    <h3 id="plaque" className="font-serif text-3xl leading-tight text-ink">
+                      {PLAQUE.name}
+                    </h3>
+                    <p className="mt-2 text-base leading-relaxed text-espresso/80">{PLAQUE.positioning}</p>
+                    <p className="mt-4 text-base font-semibold text-ink">You provide</p>
+                    <ul className="m-0 mt-2 flex list-none flex-wrap gap-2 p-0">
+                      {PLAQUE_FIELDS.map((field) => (
+                        <li key={field} className="rounded-full border border-ink/15 px-4 py-2 text-base text-ink">
+                          {field}
+                        </li>
+                      ))}
+                    </ul>
+                    <Disclosures product={PLAQUE} />
+                    <p className="mt-5 font-mono text-xl text-ink">{formatMoney(PLAQUE.variants[0].price)}</p>
+                    <p className="mt-1 text-base text-espresso/80">{DELIVERY_NOTE}</p>
+                  </div>
+                </article>
+              )}
 
-    <span className="label-uppercase text-ivory/60 mb-6 tracking-[0.2em]">
-      Luxury Keepsakes • Crafted to Last Forever
-    </span>
+              {FRAMES && (
+                <article aria-labelledby="frames" className="flex flex-col rounded-3xl bg-white p-6 sm:flex-row sm:gap-8 md:p-8">
+                  {frameImage && (
+                    <div className="mx-auto w-40 shrink-0 overflow-hidden rounded-2xl sm:mx-0">
+                      <ResponsiveImage image={frameImage} sizes="160px" className="aspect-square w-full object-cover" />
+                    </div>
+                  )}
+                  <div className="mt-6 min-w-0 flex-1 sm:mt-0">
+                    <h3 id="frames" className="font-serif text-3xl leading-tight text-ink">
+                      {FRAMES.name}
+                    </h3>
+                    <p className="mt-2 text-base leading-relaxed text-espresso/80">{FRAMES.positioning}</p>
+                    <p className="mt-4 text-base font-semibold text-ink">{`${FRAMES.variants.length} sizes`}</p>
+                    <ul className="m-0 mt-2 list-none divide-y divide-ink/10 p-0">
+                      {FRAMES.variants.map((variant) => (
+                        <li key={variant.sku} className="flex items-baseline justify-between gap-4 py-2">
+                          <span className="text-base text-ink">{variant.label}</span>
+                          <span className="font-mono text-base text-ink">{formatMoney(variant.price)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Disclosures product={FRAMES} />
+                    <p className="mt-4 text-base text-espresso/80">{DELIVERY_NOTE}</p>
+                  </div>
+                </article>
+              )}
+            </div>
 
-    <h1 className="font-serif text-ivory mb-8 max-w-4xl leading-[1.05]"
-      style={{ fontSize: 'clamp(2.5rem, 6vw, 4.5rem)' }}>
-      Turn your song into something you can hold forever
-    </h1>
-
-    <p className="text-xl text-ivory/85 max-w-2xl mx-auto leading-relaxed">
-      A song carries emotion. We transform it into a physical piece you can see, touch and relive forever.
-    </p>
-
-  </div>
-</section>
-
-
-        {/* PRODUCTS — every public product, grouped, from catalogue data. */}
-        <section className="px-6 max-w-6xl mx-auto py-20 space-y-24">
-          {GROUPS.map((group) => {
-            const products = productsIn(group.category);
-            if (products.length === 0) return null;
-            return (
-              <div key={group.category}>
-                <div className="mb-12 max-w-2xl">
-                  <h2 className="text-3xl md:text-4xl font-light mb-3">{group.title}</h2>
-                  <p className="text-black/60 leading-relaxed">{group.intro}</p>
-                </div>
-                <div className="space-y-20 md:space-y-24">
-                  {products.map((product, index) => (
-                    <ProductBlock key={product.id} product={product} reverse={index % 2 === 1} />
-                  ))}
-                </div>
+            {PLAYERS.length > 0 && (
+              <div className="mt-16">
+                <h3 className="font-serif text-3xl leading-tight text-ink">To play it</h3>
+                <ul className="m-0 mt-6 grid list-none gap-5 p-0 sm:grid-cols-2 lg:grid-cols-3">
+                  {PLAYERS.map((player) => {
+                    const photo = PRODUCT_IMAGERY[player.id];
+                    const variant = player.variants[0];
+                    return (
+                      <li key={player.id} className="flex">
+                        <article className="flex w-full flex-col overflow-hidden rounded-3xl bg-white">
+                          {photo && (
+                            <div className="bg-ivory p-4">
+                              <ResponsiveImage image={photo} sizes="(min-width: 1024px) 30vw, (min-width: 640px) 50vw, 100vw" className="aspect-[3/2] w-full object-contain" />
+                            </div>
+                          )}
+                          <div className="flex flex-1 flex-col p-6">
+                            <h4 className="font-serif text-2xl leading-tight text-ink">{player.name}</h4>
+                            <p className="mt-2 text-base leading-relaxed text-espresso/80">{player.shortDescription}</p>
+                            <Disclosures product={player} />
+                            <div className="mt-auto pt-4">
+                              {variant && <p className="font-mono text-xl text-ink">{formatMoney(variant.price)}</p>}
+                              <p className="mt-1 text-base text-espresso/80">{DELIVERY_NOTE}</p>
+                            </div>
+                          </div>
+                        </article>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
-            );
-          })}
+            )}
 
-          {/* Protection — a service, not a product to display. */}
-          {PRIORITY_REPLACEMENT.active && PRIORITY_REPLACEMENT.public && (
-            <div className="border-t border-black/10 pt-14 max-w-3xl">
-              <h2 className="text-2xl md:text-3xl font-light mb-3">{PRIORITY_REPLACEMENT.name}</h2>
-              <p className="text-black/60 mb-4 leading-relaxed">{PRIORITY_REPLACEMENT.positioning}</p>
-              <p className="text-sm text-black/70 mb-6">
-                {`${priceSummary(PRIORITY_REPLACEMENT)} · ${PRIORITY_REPLACEMENT.variants[0]?.label ?? ""}`}
-              </p>
+            <div className="mt-14 flex flex-col items-center gap-4 text-center">
+              <McbButtonLink to="/create">Create Your Memory</McbButtonLink>
+              <p className="max-w-xl text-base text-espresso/80">Choose your song experience first. You can add any of these pieces before you review your order.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* ---- Quiet notes -------------------------------------------------- */}
+        <section className="px-5 py-16 sm:px-8 md:py-20">
+          <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-2">
+            {priority && (
+              <div className="rounded-3xl border border-ink/10 bg-white p-6 md:p-8">
+                <h2 className="font-serif text-2xl leading-tight text-ink md:text-3xl">{PRIORITY_REPLACEMENT.name}</h2>
+                <p className="mt-3 text-base leading-relaxed text-espresso/80">{PRIORITY_REPLACEMENT.positioning}</p>
+                <p className="mt-2 text-base leading-relaxed text-espresso/80">{priority}</p>
+                <Link to="/priority-replacement" className={`${linkClass} mt-2`}>
+                  How it works
+                  <ArrowRight size={18} aria-hidden="true" />
+                </Link>
+              </div>
+            )}
+            <div className="rounded-3xl bg-ink p-6 text-ivory md:p-8">
+              <h2 className="font-serif text-2xl leading-tight !text-ivory md:text-3xl">When your idea doesn’t fit inside a box</h2>
+              <p className="mt-3 text-base leading-relaxed text-ivory/85">{`${BESPOKE.name} is shaped around one person and ${BESPOKE.disclosures.join(" ").toLowerCase()}.`}</p>
               <Link
-                to="/priority-replacement"
-                className="text-sm text-gold-deep underline underline-offset-4 hover:text-espresso"
+                to="/bespoke"
+                className="mt-2 inline-flex min-h-12 items-center gap-2 text-base font-semibold text-gold underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
               >
-                How Priority Replacement works
+                {`Explore ${BESPOKE.name}`}
+                <ArrowRight size={18} aria-hidden="true" />
               </Link>
             </div>
-          )}
-        </section>
-
-
-{/* ⚙️ How it works */}
-
-<section className="py-24 px-6 bg-white text-center">
-  <h2 className="text-3xl md:text-4xl font-light mb-12">
-    How It Works
-  </h2>
-
-  <div className="grid md:grid-cols-3 gap-10 max-w-5xl mx-auto">
-
-    <div>
-      <h3 className="text-xl mb-2">1. Create Your Song</h3>
-      <p className="text-black/60">
-        Share your story and we turn it into a professionally crafted song.
-      </p>
-    </div>
-
-    <div>
-      <h3 className="text-xl mb-2">2. Choose Your Keepsake</h3>
-      <p className="text-black/60">
-        Select how you want your song to live — a record, a frame or more.
-      </p>
-    </div>
-
-    <div>
-      <h3 className="text-xl mb-2">3. We Craft & Deliver</h3>
-      <p className="text-black/60">
-        Your piece is made to order and delivered as a timeless memory.
-      </p>
-    
-    </div>
-
-  </div>
-</section>
-
-{/* 💖 Moments */}
-
-<section className="py-24 px-6 bg-[#FBF9F6] text-center">
-
-  <h2 className="text-3xl md:text-4xl font-light mb-12">
-    Perfect For Every Meaningful Moment
-  </h2>
-
-  <div className="grid grid-cols-2 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-
-    {[
-      { title: "Birthdays", img: "/images/moments/birthday.jpg" },
-      { title: "Anniversaries", img: "/images/moments/anniversary.jpg" },
-      { title: "Weddings", img: "/images/moments/wedding.jpg" },
-      { title: "Proposals", img: "/images/moments/proposal.jpg" },
-      { title: "Memorials", img: "/images/moments/memorial.jpg" },
-      { title: "Luxury Gifts", img: "/images/moments/gift.jpg" },
-    ].map((item, i) => (
-      <div key={i} className="group cursor-pointer">
-
-        <div className="relative overflow-hidden rounded-xl">
-
-          <img
-            src={item.img}
-            alt={item.title}
-            loading="lazy"
-            decoding="async"
-            className="w-full h-[200px] object-cover group-hover:scale-105 transition duration-500"
-          />
-
-          <div className="absolute inset-0 bg-black/30" />
-
-          <div className="absolute inset-0 flex items-center justify-center">
-            <h3 className="text-white text-lg tracking-wide">
-              {item.title}
-            </h3>
-            
           </div>
-
-        </div>
-
-      </div>
-    ))}
-
-  </div>
-
-</section>
-
-<section className="py-24 text-center max-w-4xl mx-auto px-6">
-  <h2 className="text-3xl font-light mb-6">
-    Crafted, Not Manufactured
-  </h2>
-
-  <p className="text-black/60 leading-relaxed">
-    Every piece is personalised and made to order for you — so your story is
-    preserved with the care it deserves.
-  </p>
-</section>
-
-
-        {/* CTA */}
-        <section className="text-center py-32 px-6 border-t border-black/10">
-          <h2 className="text-4xl font-light mb-6">
-            Create Your Memory
-          </h2>
-
-          <p className="text-black/60 max-w-xl mx-auto mb-10">
-            Start with your song. We’ll bring it to life.
-          </p>
-
-          <Link
-  to="/#order"
-  className="inline-flex items-center gap-3 px-8 py-3 bg-gold text-espresso rounded-full font-medium 
-  transition-all duration-300 hover:bg-espresso hover:text-ivory hover:scale-105 shadow-md hover:shadow-xl"
->
-  Begin your order
-</Link>
-
-<p className="mt-3 text-sm text-black/60">
-  Planning something individually curated?{" "}
-  <Link to="/bespoke" className="underline underline-offset-4">Request a Bespoke quote</Link>
-</p>
         </section>
-      </div>
+      </main>
     </>
   );
 };

@@ -1,216 +1,87 @@
-import { useEffect, useRef, useState } from 'react';
-import PersonalizationModal from '../components/PersonalizationModal';
-import { gsap } from 'gsap';
+import { Link } from "react-router-dom";
+import ResponsiveImage from "../components/ResponsiveImage";
+import { McbButtonLink } from "../components/mcb/McbButton";
+import { IMAGES } from "../data/imagery";
 
-const HeroSection = () => {
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const headlineRef = useRef<HTMLHeadingElement>(null);
-  const subheadlineRef = useRef<HTMLParagraphElement>(null);
-  const ctaRef = useRef<HTMLButtonElement>(null);
-  const imagesRef = useRef<HTMLDivElement>(null);
+/**
+ * Homepage hero.
+ *
+ * One idea, one primary action. A responsive photograph composition replaces
+ * the old background video (7.9 MB with a 5 MB poster), so a phone downloads a
+ * few tens of kilobytes rather than megabytes, and nothing moves.
+ *
+ * Imagery: three generations together (family, milestones — not only
+ * couples, not only cruises) with a couple at sunset at sea as the smaller
+ * companion, which quietly signals the cruise specialism.
+ */
+const OCCASIONS = ["Anniversaries", "Weddings", "Birthdays", "Families", "Milestones", "Journeys"];
 
-  // ✅ STATE
-  const [showModal, setShowModal] = useState(false);
-  // ✅ Load saved user type — read once, on first render, rather than set
-  // from an effect (which rendered twice). Storage can throw when blocked.
-  const [userType, setUserType] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem("userType");
-    } catch {
-      return null;
-    }
-  });
+const HeroSection = () => (
+  <section aria-labelledby="hero-heading" className="relative overflow-hidden bg-ivory pt-20">
+    <div className="mx-auto grid max-w-[1400px] grid-cols-1 items-center gap-12 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[1fr_1fr] lg:gap-16 lg:px-12 lg:pb-24 lg:pt-16">
+      <div className="max-w-2xl">
+        <p className="label-uppercase mb-5 !text-[0.8125rem] text-gold-deep">MCB™ — My Custom Beats</p>
 
-  // Guidance is customer-initiated; never interrupt reading with a timed dialog.
+        <h1
+          id="hero-heading"
+          className="text-ink"
+          style={{ fontSize: "clamp(2.5rem, 5.4vw, 4.4rem)", lineHeight: 1.04 }}
+        >
+          Your most important moments, turned into music you can keep.
+        </h1>
 
-  // ✅ GSAP Animations
-  useEffect(() => {
-    const headline = headlineRef.current;
-    const subheadline = subheadlineRef.current;
-    const cta = ctaRef.current;
-    const images = imagesRef.current;
+        <p className="mt-6 max-w-xl text-lg leading-relaxed text-espresso/80 sm:text-xl">
+          Tell us the story — a wedding, an anniversary, a birthday, a family celebration or a journey at sea — and
+          we&rsquo;ll turn it into a personalised song you can hear, give and relive.
+        </p>
 
-    if (!headline || !subheadline || !cta || !images) return;
-
-    const tl = gsap.timeline({ delay: 0.2 });
-
-    tl.fromTo(
-      headline,
-      { y: 30, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.6, ease: 'power2.out' }
-    );
-
-    tl.fromTo(
-      subheadline,
-      { y: 20, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.4, ease: 'power2.out' },
-      '-=0.3'
-    );
-
-    tl.fromTo(
-      cta,
-      { y: 15, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.3, ease: 'power2.out' },
-      '-=0.2'
-    );
-  }, []);
-
-  // ✅ Dynamic Headline
-  const getHeadline = () => {
-    switch (userType) {
-      case "partner":
-        return "Turn your love story into a song you'll keep forever";
-      case "gift":
-        return "Create the most unforgettable gift they'll ever receive";
-      case "family":
-        return "Preserve your family memories in a song";
-      case "friends":
-        return "Turn your best moments into a song";
-      case "solo":
-        return "Tell your story through music";
-      default:
-        return "Turn your story into a song you'll keep forever";
-    }
-  };
-
-  // ✅ Dynamic Subheadline
-  const getSubheadline = () => {
-    switch (userType) {
-      case "partner":
-        return "A deeply personal song crafted from your love story.";
-      case "gift":
-        return "A one-of-a-kind gift they'll never forget.";
-      case "family":
-        return "Celebrate the moments that matter most.";
-      case "friends":
-        return "Capture the fun, laughter, and memories.";
-      case "solo":
-        return "A song that reflects your journey.";
-      default:
-        return "A personalised, professionally produced song crafted from your memories.";
-    }
-  };
-
-  const getCTA = () => {
-  switch (userType) {
-    case "partner":
-      return "Create My Love Song";
-    case "gift":
-      return "Create My Gift";
-    case "family":
-      return "Create My Family Song";
-    case "friends":
-      return "Create My Memory Song";
-    case "solo":
-      return "Create My Story Song";
-    default:
-      return "Create My Custom Song";
-  }
-};
-
-const getSecondaryCTA = () => {
-  return "Begin Your Composition";
-};
-
-const scrollToOrder = () => {
-  if (window.location.pathname !== "/") {
-    window.location.href = "/#order";
-    return;
-  }
-
-  const el = document.querySelector("#order");
-  if (el) el.scrollIntoView({ behavior: "smooth" });
-};
-
-
-  return (
-    <>
-
-      <div
-        ref={sectionRef}
-        className="relative w-full min-h-screen bg-ivory overflow-hidden"
-      >
-        {/* Background Video */}
-        <div ref={imagesRef} className="absolute inset-0 overflow-hidden">
-          <video
-            className="w-full h-full object-cover scale-[1.05] animate-heroZoom"
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="none"
-            poster="/images/hero-poster.jpg"
+        <div className="mt-9 flex flex-col gap-3 min-[420px]:flex-row min-[420px]:items-center">
+          <McbButtonLink to="/create" className="min-h-14 px-9 text-lg">
+            Create Your Memory
+          </McbButtonLink>
+          <Link
+            to={{ hash: "#help-me-choose" }}
+            className="inline-flex min-h-14 items-center justify-center rounded-full px-6 text-lg font-semibold text-ink underline decoration-gold decoration-2 underline-offset-[6px] transition-colors hover:text-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2 focus-visible:ring-offset-ivory"
           >
-            <source src="/videos/hero-luxury.mp4" type="video/mp4" />
-          </video>
+            Help me choose
+          </Link>
         </div>
 
-        {/* Overlays */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_40%,rgba(0,0,0,0.45)_100%)]"></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-espresso/80 via-espresso/50 to-espresso/30 backdrop-blur-[2px]" />
-
-        {/* Content */}
-        <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6 text-center">
-
-          <span className="label-uppercase text-ivory/60 mb-6 tracking-[0.2em]">
-            YOUR MEMORIES. YOUR MUSIC.
-          </span>
-
-          <h1
-            ref={headlineRef}
-            className="font-serif text-ivory mb-10 max-w-4xl leading-[1.05]"
-            style={{ fontSize: 'clamp(2.5rem, 6vw, 4.5rem)' }}
-          >
-            {getHeadline()}
-          </h1>
-
-          <p
-            ref={subheadlineRef}
-            className="text-xl text-ivory/85 mb-10 max-w-2xl"
-          >
-            {getSubheadline()}
-          </p>
-
-          <div className="flex flex-col items-center gap-4">
-
-  {/* Primary CTA */}
-  <button
-    ref={ctaRef}
-    onClick={() => window.location.href = "/anniversary-song"}
-    className="px-10 py-4 bg-gold text-espresso rounded-full text-lg hover:bg-ivory transition"
-  >
-    {getCTA()}
-  </button>
-
-  {/* Secondary CTA (Luxury subtle style) */}
-  <button
-    onClick={scrollToOrder}
-    className="text-ivory/80 text-sm tracking-wide underline underline-offset-4 hover:text-ivory transition"
-  >
-    {getSecondaryCTA()}
-  </button>
-
-</div>
-
-        </div>
+        <p className="mt-10 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-ink/10 pt-6 text-base text-espresso/80">
+          <span className="sr-only">Created for </span>
+          {OCCASIONS.map((occasion, index) => (
+            <span key={occasion} className="inline-flex items-center gap-3">
+              {index > 0 && <span aria-hidden="true" className="h-1 w-1 rounded-full bg-gold" />}
+              {occasion}
+            </span>
+          ))}
+        </p>
       </div>
 
-      {/* ✅ Modal */}
-      <PersonalizationModal
-        isOpen={showModal}
-        onClose={() => {
-          localStorage.setItem("personalizationSeen", "true");
-          setShowModal(false);
-        }}
-        onSelect={(type) => {
-          localStorage.setItem("userType", type);
-          localStorage.setItem("personalizationSeen", "true");
-          setUserType(type);
-          setShowModal(false);
-        }}
-      />
-    </>
-  );
-};
+      {/* Composition: reserved aspect ratios, so nothing shifts as it loads. */}
+      <div className="relative mx-auto w-full max-w-xl pb-10 lg:max-w-none lg:pb-14">
+        <div className="aspect-[4/3] overflow-hidden rounded-[1.75rem] bg-ink/5 shadow-[0_30px_80px_rgba(13,27,42,0.14)]">
+          <ResponsiveImage
+            image={IMAGES.familyTerrace}
+            alt="Three generations of a family laughing together on a terrace above the sea"
+            sizes="(min-width: 1024px) 46vw, 92vw"
+            priority
+            className="h-full w-full object-cover"
+          />
+        </div>
+        <div className="absolute bottom-0 left-4 w-[36%] max-w-[15rem] overflow-hidden rounded-2xl border-[5px] border-ivory bg-ink/5 shadow-[0_20px_50px_rgba(13,27,42,0.2)] sm:left-8">
+          <div className="aspect-[3/4]">
+            <ResponsiveImage
+              image={IMAGES.cruiseCouple}
+              sizes="(min-width: 1024px) 15rem, 36vw"
+              priority
+              className="h-full w-full object-cover"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+);
 
 export default HeroSection;

@@ -91,12 +91,12 @@ tc "4. both versions are known to the server" \
 # from Terms. That separation is the property worth asserting: a version that
 # tracked deploys rather than content would tell customers nothing.
 tc "5. the privacy version moves independently of Terms, and only on content change" \
-  "$(grep -q 'PRIVACY_POLICY_VERSION = "2026-09-09.3"' src/data/legal/versions.ts \
+  "$(grep -q 'PRIVACY_POLICY_VERSION = "2026-09-14"' src/data/legal/versions.ts \
      && grep -q 'TERMS_VERSION = "2026-09-09.4"' src/data/legal/versions.ts && echo 1 || echo 0)"
 tc "5b.  → and the server carries all three versions distinctly" \
   "$(grep -q '"terms": "2026-09-09.4"' public/api/data/legal.json \
-     && grep -q '"privacy_policy": "2026-09-09.3"' public/api/data/legal.json \
-     && grep -q '"refund_policy": "2026-09-09.4"' public/api/data/legal.json && echo 1 || echo 0)"
+     && grep -q '"privacy_policy": "2026-09-14"' public/api/data/legal.json \
+     && grep -q '"refund_policy": "2026-09-14"' public/api/data/legal.json && echo 1 || echo 0)"
 
 t "6. a new order snapshots the new version" 201 \
   "$(post order '{'"$CN"',"firstName":"New","lastName":"N","email":"dl-new@example.com",'"$MOMENT_LINE"',"story":"x"}')"
@@ -199,8 +199,8 @@ tc "41.  → the reshipping-charge paragraph was removed by the Founder" \
   "$(grep -q 'This does not apply where the problem was ours' src/data/legal/terms.ts && echo 0 || echo 1)"
 tc "42. no new address-validation vendor was introduced" \
   "$(grep -rqiE 'loqate|addressy|getaddress|smartystreets|postcodeanywhere' src public/api 2>/dev/null && echo 0 || echo 1)"
-tc "43. checkout already collects the full address" \
-  "$(grep -q 'shippingPostcode' src/sections/OrderFormSection.tsx && grep -q 'shippingCountry' src/sections/OrderFormSection.tsx && echo 1 || echo 0)"
+tc "43. the order flow already collects the full address" \
+  "$(grep -q 'shippingPostcode' src/pages/create/StepDetails.tsx && grep -q 'shippingCountry' src/pages/create/StepDetails.tsx && grep -q 'shippingPostcode' src/lib/createFlow.ts && echo 1 || echo 0)"
 tc "44. international delivery, customs and border processing are covered" \
   "$(grep -q 'id: "international-delivery"' src/data/legal/terms.ts && echo 1 || echo 0)"
 tc "45. duties and taxes are qualified, not stated absolutely" \

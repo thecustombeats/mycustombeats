@@ -21,8 +21,8 @@ import {
   REFUNDS_INTRO,
   STATUTORY_RIGHTS_NOTICE,
   REFUND_POLICY_VERSION,
-  TERMS_EFFECTIVE_DATE,
-  TERMS_EFFECTIVE_DATE_DISPLAY,
+  REFUND_EFFECTIVE_DATE,
+  REFUND_EFFECTIVE_DATE_DISPLAY,
 } from "../../data/legal";
 
 const Refund = () => (
@@ -50,8 +50,8 @@ const Refund = () => (
 
         <p className="mt-6 font-mono text-xs uppercase tracking-[0.14em] text-espresso/55">
           Version {REFUND_POLICY_VERSION} · in effect from{" "}
-          <time dateTime={TERMS_EFFECTIVE_DATE}>
-            {TERMS_EFFECTIVE_DATE_DISPLAY}
+          <time dateTime={REFUND_EFFECTIVE_DATE}>
+            {REFUND_EFFECTIVE_DATE_DISPLAY}
           </time>
         </p>
 

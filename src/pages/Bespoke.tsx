@@ -24,8 +24,13 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Check } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowRight, Check } from "lucide-react";
 import { BESPOKE } from "../data/catalogue";
+// Separate import: tests/hardening-acceptance.sh asserts the line above verbatim.
+import { MCB_LIVE } from "../data/catalogue";
+import { PACKAGE_IMAGERY } from "../data/imagery";
+import ResponsiveImage from "../components/ResponsiveImage";
 import { productPageStructuredData } from "../lib/seo";
 import { SUPPORTED_CURRENCIES, type CurrencyCode } from "../lib/currency";
 import { useCurrency } from "../lib/useCurrency";
@@ -69,15 +74,17 @@ const attributionFromUrl = (): { referral?: string; partner?: string } => {
 /* Field scaffolding                                                   */
 /* ------------------------------------------------------------------ */
 
-const labelClass =
-  "block font-mono text-[10px] uppercase tracking-[0.14em] text-espresso/45 mb-2";
+const labelClass = "block mb-2 text-base font-semibold text-ink";
 
 const inputClass =
-  "w-full min-h-11 rounded-xl border border-espresso/15 bg-white px-4 py-3 text-espresso placeholder:text-espresso/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep";
+  "w-full min-h-12 rounded-xl border border-ink/25 bg-white px-4 py-3 text-base text-ink placeholder:text-espresso/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2";
+
+/** Helper text under a field: readable size, readable contrast. */
+const hintClass = "mt-2 text-sm leading-relaxed text-espresso/75";
 
 const FieldError = ({ id, message }: { id: string; message?: string }) =>
   message ? (
-    <p id={id} className="mt-2 text-sm text-red-600">
+    <p id={id} className="mt-2 text-base text-red-700">
       {message}
     </p>
   ) : null;
@@ -218,70 +225,79 @@ const Bespoke = () => {
       </Helmet>
 
       {/* ---- Opening ------------------------------------------------- */}
-      <section className="w-full bg-ink text-ivory py-20 md:py-28">
-        <div className="px-[7vw] max-w-[1400px] mx-auto">
-          <p className="font-mono text-[11px] tracking-[0.2em] uppercase text-gold mb-4">
-            Private Concierge
-          </p>
-          {/*
-            `text-ivory` is not decoration. The base stylesheet colours every
-            h1-h6 espresso for the light pages, and that rule wins over an
-            inherited `text-ivory` on the section — so a heading dropped onto
-            the ink background without its own colour renders dark brown on
-            near-black at 1.17:1, which is to say invisible. Every heading in a
-            dark band states its colour explicitly for that reason.
-          */}
-          <h1 className="font-serif text-4xl md:text-6xl leading-tight mb-6 max-w-3xl text-ivory">
-            {name}
-          </h1>
-          {/* The approved copy, read from the catalogue so this page and
-              the band on the homepage cannot describe it differently. */}
-          <p className="font-serif text-xl md:text-2xl text-gold mb-4 max-w-2xl">
-            {BESPOKE.positioning}
-          </p>
-          <p className="text-lg md:text-xl text-ivory/75 leading-relaxed max-w-2xl">
-            {BESPOKE.shortDescription}
-          </p>
+      <section className="w-full bg-ink px-5 pb-16 pt-28 text-ivory sm:px-8 md:pb-24 md:pt-36">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+          <div className="min-w-0">
+            <p className="label-uppercase text-gold">{name}</p>
+            {/*
+              `!text-ivory` is not decoration. The base stylesheet colours every
+              h1-h6 espresso for the light pages, so a heading on the ink
+              background without its own colour renders dark brown on
+              near-black — invisible. Every heading in a dark band states its
+              colour explicitly for that reason.
+            */}
+            <h1 className="mt-4 font-serif text-5xl leading-[1.05] !text-ivory md:text-6xl">
+              When your idea doesn’t fit inside a box.
+            </h1>
+            {/* The approved copy, read from the catalogue so this page and
+                the homepage cannot describe it differently. */}
+            <p className="mt-6 font-serif text-2xl leading-snug text-gold md:text-3xl">{BESPOKE.positioning}</p>
+            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ivory/85">{BESPOKE.shortDescription}</p>
 
-          <p className="mt-8 text-sm text-ivory/55 leading-relaxed max-w-2xl">
-            {BESPOKE.disclosures.join(" ")}. There is no published price,
-            because no two are alike. Your price is proposed in writing and
-            agreed with you before anything begins.
-          </p>
-          <a
-            href="#enquiry"
-            className="mt-8 inline-flex min-h-11 items-center rounded-full bg-gold px-9 py-3 text-[11px] uppercase tracking-[0.2em] text-ink transition-colors hover:bg-gold-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
-          >
-            {BESPOKE.cta}
-          </a>
+            <p className="mt-6 max-w-2xl text-base leading-relaxed text-ivory/80">
+              {BESPOKE.disclosures.join(" ")}. There is no published price,
+              because no two are alike. Start with a conversation — your price is
+              proposed in writing and agreed with you before anything begins.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <a
+                href="#enquiry"
+                className="inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-8 py-3 text-base font-semibold text-ink transition-colors hover:bg-gold-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+              >
+                {BESPOKE.cta}
+              </a>
+              <a
+                href="#how-it-works"
+                className="inline-flex min-h-12 items-center justify-center px-2 text-base font-medium text-ivory underline underline-offset-4 hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+              >
+                How it works
+              </a>
+            </div>
+          </div>
+          <div className="overflow-hidden rounded-[1.75rem]">
+            <ResponsiveImage
+              image={PACKAGE_IMAGERY.bespoke}
+              sizes="(min-width: 1024px) 40vw, 100vw"
+              priority
+              className="aspect-[4/3] w-full object-cover lg:aspect-[4/5]"
+            />
+          </div>
         </div>
       </section>
 
       {/* ---- The sequence -------------------------------------------- */}
       <section
+        id="how-it-works"
         aria-labelledby="fp-sequence"
-        className="w-full bg-ivory py-16 md:py-20"
+        className="w-full bg-ivory px-5 py-16 sm:px-8 md:py-24"
       >
-        <div className="px-[7vw] max-w-[1400px] mx-auto">
-          <h2
-            id="fp-sequence"
-            className="font-serif text-3xl text-espresso mb-3"
-          >
+        <div className="mx-auto max-w-6xl">
+          <h2 id="fp-sequence" className="font-serif text-4xl leading-tight text-ink">
             How it works
           </h2>
-          <p className="text-espresso/60 max-w-2xl leading-relaxed mb-10">
+          <p className="mt-3 max-w-2xl text-lg leading-relaxed text-espresso/80">
             Five steps, in this order. Nothing is charged until the fifth, and
             the fifth only happens once you have agreed the fourth.
           </p>
 
-          <ol className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5 list-none p-0 m-0">
+          <ol className="m-0 mt-10 grid list-none gap-5 p-0 sm:grid-cols-2 lg:grid-cols-5">
             {CONCIERGE_SEQUENCE.map((step, index) => (
-              <li key={step.title}>
-                <p className="font-mono text-[10px] tracking-[0.16em] text-gold-deep mb-2">
-                  {String(index + 1).padStart(2, "0")}
-                </p>
-                <h3 className="text-espresso mb-2 leading-snug">{step.title}</h3>
-                <p className="text-sm text-espresso/60 leading-relaxed">
+              <li key={step.title} className="rounded-2xl border border-ink/10 bg-white p-5">
+                <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-full bg-ink font-mono text-base text-gold">
+                  {index + 1}
+                </span>
+                <h3 className="mt-4 font-serif text-2xl leading-snug text-ink">{step.title}</h3>
+                <p className="mt-2 text-base leading-relaxed text-espresso/80">
                   {step.detail}
                 </p>
               </li>
@@ -289,21 +305,32 @@ const Bespoke = () => {
           </ol>
 
           {BESPOKE_MAY_INCLUDE.length > 0 && (
-            <ul className="mt-14 pt-10 border-t border-espresso/10 grid gap-x-10 gap-y-3 sm:grid-cols-2 lg:grid-cols-3 list-none p-0">
-              {BESPOKE_MAY_INCLUDE.map((feature) => (
-                <li key={feature} className="flex gap-2.5">
-                  <Check
-                    size={15}
-                    className="text-gold-deep mt-1 shrink-0"
-                    aria-hidden="true"
-                  />
-                  <span className="text-sm text-espresso/70 leading-snug">
-                    {feature}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-14 border-t border-ink/10 pt-10">
+              <h2 className="font-serif text-3xl leading-tight text-ink">What a commission may include</h2>
+              <ul className="m-0 mt-6 grid list-none gap-x-10 gap-y-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
+                {BESPOKE_MAY_INCLUDE.map((feature) => (
+                  <li key={feature} className="flex gap-3">
+                    <Check size={20} className="mt-0.5 shrink-0 text-gold-deep" aria-hidden="true" />
+                    <span className="text-base leading-snug text-ink">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
+
+          <div className="mt-14 flex flex-col gap-4 rounded-3xl bg-[#F1ECE3] p-6 sm:flex-row sm:items-center sm:justify-between md:p-8">
+            <div>
+              <h2 className="font-serif text-2xl leading-tight text-ink md:text-3xl">Want the music played live, too?</h2>
+              <p className="mt-2 max-w-xl text-base leading-relaxed text-espresso/80">{`For selected events, ${MCB_LIVE.name} can bring your song and the celebration around it to life. Every event is quoted individually.`}</p>
+            </div>
+            <Link
+              to="/mcb-live"
+              className="inline-flex min-h-12 shrink-0 items-center gap-2 text-base font-semibold text-ink underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
+            >
+              {`Discover ${MCB_LIVE.name}`}
+              <ArrowRight size={18} aria-hidden="true" />
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -311,9 +338,9 @@ const Bespoke = () => {
       <section
         id="enquiry"
         aria-labelledby="fp-enquiry"
-        className="w-full bg-white py-16 md:py-24"
+        className="w-full bg-white px-5 py-16 sm:px-8 md:py-24"
       >
-        <div className="px-[7vw] max-w-[760px] mx-auto">
+        <div className="mx-auto max-w-[760px]">
           {reference ? (
             /* ---- Acknowledgement --------------------------------------
                "Received", not "confirmed" and not "order confirmed". Nothing
@@ -327,37 +354,38 @@ const Bespoke = () => {
               role="status"
               className="rounded-2xl border border-gold/40 bg-gold/5 p-8 md:p-12 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep"
             >
-              <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold-deep mb-4">
+              <p className="label-uppercase mb-4 text-gold-deep">
                 Enquiry received
               </p>
-              <h2 className="font-serif text-3xl text-espresso mb-4 leading-snug">
+              <h2 className="mb-4 font-serif text-3xl leading-snug text-ink">
                 Thank you — we have your enquiry.
               </h2>
-              <p className="text-espresso/70 leading-relaxed mb-6">
+              <p className="mb-6 text-lg leading-relaxed text-espresso/80">
                 One of us will read it properly and come back to you personally
                 to arrange your consultation. Nothing has been charged and
                 nothing is committed.
               </p>
-              <p className="text-sm text-espresso/60 leading-relaxed">
+              <p className="text-base leading-relaxed text-espresso/80">
                 Your enquiry reference is{" "}
-                <span className="font-mono text-espresso">{reference}</span>.
+                <span className="font-mono text-ink">{reference}</span>.
                 Quote it if you get in touch before we do.
               </p>
             </div>
           ) : (
             <>
+              <p className="label-uppercase mb-3 text-gold-deep">{BESPOKE.cta}</p>
               <h2
                 id="fp-enquiry"
-                className="font-serif text-3xl text-espresso mb-3"
+                className="mb-3 font-serif text-4xl leading-tight text-ink"
               >
-                Begin a private consultation
+                Tell us what you have in mind
               </h2>
-              <p className="text-espresso/60 leading-relaxed mb-2">
-                Tell us a little about who this is for. We will read it and
+              <p className="mb-2 text-lg leading-relaxed text-espresso/80">
+                A little about who this is for is plenty. We will read it and
                 come back to you personally.
               </p>
               {/* Said before the first field, not after the last one. */}
-              <p className="text-sm text-espresso/55 leading-relaxed mb-10">
+              <p className="mb-10 text-base leading-relaxed text-espresso/80">
                 This is an enquiry, not an order. Nothing is charged and you
                 are committed to nothing.
               </p>
@@ -404,7 +432,7 @@ const Bespoke = () => {
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div>
                     <label className={labelClass} htmlFor={fieldId("phone")}>
-                      Phone <span className="normal-case tracking-normal">(optional)</span>
+                      Phone <span className="font-normal text-espresso/75">(optional)</span>
                     </label>
                     <input
                       id={fieldId("phone")}
@@ -451,7 +479,7 @@ const Bespoke = () => {
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div>
                     <label className={labelClass} htmlFor={fieldId("occasion")}>
-                      The occasion <span className="normal-case tracking-normal">(optional)</span>
+                      The occasion <span className="font-normal text-espresso/75">(optional)</span>
                     </label>
                     {/*
                       Free text with suggestions, not a closed select. Someone
@@ -475,7 +503,7 @@ const Bespoke = () => {
 
                   <div>
                     <label className={labelClass} htmlFor={fieldId("neededBy")}>
-                      Needed by <span className="normal-case tracking-normal">(optional)</span>
+                      Needed by <span className="font-normal text-espresso/75">(optional)</span>
                     </label>
                     <input
                       id={fieldId("neededBy")}
@@ -501,7 +529,7 @@ const Bespoke = () => {
                     className={labelClass}
                     htmlFor={fieldId("deliveryRegion")}
                   >
-                    Where is it going? <span className="normal-case tracking-normal">(optional)</span>
+                    Where is it going? <span className="font-normal text-espresso/75">(optional)</span>
                   </label>
                   <input
                     id={fieldId("deliveryRegion")}
@@ -513,7 +541,7 @@ const Bespoke = () => {
                   {/* Says why it is not asking for more, so the vagueness
                       reads as deliberate rather than as a form that will
                       demand the rest later. */}
-                  <p className="mt-2 text-xs text-espresso/50 leading-relaxed">
+                  <p className={hintClass}>
                     Just enough for us to think about timings — we will not ask
                     for a full address until there is something to send.
                   </p>
@@ -524,7 +552,7 @@ const Bespoke = () => {
                   <legend className={labelClass}>
                     What would you like to spend?
                   </legend>
-                  <p className="text-sm text-espresso/55 leading-relaxed mb-4 -mt-1">
+                  <p className="mb-4 -mt-1 text-base leading-relaxed text-espresso/80">
                     Whatever you tell us here shapes the proposal. There is no
                     wrong answer, and no minimum.
                   </p>
@@ -545,10 +573,10 @@ const Bespoke = () => {
                           */}
                           <label
                             htmlFor={id}
-                            className={`flex h-full cursor-pointer flex-col rounded-xl border p-4 transition-colors ${
+                            className={`flex h-full min-h-12 cursor-pointer flex-col rounded-xl border-2 p-4 transition-colors ${
                               selected
                                 ? "border-gold-dark bg-gold/10"
-                                : "border-espresso/12 bg-white hover:border-gold/50"
+                                : "border-ink/15 bg-white hover:border-gold/60"
                             }`}
                           >
                             <input
@@ -573,10 +601,10 @@ const Bespoke = () => {
                                 )
                               }
                             />
-                            <span className="text-sm font-medium text-espresso leading-snug peer-focus-visible:underline peer-focus-visible:decoration-gold-deep peer-focus-visible:decoration-2 peer-focus-visible:underline-offset-4">
+                            <span className="text-base font-semibold leading-snug text-ink peer-focus-visible:underline peer-focus-visible:decoration-gold-deep peer-focus-visible:decoration-2 peer-focus-visible:underline-offset-4">
                               {option.label}
                             </span>
-                            <span className="mt-1.5 text-xs text-espresso/55 leading-relaxed">
+                            <span className="mt-1.5 text-sm leading-relaxed text-espresso/75">
                               {option.hint}
                             </span>
                           </label>
@@ -588,7 +616,7 @@ const Bespoke = () => {
                   {errors.budget && (
                     <p
                       id={errorId("budget")}
-                      className="mt-3 text-sm text-red-600"
+                      className="mt-3 text-base text-red-700"
                       data-field-error
                       tabIndex={-1}
                     >
@@ -684,7 +712,7 @@ const Bespoke = () => {
                         recorded as they said it rather than quietly converted
                         into a pound number they never chose.
                       */}
-                      <p className="sm:col-span-2 -mt-1 text-xs text-espresso/50 leading-relaxed">
+                      <p className="sm:col-span-2 -mt-1 text-sm leading-relaxed text-espresso/75">
                         We record this exactly as you have written it, in{" "}
                         {budgetCurrency}. Nothing is converted.
                       </p>
@@ -695,7 +723,7 @@ const Bespoke = () => {
                 {/* ---- The story -------------------------------------- */}
                 <div>
                   <label className={labelClass} htmlFor={fieldId("story")}>
-                    Tell us about them <span className="normal-case tracking-normal">(optional)</span>
+                    Tell us about them <span className="font-normal text-espresso/75">(optional)</span>
                   </label>
                   <textarea
                     id={fieldId("story")}
@@ -704,7 +732,7 @@ const Bespoke = () => {
                     onChange={(e) => update("story", e.target.value)}
                     placeholder="Who is this for, and what are you hoping to create for them?"
                   />
-                  <p className="mt-2 text-xs text-espresso/50 leading-relaxed">
+                  <p className={hintClass}>
                     Say as much or as little as you like. A person reads this,
                     not a form.
                   </p>
@@ -713,7 +741,7 @@ const Bespoke = () => {
                 {submitError && (
                   <p
                     role="alert"
-                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-700"
+                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-base leading-relaxed text-red-700"
                   >
                     {submitError}
                   </p>
@@ -723,13 +751,13 @@ const Bespoke = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="inline-flex min-h-11 items-center rounded-full bg-gold px-9 py-3 text-[11px] uppercase tracking-[0.2em] text-ink transition-colors hover:bg-gold-light disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
+                    className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-ink px-8 py-3 text-base font-semibold text-ivory transition-colors hover:bg-[#1c2d40] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2 sm:w-auto"
                   >
                     {/* Says what it does. Not "Buy", not "Checkout", not
                         "Complete order" — none of which is what happens. */}
-                    {isSubmitting ? "Sending…" : "Send enquiry"}
+                    {isSubmitting ? "Sending…" : BESPOKE.cta}
                   </button>
-                  <p className="mt-3 text-xs text-espresso/50 leading-relaxed">
+                  <p className={hintClass}>
                     No payment is taken, now or on submission.
                   </p>
                 </div>

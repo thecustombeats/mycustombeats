@@ -262,7 +262,7 @@ export interface FunnelParams {
   product_id?: string;
   sku?: string;
   /** Where the event happened, e.g. "homepage", "product_page", "create". */
-  location?: "homepage" | "product_page" | "products_page" | "create" | "concierge" | "cruise";
+  location?: "homepage" | "product_page" | "products_page" | "create" | "concierge";
   step?: "choose" | "story" | "extras" | "details" | "review";
   quantity?: number;
   memories?: number;

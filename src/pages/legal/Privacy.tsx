@@ -28,8 +28,8 @@ import {
   PRIVACY_SECTIONS,
   PRIVACY_POLICY_VERSION,
   PROCESSORS,
-  TERMS_EFFECTIVE_DATE,
-  TERMS_EFFECTIVE_DATE_DISPLAY,
+  PRIVACY_EFFECTIVE_DATE,
+  PRIVACY_EFFECTIVE_DATE_DISPLAY,
 } from "../../data/legal";
 
 const Privacy = () => (
@@ -52,8 +52,8 @@ const Privacy = () => (
 
         <p className="mt-6 font-mono text-xs uppercase tracking-[0.14em] text-espresso/55">
           Version {PRIVACY_POLICY_VERSION} · in effect from{" "}
-          <time dateTime={TERMS_EFFECTIVE_DATE}>
-            {TERMS_EFFECTIVE_DATE_DISPLAY}
+          <time dateTime={PRIVACY_EFFECTIVE_DATE}>
+            {PRIVACY_EFFECTIVE_DATE_DISPLAY}
           </time>
         </p>
 

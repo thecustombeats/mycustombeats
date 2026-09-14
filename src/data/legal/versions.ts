@@ -63,27 +63,33 @@
 export const TERMS_VERSION = "2026-09-09.4";
 
 /**
- * Refunds moves with the Terms; Privacy does not.
+ * MOVED to `2026-09-14`, separately from the Terms.
  *
- * The refunds page cross-references the new damaged-goods wording, so it
- * changed. The Privacy Policy did not change at all in this revision, and
- * bumping it would tell customers a document had been revised when it had
- * not — which is exactly the noise dated-on-every-deploy versioning creates.
+ * It moved with the Terms at `2026-09-09.4` because it cross-referenced the
+ * new damaged-goods wording. It moves again on its own now because its wording
+ * changed in Sprint 2 of the release-candidate programme ("Full Package"
+ * became "Bespoke") while the Terms did not change — so the Terms stay at
+ * `2026-09-09.4`.
+ *
+ * FOUNDER AND LEGAL REVIEW OF THIS WORDING IS REQUIRED BEFORE PRODUCTION
+ * DEPLOYMENT. See the internal register (`review.ts`).
  */
-export const REFUND_POLICY_VERSION = "2026-09-09.4";
+export const REFUND_POLICY_VERSION = "2026-09-14";
 
 /**
- * MOVED, because the Privacy Policy content genuinely changed.
+ * MOVED to `2026-09-14`, because the Privacy Policy content changed again.
  *
- * It stayed at `2026-09-09` through the delivery revision precisely because
- * nothing in it had changed then, and bumping it would have told customers a
- * document had been revised when it had not. It moves now: the policy names
- * every processor MCB actually sends personal data to, lists what the browser
- * stores, and says plainly which parts are still under review.
+ * `2026-09-09.3` was the edition that named every processor MCB actually sends
+ * personal data to. Sprint 2 of the release-candidate programme changed the
+ * wording (the Make.com data flow, and "Full Package" became "Bespoke"), so
+ * the version moves — and it moves independently of the Terms, which did not
+ * change.
  *
- * THIS IS NOT A COMPLETED UK GDPR REVIEW. See the internal register.
+ * THIS IS NOT A COMPLETED UK GDPR REVIEW, and the 2026-09-14 wording requires
+ * founder and legal review BEFORE production deployment. See the internal
+ * register (`review.ts`).
  */
-export const PRIVACY_POLICY_VERSION = "2026-09-09.3";
+export const PRIVACY_POLICY_VERSION = "2026-09-14";
 
 /**
  * When this version takes effect for NEW orders.
@@ -96,6 +102,47 @@ export const TERMS_EFFECTIVE_DATE = "2026-09-09";
 
 /** Human-readable form of the effective date, for the page furniture. */
 export const TERMS_EFFECTIVE_DATE_DISPLAY = "9 September 2026";
+
+/**
+ * The Privacy Policy and the Refunds page carry their own effective dates.
+ *
+ * They previously displayed the Terms' date, which was true only while all
+ * three documents moved together. From `2026-09-14` they do not, and a page
+ * showing "in effect from 9 September" above wording that changed on the 14th
+ * would misstate its own history. Plain strings, for the same timezone reason
+ * as `TERMS_EFFECTIVE_DATE`.
+ */
+export const PRIVACY_EFFECTIVE_DATE = "2026-09-14";
+export const PRIVACY_EFFECTIVE_DATE_DISPLAY = "14 September 2026";
+export const REFUND_EFFECTIVE_DATE = "2026-09-14";
+export const REFUND_EFFECTIVE_DATE_DISPLAY = "14 September 2026";
+
+/**
+ * Superseded Privacy Policy and Refunds editions, for identifying the version
+ * recorded against an older order (`order_consents.privacy_policy_version` /
+ * `refund_policy_version`). Terms history stays in `SUPERSEDED_VERSIONS`.
+ */
+export const SUPERSEDED_POLICY_VERSIONS: readonly {
+  document: "PRIVACY" | "REFUND";
+  version: string;
+  superseded: string;
+  summary: string;
+}[] = [
+  {
+    document: "PRIVACY",
+    version: "2026-09-09.3",
+    superseded: "2026-09-14",
+    summary:
+      "The edition written from the verified data-flow inventory. Superseded by 2026-09-14, whose wording changed in release-candidate Sprint 2. Orders placed under this version recorded it.",
+  },
+  {
+    document: "REFUND",
+    version: "2026-09-09.4",
+    superseded: "2026-09-14",
+    summary:
+      "The edition that moved with the Founder-replaced Terms. Superseded by 2026-09-14, whose wording changed in release-candidate Sprint 2. Orders placed under this version recorded it.",
+  },
+];
 
 /**
  * Versions that have been superseded.

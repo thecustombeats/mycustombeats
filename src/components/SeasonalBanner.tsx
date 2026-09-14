@@ -52,17 +52,17 @@ const SeasonalBanner = () => {
                 className="rounded-2xl border border-gold/30 p-7 flex flex-col sm:flex-row sm:items-center gap-6"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-gold mb-2">
+                  <p className="label-uppercase !text-[0.8125rem] text-gold mb-2">
                     {edition.positioning}
                   </p>
                   <h3 className="font-serif text-2xl text-ivory mb-2">
                     {edition.name}
                   </h3>
-                  <p className="text-sm text-ivory/70 leading-relaxed">
+                  <p className="text-base text-ivory/80 leading-relaxed">
                     {edition.description}
                   </p>
                   {product.turnaround && (
-                    <p className="mt-2 font-mono text-[10px] tracking-[0.14em] uppercase text-ivory/50">
+                    <p className="mt-2 text-[0.9375rem] text-ivory/75">
                       {product.turnaround.label}
                     </p>
                   )}
@@ -79,9 +79,9 @@ const SeasonalBanner = () => {
                     />
                   </div>
                   <Link
-                    to={`/?product=${encodeURIComponent(product.id)}#order`}
-                    className="inline-flex px-6 py-3 rounded-full bg-gold text-ink
-                               text-[11px] tracking-[0.2em] uppercase transition-colors duration-300 hover:bg-gold-light"
+                    to={`/create?product=${encodeURIComponent(product.id)}`}
+                    className="inline-flex min-h-12 items-center px-6 py-3 rounded-full bg-gold text-ink
+                               text-base font-semibold transition-colors duration-300 hover:bg-gold-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
                   >
                     {product.cta}
                   </Link>

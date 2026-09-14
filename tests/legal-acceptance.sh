@@ -376,7 +376,7 @@ tc "95. the legal modules make no Stripe call" \
 tc "96. nothing is added to an order the customer did not choose" \
   "$([ "$(q "SELECT COUNT(*) FROM order_items WHERE order_id=$OID")" = "1" ] && [ "$(q "SELECT item_id FROM order_items WHERE order_id=$OID")" = "moment" ] && echo 1 || echo 0)"
 tc "97. the order review still shows a total before payment" \
-  "$(grep -q 'formatMinor(preview.totalMinor)' src/components/YourMemorySummary.tsx && grep -q '<YourMemorySummary' src/sections/OrderFormSection.tsx && echo 1 || echo 0)"
+  "$(grep -q 'formatMinor(preview.totalMinor)' src/pages/create/StepReview.tsx && grep -q '<StepReview' src/pages/CreateMemory.tsx && echo 1 || echo 0)"
 tc "98. the migration is additive — it alters and drops nothing" \
   "$(grep -qiE '^\s*(ALTER|DROP|DELETE|TRUNCATE)' db/migrations/2026-09-09-legal-consent-production.sql && echo 0 || echo 1)"
 

@@ -107,8 +107,8 @@ const SHARE_IMAGES: Readonly<Record<string, { path: string; alt: string }>> = {
     alt: "A personalised song for a journey",
   },
   "/about": {
-    path: "/images/founder1-rinaldi.jpg",
-    alt: "Rinaldi, founder and executive producer at My Custom Beats",
+    path: "/images/responsive/family-terrace-1600.jpg",
+    alt: "A family celebrating together — the moments My Custom Beats turns into music",
   },
   "/anniversary-song": {
     path: "/images/sample-anniversary.jpg",
@@ -215,7 +215,7 @@ export const organizationEntity = (): Node => ({
   email: CONTACT_EMAIL,
   telephone: CONTACT_PHONE,
   sameAs: SAME_AS,
-  // Both founders are named and pictured on the About page.
+  // Both founders are named on the About page. Names pending founder confirmation.
   founder: [
     { "@type": "Person", name: "Rinaldi" },
     { "@type": "Person", name: "Shobha (Bella) Menezes" },
@@ -462,14 +462,7 @@ const variantProperties = (product: Product, variant: Variant): Node[] => {
     if (product.revisions) props.push(property("Revisions", product.revisions));
   }
 
-  if (variant.dimensions?.approximate) {
-    props.push(
-      property(
-        "Approximate dimensions",
-        `${variant.dimensions.widthInches} × ${variant.dimensions.heightInches} inches`
-      )
-    );
-  }
+  // Approximate sizes are not published until they are verified.
 
   return props;
 };

@@ -317,9 +317,9 @@ tc "68. dynamic checkout is still OFF in the config template" \
 tc "69. the Terms version is untouched" \
   "$(grep -q 'TERMS_VERSION = "2026-09-09.4"' src/data/legal/versions.ts && echo 1 || echo 0)"
 
-tc "70. the Refund and Privacy versions are untouched" \
-  "$(grep -q 'REFUND_POLICY_VERSION = "2026-09-09.4"' src/data/legal/versions.ts \
-     && grep -q 'PRIVACY_POLICY_VERSION = "2026-09-09.3"' src/data/legal/versions.ts && echo 1 || echo 0)"
+tc "70. the Refund and Privacy versions moved to the 14 September edition, Terms did not" \
+  "$(grep -q 'REFUND_POLICY_VERSION = "2026-09-14"' src/data/legal/versions.ts \
+     && grep -q 'PRIVACY_POLICY_VERSION = "2026-09-14"' src/data/legal/versions.ts && echo 1 || echo 0)"
 
 tc "71. the production stage lock is unchanged" \
   "$(grep -q "'CREATIVE','SONG_READY','AWAITING_APPROVAL'" db/schema.sql \

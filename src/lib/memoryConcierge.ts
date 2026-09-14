@@ -189,3 +189,179 @@ export function recommendMemory(answers: ConciergeAnswers): ConciergeRecommendat
     lowerPricedAlternative: cheapest ?? null,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Guided questions                                                    */
+/* ------------------------------------------------------------------ */
+/*
+ * The questions the concierge asks, one at a time, in plain words. They map
+ * onto `recommendMemory` above, so the same capacity and "smallest fitting"
+ * rules apply. No answer is ever sent anywhere.
+ *
+ *   occasion     trip | celebration | gift | remembrance | other   (optional)
+ *   memories     how many songs or memories                        (required)
+ *   keep         digital | physical | unsure | bespoke             (required)
+ *   arrangement  together | separate  — asked only for several memories
+ *                kept physically                                   (optional)
+ *   budgetMinor  an approximate ceiling in pence                   (optional)
+ *
+ * GUIDED RULES
+ *   keep bespoke, or more memories than the largest Journey  → Bespoke
+ *   keep digital, 1 memory      → Moment
+ *   keep digital, several       → Moment (one per memory), Journey offered
+ *                                 as a way to keep them together
+ *   keep unsure, 1 memory       → Moment — the lowest-priced start — with
+ *                                 the smallest Keepsake as "something to hold"
+ *   keep physical, 1 memory     → the smallest Keepsake
+ *   several, separate           → one smallest single-song Keepsake per
+ *                                 memory; a Journey is shown when it holds
+ *                                 them all for less
+ *   several, together / unsure  → the smallest Keepsake that holds them,
+ *                                 else the smallest Journey
+ */
+
+export type ConciergeOccasion = "trip" | "celebration" | "gift" | "remembrance" | "other";
+export type KeepPreference = "digital" | "physical" | "unsure" | "bespoke";
+export type Arrangement = "together" | "separate";
+
+export interface GuidedAnswers {
+  occasion: ConciergeOccasion | null;
+  memories: number;
+  keep: KeepPreference;
+  arrangement: Arrangement | null;
+  budgetMinor: number | null;
+}
+
+export interface GuidedRecommendation extends ConciergeRecommendation {
+  /** How many of the recommended option, e.g. one Keepsake per memory. */
+  quantity: number;
+  /** Price × quantity in pence, or null for Bespoke. */
+  totalMinor: number | null;
+  /** A different kind of option worth knowing about (not necessarily cheaper). */
+  alsoConsider: ConciergeOption | null;
+  /** Why `alsoConsider` is shown, in one sentence. */
+  alsoConsiderReason: string | null;
+}
+
+/** Memory-count choices derived from catalogue capacities: 1, 2–3, 4, 5–6, 7–12, More than 12. */
+export const memoryChoices = (): { value: number; label: string }[] => {
+  const counts = [...new Set(allSongOptions().map((o) => o.songCount))].sort((a, b) => a - b);
+  const choices = counts.map((count, i) => {
+    const from = i === 0 ? 1 : counts[i - 1] + 1;
+    return { value: count, label: from === count ? String(count) : `${from}–${count}` };
+  });
+  const max = counts[counts.length - 1] ?? 1;
+  return [...choices, { value: max + 1, label: `More than ${max}` }];
+};
+
+/** Whether "together or separate?" is worth asking for these answers. */
+export const asksArrangement = (answers: Pick<GuidedAnswers, "memories" | "keep">): boolean =>
+  answers.memories > 1 && answers.memories <= largestFixedSongCount() && answers.keep === "physical";
+
+const withGuided = (
+  base: ConciergeRecommendation,
+  extra: Partial<Pick<GuidedRecommendation, "quantity" | "alsoConsider" | "alsoConsiderReason">> = {}
+): GuidedRecommendation => {
+  const quantity = extra.quantity ?? 1;
+  return {
+    ...base,
+    quantity,
+    totalMinor: base.option ? base.option.priceMinor * quantity : null,
+    alsoConsider: extra.alsoConsider ?? null,
+    alsoConsiderReason: extra.alsoConsiderReason ?? null,
+  };
+};
+
+const budgetCheck = (totalMinor: number | null, budgetMinor: number | null): boolean | null =>
+  totalMinor === null || budgetMinor === null ? null : totalMinor <= budgetMinor;
+
+export function recommendGuided(answers: GuidedAnswers): GuidedRecommendation {
+  const memories = Math.max(1, Math.floor(answers.memories));
+  const budgetMinor = answers.budgetMinor;
+  const trip = answers.occasion === "trip";
+  const moment = optionsFor(MOMENT)[0] ?? null;
+  const keepsakes = optionsFor(KEEPSAKE);
+  const journeys = optionsFor(JOURNEY);
+
+  if (answers.keep === "bespoke") {
+    return withGuided(recommendMemory({ intent: "bespoke", songs: memories, budgetMinor }));
+  }
+  if (memories > largestFixedSongCount()) {
+    return withGuided(recommendMemory({ intent: "journey", songs: memories, budgetMinor }));
+  }
+
+  // Digital.
+  if (answers.keep === "digital" && moment) {
+    const base = recommendMemory({ intent: "quick-song", songs: 1, budgetMinor });
+    if (memories === 1) return withGuided(base);
+    const journey = smallestFitting(journeys, memories);
+    const total = moment.priceMinor * memories;
+    return withGuided(
+      {
+        ...base,
+        reason: `A ${MOMENT.name} is one song made from one memory, delivered digitally. For ${memories === 2 ? "two" : "several"} memories, you can create a ${MOMENT.name} for each.`,
+        withinBudget: budgetCheck(total, budgetMinor),
+        lowerPricedAlternative: null,
+      },
+      {
+        quantity: memories,
+        alsoConsider: journey,
+        alsoConsiderReason: journey
+          ? `If you would like them kept together, ${JOURNEY.name} holds up to ${songsLabel(journey.songCount)} on classic black vinyl — something to hold as well as hear.`
+          : null,
+      }
+    );
+  }
+
+  // Not sure, one memory: start with the lowest-priced option, never push up.
+  if (answers.keep === "unsure" && memories === 1 && moment) {
+    const base = recommendMemory({ intent: "quick-song", songs: 1, budgetMinor });
+    const keepsake = smallestFitting(keepsakes, 1);
+    return withGuided(
+      { ...base, reason: `${base.reason} It is a gentle place to start, and you can always add something to hold later.` },
+      {
+        alsoConsider: keepsake,
+        alsoConsiderReason: keepsake
+          ? `If you would like something to hold, the ${keepsake.name} puts your song on a personalised picture disc.`
+          : null,
+      }
+    );
+  }
+
+  // Several memories, each on its own Keepsake.
+  if (memories > 1 && answers.arrangement === "separate") {
+    const single = smallestFitting(keepsakes, 1);
+    if (single) {
+      const total = single.priceMinor * memories;
+      const together = [...keepsakes, ...journeys]
+        .filter((o) => o.songCount >= memories && o.priceMinor < total)
+        .sort((a, b) => a.priceMinor - b.priceMinor)[0] ?? null;
+      const sameCapacity = keepsakes.filter((o) => o.sku !== single.sku && o.songCount === single.songCount);
+      return withGuided(
+        {
+          productId: KEEPSAKE.id,
+          productName: KEEPSAKE.name,
+          option: single,
+          reason: `A separate ${KEEPSAKE.name} for each memory: ${memories} records, each individually personalised with its own song and artwork.${trip ? " One for each day of the trip, if you like — there is no MCB maximum." : " There is no MCB maximum."}`,
+          withinBudget: budgetCheck(total, budgetMinor),
+          sameCapacity,
+          lowerPricedAlternative: together,
+        },
+        { quantity: memories }
+      );
+    }
+  }
+
+  // Physical (or unsure) — together on one record where one holds them. The
+  // base reason already mentions choosing a separate Keepsake per memory.
+  const base = recommendMemory({ intent: "keepsake", songs: memories, budgetMinor });
+  return withGuided(
+    base,
+    answers.keep === "unsure" && moment
+      ? {
+          alsoConsider: moment,
+          alsoConsiderReason: `If digital is enough, a ${MOMENT.name} turns one memory into a song, delivered digitally.`,
+        }
+      : {}
+  );
+}

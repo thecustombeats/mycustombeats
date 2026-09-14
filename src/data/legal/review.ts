@@ -157,6 +157,14 @@ export const LEGAL_REVIEW_REQUIRED: readonly ReviewItem[] = [
     severity: "BLOCKING",
   },
   {
+    topic: "Privacy Policy and Refunds wording, version 2026-09-14 — founder and legal review before production deployment",
+    positionTaken:
+      "Release-candidate Sprint 2 changed the Privacy Policy wording (the Make.com data flow; 'Full Package' renamed 'Bespoke') and the Refunds wording ('Full Package' renamed 'Bespoke'). Sprint 3 moved PRIVACY_POLICY_VERSION and REFUND_POLICY_VERSION to 2026-09-14, each page now displays its own effective date of 14 September 2026, the superseded editions (privacy 2026-09-09.3, refunds 2026-09-09.4) are recorded in SUPERSEDED_POLICY_VERSIONS, and the Terms stay at 2026-09-09.4. No legal position was added or changed by the version move itself. Sprint 3 is also editing privacy.ts (the Cloudinary evidence line and a new browser-storage entry for the /create draft, mcb_create_draft_v1); those edits fall under the same 2026-09-14 edition and the same review.",
+    question:
+      "The 2026-09-14 Privacy Policy and Refunds wording has NOT been approved by the Founder or reviewed by a qualified adviser. Both are required BEFORE production deployment: (1) Founder approval that the changed wording is commercially accurate; (2) legal confirmation that the privacy changes correctly describe the Make.com data flow and remain consistent with the UK GDPR review item above; (3) legal confirmation that the refunds wording remains consistent with the Terms at 2026-09-09.4 and does not restrict statutory rights. The server copy public/api/data/legal.json must also be regenerated so recorded consent versions match the pages.",
+    severity: "BLOCKING",
+  },
+  {
     topic: "Founder Terms comparison",
     positionTaken:
       "RESOLVED. The Founder's complete nine-section source was compared against the implementation by the supervising certification process: PASS, commercial intent preserved across clauses 12-18, 21 and 25.",

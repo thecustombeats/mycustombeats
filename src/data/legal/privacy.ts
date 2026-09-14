@@ -90,7 +90,7 @@ export const PROCESSORS: readonly Processor[] = [
     name: "Cloudinary",
     purpose: "Stores artwork and photographs you choose to upload.",
     receives: "The image files you send us, and nothing else.",
-    evidence: "sections/OrderFormSection.tsx",
+    evidence: "pages/CreateMemory.tsx (photos are uploaded only when an order is placed)",
     scope: "SOME_ORDERS",
   },
   {
@@ -199,8 +199,9 @@ export const BROWSER_STORAGE: readonly StoredValue[] = [
     purpose: "Remembers your choices about what the site shows you.",
   },
   {
-    key: "last_order_package / last_order_format",
-    purpose: "Remembers what you were looking at, so a form is less repetitive.",
+    key: "mcb_create_draft_v1",
+    purpose: "Keeps what you've written for your songs — your choice of product, and the memories, styles and add-on details — so a refresh doesn't lose your progress.",
+    note: "Kept on this device for up to 7 days. Never includes photos, contact details or your address. \"Start again\" deletes it.",
   },
   {
     key: "affiliate_token / affiliate_email",

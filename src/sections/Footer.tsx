@@ -1,7 +1,6 @@
-import { Instagram, Youtube, MessageCircle } from "lucide-react";
-import CurrencySelector from "../components/CurrencySelector";
-import CruiseMarquee from "../components/CruiseMarquee";
+import { Instagram, Youtube, MessageCircle, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
+import CurrencySelector from "../components/CurrencySelector";
 import { trackWhatsAppClick, trackEvent } from "../lib/analytics";
 import { BESPOKE, songExperiences } from "../data/catalogue";
 
@@ -10,153 +9,173 @@ const PRODUCT_LINKS = [...songExperiences(), BESPOKE].flatMap((product) =>
   product.route ? [{ to: product.route, label: product.name }] : []
 );
 
-const Footer = () => {
+interface FooterLink {
+  to: string;
+  label: string;
+}
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+const GROUPS: readonly { title: string; links: readonly FooterLink[] }[] = [
+  {
+    title: "Experiences",
+    links: [
+      { to: "/create", label: "Create Your Memory" },
+      ...PRODUCT_LINKS,
+      { to: "/mcb-live", label: "MCB LIVE" },
+    ],
+  },
+  {
+    title: "Explore",
+    links: [
+      { to: "/products", label: "Keepsakes & Gifts" },
+      { to: "/cruise", label: "Cruise memories" },
+      { to: "/occasions", label: "Occasions" },
+      { to: "/priority-replacement", label: "Priority Replacement" },
+    ],
+  },
+  {
+    title: "MCB",
+    links: [
+      { to: "/about", label: "Our Story" },
+      { to: "/faq", label: "FAQ" },
+      { to: "/press", label: "Press" },
+      { to: "/artists", label: "Artists" },
+      { to: "/partners", label: "Partners & hospitality" },
+      { to: "/affiliate", label: "Affiliates" },
+    ],
+  },
+];
 
-  return (
-    // Midnight Ink — the one place a large dark field earns its place, per
-    // MVIS colour balance. Replaces an off-palette warm-black gradient.
-    <footer className="w-full bg-ink text-ivory pt-24 pb-10">
-      
-<div className="max-w-3xl mx-auto px-6 text-center flex flex-col items-center">
+const linkClass =
+  "inline-flex min-h-11 items-center rounded text-base text-ivory/80 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-ink";
 
-        {/* ===== LOGO ===== */}
-        <button
-  onClick={scrollToTop}
-  className="flex items-center justify-center gap-3 mb-10 mx-auto hover:opacity-80 transition"
->
-  {/* Logo */}
-  <img
-    src="/images/brand/MCB-Logo-Final.png"
-    alt="My Custom Beats"
-    className="h-16 lg:h-40 w-auto object-contain"
-  />
+const SOCIALS = [
+  {
+    label: "WhatsApp",
+    icon: MessageCircle,
+    href: "https://wa.me/447340742009?text=Hi%20MyCustomBeats%2C%20I%20clicked%20the%20link%20in%20your%20website%20footer%20and%20would%20like%20to%20learn%20more%20about%20your%20custom%20songs.",
+    onClick: () => trackWhatsAppClick("footer"),
+  },
+  {
+    label: "Instagram",
+    icon: Instagram,
+    href: "https://instagram.com/djrinaldiofficial?utm_source=mycustombeats.com&utm_medium=referral&utm_campaign=footer",
+    onClick: () => trackEvent("outbound_social_click", { platform: "instagram", location: "footer" }),
+  },
+  {
+    label: "YouTube",
+    icon: Youtube,
+    href: "https://www.youtube.com/@MyCustomBeats?utm_source=mycustombeats.com&utm_medium=referral&utm_campaign=footer",
+    onClick: () => trackEvent("outbound_social_click", { platform: "youtube", location: "footer" }),
+  },
+] as const;
 
-</button>
-
-        {/* ===== TAGLINE ===== */}
-        <p className="text-ivory/60 text-sm tracking-wide mb-10 text-center">
-          Transform your most meaningful moments into timeless music and keepsakes.
-        </p>
-
-        {/* ===== NAVIGATION (SIMPLE ROW) ===== */}
-        <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-ivory/70 mb-8">
-          {PRODUCT_LINKS.map((link) => (
-            <Link key={link.to} to={link.to} className="hover:text-gold transition">{link.label}</Link>
-          ))}
-          <Link to="/mcb-live" className="hover:text-gold transition">MCB LIVE</Link>
-          <Link to="/priority-replacement" className="hover:text-gold transition">Priority Replacement</Link>
-          <Link to="/products" className="hover:text-gold transition">Products</Link>
-          <Link to="/occasions" className="hover:text-gold transition">Occasions</Link>
-          <Link to="/artists" className="hover:text-gold transition">Artists</Link>
-          <Link to="/partners" className="hover:text-gold transition">Partners</Link>
-          <Link to="/about" className="hover:text-gold transition">Our Story</Link>
-          <Link to="/faq" className="hover:text-gold transition">FAQ</Link>
-          <Link to="/press" className="hover:text-gold transition">Press</Link>
-          <Link to="/affiliate" className="hover:text-gold transition">Affiliate</Link>
-          <a
-            href="/luxury/index.html"
-            className="hover:text-gold transition"
+const Footer = () => (
+  // Midnight Ink. Anything on this ground states its own colour: index.css
+  // gives every <p> an espresso colour that would otherwise be invisible here.
+  <footer className="w-full bg-ink pb-28 pt-20 text-ivory sm:pb-12">
+    <div className="mx-auto max-w-6xl px-6">
+      <div className="grid gap-12 lg:grid-cols-[1.2fr_2fr]">
+        <div>
+          <Link
+            to="/"
+            aria-label="My Custom Beats — home"
+            className="inline-block rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
           >
-            Hospitality Showcase
-          </a>
-        </div>
-
-        {/* ===== TRUST LINE ===== */}
-        <p className="text-ivory/40 text-xs tracking-wide mb-6">
-          Personalised music and keepsakes, created around your story.
-        </p>
-
-        {/* ===== SOCIALS ===== */}
-        <div className="flex justify-center gap-4 mb-8">
-          {[ 
-            { 
-              icon: MessageCircle, 
-              link: "https://wa.me/447340742009?text=Hi%20MyCustomBeats%2C%20I%20clicked%20the%20link%20in%20your%20website%20footer%20and%20would%20like%20to%20learn%20more%20about%20your%20custom%20songs.",
-              onClick: () => trackWhatsAppClick("footer")
-            },
-            { 
-              icon: Instagram, 
-              link: "https://instagram.com/djrinaldiofficial?utm_source=mycustombeats.com&utm_medium=referral&utm_campaign=footer",
-              onClick: () => trackEvent("outbound_social_click", { platform: "instagram", location: "footer" })
-            },
-            { 
-              icon: Youtube, 
-              link: "https://www.youtube.com/@MyCustomBeats?utm_source=mycustombeats.com&utm_medium=referral&utm_campaign=footer",
-              onClick: () => trackEvent("outbound_social_click", { platform: "youtube", location: "footer" })
-            },
-          ].map((item, i) => {
-            const Icon = item.icon;
-            return (
-              <a
-                key={i}
-                href={item.link}
-                onClick={item.onClick}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-ivory/5 text-ivory/60 
-                hover:bg-gold hover:text-espresso transition-all duration-300"
-              >
-                <Icon size={16} />
-              </a>
-            );
-          })}
-        </div>
-
-        {/* ===== LEGAL ===== */}
-        <div className="flex justify-center gap-6 text-xs text-ivory/50 mb-6">
-          <Link to="/legal/terms" className="hover:text-gold transition">Terms</Link>
-          <Link to="/legal/privacy" className="hover:text-gold transition">Privacy</Link>
-          <Link to="/legal/refund" className="hover:text-gold transition">Refund</Link>
-        </div>
-
-        {/*
-          ===== DISPLAY CURRENCY =====
-          In the footer rather than the header: it is a reading preference, not
-          a step in the journey, and a currency switcher in the navigation of a
-          luxury storefront reads like a duty-free counter.
-
-          The site-level explanation lives here too, once — so the relationship
-          between the estimate and the charge is stated plainly somewhere
-          permanent, instead of a legal sentence following every price around
-          the site.
-        */}
-        <div className="border-t border-ivory/10 pt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-          <CurrencySelector tone="light" />
-          <p className="max-w-md text-center text-xs leading-relaxed text-ivory/40 sm:text-right">
-            Prices are set in GBP. Other currencies are shown as an estimate;
-            payment is taken in GBP and your bank sets its own rate and any
-            fees.
+            {/* The black mark, inverted to ivory: a 40 KB file instead of the
+                1.8 MB gold master. */}
+            <img
+              src="/images/brand/MCB-Black-logo.png"
+              alt=""
+              width={144}
+              height={60}
+              loading="lazy"
+              decoding="async"
+              className="h-[60px] w-36 object-cover invert"
+            />
+          </Link>
+          <p className="mt-6 max-w-sm font-serif text-2xl leading-snug text-ivory">
+            Your moments, turned into music you can hear, keep, give and relive.
           </p>
+          <p className="mt-4 text-base text-ivory/70">MCB™ — My Custom Beats</p>
+
+          <ul className="mt-8 flex list-none flex-wrap gap-3 p-0">
+            {SOCIALS.map(({ label, icon: Icon, href, onClick }) => (
+              <li key={label}>
+                <a
+                  href={href}
+                  onClick={onClick}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${label} (opens in a new tab)`}
+                  className="flex h-12 w-12 items-center justify-center rounded-full border border-ivory/20 text-ivory/80 transition-colors hover:border-gold hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+                >
+                  <Icon size={20} aria-hidden="true" />
+                </a>
+              </li>
+            ))}
+            <li>
+              <a
+                href="mailto:hello@mycustombeats.com"
+                onClick={() => trackEvent("contact_email_click", { location: "footer" })}
+                aria-label="Email hello@mycustombeats.com"
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-ivory/20 text-ivory/80 transition-colors hover:border-gold hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+              >
+                <Mail size={20} aria-hidden="true" />
+              </a>
+            </li>
+          </ul>
         </div>
 
-        {/* ===== BOTTOM ===== */}
-        <div className="border-t border-ivory/10 mt-6 pt-6 text-xs text-ivory/40 flex flex-col sm:flex-row items-center justify-between gap-3">
-          {/*
-            `text-ivory/40` is on the <p>, not only on the wrapper.
-
-            `index.css` sets `p { color: rgba(46, 38, 35, 0.65) }` for the
-            light pages, and an element rule beats a colour inherited from a
-            parent — so this line rendered espresso on the ink footer at
-            1.17:1, which is to say invisible. The same class of bug put the
-            Full Package headline at exactly that ratio in an earlier sprint.
-            Anything on a dark ground states its own colour.
-          */}
-          <p className="text-ivory/40">© My Custom Beats. All rights reserved.</p>
-          <p className="text-ivory/40">Crafted with <span className="text-gold">♥</span></p>
-        </div>
-
+        <nav aria-label="Footer" className="grid grid-cols-1 gap-10 min-[480px]:grid-cols-2 md:grid-cols-3">
+          {GROUPS.map((group) => (
+            <div key={group.title}>
+              <h2 className="label-uppercase !text-[0.8125rem] mb-3 text-gold">{group.title}</h2>
+              <ul className="m-0 list-none p-0">
+                {group.links.map((link) => (
+                  <li key={link.to}>
+                    <Link to={link.to} className={linkClass}>
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </nav>
       </div>
 
-      {/* ===== CRUISE & LUXURY TRAVEL — absolute bottom of the footer ===== */}
-      <div className="mt-12 px-6">
-        <CruiseMarquee />
+      {/* Display currency: a reading preference, stated once, with the
+          relationship between the estimate and the charge. */}
+      <div className="mt-14 flex flex-col items-start gap-4 border-t border-ivory/15 pt-8 sm:flex-row sm:items-center sm:justify-between">
+        <CurrencySelector tone="light" />
+        <p className="max-w-md text-sm leading-relaxed text-ivory/70 sm:text-right">
+          Prices are set in GBP. Other currencies are shown as an estimate; payment is taken in GBP and your bank sets
+          its own rate and any fees.
+        </p>
       </div>
-    </footer>
-  );
-};
+
+      <div className="mt-8 flex flex-col gap-4 border-t border-ivory/15 pt-8 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-ivory/70">© My Custom Beats. All rights reserved.</p>
+        <ul className="m-0 flex list-none flex-wrap gap-x-6 p-0">
+          <li>
+            <Link to="/legal/terms" className={linkClass}>
+              Terms
+            </Link>
+          </li>
+          <li>
+            <Link to="/legal/privacy" className={linkClass}>
+              Privacy
+            </Link>
+          </li>
+          <li>
+            <Link to="/legal/refund" className={linkClass}>
+              Refunds
+            </Link>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+);
 
 export default Footer;

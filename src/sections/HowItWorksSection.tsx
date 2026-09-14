@@ -1,158 +1,87 @@
-import { useEffect, useRef } from 'react';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { MessageSquare, Heart, Music, Package, ArrowRight } from 'lucide-react';
+import SectionHeading from "../components/mcb/SectionHeading";
+import { McbButtonLink } from "../components/mcb/McbButton";
+import { JOURNEY, KEEPSAKE, MOMENT } from "../data/catalogue";
 
-gsap.registerPlugin(ScrollTrigger);
+/**
+ * How it works — remember, tell us, we create, keep and relive.
+ *
+ * Timing is read from the catalogue's own turnaround lines, never restated.
+ * No animation: the steps are the content and must never depend on a scroll
+ * trigger to become visible.
+ */
+const sentence = (label: string | undefined) => (label ? `${label.charAt(0).toLowerCase()}${label.slice(1)}` : "");
 
-const steps = [
+/** Timing lines, grouping experiences that share the same catalogue wording. */
+const TIMINGS = [MOMENT, KEEPSAKE, JOURNEY].reduce<{ names: string; label: string }[]>((lines, product) => {
+  const label = product.turnaround?.label;
+  if (!label) return lines;
+  const same = lines.find((line) => line.label === label);
+  if (same) same.names = `${same.names} and ${product.name}`;
+  else lines.push({ names: product.name, label });
+  return lines;
+}, []);
+
+const STEPS = [
   {
-    icon: MessageSquare,
-    title: 'Share your story',
-    description: 'Tell us about your moment, memories, and the person it’s for.',
+    title: "Remember",
+    body: "Choose the moment you want to keep — an anniversary, a wedding, a birthday, a family gathering, a retirement or a day at sea.",
   },
   {
-    icon: Heart,
-    title: 'Choose the mood',
-    description: 'Pick the emotion and style — romantic, nostalgic, upbeat or calm.',
+    title: "Tell us your story",
+    body: "Share it in your own words: the people, the places, the little details. No lyrics or musical knowledge needed. Pick a mood and style, or let MCB choose the music style for you.",
   },
   {
-    icon: Music,
-    title: 'We compose & produce',
-    description: 'Professional musicians write, record, and produce your custom song.',
+    title: "We create",
+    body: "Your story is written into a personalised song and produced for you. Choose to keep it digitally, on a picture disc, or as a full album on vinyl.",
   },
   {
-    icon: Package,
-    title: 'Receive your keepsake',
-    description: 'Get your song, artwork, and lyrics ready to gift or share.',
+    title: "Keep, relive and share",
+    body: "Play it at the celebration, give it as a gift, keep it on the shelf — and return to the moment whenever you want.",
   },
 ];
 
-const HowItWorksSection = () => {
-  const sectionRef = useRef<HTMLDivElement>(null);
+const HowItWorksSection = () => (
+  <section id="how-it-works" aria-labelledby="how-it-works-heading" className="scroll-mt-24 bg-white px-5 py-20 sm:px-8 md:py-28">
+    <div className="mx-auto max-w-6xl">
+      <SectionHeading
+        id="how-it-works-heading"
+        eyebrow="How it works"
+        title="From your story to something you can keep"
+      />
 
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
+      <ol className="mt-14 grid list-none gap-5 p-0 sm:grid-cols-2 lg:grid-cols-4">
+        {STEPS.map((step, index) => (
+          <li key={step.title} className="flex flex-col rounded-2xl border border-ink/10 bg-ivory p-6 sm:p-7">
+            <span aria-hidden="true" className="font-mono text-base text-gold-deep">
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <h3 className="mt-3 text-ink">
+              <span className="sr-only">Step {index + 1}: </span>
+              {step.title}
+            </h3>
+            <p className="mt-3 text-base leading-relaxed text-espresso/80">{step.body}</p>
+          </li>
+        ))}
+      </ol>
 
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        '.hiw-heading',
-        { y: 30, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.4,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
+      <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-ink/10 px-6 py-5 text-center">
+        <p className="text-base leading-relaxed text-espresso/80">
+          {TIMINGS.map((timing, index) => (
+            <span key={timing.names}>
+              {index > 0 && " "}
+              <strong className="font-semibold text-ink">{timing.names}:</strong> {sentence(timing.label)}.
+            </span>
+          ))}
+        </p>
+      </div>
 
-      gsap.fromTo(
-        '.hiw-card',
-        { y: 50, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.35,
-          stagger: 0.07,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '.hiw-cards',
-            start: 'top 85%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
-    }, section);
-
-    return () => ctx.revert();
-  }, []);
-
-  const scrollToOrder = () => {
-    const element = document.querySelector('#order');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  return (
-    <div
-      ref={sectionRef}
-      id="how-it-works"
-      className="relative w-full bg-misty-stone py-24 overflow-hidden"
-    >
-      <div className="px-[7vw]">
-        {/* Heading */}
-        <div className="hiw-heading text-center mb-16">
-          <span className="label-uppercase text-gold mb-4 block tracking-[0.15em]">
-            The Process
-          </span>
-
-          <h2 className="font-serif text-espresso">
-From your story to a professionally produced song
-</h2>
-<p className="text-espresso/60 mt-4 max-w-2xl mx-auto">
-Created by professional musicians with experience performing on global stages and luxury venues.
-</p>
-
-<p className="text-center text-sm text-gold mb-8 tracking-wide">
-4 Simple Steps • Delivered in Days • Made Just for You
-</p>
-        </div>
-
-        {/* Cards */}
-        <div className="hiw-cards flex flex-col lg:flex-row items-stretch justify-center gap-6 max-w-5xl mx-auto mb-12">
-          {steps.map((step, index) => {
-            const Icon = step.icon;
-            return (
-              <div
-                key={index}
-                className="hiw-card flex-1 bg-white rounded-2xl shadow-luxury p-8 flex flex-col items-center text-center transition-all duration-fast hover:-translate-y-1 hover:shadow-luxury-hover"
-              >
-                <span className="label-uppercase text-gold mb-6">
-                  Step {index + 1}
-                </span>
-
-                <div className="w-16 h-16 rounded-xl bg-gold/10 flex items-center justify-center mb-6">
-                  <Icon size={30} className="text-gold" />
-                </div>
-
-                <h3 className="font-serif text-xl text-espresso mb-3">
-                  {step.title}
-                </h3>
-
-                <p className="text-espresso/60 leading-relaxed">
-                  {step.description}
-                </p>
-
-              </div>
-            );
-          })}
-        </div>
-
-<p className="text-center text-espresso/60 mb-6">
-Each song is carefully refined by real musicians to ensure a personal and emotional experience.
-</p>
-
-        {/* CTA */}
-        <div className="text-center">
-          <button
-            onClick={scrollToOrder}
-            className="group px-8 py-4 bg-espresso text-ivory rounded-full font-medium transition-all duration-fast hover:bg-gold hover:text-espresso flex items-center gap-3 mx-auto"
-            
-          >
-            Create My Custom Song
-            <ArrowRight size={18} className="transition-transform duration-fast group-hover:translate-x-1" />
-          </button>
-        </div>
+      <div className="mt-10 text-center">
+        <McbButtonLink to="/create" className="min-h-14 px-9 text-lg">
+          Create Your Memory
+        </McbButtonLink>
       </div>
     </div>
-  );
-};
+  </section>
+);
 
 export default HowItWorksSection;

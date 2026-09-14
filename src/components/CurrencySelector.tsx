@@ -44,7 +44,7 @@ const CurrencySelector = ({
     <div className={`flex items-center gap-2 ${className}`}>
       <label
         htmlFor={id}
-        className={`font-mono text-[10px] uppercase tracking-[0.14em] ${label}`}
+        className={`font-mono text-xs uppercase tracking-[0.14em] ${label}`}
       >
         Currency
       </label>

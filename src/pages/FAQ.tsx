@@ -1,6 +1,4 @@
-import { useEffect, useRef } from 'react';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { Link } from 'react-router-dom';
 import {
   Accordion,
   AccordionContent,
@@ -26,6 +24,7 @@ import {
   type Variant,
 } from '../data/catalogue';
 import { faqPageStructuredData } from '../lib/seo';
+import { refinementOrRemake } from '../lib/productDetail';
 
 /* ------------------------------------------------------------------ */
 /* Catalogue phrasing                                                  */
@@ -92,7 +91,7 @@ const PRIORITY_VARIANT = PRIORITY_REPLACEMENT.variants[0];
 const PLAYERS = publicProducts().filter((p) => p.category === 'PLAYER');
 const PRICED_EXPERIENCES = songExperiences().filter((p) => p.revisions);
 
-gsap.registerPlugin(ScrollTrigger);
+const [REFINEMENT_MEANING, REMAKE_MEANING, MCB_CHOOSES] = refinementOrRemake({ revisions: null });
 
 /**
  * Visible FAQ content. The FAQPage structured data below is generated from
@@ -163,6 +162,10 @@ const faqs: { question: string; answer: string }[] = [
     answer: `Tell us the date before you order and we will tell you honestly whether we can meet it. If we agree a date in writing, that agreed date applies and we mean it. Otherwise the timings we show are estimates — so for a wedding, a sailing date or a memorial, please allow at least ${RECOMMENDED_PLANNING_DAYS} working days and do not book anything non-refundable around an estimate.`,
   },
   {
+    question: `Can I order a ${KEEPSAKE.name} for each day of my trip?`,
+    answer: `Yes. Each ${KEEPSAKE.name} is individually personalised with its own songs and artwork, and there is no MCB maximum — one for Day 1's sailaway, another for the first port, and so on. Name each memory however you like. If you would rather tell the whole trip on one album, ${JOURNEY.name} holds ${songRange(JOURNEY)}.`,
+  },
+  {
     question: 'Can you create music for a cruise or a holiday?',
     answer: `Yes, and it is one of the most common reasons people come to us. ${JOURNEY.name} suits a trip well: an album of ${songRange(JOURNEY)}, with a different music style for each chapter if you wish. You can also choose a separate ${KEEPSAKE.name} for each day of the voyage.`,
   },
@@ -187,6 +190,18 @@ const faqs: { question: string; answer: string }[] = [
     question: 'Can I request changes?',
     /** Entitlements READ FROM THE CATALOGUE (`product.revisions`), not restated. */
     answer: `Yes — every experience includes refinements. ${listOf(PRICED_EXPERIENCES.map((p) => `${p.name}: ${lower(p.revisions ?? '')}`))}. ${REFINEMENT_DEFINITION} If what you would like is genuinely a different piece of work, we will tell you and quote for it rather than absorbing it or refusing it quietly.`,
+  },
+  {
+    question: 'Refinement or remake?',
+    answer: `${REFINEMENT_MEANING} ${REMAKE_MEANING}`,
+  },
+  {
+    question: 'What if I ask MCB to choose the style?',
+    answer: `${MCB_CHOOSES} If you already have a style in mind, simply choose it when you create your memory — every song on your order can have its own.`,
+  },
+  {
+    question: 'Is delivery included?',
+    answer: `Delivery is calculated separately before payment, so you see it before you pay. That applies to physical items: ${KEEPSAKE.name}, ${JOURNEY.name}, frames, plaques and players. ${MOMENT.name} is delivered digitally, with nothing to post.`,
   },
   {
     question: 'When can I no longer change my order?',
@@ -216,106 +231,64 @@ const faqs: { question: string; answer: string }[] = [
   },
 ];
 
-const FAQSection = () => {
-  const sectionRef = useRef<HTMLDivElement>(null);
+const FAQSection = () => (
+  <>
+    <Helmet>
+      <title>Personalised Song FAQs — Pricing, Vinyl & Delivery | My Custom Beats</title>
+      <meta
+        name="description"
+        content={`How personalised songs work, what ${MOMENT.name}, ${KEEPSAKE.name}, ${JOURNEY.name} and ${BESPOKE.name} include, picture discs and standard vinyl, and how quickly your music arrives.`}
+      />
+      {/* FAQPage, breadcrumb and page identity in one graph. `mainEntity` is
+          built from the same `faqs` array the accordion renders below, so the
+          markup cannot answer a question the page does not ask. */}
+      <script type="application/ld+json">
+        {JSON.stringify(faqPageStructuredData(faqs))}
+      </script>
+    </Helmet>
 
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
-
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        '.faq-heading',
-        { y: 30, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.4,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 80%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
-
-      gsap.fromTo(
-        '.faq-item',
-        { y: 20, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.3,
-          stagger: 0.04,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '.faq-list',
-            start: 'top 85%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
-    }, section);
-
-    
-
-    return () => ctx.revert();
-  }, []);
-
-  return (
-<>
-
-<Helmet>
-  <title>Personalised Song FAQs — Pricing, Vinyl & Delivery | My Custom Beats</title>
-  <meta
-    name="description"
-    content={`How personalised songs work, what ${MOMENT.name}, ${KEEPSAKE.name}, ${JOURNEY.name} and ${BESPOKE.name} include, picture discs and standard vinyl, and how quickly your music arrives.`}
-  />
-  {/* FAQPage, breadcrumb and page identity in one graph. `mainEntity` is
-      built from the same `faqs` array the accordion renders below, so the
-      markup cannot answer a question the page does not ask. */}
-  <script type="application/ld+json">
-    {JSON.stringify(faqPageStructuredData(faqs))}
-  </script>
-</Helmet>
-
-
-    <div ref={sectionRef} id="faq" className="relative w-full bg-misty-stone py-24 overflow-hidden">
-      <div className="px-[7vw]">
-        {/* Heading */}
-        <div className="faq-heading text-center mb-12">
-          <span className="label-uppercase text-gold-deep mb-4 block tracking-[0.15em]">
-            Support
-          </span>
-          <h1 className="font-serif text-espresso">
-            Questions &amp; Answers
-          </h1>
+    <main id="faq" className="w-full bg-ivory px-5 pb-20 pt-28 sm:px-8 md:pb-28 md:pt-36">
+      <div className="mx-auto max-w-3xl">
+        <div className="text-center">
+          <p className="label-uppercase text-gold-deep">Help</p>
+          <h1 className="mt-4 font-serif text-5xl leading-[1.05] text-ink md:text-6xl">Questions &amp; Answers</h1>
+          <p className="mt-5 text-lg leading-relaxed text-espresso/80">
+            Plain answers about how it works, what it costs and what to expect.
+          </p>
         </div>
 
-        {/* Accordion */}
-        <div className="faq-list max-w-3xl mx-auto">
-          <Accordion type="single" collapsible className="space-y-3">
-            {faqs.map((faq, index) => (
-              <AccordionItem
-                key={index}
-                value={`item-${index}`}
-                className="faq-item bg-white rounded-xl shadow-sm border-none overflow-hidden"
-              >
-                <AccordionTrigger className="px-6 py-5 text-left font-serif text-lg text-espresso hover:no-underline hover:text-gold-deep transition-colors duration-fast [&[data-state=open]]:text-gold-deep">
-                  {faq.question}
-                </AccordionTrigger>
-                <AccordionContent className="px-6 pb-5 text-espresso/70 leading-relaxed">
-                  {faq.answer}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </div>
+        <h2 className="sr-only">Frequently asked questions</h2>
+        <Accordion type="single" collapsible className="mt-12 space-y-3">
+          {faqs.map((faq, index) => (
+            <AccordionItem
+              key={faq.question}
+              value={`item-${index}`}
+              className="overflow-hidden rounded-2xl border border-ink/10 bg-white"
+            >
+              <AccordionTrigger className="min-h-12 px-5 py-5 text-left font-serif text-xl leading-snug text-ink hover:no-underline focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2 md:px-6 [&[data-state=open]]:text-gold-deep">
+                {faq.question}
+              </AccordionTrigger>
+              <AccordionContent className="px-5 pb-6 text-base leading-relaxed text-espresso/85 md:px-6 md:text-lg">
+                {faq.answer}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+
+        <p className="mt-12 text-center text-base leading-relaxed text-espresso/80">
+          Still deciding?{' '}
+          <Link to="/products" className="font-semibold text-ink underline underline-offset-4 hover:text-gold-deep">
+            Compare the experiences
+          </Link>{' '}
+          or{' '}
+          <Link to="/#contact" className="font-semibold text-ink underline underline-offset-4 hover:text-gold-deep">
+            ask us directly
+          </Link>
+          .
+        </p>
       </div>
-    </div>
-    </>
-  );
-};
+    </main>
+  </>
+);
 
 export default FAQSection;

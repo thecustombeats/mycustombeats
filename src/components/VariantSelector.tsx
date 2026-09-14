@@ -36,7 +36,7 @@ const VariantSelector = ({ product, value, onChange, legend, hideLegend = false,
 
       <div
         className={`grid gap-3 sm:gap-4 ${
-          compact ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-5" : product.variants.length === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4"
+          compact ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-5" : product.variants.length === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2 lg:grid-cols-4"
         }`}
       >
         {product.variants.map((variant) => {
@@ -57,7 +57,7 @@ const VariantSelector = ({ product, value, onChange, legend, hideLegend = false,
                 {...(error ? { "aria-invalid": true } : {})}
               />
               <span
-                className={`flex h-full flex-col rounded-2xl border-2 bg-white p-4 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-gold-deep peer-focus-visible:ring-offset-2 ${
+                className={`flex h-full flex-col rounded-2xl border-2 bg-white p-3 sm:p-4 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-gold-deep peer-focus-visible:ring-offset-2 ${
                   selected ? "border-gold-dark shadow-[0_8px_30px_-12px_rgba(13,27,42,0.35)]" : "border-espresso/10 hover:border-gold/60"
                 }`}
               >
@@ -65,7 +65,7 @@ const VariantSelector = ({ product, value, onChange, legend, hideLegend = false,
                   <FormatVisual product={product} variant={variant} className="h-auto w-full" />
                 </span>
                 <span className="mt-3 block font-serif text-xl leading-tight text-ink">{variant.label}</span>
-                {format && <span className="mt-1 block text-sm text-espresso/70">{format}</span>}
+                {format && format.toLowerCase() !== variant.label.toLowerCase() && <span className="mt-1 block text-sm text-espresso/70">{format}</span>}
                 {songs && variant.label.toLowerCase() !== songs && (
                   <span className="mt-1 block text-sm font-medium text-espresso">{songs}</span>
                 )}

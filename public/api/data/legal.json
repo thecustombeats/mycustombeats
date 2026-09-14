@@ -2,8 +2,8 @@
   "_generated": "Do not edit. Generated from src/data/legal/ by scripts/generate-catalogue-json.mjs",
   "versions": {
     "terms": "2026-09-09.4",
-    "refund_policy": "2026-09-09.4",
-    "privacy_policy": "2026-09-09.3",
+    "refund_policy": "2026-09-14",
+    "privacy_policy": "2026-09-14",
     "terms_effective_date": "2026-09-09",
     "known_terms_versions": [
       "2026-09-09.4",
