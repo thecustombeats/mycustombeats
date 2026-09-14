@@ -46,6 +46,18 @@ if ($order['status'] !== 'PENDING') {
     json_error(409, 'order_not_editable', 'Photos can no longer be added to this order.');
 }
 
+/**
+ * Private storage outside the web root, or no upload at all. Checked once the
+ * order is authorised and before any file is read or written, so a server
+ * without it stores nothing, and the customer is told so without a path or a
+ * technical detail.
+ */
+const MCB_STORAGE_UNAVAILABLE = "We couldn't securely save your photo. Please try again shortly.";
+$directory = upload_directory();
+if ($directory === null) {
+    json_error(503, 'photo_storage_unavailable', MCB_STORAGE_UNAVAILABLE);
+}
+
 $slot = (string) ($_POST['slot'] ?? '');
 $target = null;
 if (preg_match('/^memory:([1-9]\d{0,1}):([1-9]\d{0,1})$/', $slot, $m) === 1) {
@@ -91,16 +103,12 @@ if ($image === null) {
     json_error(415, 'photo_type_not_accepted', 'Please choose a JPEG, PNG, WebP or HEIC photo.');
 }
 
-$directory = upload_directory();
-if ($directory === null) {
-    json_error(503, 'service_unavailable', 'We could not save your photo just now. Please try again.');
-}
 
 $storedName = bin2hex(random_bytes(32));
 $destination = $directory . '/' . $storedName;
 if (!move_uploaded_file($tmp, $destination)) {
     error_log('MCB uploads: could not move an uploaded photo into storage.');
-    json_error(503, 'service_unavailable', 'We could not save your photo just now. Please try again.');
+    json_error(503, 'photo_storage_unavailable', MCB_STORAGE_UNAVAILABLE);
 }
 @chmod($destination, 0640);
 

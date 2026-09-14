@@ -196,3 +196,54 @@ test("after a verified payment the device forgets the order's words", () => {
   assert.match(thankYou, /if \(data\.status === "PAID"\) \{[\s\S]*?localStorage\.removeItem\(DRAFT_STORAGE_KEY\)[\s\S]*?sessionStorage\.removeItem\(SAVED_ORDER_KEY\)/);
   assert.ok(!existsSync(join(root, "src/lib/checkoutSession.ts")));
 });
+
+/* ---- Sprint 4.2 closure ---------------------------------------------------- */
+
+test("the retired sandbox webhook cannot come back", () => {
+  assert.ok(!existsSync(join(root, "public/api/stripe/webhook-test.php")));
+  assert.ok(existsSync(join(root, "public/api/stripe/webhook.php")), "the real handler remains");
+  const files = readdirSync(join(root, "public/api"), { recursive: true }).filter((f) => f.endsWith(".php"));
+  for (const file of files) {
+    const code = read(join("public/api", file));
+    assert.ok(!/webhook_secret_test/.test(code), `${file} reads no sandbox webhook secret`);
+    assert.ok(!/(require|include)(_once)?[^;]*webhook-test/.test(code), `${file} includes no sandbox webhook`);
+  }
+  assert.match(read("public/api/crm/preflight.php"), /legacy_webhook_copy_absent/, "deployment preflight FAILs if the file reappears on a server");
+});
+
+test("photo storage never falls back into the web root", () => {
+  const uploads = read("public/api/lib/uploads.php");
+  assert.ok(!/storage\/uploads/.test(uploads), "no api/storage/uploads fallback");
+  assert.match(uploads, /path_is_inside_web_root/);
+  assert.ok(!existsSync(join(root, "public/api/storage")), "no storage directory ships under api/");
+  assert.match(read("public/api/order-upload.php"), /We couldn't securely save your photo\. Please try again shortly\./);
+  assert.match(read("public/api/lib/stripe.php"), /private_storage_missing/, "live checkout waits for private storage");
+  assert.match(read("docs/DEPLOYMENT-PREFLIGHT.md"), /mcb-uploads/);
+});
+
+test("the thank-you page promises no timeline for made-to-order records", () => {
+  const page = read("src/pages/ThankYou.tsx");
+  const steps = page.slice(page.indexOf("const nextSteps"), page.indexOf("/**\n * COLOUR CONTRACT"));
+  assert.ok(!/within 24 hours|begins within/.test(page.replace(/\{\/\*[\s\S]*?\*\/\}/g, "")), "the universal 24-hour line is gone");
+  const branch = (id) => steps.slice(steps.indexOf(`products.has("${id}")`), steps.indexOf("}", steps.indexOf(`products.has("${id}")`)));
+  for (const id of ["keepsake", "journey"]) {
+    assert.ok(!/\d|hour|day|week|month|dispatch|deliver/i.test(branch(id)), `${id}: no timeline or dispatch promise`);
+  }
+  assert.match(branch("moment"), /getProduct\("moment"\)\?\.turnaround\?\.label/, "a Moment's promise is the catalogue's approved wording");
+  assert.match(steps, /products\.has\("journey"\)[\s\S]*your songs and your record/);
+});
+
+test("the privacy inventory matches the code: private photo storage, no Cloudinary, Apollo stays removed", () => {
+  const privacy = read("src/data/legal/privacy.ts");
+  assert.ok(!/Cloudinary/.test(privacy));
+  assert.match(privacy, /private storage outside the public website/);
+  assert.match(privacy, /key: "mcb_saved_order_v1"/);
+  const review = read("src/data/legal/review.ts");
+  assert.match(review, /Apollo website tracker remains removed/);
+  assert.match(review, /retention and deletion period[\s\S]*none has been decided/, "no retention period is invented");
+});
+
+test("Stripe Checkout Sessions keep Adaptive Pricing off, so payment is always the saved GBP amount", () => {
+  assert.match(read("public/api/checkout/session.php"), /'adaptive_pricing'\s*=>\s*\['enabled' => false\]/);
+  assert.match(read("public/api/stripe/webhook.php"), /CURRENCY_MISMATCH/);
+});

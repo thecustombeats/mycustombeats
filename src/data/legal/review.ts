@@ -173,11 +173,11 @@ export const LEGAL_REVIEW_REQUIRED: readonly ReviewItem[] = [
     severity: "CONFIRMATORY",
   },
   {
-    topic: "Privacy — customer photos are now stored by MCB, not Cloudinary (Sprint 4)",
+    topic: "Privacy — customer photos, retention and the 2026-09-14 edition (Sprint 4)",
     positionTaken:
-      "The privacy inventory (privacy.ts) still names Cloudinary as the store for photographs, citing pages/CreateMemory.tsx. No Cloudinary code remains in the release candidate. Since Sprint 4, photos are uploaded after the order is saved, authorised by the order's checkout token, and stored privately on MCB's own hosting (api/order-upload.php; see Hostinger in the inventory), under random names, never served publicly, retrievable only by staff with the CRM key. Photos are not sent to Stripe, analytics or any tracker. The Apollo website tracker, which was not in the inventory, has been removed from the site.",
+      "Sprint 4.2 updated the inventory (privacy.ts) to match the code: customer photos are stored on MCB-controlled private server storage (Hostinger), outside the publicly served web root, linked to their order under random names, and retrievable only by staff with the CRM key (api/order-upload.php, api/lib/uploads.php, api/crm/upload.php). Uploads fail closed if private storage is missing, and live checkout will not open without it. Cloudinary was removed from the inventory: nothing in the website sends it data. The tab-only saved-order key (mcb_saved_order_v1) was added to the storage list. Founder decision, 14 September 2026: the Apollo website tracker remains removed, and no Apollo, LiveIntent or equivalent identity tracking is to be reinstated; approved analytics (Google Analytics) are unaffected. These are factual corrections of the data-flow record, not an approval of the Policy.",
     question:
-      "Before production: (1) confirm with the Founder whether Cloudinary is still used anywhere in MCB's operations — if not, remove it from the inventory; (2) set and state a retention period for customer photos (they are currently kept indefinitely); (3) confirm the policy's description of what we collect and who handles it remains accurate for per-memory stories, photos and delivery addresses stored as described above. These change the 2026-09-14 Privacy Policy edition and fall under the review item above.",
+      "Still required before production: (1) a retention and deletion period for customer photos, stories and delivery addresses — none has been decided, and none is stated or assumed in the code; (2) confirmation from the Founder that Cloudinary is not used anywhere else in MCB's operations; (3) Founder and legal approval of the 2026-09-14 Privacy Policy edition as now rendered, together with the UK GDPR review item above.",
     severity: "BLOCKING",
   },
   {
@@ -278,13 +278,6 @@ export const RECORDED_NON_BLOCKERS: readonly {
       "`text-gold-deep` measures 4.18:1 on ivory, marginally under the 4.5:1 AA threshold for normal-size text. It is used site-wide as a section label.",
     action:
       "A brand-colour decision, not a code fix. Darkening the token slightly would clear AA everywhere it is used.",
-  },
-  {
-    item: "api/stripe/webhook-test.php",
-    detail:
-      "A sandbox-only near-copy of the live webhook, marked TEMPORARY in its own header. It fails closed on production (503) because it reads `stripe.webhook_secret_test`, which the shipped config template does not define.",
-    action:
-      "Delete it at deployment. It is safe if it ships, but it widens the surface for no benefit now that the contract it existed to prove has been verified.",
   },
   {
     item: "Duplicate <title> elements",

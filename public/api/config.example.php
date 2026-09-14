@@ -120,12 +120,18 @@ return [
     ],
 
     // ---- Customer photos ----------------------------------------------
-    // Absolute path of a private directory OUTSIDE the web root, writable by
-    // PHP, e.g. /home/<user>/mcb-uploads. A directory named mcb-uploads above
-    // the web root is found automatically. Without one, photos go to
-    // api/storage/uploads (denied over HTTP) and are lost on a redeploy.
+    // REQUIRED BEFORE LIVE CHECKOUT. A private directory OUTSIDE the web root,
+    // writable by PHP, e.g. /home/<user>/mcb-uploads. A directory named
+    // mcb-uploads above public_html is found automatically, so 'path' can stay
+    // empty. There is NO fallback inside the web root: without private
+    // storage, photo uploads are refused and live checkout stays closed.
+    // See docs/DEPLOYMENT-PREFLIGHT.md.
     'uploads' => [
         'path' => '',
+
+        // DEVELOPMENT / TEST ONLY. Stores photos under the system temp
+        // directory. Ignored with a live Stripe key. Never true in production.
+        'development_storage' => false,
     ],
 
     // ---- Operations workflow -------------------------------------------

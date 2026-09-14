@@ -18,15 +18,24 @@
  *             appears in the file
  *
  * ─────────────────────────────────────────────────────────────────────────
- * WHERE IT GOES
+ * WHERE IT GOES — PRIVATE STORAGE, OR NOWHERE
  * ─────────────────────────────────────────────────────────────────────────
- * Preferred: a directory named `mcb-uploads` above the web root, found the
- * same way as mcb-config.php, or `uploads.path` in config. It survives a
- * redeploy and is unreachable over HTTP by construction.
+ * Photos are stored ONLY in a directory outside the web root:
  *
- * Fallback: api/storage/uploads, denied over HTTP by api/.htaccess and its
- * own .htaccess. A deploy that replaces api/ would remove it, so the fallback
- * is logged every time it is used.
+ *   1. `uploads.path` in config — an existing, writable, absolute directory;
+ *   2. otherwise a directory named `mcb-uploads` above the web root, found
+ *      the same way as mcb-config.php (e.g. /home/<user>/mcb-uploads).
+ *
+ * Either is refused if it resolves inside the web root. There is NO fallback
+ * inside public_html, api/ or any served directory: if private storage is
+ * missing, the upload fails closed and the customer is told plainly that the
+ * photo could not be saved securely. Live checkout also refuses to open
+ * without it (lib/stripe.php), and GET /api/crm/preflight reports it.
+ *
+ * DEVELOPMENT AND TEST ONLY: `uploads.development_storage => true` uses a
+ * private directory under the system temp directory (outside the web root,
+ * mode 0700). It is ignored — and upload fails closed — on a server holding
+ * a live Stripe key.
  *
  * File names are 64 random hex characters with no extension. The customer's
  * file name is never stored, logged or used. Nothing is served back to a
@@ -35,35 +44,75 @@
 
 declare(strict_types=1);
 
-/** The private upload directory, created if needed, or null if unusable. */
-function upload_directory(): ?string
+/** The directory the site is served from: the parent of api/. */
+function web_root_directory(): string
 {
-    $candidates = [];
+    return (string) (realpath(dirname(__DIR__, 2)) ?: dirname(__DIR__, 2));
+}
+
+/** True when a real path is the web root or inside it. */
+function path_is_inside_web_root(string $path): bool
+{
+    $real = realpath($path);
+    if ($real === false) {
+        return true;   // cannot prove otherwise: treat as unsafe
+    }
+    foreach (array_filter([web_root_directory(), (string) ($_SERVER['DOCUMENT_ROOT'] ?? '')]) as $root) {
+        $rootReal = realpath($root);
+        if ($rootReal !== false && ($real === $rootReal || str_starts_with($real . '/', rtrim($rootReal, '/') . '/'))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Where customer photos can be stored, and how that was decided.
+ *
+ * @return array{path: ?string, source: string}
+ *   source: configured | above_web_root | development | missing | unsafe
+ */
+function upload_storage(): array
+{
     $configured = (string) mcb_setting('uploads.path', '');
     if ($configured !== '') {
-        $candidates[] = rtrim($configured, '/');
-    }
-    for ($depth = 3; $depth <= 7; $depth++) {
-        $candidates[] = dirname(__DIR__, $depth) . '/mcb-uploads';
+        if ($configured[0] !== '/' || !is_dir($configured) || !is_writable($configured)) {
+            error_log('MCB uploads: uploads.path is not an existing, writable, absolute directory; uploads refused.');
+            return ['path' => null, 'source' => 'missing'];
+        }
+        if (path_is_inside_web_root($configured)) {
+            error_log('MCB uploads: uploads.path is inside the web root; uploads refused.');
+            return ['path' => null, 'source' => 'unsafe'];
+        }
+        return ['path' => (string) realpath($configured), 'source' => 'configured'];
     }
 
-    foreach ($candidates as $dir) {
-        if (is_dir($dir) && is_writable($dir)) {
-            return $dir;
+    for ($depth = 3; $depth <= 7; $depth++) {
+        $candidate = dirname(__DIR__, $depth) . '/mcb-uploads';
+        if (is_dir($candidate) && is_writable($candidate) && !path_is_inside_web_root($candidate)) {
+            return ['path' => (string) realpath($candidate), 'source' => 'above_web_root'];
         }
     }
 
-    $fallback = __DIR__ . '/../storage/uploads';
-    if (!is_dir($fallback) && !@mkdir($fallback, 0750, true)) {
-        error_log('MCB uploads: no writable upload directory (create mcb-uploads above the web root).');
-        return null;
+    if (mcb_setting('uploads.development_storage', false) === true) {
+        if (stripe_key_mode((string) mcb_setting('stripe.secret_key', '')) === 'live') {
+            error_log('MCB uploads: uploads.development_storage is set on a server with a LIVE Stripe key; uploads refused.');
+            return ['path' => null, 'source' => 'unsafe'];
+        }
+        $dev = rtrim(sys_get_temp_dir(), '/') . '/mcb-uploads-dev';
+        if ((is_dir($dev) || @mkdir($dev, 0700, true)) && is_writable($dev) && !path_is_inside_web_root($dev)) {
+            return ['path' => (string) realpath($dev), 'source' => 'development'];
+        }
     }
-    if (!is_writable($fallback)) {
-        error_log('MCB uploads: api/storage/uploads is not writable.');
-        return null;
-    }
-    error_log('MCB uploads: using api/storage/uploads inside the web root; create mcb-uploads above it so photos survive a redeploy.');
-    return $fallback;
+
+    error_log('MCB uploads: no private upload storage outside the web root (create mcb-uploads above public_html); uploads refused.');
+    return ['path' => null, 'source' => 'missing'];
+}
+
+/** The private upload directory, or null when photos cannot be stored securely. */
+function upload_directory(): ?string
+{
+    return upload_storage()['path'];
 }
 
 /**

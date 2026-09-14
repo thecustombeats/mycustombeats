@@ -54,8 +54,9 @@ function stripe_key_mode(string $secretKey): ?string
  * ─────────────────────────────────────────────────────────────────────────
  * A test key rehearses. A live key alone does NOTHING: it must be accompanied
  * by `stripe.live_checkout_approved => true`, which is set only when Bella and
- * Lewis approve launch. Nothing in the browser can switch this on — the site
- * asks /api/checkout/status and shows what the server says.
+ * Lewis approve launch, and by private photo storage above the web root.
+ * Nothing in the browser can switch this on — the site asks
+ * /api/checkout/status and shows what the server says.
  *
  * Fails closed on an unrecognised key, and logs why without the key itself.
  *
@@ -74,6 +75,12 @@ function stripe_checkout_availability(): array
     if ($mode === 'live' && mcb_setting('stripe.live_checkout_approved', false) !== true) {
         error_log('MCB checkout: a LIVE Stripe key is configured without stripe.live_checkout_approved; checkout refused.');
         return ['available' => false, 'mode' => null, 'reason' => 'live_not_approved'];
+    }
+    // Real customers' photos need private storage outside the web root before
+    // real payments are taken (lib/uploads.php). Development storage does not count.
+    if ($mode === 'live' && !in_array(upload_storage()['source'], ['configured', 'above_web_root'], true)) {
+        error_log('MCB checkout: LIVE checkout refused — no private upload storage above the web root.');
+        return ['available' => false, 'mode' => null, 'reason' => 'private_storage_missing'];
     }
     return ['available' => true, 'mode' => $mode, 'reason' => null];
 }

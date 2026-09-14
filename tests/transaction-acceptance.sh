@@ -451,6 +451,7 @@ STORED=$(q "SELECT stored_name FROM order_uploads WHERE order_id=$UOID LIMIT 1")
 PUB=$(q "SELECT public_id FROM order_uploads WHERE order_id=$UOID LIMIT 1")
 t "the stored file is not reachable over HTTP" 403 "$(curl -s -o /dev/null -w '%{http_code}' "$ORIGIN/api/storage/uploads/$STORED")"
 t "  → nor the storage directory" 403 "$(curl -s -o /dev/null -w '%{http_code}' "$ORIGIN/api/storage/")"
+tc "  → the photo is nowhere inside the web root, only in private storage" "$([ -z "$(docker exec mcb-api find /var/www/html -name "$STORED" 2>/dev/null)" ] && docker exec mcb-api test -f "/tmp/mcb-uploads-dev/$STORED" && echo 1 || echo 0)"
 t "staff retrieval without the CRM key is refused" 401 "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/crm/upload?id=$PUB")"
 CODE_DL=$(curl -s -D /tmp/dl.h -o /tmp/dl.bin -w '%{http_code}' "$BASE/crm/upload?id=$PUB" -H "Authorization: Bearer $CRMKEY")
 tc "  → with the key it is the same bytes, served as a sandboxed download" "$([ "$CODE_DL" = "200" ] && [ "$(shasum -a 256 /tmp/dl.bin | cut -d' ' -f1)" = "$(q "SELECT sha256 FROM order_uploads WHERE public_id='$PUB'")" ] && grep -qi 'content-disposition: attachment' /tmp/dl.h && grep -qi 'sandbox' /tmp/dl.h && grep -qi 'nosniff' /tmp/dl.h && echo 1 || echo 0)"
@@ -459,6 +460,44 @@ tc "  → still one upload for that memory, and the old file is gone" "$([ "$(q 
 t "another order's token cannot upload to this order" 404 "$(upload $UOID $GTOK memory:1:1 $FIX/photo-8x8.jpg)"
 t "a paid order no longer accepts photos" 409 "$(upload $KOID $KTOK memory:1:1 $FIX/photo-8x8.jpg)"
 tc "upload responses never carry a path, file name or storage id" "$(grep -qE '[a-f0-9]{64}|storage|passwd' /tmp/tx.json && echo 0 || echo 1)"
+
+
+# ===========================================================================
+section "8b. PRIVATE STORAGE OR NO UPLOAD — PRODUCTION FAILS CLOSED"
+DEV_FILES_BEFORE=$(docker exec mcb-api sh -c 'ls /tmp/mcb-uploads-dev | wc -l' | tr -d ' ')
+WEBROOT_FILES_BEFORE=$(docker exec mcb-api sh -c 'find /var/www/html -type f | wc -l' | tr -d ' ')
+order '{"sku":"moment","email":"storage-prod@example.com","units":[{"memories":[{"photo":true}]}]}'
+SOID=$OID; STOK=$TOK
+with_config "\$c['uploads']['development_storage'] = false;"
+t "production with no private storage: the upload is refused" 503 "$(upload $SOID $STOK memory:1:1 $FIX/photo-8x8.jpg)"
+tc "  → in plain words, with no path or technical detail" "$(body | grep -q "We couldn't securely save your photo. Please try again shortly." && ! body | grep -qE '/var/|/tmp|/home|mcb-uploads|public_html|storage/' && echo 1 || echo 0)"
+tc "  → and nothing was written anywhere" "$([ "$(docker exec mcb-api sh -c 'ls /tmp/mcb-uploads-dev | wc -l' | tr -d ' ')" = "$DEV_FILES_BEFORE" ] && [ "$(docker exec mcb-api sh -c 'find /var/www/html -type f | wc -l' | tr -d ' ')" = "$WEBROOT_FILES_BEFORE" ] && [ "$(q "SELECT COUNT(*) FROM order_uploads WHERE order_id=$SOID")" = "0" ] && echo 1 || echo 0)"
+t "  → a caller without the order's token learns nothing about storage" 404 "$(upload $SOID "$(openssl rand -hex 32)" memory:1:1 $FIX/photo-8x8.jpg)"
+with_config "\$c['uploads']['development_storage'] = false; \$c['uploads']['path'] = '/var/www/html/api';"
+t "storage configured INSIDE the web root is refused, not used" 503 "$(upload $SOID $STOK memory:1:1 $FIX/photo-8x8.jpg)"
+tc "  → no file landed in the web root" "$([ "$(docker exec mcb-api sh -c 'find /var/www/html -type f | wc -l' | tr -d ' ')" = "$WEBROOT_FILES_BEFORE" ] && echo 1 || echo 0)"
+docker exec mcb-api sh -c 'mkdir -p /var/www/html-sibling/mcb-uploads-probe; ln -sfn /var/www/html/api /tmp/mcb-uploads-symlink' >/dev/null 2>&1
+with_config "\$c['uploads']['development_storage'] = false; \$c['uploads']['path'] = '/tmp/mcb-uploads-symlink';"
+t "  → including through a symlink into the web root" 503 "$(upload $SOID $STOK memory:1:1 $FIX/photo-8x8.jpg)"
+docker exec mcb-api sh -c 'mkdir -p /srv/mcb-uploads && chown www-data:www-data /srv/mcb-uploads && chmod 700 /srv/mcb-uploads' >/dev/null
+with_config "\$c['uploads']['development_storage'] = false; \$c['uploads']['path'] = '/srv/mcb-uploads';"
+t "production-shaped private storage outside the web root works" 201 "$(upload $SOID $STOK memory:1:1 $FIX/photo-8x8.jpg)"
+PRIV=$(q "SELECT stored_name FROM order_uploads WHERE order_id=$SOID")
+tc "  → the file is there, under an opaque name, readable only by the application" "$(docker exec mcb-api sh -c "test -f /srv/mcb-uploads/$PRIV && [ \"\$(stat -c %a /srv/mcb-uploads/$PRIV)\" = 640 ]" && echo "$PRIV" | grep -qE '^[a-f0-9]{64}$' && echo 1 || echo 0)"
+PPUB=$(q "SELECT public_id FROM order_uploads WHERE order_id=$SOID")
+t "  → retrieval still requires the CRM key" 401 "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/crm/upload?id=$PPUB")"
+t "  → and works with it" 200 "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/crm/upload?id=$PPUB" -H "Authorization: Bearer $CRMKEY")"
+with_config "\$c['stripe']['secret_key'] = 'sk_live_' . 'notreal000000000000000000'; \$c['uploads']['development_storage'] = true;"
+t "development storage is refused on a server with a LIVE key" 503 "$(upload $SOID $STOK memory:1:1 $FIX/photo-8x8.jpg)"
+with_config "\$c['stripe']['secret_key'] = 'sk_live_' . 'notreal000000000000000000'; \$c['stripe']['live_checkout_approved'] = true;"
+get checkout/status >/dev/null
+tc "approved LIVE checkout stays CLOSED without private storage" "$([ "$(jget online_checkout)" = "false" ] && echo 1 || echo 0)"
+order '{"sku":"moment","email":"storage-live-closed@example.com"}'
+t "  → and a session is refused" 503 "$(session "$OID" "$TOK")"
+with_config "\$c['stripe']['secret_key'] = 'sk_live_' . 'notreal000000000000000000'; \$c['stripe']['live_checkout_approved'] = true; \$c['uploads']['development_storage'] = false; \$c['uploads']['path'] = '/srv/mcb-uploads';"
+get checkout/status >/dev/null
+tc "  → it opens only once private storage exists (live key, approved)" "$([ "$(jget online_checkout)" = "true" ] && [ "$(jget mode)" = "live" ] && echo 1 || echo 0)"
+restore_config
 
 # ===========================================================================
 section "9. SECURITY"
@@ -498,7 +537,7 @@ with_config "\$c['stripe']['secret_key'] = 'not-a-stripe-key';"
 t "an unrecognised key: session refused" 503 "$(session "$OID" "$TOK")"
 with_config "\$c['stripe']['secret_key'] = 'sk_live_' . 'notreal000000000000000000'; \$c['stripe']['live_checkout_approved'] = 'yes';"
 t "approval must be exactly true, not a truthy string" 503 "$(session "$OID" "$TOK")"
-with_config "\$c['stripe']['secret_key'] = 'sk_live_' . 'notreal000000000000000000'; \$c['stripe']['live_checkout_approved'] = true;"
+with_config "\$c['stripe']['secret_key'] = 'sk_live_' . 'notreal000000000000000000'; \$c['stripe']['live_checkout_approved'] = true; \$c['uploads'] = ['path' => '/srv/mcb-uploads'];"
 t "a TEST_ONLY-quoted order is refused in approved live mode" 409 "$(session "$AOID" "$ATOK")"
 tc "  → as not payable online" "$(body | grep -q 'order_not_payable_online' && echo 1 || echo 0)"
 hook "$(pay_event evt_live_on_test_order cs_test_live_crossover_0001 "$GOID" 1500 gbp false)" >/dev/null
@@ -537,6 +576,30 @@ tc "no £10 Moment, £79 or £79.99 record, £60 copy or fixed £799 Bespoke in 
 d=json.load(open("public/api/data/catalogue.json"));s=d["skus"]
 songs=[v for v in s.values() if v["category"]=="SONG_EXPERIENCE"]
 print(1 if s["moment"]["price_minor"]==1500 and not any(v["price_minor"] in (1000,7900,7999) for v in songs) and not any(v["price_minor"] in (6000,79900) for v in s.values()) and not d["products"]["bespoke"]["skus"] and "heirloom" not in json.dumps(d).lower() else 0)')"
+
+# ===========================================================================
+section "13. THE RETIRED SANDBOX WEBHOOK IS GONE"
+tc "stripe/webhook-test.php is not in the repository" "$([ ! -e public/api/stripe/webhook-test.php ] && echo 1 || echo 0)"
+t "  → and no route answers for it" 404 "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/stripe/webhook-test" -H 'Content-Type: application/json' -d '{}')"
+t "  → nor for the file itself" 404 "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/stripe/webhook-test.php" -H 'Content-Type: application/json' -d '{}')"
+tc "  → nothing reads its test signing secret any more" "$(grep -rq 'webhook_secret_test' public/api && echo 0 || echo 1)"
+tc "the real webhook handler is still in place" "$([ -f public/api/stripe/webhook.php ] && echo 1 || echo 0)"
+
+# ===========================================================================
+section "14. DEPLOYMENT PREFLIGHT"
+t "preflight requires the CRM key" 401 "$(get crm/preflight)"
+t "preflight answers with the key" 200 "$(curl -s -o /tmp/tx.json -w '%{http_code}' "$BASE/crm/preflight" -H "Authorization: Bearer $CRMKEY")"
+pf() { python3 -c 'import json,sys;d=json.load(open("/tmp/tx.json"));print({c["id"]:c["status"] for c in d["checks"]}.get(sys.argv[1],"MISSING"))' "$1"; }
+tc "  → this TEST server is NOT ready for live checkout" "$([ "$(jget ready_for_live_checkout)" = "false" ] && echo 1 || echo 0)"
+tc "  → because it has only development photo storage" "$([ "$(pf private_upload_storage)" = "FAIL" ] && [ "$(pf development_storage_off)" = "FAIL" ] && echo 1 || echo 0)"
+tc "  → a test key, test fixtures and test email overrides" "$([ "$(pf stripe_key_mode)" = "FAIL" ] && [ "$(pf delivery_test_fixtures_off)" = "FAIL" ] && [ "$(pf resend_test_overrides_off)" = "FAIL" ] && [ "$(pf site_origin_https)" = "FAIL" ] && echo 1 || echo 0)"
+tc "  → while what IS right is reported as such" "$([ "$(pf legacy_webhook_copy_absent)" = "PASS" ] && [ "$(pf sprint4_migration_applied)" = "PASS" ] && [ "$(pf data_catalogue)" = "PASS" ] && [ "$(pf debug_off)" = "PASS" ] && echo 1 || echo 0)"
+tc "  → and no production delivery rates is a warning, not a digital launch blocker" "$([ "$(pf delivery_rate_table)" = "WARN" ] && echo 1 || echo 0)"
+tc "  → it discloses no secret, credential or path" "$(grep -qE 'whsec_[A-Za-z0-9]|sk_(test|live)_[A-Za-z0-9]|re_teststub|testpass|test_token_secret|/var/www|/tmp/|/srv/|/home/' /tmp/tx.json && echo 0 || echo 1)"
+with_config "\$c['stripe']['secret_key'] = 'sk_live_' . 'notreal000000000000000000'; \$c['stripe']['webhook_secret'] = 'whsec_' . 'notreal00000000000000'; \$c['stripe']['live_checkout_approved'] = true; \$c['uploads'] = ['path' => '/srv/mcb-uploads']; \$c['delivery'] = []; \$c['resend'] = ['api_key' => 're_' . 'notreal', 'from' => 'MCB <orders@example.test>']; \$c['app']['site_origin'] = 'https://www.mycustombeats.com'; unset(\$c['stripe']['api_base']);"
+curl -s -o /tmp/tx.json "$BASE/crm/preflight" -H "Authorization: Bearer $CRMKEY"
+tc "a production-shaped config passes preflight (rates WARN only)" "$([ "$(jget ready_for_live_checkout)" = "true" ] && [ "$(pf private_upload_storage)" = "PASS" ] && [ "$(pf checkout_available)" = "PASS" ] && [ "$(pf delivery_rate_table)" = "WARN" ] && echo 1 || echo 0)"
+restore_config
 
 echo ""
 echo "=================================================="

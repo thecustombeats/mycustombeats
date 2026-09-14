@@ -208,10 +208,11 @@ tc "50. the Privacy page no longer claims data is never shared" \
 # Strengthened: the page no longer merely mentions that processors exist, it
 # renders a table of every one, from a verified inventory. Assert the
 # inventory AND that the named processors reach the built bundle.
-tc "51.  → and names the processors it actually relies on" \
+tc "51.  → and names the processors it actually relies on — photos on MCB's private storage, not Cloudinary" \
   "$([ "$(grep -c 'name: \"' src/data/legal/privacy.ts)" -ge "10" ] \
      && grep -q 'PROCESSORS' src/pages/legal/Privacy.tsx \
-     && grep -q 'Cloudinary' src/data/legal/privacy.ts && echo 1 || echo 0)"
+     && ! grep -q 'Cloudinary' src/data/legal/privacy.ts \
+     && grep -q 'private storage outside the public website' src/data/legal/privacy.ts && echo 1 || echo 0)"
 tc "51b.  → each processor entry cites the source file that proves it" \
   "$([ "$(grep -c '^    evidence: ' src/data/legal/privacy.ts)" = "$(grep -c '^    name: \"' src/data/legal/privacy.ts)" ] && echo 1 || echo 0)"
 tc "52. the liability cap at 'the amount paid' is gone" \

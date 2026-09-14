@@ -13,7 +13,8 @@
 
 RedirectMatch 403 ^/api/lib/
 RedirectMatch 403 ^/api/data/
-# Customer photos, when stored inside the web root (see lib/uploads.php).
+# Customer photos are never stored under api/ (lib/uploads.php refuses the web
+# root). Denied anyway, so nothing placed here by hand could ever be served.
 RedirectMatch 403 ^/api/storage/
 
 # ---------------------------------------------------------------------

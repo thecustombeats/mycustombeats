@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, Clock, HelpCircle } from "lucide-react";
+import { getProduct } from "../data/catalogue";
 import { trackPurchase, type ConfirmedPurchase } from "../lib/analytics";
 import { Helmet } from "react-helmet-async";
 import ShareMcb from "../components/ShareMcb";
@@ -108,6 +109,35 @@ const parsePurchase = (raw: unknown, reference: string): ConfirmedPurchase | nul
     });
   }
   return { transactionId: reference, valueMinor: data.value_minor as number, currency: "GBP", items };
+};
+
+/**
+ * What happens next, for what was actually paid for.
+ *
+ * Chosen from the SERVER's confirmed purchase, never from anything this device
+ * remembers. A Moment keeps the fast promise the catalogue already makes for
+ * it (its approved turnaround label, verbatim). A Keepsake or Journey is made
+ * to order, so this page gives no timeline for it: MCB keeps the customer
+ * updated instead. Until the purchase is confirmed, the wording is general.
+ */
+const nextSteps = (purchase: ConfirmedPurchase | null): string[] => {
+  const products = new Set(purchase?.items.map((item) => item.productId) ?? []);
+  const help = "If we need anything more from you, we'll be in touch.";
+  if (products.has("journey")) {
+    return ["We'll now begin creating your Journey, and we'll keep you updated as your songs and your record progress.", help];
+  }
+  if (products.has("keepsake")) {
+    return ["We'll now begin creating your MCB experience, and we'll keep you updated as your music and your Keepsake progress.", help];
+  }
+  if (products.has("moment")) {
+    const turnaround = getProduct("moment")?.turnaround?.label;
+    return [
+      "We've received your story, and we're now creating your Moment.",
+      ...(turnaround ? [`${turnaround} — we'll send your song to the email address you gave us.`] : []),
+      help,
+    ];
+  }
+  return ["We'll now begin creating your MCB experience, and we'll keep you updated as it progresses.", help];
 };
 
 /**
@@ -475,20 +505,16 @@ export default function ThankYou() {
               What happens next
             </h2>
 
+            {/*
+              No universal timeline. The old "begins within 24 hours" line was
+              shown for every product, including records made to order; each
+              product's wording now comes from nextSteps() and the server's
+              confirmed purchase.
+            */}
             <ul className={`mt-5 space-y-3 text-base leading-relaxed ${TEXT_PRIMARY}`}>
-              <li>Our creative team reviews your story and inspiration.</li>
-              <li>Your custom composition begins within 24 hours.</li>
-              <li>We may reach out if we need a few more details.</li>
-              {/*
-                The order-specific delivery line that used to close this list
-                was read from `localStorage`, which made it a delivery promise
-                about an order this page had not verified. The timeline for
-                what the customer chose is in their confirmation.
-              */}
-              <li>
-                Your finished song is delivered on the timeline for the
-                experience you chose.
-              </li>
+              {nextSteps(verification === "VERIFIED" && orderStatus === "PAID" ? purchase : null).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
             </ul>
           </section>
         )}

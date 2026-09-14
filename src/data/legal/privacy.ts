@@ -72,10 +72,10 @@ export const PROCESSORS: readonly Processor[] = [
   },
   {
     name: "Hostinger",
-    purpose: "Hosts the website and MCB's database.",
+    purpose: "Hosts the website, MCB's database and the photographs you upload with an order.",
     receives:
-      "Everything you send us, because it is where the site and the records live.",
-    evidence: "deployment target for public_html and the MariaDB database",
+      "Everything you send us, because it is where the site and the records live. Photographs are kept in private storage outside the public website, linked to your order under a random name, and only MCB staff can retrieve them.",
+    evidence: "deployment target for public_html and the MariaDB database; api/order-upload.php and api/lib/uploads.php (photos)",
     scope: "EVERY_VISITOR",
   },
   {
@@ -85,13 +85,6 @@ export const PROCESSORS: readonly Processor[] = [
       "Your MCB reference, what you ordered and the amount. Not your contact details, address or story.",
     evidence: "api/lib/ops.php",
     scope: "EVERY_ORDER",
-  },
-  {
-    name: "Cloudinary",
-    purpose: "Stores artwork and photographs you choose to upload.",
-    receives: "The image files you send us, and nothing else.",
-    evidence: "pages/CreateMemory.tsx (photos are uploaded only when an order is placed)",
-    scope: "SOME_ORDERS",
   },
   {
     name: "Google Analytics",
@@ -202,6 +195,11 @@ export const BROWSER_STORAGE: readonly StoredValue[] = [
     key: "mcb_create_draft_v1",
     purpose: "Keeps what you've written for your songs — your choice of product, and the memories, styles and add-on details — so a refresh doesn't lose your progress.",
     note: "Kept on this device for up to 7 days. Never includes photos, contact details or your address. \"Start again\" deletes it.",
+  },
+  {
+    key: "mcb_saved_order_v1",
+    purpose: "Lets you return to payment for an order you have already placed, if you leave the payment page before finishing.",
+    note: "Kept only in the browser tab you ordered in, and removed when the tab closes or your payment is confirmed. Holds an order number and a security token — not your story, contact details, address or photos.",
   },
   {
     key: "affiliate_token / affiliate_email",

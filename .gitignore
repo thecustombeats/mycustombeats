@@ -12,5 +12,3 @@ dist/
 # Local visual preview output (scripts/preview)
 preview-output/
 
-# Customer photos stored inside the web root (fallback only) — never committed
-public/api/storage/uploads/

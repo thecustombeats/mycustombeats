@@ -1,6 +1,6 @@
 # CRM API acceptance tests
 
-Eight suites, 1,176 assertions, against a live PHP + MariaDB stack. Everything
+Eight suites, over 1,200 assertions, against a live PHP + MariaDB stack. Everything
 runs in throwaway containers — no local PHP or MySQL install, nothing left
 behind. Each suite expects a FRESH database loaded from `db/schema.sql`.
 
@@ -23,6 +23,7 @@ docker exec -i mcb-db mariadb -umcb -ptestpass mcb_crm < db/schema.sql
 # resend.api_url http://localhost/api/_test-resend-stub.php, a random
 # re_teststub_ key, a from address and resend.test_mode_send_to_customer true
 # (safe ONLY because Resend is the stub); delivery.use_test_fixtures true;
+# uploads.development_storage true (photos go to /tmp inside the container);
 # reviews.url; app.site_origin http://localhost:8080. Leave `operations` unset
 # (the ops notice stays dormant).
 cp /path/outside/repo/config.php public/api/config.php
@@ -42,7 +43,6 @@ for s in api checkout delivery full-package hardening legal lifecycle transactio
 done
 docker rm -f mcb-db mcb-api
 rm -f public/api/config.php public/api/_test-*.php
-rm -rf public/api/storage/uploads
 ```
 
 The PHP image runs OPcache, which rechecks a changed PHP file every 2 seconds.
