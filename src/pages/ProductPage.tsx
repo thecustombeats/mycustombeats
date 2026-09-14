@@ -44,12 +44,14 @@ import {
 import VariantSelector from "../components/VariantSelector";
 import { McbButtonLink } from "../components/mcb/McbButton";
 import ProductHeroVisual from "../components/product/ProductHeroVisual";
+import ResponsiveImage from "../components/ResponsiveImage";
+import { IMAGES } from "../data/imagery";
 import RefinementOrRemake from "../components/product/RefinementOrRemake";
 
 type ProductPageId = Extract<ProductId, "moment" | "keepsake" | "journey">;
 
 /** Inspiration only — never required categories. */
-const KEEPSAKE_DAY_EXAMPLES = ["Day 1 — Sailaway", "Day 3 — First Port", "Day 5 — The Captain’s Dinner", "Last night — Homeward"];
+const KEEPSAKE_DAY_EXAMPLES = ["Day 1 — Sailaway", "Day 3 — First Port", "Day 5 — Formal Night", "Day 8 — Sunset at Sea"];
 
 const sectionHeading = "font-serif text-3xl leading-tight text-ink md:text-4xl";
 const bodyText = "text-base leading-relaxed text-espresso/80 md:text-lg";
@@ -215,7 +217,7 @@ const ProductDetail = ({ product }: { product: Product }) => {
       {/* ---- Keepsake: one per memory --------------------------------- */}
       {product.id === "keepsake" && (
         <section aria-labelledby="as-many" className="bg-ink px-5 py-16 text-ivory sm:px-8 md:py-24">
-          <div className="mx-auto grid max-w-5xl gap-10 md:grid-cols-2 md:items-center">
+          <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-2 md:items-center">
             <div>
               <h2 id="as-many" className="font-serif text-4xl leading-tight !text-ivory md:text-5xl">
                 One journey. As many memories as you want.
@@ -224,14 +226,22 @@ const ProductDetail = ({ product }: { product: Product }) => {
                 {`Each ${KEEPSAKE.name} is individually personalised — its own songs, its own artwork. Choose one for a single memory, or one for every day of a trip. There is no MCB maximum.`}
               </p>
               <p className="mt-4 text-base leading-relaxed text-ivory/75">A few ideas, if they help. Name yours however you like.</p>
+              <ul className="m-0 mt-6 flex list-none flex-wrap gap-2 p-0">
+                {KEEPSAKE_DAY_EXAMPLES.map((example) => (
+                  <li key={example} className="rounded-full border border-ivory/20 px-4 py-2 font-serif text-lg text-ivory">
+                    {example}
+                  </li>
+                ))}
+              </ul>
             </div>
-            <ul className="m-0 grid list-none gap-3 p-0">
-              {KEEPSAKE_DAY_EXAMPLES.map((example) => (
-                <li key={example} className="rounded-xl border border-ivory/20 px-5 py-4 font-serif text-2xl text-ivory">
-                  {example}
-                </li>
-              ))}
-            </ul>
+            <figure className="m-0">
+              <ResponsiveImage
+                image={IMAGES.pictureDiscWall}
+                sizes="(min-width: 768px) 45vw, 92vw"
+                className="aspect-[4/3] w-full rounded-[1.5rem] object-cover"
+              />
+              <figcaption className="mt-3 text-sm text-ivory/70">Display shown for inspiration; wall mounting isn't included.</figcaption>
+            </figure>
           </div>
         </section>
       )}

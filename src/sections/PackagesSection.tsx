@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Check } from "lucide-react";
 import ResponsiveImage from "../components/ResponsiveImage";
-import FormatVisual from "../components/FormatVisual";
 import Price from "../components/Price";
 import SectionHeading from "../components/mcb/SectionHeading";
 import { mcbButtonClass } from "../lib/buttonClass";
@@ -52,7 +51,7 @@ const CARDS: readonly CardContent[] = [
   {
     product: KEEPSAKE,
     image: PACKAGE_IMAGERY.keepsake,
-    imageAlt: "Hands offering a wrapped gift by the sea at golden hour",
+    imageAlt: PACKAGE_IMAGERY.keepsake.alt,
     proposition:
       "Your song on a picture disc printed with personalised artwork — something to hold, to display and to give. Choose one for every memory.",
     facts: compact([
@@ -106,15 +105,6 @@ const ExperienceCard = ({ card }: { card: CardContent }) => {
           sizes="(min-width: 1280px) 22vw, (min-width: 640px) 45vw, 92vw"
           className="h-full w-full object-cover"
         />
-        {product.id === KEEPSAKE.id && KEEPSAKE.variants[0] && (
-          // A drawn picture disc: no picture-disc photograph exists.
-          <div
-            aria-hidden="true"
-            className="absolute bottom-4 right-4 h-24 w-24 sm:h-28 sm:w-28 rounded-full border-4 border-white bg-ivory p-1 shadow-[0_12px_30px_rgba(13,27,42,0.2)]"
-          >
-            <FormatVisual product={KEEPSAKE} variant={KEEPSAKE.variants[0]} className="h-full w-full" />
-          </div>
-        )}
       </div>
 
       <div className="flex flex-1 flex-col p-6 sm:p-7">

@@ -4,6 +4,13 @@
 # source image. Outputs are committed so the build needs no image tooling.
 #
 #   bash scripts/optimise-images.sh
+#
+# The web video (public/videos/mcb-25th-anniversary-example.mp4) is made from
+# its master with:
+#   ffmpeg -i "assets/originals/25th Anniversary MCB Example.MP4" -map 0:v:0 -map 0:a:0 \\
+#     -c:v libx264 -preset slow -crf 18 -tune stillimage -profile:v high -level 4.0 \\
+#     -pix_fmt yuv420p -g 750 -keyint_min 750 -sc_threshold 0 -c:a copy \\
+#     -movflags +faststart public/videos/mcb-25th-anniversary-example.mp4
 set -euo pipefail
 cd "$(dirname "$0")/../public/images"
 OUT=responsive
@@ -31,6 +38,11 @@ SOURCES=(
   "phone-gramophone:brand/phone-gramaphone.png"
   "brass-gramophone:brand/vintage-gramaphone.png"
   "suitcase-player:brand/portable-recordplayer.png"
+  # Founder-approved MCB marketing assets (Sprint 3.1). Masters live outside
+  # the public delivery path in assets/originals/.
+  "keepsake-sleeve-wall:../../assets/originals/mcb-wall-art-sleeves.png"
+  "picture-disc-wall:../../assets/originals/mcb-wall-art-picture-discs.png"
+  "anniversary-example-poster:../../assets/originals/mcb-25th-anniversary-poster.png"
 )
 
 for entry in "${SOURCES[@]}"; do

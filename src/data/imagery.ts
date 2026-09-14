@@ -6,9 +6,11 @@
  * browser reserves space before it loads, and a srcset so a phone never
  * downloads a desktop photograph.
  *
- * NO PICTURE-DISC PHOTOGRAPH EXISTS YET. Keepsake is represented by a gift
- * image and by <FormatVisual>, a drawn format representation, never by the
- * black-vinyl photograph (that is a Journey record, not a picture disc).
+ * FOUNDER-APPROVED MCB MARKETING ASSETS (Sprint 3.1): the sleeve-artwork wall
+ * is Keepsake's primary visual; the picture-disc wall illustrates "one
+ * journey, as many memories as you want". Both are aspirational displays —
+ * wall mounting and the room are not part of any product, and nobody pictured
+ * is presented as an MCB customer. Masters: assets/originals/.
  */
 
 export interface McbImage {
@@ -39,6 +41,24 @@ export const IMAGES = {
   anniversary: image("anniversary", 832, 1248, "A couple celebrating an anniversary together"),
   celebrationDeck: image("celebration-deck", 832, 1248, "Guests celebrating on deck at sunset"),
   friendsToast: image("friends-toast", 832, 1248, "Friends raising a toast together at golden hour"),
+  keepsakeSleeveWall: image(
+    "keepsake-sleeve-wall",
+    1448,
+    1086,
+    "Personalised record sleeves, each with its own photograph and message, with vinyl records behind them"
+  ),
+  pictureDiscWall: image(
+    "picture-disc-wall",
+    1448,
+    1086,
+    "Seven personalised picture discs, each carrying a different photograph and message, displayed together"
+  ),
+  anniversaryExamplePoster: image(
+    "anniversary-example-poster",
+    1024,
+    1536,
+    "Artwork for the 25th Anniversary MCB Example"
+  ),
   lyricsFrame: image("lyrics-frame", 1024, 1024, "A framed lyrics print on a sideboard"),
   phoneGramophone: image("phone-gramophone", 752, 520, "A vintage-style acoustic gramophone built around a mobile phone"),
   brassGramophone: image("brass-gramophone", 768, 522, "A classic gramophone with a large decorated horn on an ornate case"),
@@ -56,7 +76,7 @@ export const imageSrcSet = (img: McbImage): string =>
 /** The visual identity of each primary experience. */
 export const PACKAGE_IMAGERY = {
   moment: IMAGES.seaToast,
-  keepsake: IMAGES.giftAtSea,
+  keepsake: IMAGES.keepsakeSleeveWall,
   journey: IMAGES.vinylSleeve,
   bespoke: IMAGES.travelJournal,
 } as const;

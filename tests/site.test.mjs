@@ -4,7 +4,7 @@
  */
 import assert from "node:assert/strict";
 import { test, after } from "node:test";
-import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildSync } from "esbuild";
 
@@ -21,6 +21,7 @@ const sections = {
   CruiseSpecialism: "src/sections/home/CruiseSpecialism.tsx",
   CuratedAdditions: "src/sections/home/CuratedAdditions.tsx",
   FounderNote: "src/sections/home/FounderNote.tsx",
+  SongShowcaseSection: "src/sections/SongShowcaseSection.tsx",
   MemoryPromise: "src/sections/home/MemoryPromise.tsx",
   Navigation: "src/components/Navigation.tsx",
   Footer: "src/sections/Footer.tsx",
@@ -140,4 +141,68 @@ test("every price shown on the public pages exists in the catalogue", async () =
   const catalogue = await import(`data:text/javascript;base64,${Buffer.from(buildSync({ entryPoints: [join(root, "src/data/catalogue/index.ts")], bundle: true, write: false, platform: "node", format: "esm" }).outputFiles[0].text).toString("base64")}`);
   const allowed = new Set(catalogue.PRODUCTS.flatMap((p) => p.variants.map((v) => catalogue.formatMoney(v.price))));
   for (const price of text(everything).match(/£[\d,]+(?:\.\d{2})?/g) ?? []) assert.ok(allowed.has(price), `unexpected price ${price}`);
+});
+
+
+/* ------------------------------------------------------------------ */
+/* Sprint 3.1 — founder-approved assets                                */
+/* ------------------------------------------------------------------ */
+
+test("Keepsake leads with the approved sleeve-artwork wall, not a drawn disc", () => {
+  const card = S.render(S.PackagesSection);
+  const keepsakeCard = card.slice(card.indexOf('id="experience-keepsake"') - 2000, card.indexOf('id="experience-keepsake"'));
+  assert.match(keepsakeCard, /keepsake-sleeve-wall-/, "homepage Keepsake card image");
+  assert.ok(!/role="img" aria-label="Illustration: \d+-inch/.test(keepsakeCard), "no drawn disc over the card image");
+
+  const page = productPages.find(([id]) => id === "keepsake")[1];
+  const hero = page.slice(0, page.indexOf("<fieldset"));
+  assert.match(hero, /keepsake-sleeve-wall-/, "Keepsake product page hero");
+  assert.ok(!/>Illustration</.test(hero), "no illustration overlay on the Keepsake hero");
+  assert.match(page, /alt="Personalised record sleeves, each with its own photograph and message/);
+  assert.ok(!/gift-at-sea/.test(page + card.slice(0, card.indexOf('id="experience-journey"'))), "the gift placeholder is gone from Keepsake");
+});
+
+test("the multiple-memories sections use the approved picture-disc wall", () => {
+  const home = S.render(S.EveryMemoryKeepsakes);
+  assert.match(home, /picture-disc-wall-/);
+  assert.match(home, /alt="Seven personalised picture discs/);
+  assert.match(text(home), /wall mounting isn't included/);
+  assert.match(productPages.find(([id]) => id === "keepsake")[1], /picture-disc-wall-/);
+});
+
+test("the homepage features the 25th Anniversary MCB Example without autoplay or eager loading", () => {
+  const html = S.render(S.SongShowcaseSection);
+  const t = text(html);
+  assert.match(t, /25th Anniversary MCB Example/);
+  assert.match(t, /not the song or product you will receive/);
+  const video = html.match(/<video[^>]*>/)?.[0] ?? "";
+  assert.ok(video, "a native video element");
+  assert.match(video, /\scontrols(=""|\s|>)/, "controls available");
+  assert.match(video, /preload="none"/, "not preloaded");
+  assert.ok(!/autoplay/i.test(video), "no autoplay");
+  assert.ok(!/\smuted/i.test(video), "sound is not forced off or on");
+  assert.match(video, /aria-labelledby="anniversary-example-title"/);
+  // The poster is deferred with IntersectionObserver in browsers (verified in the preview run).
+  assert.match(html, /<source src="\/videos\/mcb-25th-anniversary-example\.mp4" type="video\/mp4"/);
+  assert.equal((html.match(/<video/g) ?? []).length, 1, "one example, no duplicate sample section");
+  assert.ok(!/<video[^>]*>/.test(S.render(S.HeroSection)), "not in the hero");
+});
+
+test("approved asset files exist, with the web video smaller than its master", () => {
+  const web = join(root, "public/videos/mcb-25th-anniversary-example.mp4");
+  const master = join(root, "assets/originals/25th Anniversary MCB Example.MP4");
+  assert.ok(existsSync(web) && existsSync(master));
+  assert.ok(statSync(web).size < statSync(master).size);
+  // faststart: the moov atom precedes the media data, so playback starts without downloading the whole file.
+  const head = readFileSync(web).subarray(0, 1_000_000).toString("latin1");
+  assert.ok(head.indexOf("moov") > 0 && head.indexOf("moov") < head.indexOf("mdat"), "moov before mdat");
+  for (const name of ["keepsake-sleeve-wall", "picture-disc-wall", "anniversary-example-poster"]) {
+    for (const w of [480, 960, 1600]) assert.ok(existsSync(join(root, `public/images/responsive/${name}-${w}.jpg`)), `${name}-${w}`);
+  }
+  assert.ok(!existsSync(join(root, "public/images/mcb-wall-art-sleeves.png")), "masters are not in the public delivery path");
+});
+
+test("checkout remains disabled on both switches", () => {
+  assert.match(readFileSync(join(root, "src/lib/checkoutSession.ts"), "utf8"), /export const CHECKOUT_SESSIONS_ENABLED = false;/);
+  assert.match(readFileSync(join(root, "public/api/config.example.php"), "utf8"), /'checkout_sessions_enabled' => false,/);
 });

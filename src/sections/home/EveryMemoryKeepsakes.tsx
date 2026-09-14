@@ -1,15 +1,16 @@
-import FormatVisual from "../../components/FormatVisual";
+import ResponsiveImage from "../../components/ResponsiveImage";
 import { McbButtonLink } from "../../components/mcb/McbButton";
-import { KEEPSAKE, type Variant } from "../../data/catalogue";
+import { KEEPSAKE } from "../../data/catalogue";
+import { IMAGES } from "../../data/imagery";
 import { trackFunnel } from "../../lib/analytics";
 
 /**
  * "One journey. As many memories as you want."
  *
  * A Keepsake for every day that mattered. The days are inspiration, not
- * categories a customer must use. The drawn discs cycle through the real
- * Keepsake variants so the illustration never shows a format MCB does not
- * make; there is no picture-disc photograph.
+ * categories a customer must use. The founder-approved picture-disc wall shows
+ * several separate Keepsakes together; it is aspirational — an order is for
+ * the Keepsakes the customer chooses, and wall mounting is not included.
  */
 const EXAMPLE_DAYS = [
   { day: "Day 1", moment: "Sailaway" },
@@ -17,8 +18,6 @@ const EXAMPLE_DAYS = [
   { day: "Day 5", moment: "Formal night" },
   { day: "Day 8", moment: "Sunset at sea" },
 ];
-
-const variantFor = (index: number): Variant | undefined => KEEPSAKE.variants[index % KEEPSAKE.variants.length];
 
 const EveryMemoryKeepsakes = () => (
   <section aria-labelledby="every-memory-heading" className="bg-ink px-5 py-20 sm:px-8 md:py-28">
@@ -47,27 +46,28 @@ const EveryMemoryKeepsakes = () => (
         </div>
       </div>
 
-      <div>
-        <ol className="grid list-none grid-cols-2 gap-4 p-0 sm:gap-5">
-          {EXAMPLE_DAYS.map((example, index) => {
-            const variant = variantFor(index);
-            return (
-              <li key={example.day} className="rounded-2xl border border-ivory/15 bg-ivory/[0.04] p-4 text-center sm:p-6">
-                {variant && (
-                  <div aria-hidden="true" className="mx-auto aspect-square w-full max-w-[9rem] rounded-full bg-ivory p-2">
-                    <FormatVisual product={KEEPSAKE} variant={variant} className="h-full w-full" />
-                  </div>
-                )}
-                <p className="mt-4 font-mono text-sm uppercase tracking-[0.14em] !text-gold">{example.day}</p>
-                <p className="mt-1 font-serif text-2xl font-semibold leading-tight !text-ivory">{example.moment}</p>
+      <figure className="m-0">
+        <div className="overflow-hidden rounded-[1.5rem] border border-ivory/15 bg-ivory/[0.04]">
+          <ResponsiveImage
+            image={IMAGES.pictureDiscWall}
+            sizes="(min-width: 1024px) 52vw, 92vw"
+            className="aspect-[4/3] h-full w-full object-cover"
+          />
+        </div>
+        <figcaption>
+          <ol aria-label="Example days" className="mt-5 flex list-none flex-wrap justify-center gap-2 p-0">
+            {EXAMPLE_DAYS.map((example) => (
+              <li key={example.day} className="rounded-full border border-ivory/20 px-4 py-2 text-base !text-ivory">
+                <span className="font-mono text-sm uppercase tracking-[0.12em] !text-gold">{example.day}</span>{" "}
+                <span className="font-serif text-lg">{example.moment}</span>
               </li>
-            );
-          })}
-        </ol>
-        <p className="mt-5 text-center text-base !text-ivory/70">
-          Examples only — choose the days that mean the most to you.
-        </p>
-      </div>
+            ))}
+          </ol>
+          <p className="mt-4 text-center text-base !text-ivory/70">
+            Examples only — choose the days that mean the most to you. Display shown for inspiration; wall mounting isn't included.
+          </p>
+        </figcaption>
+      </figure>
     </div>
   </section>
 );

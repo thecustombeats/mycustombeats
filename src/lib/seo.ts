@@ -86,6 +86,10 @@ const SHARE_IMAGES: Readonly<Record<string, { path: string; alt: string }>> = {
     path: "/images/products/artwork.jpg",
     alt: "Framed lyric artwork by My Custom Beats",
   },
+  "/keepsake": {
+    path: "/images/responsive/keepsake-sleeve-wall-1600.jpg",
+    alt: "Personalised record sleeves, each with its own photograph and message, with vinyl records behind them",
+  },
   "/journey": {
     path: "/images/products/vinyl.jpg",
     alt: "A personalised album on standard vinyl with its printed sleeve",
