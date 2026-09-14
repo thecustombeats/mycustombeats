@@ -236,3 +236,38 @@ export const trackPurchase = (purchase: ConfirmedPurchase): boolean => {
   });
   return true;
 };
+
+/* ------------------------------------------------------------------ */
+/* Pre-checkout funnel                                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The customer journey before payment, as named GA4 events.
+ *
+ * Parameters are catalogue ids, step names and counts ONLY. The type admits
+ * no free text: never a story, lyrics, a song title, a photo or its filename,
+ * a name, an email or anything else a customer typed.
+ */
+export type FunnelEvent =
+  | "package_view"
+  | "package_select"
+  | "variant_select"
+  | "personalisation_start"
+  | "personalisation_step_complete"
+  | "concierge_start"
+  | "concierge_recommendation"
+  | "order_review";
+
+export interface FunnelParams {
+  product_id?: string;
+  sku?: string;
+  /** Where the event happened, e.g. "homepage", "product_page", "create". */
+  location?: "homepage" | "product_page" | "products_page" | "create" | "concierge" | "cruise";
+  step?: "choose" | "story" | "extras" | "details" | "review";
+  quantity?: number;
+  memories?: number;
+}
+
+export const trackFunnel = (event: FunnelEvent, params: FunnelParams = {}) => {
+  trackEvent(event, { ...params });
+};
