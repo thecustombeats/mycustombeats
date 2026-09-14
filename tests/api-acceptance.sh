@@ -63,6 +63,9 @@ q() { docker exec mcb-db mariadb -umcb -ptestpass -N -B -e "$1" mcb_crm 2>/dev/n
 #
 # That the limiter still fires is proved deliberately, once, in
 # tests/hardening-acceptance.sh.
+# What Stripe would report for this order: its stored total in pence. Derived
+# from the order rather than typed, so a fixture never pins a catalogue price.
+order_minor() { q "SELECT CAST(ROUND((o.amount_gbp + COALESCE((SELECT SUM(i.line_gbp) FROM order_items i WHERE i.order_id=o.id),0))*100) AS UNSIGNED) FROM orders o WHERE o.id=$1"; }
 release_order_limit() { q "UPDATE order_consents SET ip_hash = NULL" >/dev/null 2>&1; }
 
 echo "================ ORDER API ================"
@@ -194,7 +197,7 @@ t "bad signature rejected" 400 "$(curl -s -o /dev/null -w '%{http_code}' -X POST
 
 SECRET=whsec_test_secret_for_local_verification
 sign() { local ts=$(date +%s); local p="$1"; local sig=$(printf '%s.%s' "$ts" "$p" | openssl dgst -sha256 -hmac "$SECRET" -hex | sed 's/.*= *//'); echo "t=$ts,v1=$sig"; }
-PAY="{\"id\":\"evt_test_001\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_test_001\",\"client_reference_id\":\"$OID3\",\"payment_intent\":\"pi_test_001\"}}}"
+PAY="{\"id\":\"evt_test_001\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_test_001\",\"client_reference_id\":\"$OID3\",\"payment_intent\":\"pi_test_001\",\"amount_total\":$(order_minor $OID3),\"currency\":\"gbp\"}}}"
 SALES_BEFORE=$(q "SELECT sales FROM affiliates WHERE username='rey123'")
 CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$PAY")" -H 'Content-Type: application/json' -d "$PAY")
 t "correctly signed webhook accepted" 200 "$CODE"
@@ -230,7 +233,7 @@ tc "  → replay did NOT consume a sequence number" "$([ "$(q "SELECT last_value
 
 # A second, DIFFERENT payment. Proves the series counts paid orders, not rows:
 # OID2 is a higher order id but takes the next reference in sequence.
-PAY2="{\"id\":\"evt_test_002\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_test_002\",\"client_reference_id\":\"$OID2\",\"payment_intent\":\"pi_test_002\"}}}"
+PAY2="{\"id\":\"evt_test_002\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_test_002\",\"client_reference_id\":\"$OID2\",\"payment_intent\":\"pi_test_002\",\"amount_total\":$(order_minor $OID2),\"currency\":\"gbp\"}}}"
 CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$PAY2")" -H 'Content-Type: application/json' -d "$PAY2")
 t "a second payment is accepted" 200 "$CODE"
 REF2=$(q "SELECT mcb_reference FROM orders WHERE id=$OID2")
@@ -355,7 +358,7 @@ S=$(post order '{"firstName":"Nadia","lastName":"Okonkwo","email":"nadia@example
 NOID=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "new order starts un-notified" "$([ "$(q "SELECT IFNULL(customer_notified_at,'NULL') FROM orders WHERE id=$NOID")" = "NULL" ] && echo 1 || echo 0)"
 
-NPAY="{\"id\":\"evt_notify_1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_notify_001\",\"client_reference_id\":\"$NOID\",\"payment_intent\":\"pi_notify_001\"}}}"
+NPAY="{\"id\":\"evt_notify_1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_notify_001\",\"client_reference_id\":\"$NOID\",\"payment_intent\":\"pi_notify_001\",\"amount_total\":$(order_minor $NOID),\"currency\":\"gbp\"}}}"
 CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$NPAY")" -H 'Content-Type: application/json' -d "$NPAY")
 t "payment accepted" 200 "$CODE"
 tc "  → webhook reports the email was sent" "$([ "$(body | grep -c '\"customer_email\":\"notified\"')" = "1" ] && echo 1 || echo 0)"
@@ -388,7 +391,7 @@ curl -s -o /dev/null -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign
 tc "REPLAYED event sends NO second email" "$([ "$(sink_count)" = "1" ] && echo 1 || echo 0)"
 
 # A different event id for the same, already-paid order.
-NPAY2="{\"id\":\"evt_notify_2\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_notify_001\",\"client_reference_id\":\"$NOID\",\"payment_intent\":\"pi_notify_001\"}}}"
+NPAY2="{\"id\":\"evt_notify_2\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_notify_001\",\"client_reference_id\":\"$NOID\",\"payment_intent\":\"pi_notify_001\",\"amount_total\":$(order_minor $NOID),\"currency\":\"gbp\"}}}"
 CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$NPAY2")" -H 'Content-Type: application/json' -d "$NPAY2")
 t "a second event for an already-paid order is accepted" 200 "$CODE"
 tc "  → still only ONE email" "$([ "$(sink_count)" = "1" ] && echo 1 || echo 0)"
@@ -404,7 +407,7 @@ resend_failure_case() {
   make_mode "$mode"; sink_reset
   post order "{\"firstName\":\"Case\",\"lastName\":\"$sfx\",\"email\":\"case-$sfx@example.com\",\"package\":\"moment\",\"format\":\"mp3\"}" > /dev/null
   local oid; oid=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
-  local pay="{\"id\":\"evt_$sfx\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_$sfx\",\"client_reference_id\":\"$oid\",\"payment_intent\":\"pi_$sfx\"}}}"
+  local pay="{\"id\":\"evt_$sfx\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_$sfx\",\"client_reference_id\":\"$oid\",\"payment_intent\":\"pi_$sfx\",\"amount_total\":$(order_minor $oid),\"currency\":\"gbp\"}}}"
   local code; code=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$pay")" -H 'Content-Type: application/json' -d "$pay")
   t "$label: payment webhook still returns 200" 200 "$code"
   tc "  → order is PAID despite the email failing" "$([ "$(q "SELECT status FROM orders WHERE id=$oid")" = "PAID" ] && echo 1 || echo 0)"
@@ -429,7 +432,7 @@ make_mode http_fail
 sink_reset
 S=$(post order '{"firstName":"Ivan","lastName":"Petrov","email":"ivan@example.com","package":"moment","format":"mp3"}')
 FOID=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
-FPAY="{\"id\":\"evt_notify_fail\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_notify_fail\",\"client_reference_id\":\"$FOID\",\"payment_intent\":\"pi_notify_fail\"}}}"
+FPAY="{\"id\":\"evt_notify_fail\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_notify_fail\",\"client_reference_id\":\"$FOID\",\"payment_intent\":\"pi_notify_fail\",\"amount_total\":$(order_minor $FOID),\"currency\":\"gbp\"}}}"
 CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$FPAY")" -H 'Content-Type: application/json' -d "$FPAY")
 t "email outage does NOT fail the payment webhook" 200 "$CODE"
 tc "  → Stripe is not asked to retry" "$([ "$(body | grep -c '\"received\":true')" = "1" ] && echo 1 || echo 0)"
@@ -457,6 +460,35 @@ tc "CRM exposes notification state, so staff can spot who is owed one" "$([ "$(b
 # the ones whose delivery we deliberately broke".
 tc "  → the ONLY orders still owed an email are the deliberate failures" "$([ "$(q "SELECT COUNT(*) FROM orders o JOIN customers c ON c.id=o.customer_id WHERE o.status='PAID' AND o.customer_notified_at IS NULL AND c.email NOT LIKE 'case-%'")" = "0" ] && echo 1 || echo 0)"
 tc "  → and every one of those IS visible to staff as outstanding" "$([ "$(q "SELECT COUNT(*) FROM orders WHERE status='PAID' AND customer_notified_at IS NULL")" = "4" ] && echo 1 || echo 0)"
+
+echo ""
+echo "================ PAYMENT LINK AMOUNT FLOOR ================"
+# A Payment Link's client_reference_id is a URL parameter. Paying a cheaper
+# link against a dearer order must never mark that order PAID.
+make_mode ok
+release_order_limit
+S=$(post order '{"firstName":"Under","lastName":"Payer","email":"underpay@example.com","package":"keepsake","format":"mp3","story":"Floor test."}')
+UOID=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
+UMINOR=$(order_minor $UOID)
+tc "an order exists to pay against (total ${UMINOR}p)" "$([ -n "$UOID" ] && [ "${UMINOR:-0}" -gt 1 ] && echo 1 || echo 0)"
+link_pay() { # $1 = suffix, $2 = amount/currency JSON fragment (may be empty)
+  local w="{\"id\":\"evt_floor_$1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_floor_$1\",\"client_reference_id\":\"$UOID\",\"payment_intent\":\"pi_floor_$1\"$2}}}"
+  curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$w")" -H 'Content-Type: application/json' -d "$w"
+}
+t "underpaid link payment acknowledged to Stripe" 200 "$(link_pay under ",\"amount_total\":$((UMINOR-1)),\"currency\":\"gbp\"")"
+tc "  → reported as amount_mismatch" "$([ "$(body | grep -c 'amount_mismatch')" = "1" ] && echo 1 || echo 0)"
+tc "  → order NOT marked PAID" "$([ "$(q "SELECT status FROM orders WHERE id=$UOID")" = "PENDING" ] && echo 1 || echo 0)"
+tc "  → no MCB reference issued" "$([ "$(q "SELECT IFNULL(mcb_reference,'NULL') FROM orders WHERE id=$UOID")" = "NULL" ] && echo 1 || echo 0)"
+tc "  → money filed for a human as AMOUNT_MISMATCH" "$([ "$(q "SELECT reason FROM unreconciled_payments WHERE stripe_session_id='cs_floor_under'")" = "AMOUNT_MISMATCH" ] && echo 1 || echo 0)"
+t "link payment with no amount acknowledged" 200 "$(link_pay noamt ",\"currency\":\"gbp\"")"
+tc "  → order still NOT PAID" "$([ "$(q "SELECT status FROM orders WHERE id=$UOID")" = "PENDING" ] && echo 1 || echo 0)"
+tc "  → filed as AMOUNT_MISMATCH" "$([ "$(q "SELECT reason FROM unreconciled_payments WHERE stripe_session_id='cs_floor_noamt'")" = "AMOUNT_MISMATCH" ] && echo 1 || echo 0)"
+t "full amount in the wrong currency acknowledged" 200 "$(link_pay usd ",\"amount_total\":$UMINOR,\"currency\":\"usd\"")"
+tc "  → order still NOT PAID" "$([ "$(q "SELECT status FROM orders WHERE id=$UOID")" = "PENDING" ] && echo 1 || echo 0)"
+tc "  → filed as CURRENCY_MISMATCH" "$([ "$(q "SELECT reason FROM unreconciled_payments WHERE stripe_session_id='cs_floor_usd'")" = "CURRENCY_MISMATCH" ] && echo 1 || echo 0)"
+t "link payment above the order total accepted" 200 "$(link_pay over ",\"amount_total\":$((UMINOR+100)),\"currency\":\"gbp\"")"
+tc "  → order PAID" "$([ "$(q "SELECT status FROM orders WHERE id=$UOID")" = "PAID" ] && echo 1 || echo 0)"
+tc "  → MCB reference issued" "$([ -n "$(q "SELECT mcb_reference FROM orders WHERE id=$UOID")" ] && echo 1 || echo 0)"
 
 echo ""
 echo "================ SECURITY ================"

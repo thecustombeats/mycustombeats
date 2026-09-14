@@ -52,10 +52,13 @@ q() { docker exec mcb-db mariadb -umcb -ptestpass -N -B -e "$1" mcb_crm 2>/dev/n
 # That the limiter still fires is proved deliberately, once, in
 # tests/hardening-acceptance.sh.
 release_order_limit() { q "UPDATE order_consents SET ip_hash = NULL" >/dev/null 2>&1; }
+# What Stripe would report for this order: its stored total in pence. Derived
+# from the order rather than typed, so a fixture never pins a catalogue price.
+order_minor() { q "SELECT CAST(ROUND((o.amount_gbp + COALESCE((SELECT SUM(i.line_gbp) FROM order_items i WHERE i.order_id=o.id),0))*100) AS UNSIGNED) FROM orders o WHERE o.id=$1"; }
 SECRET=whsec_test_secret_for_local_verification
 sign() { local ts=$(date +%s); local sig=$(printf '%s.%s' "$ts" "$1" | openssl dgst -sha256 -hmac "$SECRET" -hex | sed 's/.*= *//'); echo "t=$ts,v1=$sig"; }
 pay() { q "UPDATE orders SET stripe_session_id='cs_dl_$1' WHERE id=$1" >/dev/null
-  W="{\"id\":\"evt_dl_$1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_dl_$1\",\"client_reference_id\":\"$1\",\"payment_intent\":\"pi_dl_$1\",\"amount_total\":7900,\"currency\":\"gbp\"}}}"
+  W="{\"id\":\"evt_dl_$1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_dl_$1\",\"client_reference_id\":\"$1\",\"payment_intent\":\"pi_dl_$1\",\"amount_total\":$(order_minor $1),\"currency\":\"gbp\"}}}"
   curl -s -o /dev/null -X POST "$BASE/stripe/webhook" -H "Content-Type: application/json" -H "Stripe-Signature: $(sign "$W")" -d "$W"; }
 stub_reset() { docker exec mcb-api sh -c 'rm -f /tmp/resend-stub.log'; }
 mail_log() { docker exec mcb-api sh -c 'cat /tmp/resend-stub.log 2>/dev/null'; }

@@ -68,10 +68,13 @@ mkorder() {
     -d '{'"$CONSENT"',"firstName":"'"$1"'","lastName":"T","email":"'"$2"'","package":"'"$3"'","format":"mp3","story":"A story."'"$4"'}' >/dev/null
   sed -n 's/.*"order_id":\([0-9]*\).*/\1/p' /tmp/mk.json
 }
+# What Stripe would report for this order: its stored total in pence. Derived
+# from the order rather than typed, so a fixture never pins a catalogue price.
+order_minor() { q "SELECT CAST(ROUND((o.amount_gbp + COALESCE((SELECT SUM(i.line_gbp) FROM order_items i WHERE i.order_id=o.id),0))*100) AS UNSIGNED) FROM orders o WHERE o.id=$1"; }
 # Marks an order paid through the real verified-webhook path.
 paynow() {
   q "UPDATE orders SET stripe_session_id='cs_test_lc_$1' WHERE id=$1" >/dev/null
-  hook "{\"id\":\"evt_lc_$1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_test_lc_$1\",\"client_reference_id\":\"$1\",\"payment_intent\":\"pi_lc_$1\",\"amount_total\":1000,\"currency\":\"gbp\"}}}" >/dev/null
+  hook "{\"id\":\"evt_lc_$1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_test_lc_$1\",\"client_reference_id\":\"$1\",\"payment_intent\":\"pi_lc_$1\",\"amount_total\":$(order_minor $1),\"currency\":\"gbp\"}}}" >/dev/null
 }
 
 prose() { grep -v -E '^\s*(\*|//|/\*|#)' "$@"; }

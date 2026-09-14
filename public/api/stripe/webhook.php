@@ -126,13 +126,15 @@ if ($orderId <= 0 || $sessionId === '') {
  * in November; re-pricing the basket at webhook time would declare a perfectly
  * good payment wrong. The expected figure is frozen once and never recomputed.
  *
- * WHY PAYMENT LINKS ARE NOT CHECKED THIS WAY. A Payment Link's amount is
- * fixed inside Stripe, and MCB holds no snapshot for one. Its `amount_total`
- * can legitimately differ from the order's stored amount — tax, or a Stripe
- * setting nobody here can see — so applying a strict comparison would risk
- * rejecting genuine production payments to guard against a case that cannot
- * arise. Payment Link events therefore continue to reconcile exactly as they
- * always have, by `client_reference_id`.
+ * PAYMENT LINKS ARE CHECKED AGAINST THE ORDER, FOR UNDERPAYMENT ONLY. A
+ * Payment Link charges whatever Stripe is configured to charge, and the
+ * `client_reference_id` that names the order is a URL parameter the customer
+ * can edit. Without a check, paying the cheapest link against the most
+ * expensive order marks that order PAID. MCB holds no snapshot for a link, so
+ * the order's own stored total (package plus basket lines) is the floor. An
+ * amount above it — tax, or a Stripe setting nobody here can see — is still
+ * accepted; an amount below it, a missing amount, or a different currency is
+ * filed for a human exactly like a dynamic-session mismatch.
  */
 $expected = null;
 if ($sessionId !== '') {
@@ -171,6 +173,35 @@ if ($expected !== null) {
         error_log("MCB CRM: amount mismatch on {$sessionId}: got {$paidMinor}, expected {$expectedMinor}.");
         capture_unreconciled_payment(db(), $event, $session, 'AMOUNT_MISMATCH');
         json_response(200, ['received' => true, 'matched' => false, 'reason' => 'amount_mismatch']);
+    }
+} else {
+    $stmt = db()->prepare(
+        'SELECT o.status, o.currency,
+                o.amount_gbp + COALESCE((SELECT SUM(i.line_gbp) FROM order_items i WHERE i.order_id = o.id), 0) AS total_gbp
+           FROM orders o WHERE o.id = :id LIMIT 1'
+    );
+    $stmt->execute([':id' => $orderId]);
+    $linkOrder = $stmt->fetch();
+
+    // An unknown order is filed by the transaction below, and an order that
+    // is already PAID is left to its existing handling, so only a PENDING
+    // order is compared.
+    if ($linkOrder !== false && $linkOrder['status'] === 'PENDING') {
+        $paidCurrency  = strtoupper((string) ($session['currency'] ?? ''));
+        $paidMinor     = is_numeric($session['amount_total'] ?? null) ? (int) $session['amount_total'] : -1;
+        $expectedMinor = (int) round(((float) $linkOrder['total_gbp']) * 100);
+
+        if ($paidCurrency !== strtoupper((string) $linkOrder['currency'])) {
+            error_log("MCB CRM: currency mismatch on Payment Link {$sessionId}: got {$paidCurrency}.");
+            capture_unreconciled_payment(db(), $event, $session, 'CURRENCY_MISMATCH');
+            json_response(200, ['received' => true, 'matched' => false, 'reason' => 'currency_mismatch']);
+        }
+
+        if ($paidMinor < $expectedMinor) {
+            error_log("MCB CRM: underpayment on Payment Link {$sessionId}: got {$paidMinor}, expected at least {$expectedMinor}.");
+            capture_unreconciled_payment(db(), $event, $session, 'AMOUNT_MISMATCH');
+            json_response(200, ['received' => true, 'matched' => false, 'reason' => 'amount_mismatch']);
+        }
     }
 }
 

@@ -25,6 +25,9 @@ tc() { local name="$1" ok="$2"
 
 CONSENT='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2026-09-09.4","cruiseCompanions":"My husband David"'
 
+# What Stripe would report for this order: its stored total in pence. Derived
+# from the order rather than typed, so a fixture never pins a catalogue price.
+order_minor() { q "SELECT CAST(ROUND((o.amount_gbp + COALESCE((SELECT SUM(i.line_gbp) FROM order_items i WHERE i.order_id=o.id),0))*100) AS UNSIGNED) FROM orders o WHERE o.id=$1"; }
 post_raw() { curl -s -o /tmp/hd.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$2"; }
 get()  { curl -s -o /tmp/hd.json -w '%{http_code}' "$BASE/$1"; }
 body() { cat /tmp/hd.json; }
@@ -156,7 +159,7 @@ tc "29. an order is created for the verified-path check" "$([ -n "$OID" ] && ech
 
 SID="cs_live_hardening$OID"
 q "UPDATE orders SET stripe_session_id='$SID' WHERE id=$OID" >/dev/null
-W="{\"id\":\"evt_hd_$OID\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"$SID\",\"client_reference_id\":\"$OID\",\"payment_intent\":\"pi_hd_$OID\",\"amount_total\":1000,\"currency\":\"gbp\"}}}"
+W="{\"id\":\"evt_hd_$OID\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"$SID\",\"client_reference_id\":\"$OID\",\"payment_intent\":\"pi_hd_$OID\",\"amount_total\":$(order_minor $OID),\"currency\":\"gbp\"}}}"
 SW=$(curl -s -o /tmp/hd.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Content-Type: application/json" -H "Stripe-Signature: $(sign "$W")" -d "$W")
 t  "30. the signed webhook is accepted" 200 "$SW"
 tc "31.   → the order is PAID on MCB's own record" \
