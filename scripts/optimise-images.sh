@@ -5,12 +5,16 @@
 #
 #   bash scripts/optimise-images.sh
 #
-# The web video (public/videos/mcb-25th-anniversary-example.mp4) is made from
-# its master with:
-#   ffmpeg -i "assets/originals/25th Anniversary MCB Example.MP4" -map 0:v:0 -map 0:a:0 \\
+# The web video (public/videos/mcb-25-year-anniversary-example.mp4) is made from
+# its master with (the master is full-range yuvj420p; the web copy is TV range):
+#   ffmpeg -i assets/originals/mcb-25-year-anniversary-example.mp4 -map 0:v:0 -map 0:a:0 \\
+#     -vf "scale=in_range=pc:out_range=tv,format=yuv420p" \\
 #     -c:v libx264 -preset slow -crf 18 -tune stillimage -profile:v high -level 4.0 \\
-#     -pix_fmt yuv420p -g 750 -keyint_min 750 -sc_threshold 0 -c:a copy \\
-#     -movflags +faststart public/videos/mcb-25th-anniversary-example.mp4
+#     -color_range tv -g 750 -keyint_min 750 -sc_threshold 0 -c:a copy \\
+#     -movflags +faststart public/videos/mcb-25-year-anniversary-example.mp4
+# Its poster master is the first frame:
+#   ffmpeg -i assets/originals/mcb-25-year-anniversary-example.mp4 -frames:v 1 \\
+#     assets/originals/mcb-25-year-anniversary-poster.png
 set -euo pipefail
 cd "$(dirname "$0")/../public/images"
 OUT=responsive
@@ -42,7 +46,7 @@ SOURCES=(
   # the public delivery path in assets/originals/.
   "keepsake-sleeve-wall:../../assets/originals/mcb-wall-art-sleeves.png"
   "picture-disc-wall:../../assets/originals/mcb-wall-art-picture-discs.png"
-  "anniversary-example-poster:../../assets/originals/mcb-25th-anniversary-poster.png"
+  "anniversary-25-year-poster:../../assets/originals/mcb-25-year-anniversary-poster.png"
   # Founder-approved photographs of Rinaldi with an MCB vinyl (Sprint 3.2).
   "rinaldi-at-sea:../../assets/originals/rinaldi-looking-out-to-sea-mcb-vinyl.png"
   "rinaldi-portrait:../../assets/originals/rinaldi-holding-mcb-vinyl.png"

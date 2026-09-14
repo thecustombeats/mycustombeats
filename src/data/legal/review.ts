@@ -165,12 +165,12 @@ export const LEGAL_REVIEW_REQUIRED: readonly ReviewItem[] = [
     severity: "BLOCKING",
   },
   {
-    topic: "25th Anniversary MCB Example — Princess Cruises branding requires founder clearance before production",
+    topic: "25th Anniversary MCB Example — Princess Cruises branding",
     positionTaken:
-      "Sprint 3.1 features the founder-approved 25th Anniversary MCB Example on the homepage (public/videos/mcb-25th-anniversary-example.mp4, poster anniversary-example-poster-*). Its artwork shows the Princess Cruises name, logo and 'You love, we care.' strapline, and names 'DJ RINALDI'. The video content has deliberately NOT been altered; the page copy claims no relationship with any cruise line. Sprint 3.2 (14 September 2026): a replacement file supplied as clean was inspected frame by frame and NOT adopted — MCB logos replace the Princess marks only for the first ~5 seconds; from ~0:05 to the end (4:55) the Princess Cruises logo and the 'PRINCESS / You love, we care.' mark are still present. Evidence frames: preview-output/sprint-3.2-video-evidence/ (local, not committed). The ships shown also carry a blue wave hull design associated with Princess Cruises.",
+      "RESOLVED in Sprint 3.3 (14 September 2026). The Sprint 3.1 example showed the Princess Cruises name, logo and 'You love, we care.' strapline; a first replacement (Sprint 3.2) still did from ~0:05 and was not adopted. The Founder then supplied a further replacement anniversary example (SHA-256 90c5490a95acbede90289a16491ab10679d253a84702fddf07a1d3e934c77cdb), and inspection of the release-candidate asset found the previously identified Princess Cruises name/logo/slogan absent: every one of its 7,414 frames shows the same picture, which carries only MCB and DJ Rinaldi branding. The web video is now public/videos/mcb-25-year-anniversary-example.mp4 with poster anniversary-25-year-poster-*; the earlier files are no longer served.",
     question:
-      "Before production deployment the Founder must confirm, with evidence, that MCB may display Princess Cruises' name, logo and strapline in its own marketing (written permission or an applicable licence), and that the 'DJ RINALDI' credit is approved. Otherwise supply a version of the example without third-party branding and regenerate the web video and poster. Displaying a cruise line's marks on MCB's homepage can imply endorsement or partnership that does not exist.",
-    severity: "BLOCKING",
+      "No longer a release blocker. This records a visual check for the specific branding previously identified; it is NOT a general copyright or legal certification of the video, its artwork or its music.",
+    severity: "CONFIRMATORY",
   },
   {
     topic: "Founder Terms comparison",

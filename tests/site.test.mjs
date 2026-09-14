@@ -186,21 +186,25 @@ test("the homepage features the 25th Anniversary MCB Example without autoplay or
   assert.ok(!/\smuted/i.test(video), "sound is not forced off or on");
   assert.match(video, /aria-labelledby="anniversary-example-title"/);
   // The poster is deferred with IntersectionObserver in browsers (verified in the preview run).
-  assert.match(html, /<source src="\/videos\/mcb-25th-anniversary-example\.mp4" type="video\/mp4"/);
+  assert.match(html, /<source src="\/videos\/mcb-25-year-anniversary-example\.mp4" type="video\/mp4"/);
+  assert.match(video, /width="940" height="1672"/, "space reserved for the 940×1672 replacement");
+  assert.match(video, /aspect-\[940\/1672\]/);
   assert.equal((html.match(/<video/g) ?? []).length, 1, "one example, no duplicate sample section");
   assert.ok(!/<video[^>]*>/.test(S.render(S.HeroSection)), "not in the hero");
 });
 
 test("approved asset files exist, with the web video smaller than its master", () => {
-  const web = join(root, "public/videos/mcb-25th-anniversary-example.mp4");
-  const master = join(root, "assets/originals/25th Anniversary MCB Example.MP4");
+  const web = join(root, "public/videos/mcb-25-year-anniversary-example.mp4");
+  const master = join(root, "assets/originals/mcb-25-year-anniversary-example.mp4");
   assert.ok(existsSync(web) && existsSync(master));
   assert.ok(statSync(web).size < statSync(master).size);
   // faststart: the moov atom precedes the media data, so playback starts without downloading the whole file.
   const head = readFileSync(web).subarray(0, 1_000_000).toString("latin1");
   assert.ok(head.indexOf("moov") > 0 && head.indexOf("moov") < head.indexOf("mdat"), "moov before mdat");
-  for (const name of ["keepsake-sleeve-wall", "picture-disc-wall", "anniversary-example-poster"]) {
-    for (const w of [480, 960, 1600]) assert.ok(existsSync(join(root, `public/images/responsive/${name}-${w}.jpg`)), `${name}-${w}`);
+  for (const name of ["keepsake-sleeve-wall", "picture-disc-wall", "anniversary-25-year-poster"]) {
+    for (const w of [480, 960, 1600]) {
+      for (const ext of ["jpg", "webp"]) assert.ok(existsSync(join(root, `public/images/responsive/${name}-${w}.${ext}`)), `${name}-${w}.${ext}`);
+    }
   }
   assert.ok(!existsSync(join(root, "public/images/mcb-wall-art-sleeves.png")), "masters are not in the public delivery path");
 });
@@ -221,13 +225,36 @@ test("every responsive image has a smaller WebP twin, offered first with the JPE
   assert.match(readFileSync(join(root, "src/sections/SongShowcaseSection.tsx"), "utf8"), /anniversaryExamplePoster,[^)]*"webp"\)/, "poster uses WebP");
 });
 
-test("the example's Princess Cruises branding is a blocking pre-production clearance item", () => {
+test("only the clean replacement example is served; the superseded branded files are gone", () => {
+  for (const old of [
+    "public/videos/mcb-25th-anniversary-example.mp4",
+    "assets/originals/25th Anniversary MCB Example.MP4",
+    "assets/originals/mcb-25th-anniversary-poster.png",
+    ...[480, 960, 1600].flatMap((w) => [`public/images/responsive/anniversary-example-poster-${w}.jpg`, `public/images/responsive/anniversary-example-poster-${w}.webp`]),
+  ]) {
+    assert.ok(!existsSync(join(root, old)), `${old} removed`);
+  }
+  const sources = ["index.html", "src", "public/_redirects", "public/.htaccess", "scripts"].map((p) => join(root, p)).filter(existsSync);
+  const read = (p) => (statSync(p).isDirectory() ? readdirSync(p).map((f) => read(join(p, f))).join("\n") : /\.(tsx?|mjs|js|json|html|sh|htaccess|_redirects)$|_redirects$|\.htaccess$/.test(p) ? readFileSync(p, "utf8") : "");
+  const all = sources.map(read).join("\n");
+  assert.ok(!/mcb-25th-anniversary-example|anniversary-example-poster|25th Anniversary MCB Example\.MP4/.test(all), "no reference to the superseded video or poster");
+  assert.match(all, /mcb-25-year-anniversary-example\.mp4/, "the replacement is what the site references");
+  assert.equal(readdirSync(join(root, "public/videos")).filter((f) => /anniversary-example/.test(f)).length, 1, "exactly one example video is published");
+});
+
+test("the Princess Cruises clearance item is closed, and only that item", () => {
   const review = readFileSync(join(root, "src/data/legal/review.ts"), "utf8");
-  const entry = review.match(/topic: "25th Anniversary MCB Example — Princess Cruises branding[\s\S]*?severity: "(\w+)"/);
-  assert.ok(entry, "clearance item recorded");
-  assert.equal(entry[1], "BLOCKING");
-  assert.match(entry[0], /founder clearance before production/i);
-  assert.match(review, /item: "25th Anniversary MCB Example — no captions or transcript"/);
+  const entry = review.match(/topic: "25th Anniversary MCB Example — Princess Cruises branding"[\s\S]*?question:\s*"([^"]*)"[\s\S]*?severity: "(\w+)"/);
+  assert.ok(entry, "the closure is still recorded");
+  assert.equal(entry[2], "CONFIRMATORY", "no longer blocking");
+  assert.match(entry[0], /found the previously identified Princess Cruises name\/logo\/slogan absent/);
+  assert.match(entry[1], /NOT a general copyright or legal certification/);
+  // No remaining BLOCKING item concerns the example video; the unrelated blockers remain.
+  const blocking = [...review.matchAll(/\{\s*topic: "([^"]*)"[\s\S]*?severity: "(\w+)"/g)].filter((m) => m[2] === "BLOCKING");
+  assert.ok(blocking.length >= 8, "unrelated blocking items untouched");
+  assert.ok(!blocking.some((m) => /princess|anniversary/i.test(m[0])), "no blocking item about the example remains");
+  assert.match(review, /item: "25th Anniversary MCB Example — no captions or transcript"/, "captions follow-up stays open");
+  assert.ok(!/princess/i.test(readFileSync(join(root, "src/sections/SongShowcaseSection.tsx"), "utf8")), "no stale clearance warning in the section");
   assert.ok(!/princess/i.test(text(S.render(S.SongShowcaseSection))), "page copy claims no cruise-line relationship");
 });
 

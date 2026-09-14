@@ -54,9 +54,9 @@ export const IMAGES = {
     "Several personalised picture discs, each carrying a different photograph and message, displayed together"
   ),
   anniversaryExamplePoster: image(
-    "anniversary-example-poster",
-    1024,
-    1536,
+    "anniversary-25-year-poster",
+    940,
+    1672,
     "Artwork for the 25th Anniversary MCB Example"
   ),
   // Founder-approved photographs of Rinaldi (Sprint 3.2). No cruise line is

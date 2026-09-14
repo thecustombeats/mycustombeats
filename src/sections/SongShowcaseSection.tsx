@@ -16,20 +16,16 @@ import { trackEvent } from "../lib/analytics";
  * It is presented as an example of what MCB creates — not as the customer's
  * own order, and with nothing claimed about who it was made for.
  *
- * WEB DERIVATIVE: public/videos/mcb-25th-anniversary-example.mp4 (H.264 High +
- * original AAC audio, faststart). Master: assets/originals/. No captions exist
- * yet; none are invented.
- *
- * PRODUCTION BLOCKER: the example's artwork carries Princess Cruises branding
- * and a "DJ RINALDI" credit. It needs founder clearance before production —
- * see BLOCKING_REVIEW_ITEMS in src/data/legal/review.ts. Do not alter the video.
+ * WEB DERIVATIVE: public/videos/mcb-25-year-anniversary-example.mp4 (H.264 High +
+ * original AAC audio, faststart, 940×1672). Master: assets/originals/. No
+ * captions exist yet; none are invented.
  *
  * Each list item appears once (the old carousel duplicated every card for an
  * auto-scrolling loop), nothing moves by itself, and no audio is downloaded
  * until someone presses play (`preload="none"`). One sample plays at a time.
  */
 
-const EXAMPLE_VIDEO = "/videos/mcb-25th-anniversary-example.mp4";
+const EXAMPLE_VIDEO = "/videos/mcb-25-year-anniversary-example.mp4";
 const EXAMPLE_ID = "anniversary-example";
 
 /** "Anniversary Song • Romantic Gift" → "Anniversary Song". */
@@ -99,15 +95,15 @@ const SongShowcaseSection = () => {
         />
 
         {/* ---- The featured example -------------------------------------- */}
-        <div ref={exampleRef} className="mx-auto mt-12 grid max-w-5xl items-center gap-8 rounded-[1.75rem] bg-ink p-5 sm:p-8 md:grid-cols-[minmax(0,22rem)_1fr] md:gap-12">
-          <div className="mx-auto w-full max-w-[22rem] overflow-hidden rounded-2xl bg-black">
+        <div ref={exampleRef} className="mx-auto mt-12 grid max-w-5xl items-center gap-8 rounded-[1.75rem] bg-ink p-5 sm:p-8 md:grid-cols-[minmax(0,20rem)_1fr] md:gap-12">
+          <div className="mx-auto w-full max-w-[20rem] overflow-hidden rounded-2xl bg-black">
             <video
               ref={videoRef}
               controls
               preload="none"
               playsInline
-              width={1024}
-              height={1536}
+              width={940}
+              height={1672}
               poster={
                 nearViewport
                   ? imageSrc(IMAGES.anniversaryExamplePoster, typeof window !== "undefined" && window.devicePixelRatio > 1 ? 960 : 480, "webp")
@@ -115,7 +111,7 @@ const SongShowcaseSection = () => {
               }
               aria-labelledby="anniversary-example-title"
               aria-describedby="anniversary-example-description"
-              className="block aspect-[2/3] h-auto w-full bg-black"
+              className="block aspect-[940/1672] h-auto w-full bg-black"
               onPlay={() => {
                 if (playingId) audioRefs.current[playingId]?.pause();
                 setPlayingId(null);
