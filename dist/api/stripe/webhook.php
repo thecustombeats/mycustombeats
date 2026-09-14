@@ -13,7 +13,7 @@
  * TO ACTIVATE
  *   1. Stripe Dashboard → Developers → Webhooks → Add endpoint
  *        URL:    https://www.mycustombeats.com/api/stripe/webhook
- *        Events: checkout.session.completed
+ *        Events: checkout.session.completed, checkout.session.async_payment_succeeded
  *   2. Copy the signing secret (whsec_…) into config `stripe.webhook_secret`.
  *   3. Send a test event from the Dashboard and confirm a 200.
  *
@@ -89,88 +89,122 @@ if (!is_array($event) || !isset($event['id'], $event['type'])) {
     json_error(400, 'invalid_payload', 'Malformed event.');
 }
 
+/**
+ * The events that can mean "paid". A Checkout Session completed with a
+ * delayed payment method arrives as `completed` with payment_status "unpaid",
+ * and the money follows later as `async_payment_succeeded`.
+ */
+const PAYMENT_EVENTS = ['checkout.session.completed', 'checkout.session.async_payment_succeeded'];
+
 // Acknowledge anything we do not act on, so Stripe stops retrying it.
-if ($event['type'] !== 'checkout.session.completed') {
+if (!in_array($event['type'], PAYMENT_EVENTS, true)) {
     json_response(200, ['received' => true, 'ignored' => $event['type']]);
 }
 
-$session   = $event['data']['object'] ?? [];
+$session   = is_array($event['data']['object'] ?? null) ? $event['data']['object'] : [];
 $orderId   = (int) ($session['client_reference_id'] ?? 0);
 $sessionId = (string) ($session['id'] ?? '');
 $intent    = (string) ($session['payment_intent'] ?? '');
 
+// No money has moved yet. The async success event will follow if it does.
+if (($session['payment_status'] ?? null) !== 'paid') {
+    json_response(200, ['received' => true, 'outcome' => 'awaiting_payment']);
+}
+
 if ($orderId <= 0 || $sessionId === '') {
-    // Money has arrived and no order claims it — almost always because
-    // /api/order failed before the customer reached Stripe, so no
-    // client_reference_id was ever carried.
-    //
-    // Retrying will not conjure the order, so Stripe is acknowledged. But
-    // the payment is FILED first: logging alone let a real sale rotate out
-    // of an unread error log while Stripe showed it as collected.
-    error_log('MCB CRM: checkout.session.completed without a usable client_reference_id.');
+    // Money has arrived and no order claims it. Filed, not just logged.
+    error_log('MCB CRM: paid checkout session without a usable client_reference_id.');
     $captured = capture_unreconciled_payment(db(), $event, $session, 'NO_ORDER_REFERENCE');
     json_response(200, ['received' => true, 'matched' => false, 'captured' => $captured]);
 }
 
+$refuse = static function (string $reason, string $log) use ($event, $session): never {
+    error_log('MCB CRM: ' . $log);
+    capture_unreconciled_payment(db(), $event, $session, $reason);
+    json_response(200, ['received' => true, 'matched' => false, 'reason' => strtolower($reason)]);
+};
+
 /**
  * ─────────────────────────────────────────────────────────────────────────
- * AMOUNT RECONCILIATION — dynamic Checkout Sessions only
+ * PAYMENT MATCHING — exact order, exact currency, exact amount
  * ─────────────────────────────────────────────────────────────────────────
- * A signed event naming a real order is NOT, on its own, proof that the right
- * money arrived. For a session MCB created itself, the server recorded what it
- * expected to charge at creation time (`checkout_sessions`), so the two can be
- * compared before anything is marked paid.
+ * A signed event naming a real order is not, on its own, proof that the right
+ * money arrived for it. An order is marked PAID automatically only when:
  *
- * WHY THE SNAPSHOT AND NOT TODAY'S CATALOGUE. Prices change. A customer who
- * paid £449 in September must still reconcile after the catalogue is repriced
- * in November; re-pricing the basket at webhook time would declare a perfectly
- * good payment wrong. The expected figure is frozen once and never recomputed.
+ *   - the order identifiers agree (client_reference_id, metadata, snapshot)
+ *   - the currency is the order's currency
+ *   - amount_total equals the expected amount EXACTLY
  *
- * WHY PAYMENT LINKS ARE NOT CHECKED THIS WAY. A Payment Link's amount is
- * fixed inside Stripe, and MCB holds no snapshot for one. Its `amount_total`
- * can legitimately differ from the order's stored amount — tax, or a Stripe
- * setting nobody here can see — so applying a strict comparison would risk
- * rejecting genuine production payments to guard against a case that cannot
- * arise. Payment Link events therefore continue to reconcile exactly as they
- * always have, by `client_reference_id`.
+ * Anything else — underpayment, overpayment, a missing amount, the wrong
+ * currency, disagreeing identifiers — is filed in `unreconciled_payments` for
+ * a human and the order stays PENDING. Stripe still receives a 200: the money
+ * is real, and retrying the event will not change what it says.
+ *
+ * THE EXPECTED AMOUNT. For a session MCB created, the snapshot recorded when
+ * it was created (never re-priced from today's catalogue). Otherwise the
+ * order's saved total. Orders from before the canonical catalogue carry no
+ * integer total, so theirs is summed exactly from their DECIMAL columns.
  */
-$expected = null;
-if ($sessionId !== '') {
-    try {
-        $stmt = db()->prepare(
-            'SELECT expected_amount_gbp, currency FROM checkout_sessions
-              WHERE stripe_session_id = :sid LIMIT 1'
-        );
-        $stmt->execute([':sid' => $sessionId]);
-        $row = $stmt->fetch();
-        if ($row !== false) {
-            $expected = $row;
-        }
-    } catch (PDOException $e) {
-        // A missing table (not yet migrated) must not stop a real payment
-        // being recorded — the Payment Link path does not depend on it.
-        error_log('MCB CRM: checkout snapshot lookup failed: ' . $e->getMessage());
-    }
+$metadataOrder = $session['metadata']['mcb_order_id'] ?? null;
+if ($metadataOrder !== null && (string) $metadataOrder !== (string) $orderId) {
+    $refuse('ORDER_MISMATCH', "order identifiers disagree on {$sessionId}.");
 }
 
-if ($expected !== null) {
-    $paidMinor     = (int) ($session['amount_total'] ?? -1);
-    $expectedMinor = (int) round(((float) $expected['expected_amount_gbp']) * 100);
-    $paidCurrency  = strtoupper((string) ($session['currency'] ?? ''));
+$expectedMinor = null;
+$expectedCurrency = null;
+$snapshot = false;
 
-    if ($paidCurrency !== strtoupper((string) $expected['currency'])) {
-        error_log("MCB CRM: currency mismatch on {$sessionId}: got {$paidCurrency}.");
-        capture_unreconciled_payment(db(), $event, $session, 'CURRENCY_MISMATCH');
-        json_response(200, ['received' => true, 'matched' => false, 'reason' => 'currency_mismatch']);
+$stmt = db()->prepare(
+    'SELECT order_id, expected_amount_gbp, expected_minor, currency
+       FROM checkout_sessions WHERE stripe_session_id = :sid LIMIT 1'
+);
+$stmt->execute([':sid' => $sessionId]);
+$snapshot = $stmt->fetch();
+
+if ($snapshot !== false) {
+    if ((int) $snapshot['order_id'] !== $orderId) {
+        $refuse('ORDER_MISMATCH', "session {$sessionId} belongs to another order.");
     }
+    $expectedMinor = $snapshot['expected_minor'] !== null
+        ? (int) $snapshot['expected_minor']
+        : decimal_to_minor((string) $snapshot['expected_amount_gbp']);
+    $expectedCurrency = (string) $snapshot['currency'];
+} else {
+    $stmt = db()->prepare(
+        'SELECT o.total_minor, o.amount_gbp, o.currency,
+                (SELECT COUNT(*) FROM order_items i WHERE i.order_id = o.id) AS item_count
+           FROM orders o WHERE o.id = :id LIMIT 1'
+    );
+    $stmt->execute([':id' => $orderId]);
+    $matched = $stmt->fetch();
 
-    if ($paidMinor !== $expectedMinor) {
-        // Deliberately does NOT mark the order paid. The money is real and is
-        // filed for a human rather than silently accepted against a basket it
-        // does not pay for.
-        error_log("MCB CRM: amount mismatch on {$sessionId}: got {$paidMinor}, expected {$expectedMinor}.");
-        capture_unreconciled_payment(db(), $event, $session, 'AMOUNT_MISMATCH');
-        json_response(200, ['received' => true, 'matched' => false, 'reason' => 'amount_mismatch']);
+    if ($matched !== false) {
+        $expectedCurrency = (string) $matched['currency'];
+        if ($matched['total_minor'] !== null) {
+            $expectedMinor = (int) $matched['total_minor'];
+        } else {
+            // Legacy order: the package amount plus any add-on lines.
+            $expectedMinor = decimal_to_minor((string) $matched['amount_gbp']);
+            $items = db()->prepare('SELECT line_gbp FROM order_items WHERE order_id = :id');
+            $items->execute([':id' => $orderId]);
+            foreach ($items->fetchAll() as $item) {
+                $lineMinor = decimal_to_minor((string) $item['line_gbp']);
+                $expectedMinor = ($expectedMinor === null || $lineMinor === null) ? null : $expectedMinor + $lineMinor;
+            }
+        }
+    }
+    // An unknown order is filed as ORDER_NOT_FOUND inside the transaction.
+}
+
+if ($expectedCurrency !== null) {
+    $paidCurrency = strtoupper((string) ($session['currency'] ?? ''));
+    if ($paidCurrency !== strtoupper($expectedCurrency)) {
+        $refuse('CURRENCY_MISMATCH', "currency mismatch on {$sessionId}: got '{$paidCurrency}'.");
+    }
+    $paidMinor = $session['amount_total'] ?? null;
+    if (!is_int($paidMinor) || $expectedMinor === null || $paidMinor !== $expectedMinor) {
+        $got = is_int($paidMinor) ? (string) $paidMinor : 'none';
+        $refuse('AMOUNT_MISMATCH', "amount mismatch on {$sessionId}: got {$got}, expected " . ($expectedMinor ?? 'unknown') . '.');
     }
 }
 
@@ -190,7 +224,7 @@ try {
         }
 
         $stmt = $pdo->prepare(
-            'SELECT id, status, affiliate_id, customer_id, mcb_reference FROM orders WHERE id = :id FOR UPDATE'
+            'SELECT id, status, affiliate_id, customer_id, mcb_reference, stripe_session_id FROM orders WHERE id = :id FOR UPDATE'
         );
         $stmt->execute([':id' => $orderId]);
         $order = $stmt->fetch();
@@ -203,10 +237,17 @@ try {
             return 'unknown_order';
         }
         if ($order['status'] === 'PAID') {
-            // Already recorded by an earlier delivery of a different event.
-            // Make sure it holds a reference — a row that reached PAID before
-            // the reference column existed, or by a manual correction, still
-            // owes the customer a number — but never issue a second one.
+            /**
+             * The same session reporting again (another event type for one
+             * payment) is not new money. A DIFFERENT session paying an order
+             * that is already paid is a second payment: filed for a refund
+             * decision, never silently absorbed.
+             */
+            if ((string) $order['stripe_session_id'] !== $sessionId) {
+                capture_unreconciled_payment($pdo, $event, $session, 'DUPLICATE_PAYMENT');
+                return 'duplicate_payment';
+            }
+            // Make sure it holds a reference, but never issue a second one.
             assign_mcb_reference($pdo, $orderId, $order['mcb_reference']);
             return 'already_paid';
         }
@@ -283,10 +324,10 @@ try {
 // reference that a rollback then took away.
 //
 // Deliberately NOT inside db_transaction(): holding a row lock open across a
-// third-party HTTP call would let a Make.com slowdown block the money path.
+// third-party HTTP call would let an email provider slowdown block the money path.
 //
 // notify_customer_of_payment() never throws and never affects the response
-// code. Stripe gets its 200 whether or not Make.com answered — a non-2xx
+// code. Stripe gets its 200 whether or not the email provider answered — a non-2xx
 // would make Stripe retry a payment MCB has already banked. The outcome is
 // reported in the body so it is visible in Stripe's own event log.
 //
@@ -296,7 +337,7 @@ try {
 // 'duplicate' matters operationally: it is what Stripe's own "Resend" button
 // produces, since a resend carries the SAME event id. Without it, an order
 // that was paid before the email existed — or whose email failed while
-// Make.com was down — could never be sent its reference at all, because
+// the email provider was down — could never be sent its reference at all, because
 // every route to it would return here first. Including it makes Resend the
 // recovery mechanism.
 //
@@ -309,10 +350,16 @@ if ($outcome === 'recorded' || $outcome === 'already_paid' || $outcome === 'dupl
     $notified = notify_customer_of_payment(db(), $orderId);
 }
 
+// The operations workflow hears about a new payment once, server-side, with
+// no customer contact details or story. Dormant unless configured.
+if ($outcome === 'recorded') {
+    notify_operations_of_payment(db(), $orderId);
+}
+
 // Close the snapshot, for operators reading the checkout history. Purely a
 // record: the order's own status is what the rest of the system reads, and it
 // was already set inside the transaction above.
-if ($expected !== null && $outcome === 'recorded') {
+if ($snapshot !== false && $outcome === 'recorded') {
     try {
         db()->prepare(
             "UPDATE checkout_sessions SET status = 'COMPLETED' WHERE stripe_session_id = :sid"

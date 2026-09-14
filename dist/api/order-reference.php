@@ -64,7 +64,7 @@ if ($sessionId === '' || !preg_match('/^cs_[A-Za-z0-9_]{8,250}$/', $sessionId)) 
  * in the response, and the page has nothing to render.
  */
 $stmt = db()->prepare(
-    "SELECT o.status, o.mcb_reference, p.stage, p.completed_at,
+    "SELECT o.id, o.status, o.mcb_reference, o.total_minor, o.currency, p.stage, p.completed_at,
             CASE WHEN p.stage = 'COMPLETED' THEN cr.code ELSE NULL END AS referral_code
        FROM orders o
        LEFT JOIN order_production p ON p.order_id = o.id
@@ -81,6 +81,7 @@ $order = $stmt->fetch();
 // without treating an expected race as an error.
 if ($order === false) {
     json_response(200, [
+        'purchase'  => null,
         'status'    => null,
         'reference' => null,
         'stage'     => null,
@@ -88,7 +89,37 @@ if ($order === false) {
     ]);
 }
 
+/**
+ * The confirmed purchase, for the thank-you page's analytics.
+ *
+ * Only for a PAID order, and only the server's own figures: product ids, SKUs,
+ * names, quantities and integer amounts from the saved lines. No customer
+ * details, story or address. Null for orders from before the canonical
+ * catalogue, which have no integer line amounts to report.
+ */
+$purchase = null;
+if ($order['status'] === 'PAID' && $order['total_minor'] !== null) {
+    $items = db()->prepare(
+        'SELECT item_id, product_id, item_name, category, quantity, unit_minor
+           FROM order_items WHERE order_id = :id ORDER BY id'
+    );
+    $items->execute([':id' => (int) $order['id']]);
+    $purchase = [
+        'value_minor' => (int) $order['total_minor'],
+        'currency'    => $order['currency'],
+        'items'       => array_map(static fn (array $i): array => [
+            'sku'        => $i['item_id'],
+            'product_id' => $i['product_id'],
+            'name'       => $i['item_name'],
+            'category'   => $i['category'],
+            'quantity'   => (int) $i['quantity'],
+            'unit_minor' => (int) $i['unit_minor'],
+        ], $items->fetchAll()),
+    ];
+}
+
 json_response(200, [
+    'purchase'  => $purchase,
     'status'    => $order['status'],
     'reference' => $order['mcb_reference'],
     // NULL until an operator records the commission as complete. The page

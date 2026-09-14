@@ -1,5 +1,5 @@
 {
-  "_generated": "Do not edit. Generated from src/data/legal/ by scripts/generate-packages-json.mjs",
+  "_generated": "Do not edit. Generated from src/data/legal/ by scripts/generate-catalogue-json.mjs",
   "versions": {
     "terms": "2026-09-09.4",
     "refund_policy": "2026-09-09.4",

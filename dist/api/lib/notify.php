@@ -17,7 +17,7 @@
  *      already PAID and already holds its reference before anyone is told.
  *
  *   2. It can never fail a payment. Every path returns; nothing throws.
- *      Stripe must get its 200 whether or not Make.com is reachable, because
+ *      Stripe must get its 200 whether or not the provider is reachable, because
  *      a non-2xx makes Stripe retry a payment MCB has already banked.
  *
  *   3. It sends at most once per order, enforced by a conditional UPDATE
@@ -82,7 +82,7 @@ function release_customer_notification(PDO $pdo, int $orderId): void
 }
 
 /**
- * Assembles exactly what Make.com needs to write the email, and nothing else.
+ * Assembles exactly what the confirmation email needs, and nothing else.
  *
  * Deliberately excluded: the creative brief and the customer's story (no
  * email needs them), every Stripe identifier, and anything from
@@ -105,7 +105,7 @@ function post_payment_notification_payload(PDO $pdo, int $orderId): ?array
          * row, and they still deserve their confirmation email.
          */
         'SELECT o.id, o.mcb_reference, o.package, o.format, o.fulfilment_type,
-                o.amount_gbp, o.currency,
+                o.amount_gbp, o.total_minor, o.currency,
                 c.name AS customer_name, c.email AS customer_email,
                 oc.terms_version AS terms_version,
                 oc.terms_accepted_at AS terms_accepted_at
@@ -123,15 +123,42 @@ function post_payment_notification_payload(PDO $pdo, int $orderId): ?array
         return null;
     }
 
-    $packageDef = package_def((string) $row['package']);
-    $formatDef  = $row['format'] === null
-        ? null
-        : (packages_data()['formats'][$row['format']] ?? null);
+    $product = catalogue_product((string) $row['package']);
 
-    $amount = (float) $row['amount_gbp'];
+    /**
+     * WHAT WAS BOUGHT, from the order's own saved lines — the same rows the
+     * charge was built from — so the email cannot describe a different order
+     * from the one that was paid for.
+     */
+    $items = $pdo->prepare(
+        'SELECT item_name, quantity, line_gbp, line_minor FROM order_items WHERE order_id = :id ORDER BY id'
+    );
+    $items->execute([':id' => $orderId]);
+    $itemRows = $items->fetchAll();
+
+    $descriptions = array_map(
+        static fn (array $item): string => ((int) $item['quantity'] > 1 ? $item['quantity'] . ' × ' : '') . $item['item_name'],
+        $itemRows
+    );
+
+    // Integer pence. Orders from before the canonical catalogue carry no
+    // integer total; theirs is the package amount plus any add-on lines.
+    if ($row['total_minor'] !== null) {
+        $amountMinor = (int) $row['total_minor'];
+        $orderDisplay = implode(', ', $descriptions);
+    } else {
+        $amountMinor = (int) decimal_to_minor((string) $row['amount_gbp']);
+        foreach ($itemRows as $item) {
+            $amountMinor += (int) decimal_to_minor((string) $item['line_gbp']);
+        }
+        $orderDisplay = implode(', ', array_merge([$product['name'] ?? ucfirst((string) $row['package'])], $descriptions));
+    }
+
+    $legacyFormats = ['mp3' => 'MP3', 'vinyl' => 'Vinyl', 'cd' => 'CD'];
+    $formatDisplay = $row['format'] === null ? null : ($legacyFormats[$row['format']] ?? $row['format']);
+
     // Literal UTF-8, not "\u{a3}" escapes: PHP only interprets those inside
-    // DOUBLE-quoted strings, so a single-quoted escape ships to the customer
-    // as the characters \u{a3} instead of a pound sign.
+    // DOUBLE-quoted strings.
     $symbols = ['GBP' => '£', 'USD' => '$', 'EUR' => '€'];
     $symbol  = $symbols[$row['currency']] ?? '';
 
@@ -152,19 +179,15 @@ function post_payment_notification_payload(PDO $pdo, int $orderId): ?array
         'format'          => $row['format'],
         'fulfilment_type' => $row['fulfilment_type'],
 
-        // Human-readable equivalents, resolved from the SAME authoritative
-        // packages.json the order endpoint validates against. The customer
-        // should read "Moment" and "MP3", not the internal ids "moment" and
-        // "mp3". Same data model, presentation-ready.
-        'package_display' => $packageDef['name'] ?? $row['package'],
-        'format_display'  => $formatDef['name'] ?? $row['format'],
-        'delivery'        => $packageDef['delivery'] ?? null,
+        // Human-readable names from the saved order lines and the catalogue,
+        // never internal ids or SKUs.
+        'package_display' => $orderDisplay,
+        'format_display'  => $formatDisplay,
+        'delivery'        => $product['turnaround'] ?? null,
 
-        'amount_value'    => $amount,
+        'amount_minor'    => $amountMinor,
         'amount_currency' => $row['currency'],
-        // Pre-formatted so the Zap never has to do currency maths, and the
-        // customer always sees "£10.00" rather than "10".
-        'amount_display'  => $symbol . number_format($amount, 2),
+        'amount_display'  => $symbol . minor_to_decimal($amountMinor),
 
         /**
          * THE DURABLE CONTRACT RECORD.
@@ -225,7 +248,7 @@ function post_payment_email_text(array $payload): string
         'MCB Reference: ' . $payload['mcb_reference'],
         '',
         'Order details:',
-        'Package: ' . $payload['package_display'],
+        'Your order: ' . $payload['package_display'],
     ];
 
     // Bespoke commissions have no format, so the line is omitted rather than
@@ -350,7 +373,7 @@ TERMS;
     </div>
 
     <p style="margin:0 0 8px;font-weight:bold;">Order details</p>
-    <p style="margin:0 0 4px;">Package: <strong>{$package}</strong></p>
+    <p style="margin:0 0 4px;">Your order: <strong>{$package}</strong></p>
     {$formatRow}
     <p style="margin:0 0 24px;">Amount paid: <strong>{$amount}</strong></p>
 

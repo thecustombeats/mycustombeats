@@ -5,3 +5,6 @@ dist/.DS_Store
 # Server-side configuration — never committed
 public/api/config.php
 dist/api/config.php
+
+# Build output. Deploy a fresh `npm run build` of the approved commit.
+dist/

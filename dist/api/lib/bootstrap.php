@@ -20,11 +20,12 @@ date_default_timezone_set('UTC');
 require_once __DIR__ . '/http.php';
 require_once __DIR__ . '/validate.php';
 require_once __DIR__ . '/security.php';
-require_once __DIR__ . '/packages.php';
+require_once __DIR__ . '/catalogue.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/reference.php';
 require_once __DIR__ . '/reconciliation.php';
 require_once __DIR__ . '/notify.php';
+require_once __DIR__ . '/ops.php';
 require_once __DIR__ . '/stripe.php';
 
 /**
