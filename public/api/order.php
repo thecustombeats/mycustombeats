@@ -8,17 +8,28 @@
  *
  * REQUEST
  *   Header  Idempotency-Key: <16–128 chars of A-Z a-z 0-9 _ ->   (required)
- *   Body    { lines: [{ sku, quantity }], customer, consent, brief, address… }
+ *   Body    { lines: [{ sku, quantity }], personalisation, customer, consents,
+ *             address incl. shippingCountryCode … }
+ *
+ * PERSONALISATION (the /create flow always sends it): one unit per song
+ * product, one memory per song, plaques and frames — validated and stored per
+ * memory by lib/personalisation.php, which also requires `lines` to be exactly
+ * what the personalisation implies. Without it an order is still recorded
+ * (NOT_PROVIDED), but checkout refuses to take payment for it.
  *
  * SERVER-OWNED FIELDS — never read from the request:
  *   every price and total   priced here from the generated catalogue
+ *   delivery                quoted here (lib/delivery.php) — never assumed free
  *   fulfilment_type         derived from the lines
  *   source_type, affiliate  resolved from the referral string
  *   status                  always PENDING; only Stripe moves it to PAID
  *
  * RESPONSE 201 (or 200 for an idempotent replay)
  *   { order_id, checkout_token, fulfilment_type, source_type,
- *     total_minor, currency, lines }
+ *     subtotal_minor, delivery, total_minor, currency, lines,
+ *     personalisation_status, upload_slots, missing_uploads, checkout_blocker }
+ *
+ * `total_minor` is the PAYABLE total: subtotal plus delivery.
  *
  * `checkout_token` is stored only as a hash. Checkout for this order requires
  * it, so a sequential order id is not enough to open a payment page for
@@ -101,6 +112,8 @@ $replay = static function () use ($idempotencyHash, $requestHash, $checkoutToken
     );
     $items->execute([':id' => (int) $order['id']]);
 
+    $summary = order_public_summary(db(), (array) find_order_row(db(), (int) $order['id']));
+
     json_response(200, [
         'order_id'        => (int) $order['id'],
         'checkout_token'  => $token,
@@ -115,7 +128,7 @@ $replay = static function () use ($idempotencyHash, $requestHash, $checkoutToken
             'line_minor' => (int) $l['line_minor'],
         ], $items->fetchAll()),
         'replayed'        => true,
-    ]);
+    ] + order_summary_extras($summary));
 };
 
 // A retry is answered before the rate limit: it creates nothing.
@@ -148,7 +161,22 @@ if (!$pricing->ok) {
 
 $fulfilment         = $pricing->fulfilmentType();
 $hasDigitalDelivery = $pricing->hasDigitalDelivery();
-$totalMinor         = $pricing->totalMinor;
+$subtotalMinor      = $pricing->totalMinor;
+
+/**
+ * ---- Personalisation, per memory --------------------------------------
+ *
+ * When present it must be complete and must agree with the lines; a
+ * partial or inconsistent block is refused with field errors, never stored
+ * in part.
+ */
+$hasPersonalisation = array_key_exists('personalisation', $body);
+$personalisation = $hasPersonalisation ? validate_personalisation($body['personalisation'], $pricing) : null;
+if ($personalisation !== null && !$personalisation->ok) {
+    foreach ($personalisation->errors as $field => $message) {
+        $v->fail($field, $message);
+    }
+}
 
 /**
  * ---- Consent, required and verified by the server -------------------
@@ -185,7 +213,15 @@ if ($missingConsents === []) {
 
 // ---- Delivery address, required when anything must be posted ----------
 $address = null;
+$countryCode = null;
 if ($fulfilment === 'PHYSICAL') {
+    // Delivery is quoted on the ISO code. The /create form sends one; an
+    // exact country name is accepted for older callers.
+    $codeRaw = $body['shippingCountryCode'] ?? null;
+    $countryCode = country_code_for($codeRaw, $body['shippingCountry'] ?? null);
+    if ($countryCode === null && ($hasPersonalisation || $codeRaw !== null)) {
+        $v->fail('shippingCountry', 'Please choose the country from the list.');
+    }
     $address = [
         'recipient_name' => $v->required('shippingName', 'Recipient name', 160),
         'address_line_1' => $v->required('shippingAddress', 'Address', 255),
@@ -193,7 +229,8 @@ if ($fulfilment === 'PHYSICAL') {
         'city'           => $v->required('shippingCity', 'Town or city', 120),
         'state_region'   => $v->optional('shippingState', 120),
         'postal_code'    => $v->required('shippingPostcode', 'Postcode or ZIP', 32),
-        'country'        => $v->required('shippingCountry', 'Country', 120),
+        'country'        => $countryCode !== null ? country_name_for($countryCode) : $v->required('shippingCountry', 'Country', 120),
+        'country_code'   => $countryCode,
         // The contact number doubles as the courier contact.
         'phone'          => $phone,
     ];
@@ -207,10 +244,21 @@ $brief = [
     'story'   => $v->optional('story', 60000),
     'artwork' => $v->optional('artworkUrl', 512),
     // Required on new submissions; 255 matches the column exactly.
-    'cruise'  => $v->required('cruiseCompanions', 'Who you are cruising with', 255),
+    // Required on the older single-brief form; the per-memory flow carries its
+    // context in each memory instead.
+    'cruise'  => $hasPersonalisation
+        ? $v->optional('cruiseCompanions', 255)
+        : $v->required('cruiseCompanions', 'Who you are cruising with', 255),
 ];
 
 $v->stopIfInvalid();
+
+// ---- Delivery, quoted by the server ------------------------------------
+$delivery   = quote_delivery($pricing, $countryCode);
+$totalMinor = $subtotalMinor + $delivery->minor;
+$personalisationStatus = $personalisation === null
+    ? 'NOT_PROVIDED'
+    : ($personalisation->awaitsUploads() ? 'AWAITING_UPLOADS' : 'COMPLETE');
 
 // ---- Attribution, resolved server-side --------------------------------
 $attribution = resolve_attribution(
@@ -230,7 +278,8 @@ try {
         $firstName, $lastName, $email, $phone,
         $pricing, $fulfilment, $totalMinor, $attribution,
         $brief, $address, $termsVersion, $refundVersion, $privacyVersion,
-        $hasDigitalDelivery, $referral, $checkoutTokenFor, $idempotencyHash, $requestHash
+        $hasDigitalDelivery, $referral, $checkoutTokenFor, $idempotencyHash, $requestHash,
+        $subtotalMinor, $delivery, $personalisation, $personalisationStatus
     ): int {
         // Upsert on the UNIQUE email. first_source_* is written once.
         $stmt = $pdo->prepare(
@@ -255,6 +304,8 @@ try {
             'INSERT INTO orders (
                 customer_id, package, format, fulfilment_type,
                 amount_gbp, amount_usd, currency, total_minor,
+                subtotal_minor, delivery_minor, delivery_status, delivery_rate_source,
+                delivery_rate_id, delivery_label, personalisation_status,
                 checkout_token_hash, idempotency_key_hash, request_hash, status,
                 source_type, affiliate_id, partner_id, referral_raw,
                 brief_mood, brief_genre, brief_personal_touches, brief_story,
@@ -262,6 +313,8 @@ try {
              ) VALUES (
                 :cid, :pkg, NULL, :ful,
                 :gbp, NULL, :cur, :total,
+                :subtotal, :dmin, :dstatus, :dsource,
+                :drate, :dlabel, :pstatus,
                 NULL, :idem, :req, :status,
                 :src, :aff, :par, :ref,
                 :mood, :genre, :touches, :story, :cruise, :artwork
@@ -274,6 +327,13 @@ try {
             ':gbp'     => minor_to_decimal($totalMinor),
             ':cur'     => 'GBP',
             ':total'   => $totalMinor,
+            ':subtotal' => $subtotalMinor,
+            ':dmin'    => $delivery->minor,
+            ':dstatus' => $delivery->status,
+            ':dsource' => $delivery->source,
+            ':drate'   => $delivery->rateId,
+            ':dlabel'  => $delivery->label,
+            ':pstatus' => $personalisationStatus,
             ':idem'    => $idempotencyHash,
             ':req'     => $requestHash,
             ':status'  => 'PENDING',
@@ -341,8 +401,8 @@ try {
             $pdo->prepare(
                 'INSERT INTO delivery_addresses (
                     order_id, recipient_name, address_line_1, address_line_2,
-                    city, state_region, postal_code, country, phone
-                 ) VALUES (:oid, :rn, :a1, :a2, :city, :state, :zip, :country, :phone)'
+                    city, state_region, postal_code, country, country_code, phone
+                 ) VALUES (:oid, :rn, :a1, :a2, :city, :state, :zip, :country, :cc, :phone)'
             )->execute([
                 ':oid'     => $orderId,
                 ':rn'      => $address['recipient_name'],
@@ -352,6 +412,7 @@ try {
                 ':state'   => $address['state_region'],
                 ':zip'     => $address['postal_code'],
                 ':country' => $address['country'],
+                ':cc'      => $address['country_code'],
                 ':phone'   => $address['phone'],
             ]);
         }
@@ -364,6 +425,7 @@ try {
                  quantity, unit_gbp, line_gbp, unit_minor, line_minor)
              VALUES (:oid, :sku, :pid, :name, :cat, :ful, :qty, :unit, :line, :um, :lm)'
         );
+        $itemIds = [];
         foreach ($pricing->lines as $line) {
             $stmt->execute([
                 ':oid'  => $orderId,
@@ -378,6 +440,24 @@ try {
                 ':um'   => $line['unit_minor'],
                 ':lm'   => $line['line_minor'],
             ]);
+            $itemIds[$line['sku']] = (int) $pdo->lastInsertId();
+        }
+
+        if ($personalisation !== null) {
+            persist_personalisation($pdo, $orderId, $personalisation, $itemIds);
+        }
+
+        // The audit trail: amounts and states only, never customer text.
+        record_order_event($pdo, $orderId, 'ORDER.CREATED', [
+            'subtotal_minor'         => $subtotalMinor,
+            'delivery_minor'         => $delivery->minor,
+            'total_minor'            => $totalMinor,
+            'delivery_status'        => $delivery->status,
+            'delivery_test_only'     => $delivery->isTestOnly(),
+            'personalisation_status' => $personalisationStatus,
+        ], 'created');
+        if ($personalisationStatus === 'COMPLETE') {
+            record_order_event($pdo, $orderId, 'PERSONALISATION.COMPLETE', [], 'personalisation-complete');
         }
 
         return $orderId;
@@ -404,4 +484,4 @@ json_response(201, [
         'unit_minor' => $l['unit_minor'],
         'line_minor' => $l['line_minor'],
     ], $pricing->lines),
-]);
+] + order_summary_extras(order_public_summary(db(), (array) find_order_row(db(), $orderId))));

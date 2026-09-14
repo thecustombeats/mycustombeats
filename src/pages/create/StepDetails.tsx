@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { COUNTRIES } from "../../data/countries";
 import { contactIssues, type ContactDetails, type ContactField } from "../../lib/createFlow";
 
 interface StepDetailsProps {
@@ -16,6 +17,8 @@ interface FieldSpec {
   optional?: boolean;
   hint?: string;
   wide?: boolean;
+  /** Rendered as a list of ISO countries rather than free text. */
+  country?: boolean;
 }
 
 const CONTACT: FieldSpec[] = [
@@ -30,8 +33,9 @@ const ADDRESS: FieldSpec[] = [
   { field: "shippingAddress", label: "Address", autoComplete: "shipping address-line1", wide: true },
   { field: "shippingAddress2", label: "Address line 2", autoComplete: "shipping address-line2", optional: true, wide: true },
   { field: "shippingCity", label: "Town or city", autoComplete: "shipping address-level2" },
+  { field: "shippingState", label: "County, state or region", autoComplete: "shipping address-level1", optional: true },
   { field: "shippingPostcode", label: "Postcode or ZIP", autoComplete: "shipping postal-code" },
-  { field: "shippingCountry", label: "Country", autoComplete: "shipping country-name", wide: true },
+  { field: "shippingCountry", label: "Country", autoComplete: "shipping country", wide: true, country: true },
 ];
 
 const StepDetails = ({ contact, setContact, requiresShipping, showErrors }: StepDetailsProps) => {
@@ -49,6 +53,25 @@ const StepDetails = ({ contact, setContact, requiresShipping, showErrors }: Step
           {spec.optional && <span className="font-normal text-espresso/60"> (optional)</span>}
         </label>
         {spec.hint && <p id={`${id}-hint`} className="mt-1 text-sm text-espresso/65">{spec.hint}</p>}
+        {spec.country ? (
+          <select
+            id={id}
+            value={contact[spec.field]}
+            autoComplete={spec.autoComplete}
+            onChange={(e) => setContact((c) => ({ ...c, [spec.field]: e.target.value }))}
+            aria-describedby={describedBy}
+            {...(error ? { "aria-invalid": true } : {})}
+            aria-required
+            className={`mt-2 min-h-12 w-full rounded-xl border bg-white px-3 text-base text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep ${error ? "border-red-600" : "border-espresso/15"}`}
+          >
+            <option value="">Choose the country</option>
+            {COUNTRIES.map((country) => (
+              <option key={country.code} value={country.code}>
+                {country.name}
+              </option>
+            ))}
+          </select>
+        ) : (
         <input
           id={id}
           type={spec.type ?? "text"}
@@ -60,6 +83,7 @@ const StepDetails = ({ contact, setContact, requiresShipping, showErrors }: Step
           {...(!spec.optional ? { "aria-required": true } : {})}
           className={`mt-2 min-h-12 w-full rounded-xl border bg-white px-4 text-base text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep ${error ? "border-red-600" : "border-espresso/15"}`}
         />
+        )}
         {error && <p id={`${id}-error`} role="alert" className="mt-1 text-sm text-red-700">{error}</p>}
       </div>
     );
@@ -76,7 +100,7 @@ const StepDetails = ({ contact, setContact, requiresShipping, showErrors }: Step
         <fieldset className="grid gap-5 sm:grid-cols-2">
           <legend className="mb-2 font-serif text-2xl text-ink sm:col-span-2">Where should we send it?</legend>
           <p className="text-base leading-relaxed text-espresso/75 sm:col-span-2">
-            Delivery is calculated separately before payment. If it's for a trip, choose a fixed address you'll be at — not a ship or hotel you're about to leave.
+            We'll show the delivery cost for this address on the next page, before you pay. If it's for a trip, choose a fixed address you'll be at — not a ship or hotel you're about to leave.
           </p>
           {ADDRESS.map(renderField)}
         </fieldset>

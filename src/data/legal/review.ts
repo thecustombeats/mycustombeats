@@ -173,6 +173,14 @@ export const LEGAL_REVIEW_REQUIRED: readonly ReviewItem[] = [
     severity: "CONFIRMATORY",
   },
   {
+    topic: "Privacy — customer photos are now stored by MCB, not Cloudinary (Sprint 4)",
+    positionTaken:
+      "The privacy inventory (privacy.ts) still names Cloudinary as the store for photographs, citing pages/CreateMemory.tsx. No Cloudinary code remains in the release candidate. Since Sprint 4, photos are uploaded after the order is saved, authorised by the order's checkout token, and stored privately on MCB's own hosting (api/order-upload.php; see Hostinger in the inventory), under random names, never served publicly, retrievable only by staff with the CRM key. Photos are not sent to Stripe, analytics or any tracker. The Apollo website tracker, which was not in the inventory, has been removed from the site.",
+    question:
+      "Before production: (1) confirm with the Founder whether Cloudinary is still used anywhere in MCB's operations — if not, remove it from the inventory; (2) set and state a retention period for customer photos (they are currently kept indefinitely); (3) confirm the policy's description of what we collect and who handles it remains accurate for per-memory stories, photos and delivery addresses stored as described above. These change the 2026-09-14 Privacy Policy edition and fall under the review item above.",
+    severity: "BLOCKING",
+  },
+  {
     topic: "Founder Terms comparison",
     positionTaken:
       "RESOLVED. The Founder's complete nine-section source was compared against the implementation by the supervising certification process: PASS, commercial intent preserved across clauses 12-18, 21 and 25.",

@@ -1,10 +1,18 @@
 import { Check } from "lucide-react";
 import { Link } from "react-router-dom";
-import { formatMinor, getProduct, getVariant, type OrderPreview } from "../../data/catalogue";
+import { PRIORITY_REPLACEMENT, formatMinor, getProduct, getVariant, type OrderPreview } from "../../data/catalogue";
+import { getCountry } from "../../data/countries";
 import { CONSENTS, TERMS_VERSION, getConsent, requiredConsents, type ConsentId } from "../../data/legal";
 import { OCCASIONS, type OccasionId } from "../../data/occasions";
 import { hasDigitalDelivery, type ContactDetails, type StepId } from "../../lib/createFlow";
-import { memoryLabel, mcbChoosesStyle, styleSummary, type OrderDraft } from "../../lib/personalisation";
+import type { Quote } from "../../lib/orderApi";
+import { memoryLabel, mcbChoosesStyle, priorityReplacementCount, styleSummary, type OrderDraft } from "../../lib/personalisation";
+
+/** The server's figures for this order, as the page last asked for them. */
+export type QuoteState =
+  | { state: "loading" }
+  | { state: "ready"; quote: Quote }
+  | { state: "error"; message: string };
 
 interface StepReviewProps {
   draft: OrderDraft;
@@ -15,6 +23,8 @@ interface StepReviewProps {
   setConsent: (id: ConsentId, value: boolean) => void;
   showErrors: boolean;
   goTo: (step: StepId) => void;
+  quote: QuoteState;
+  onRetryQuote: () => void;
 }
 
 const EditLink = ({ onClick, label }: { onClick: () => void; label: string }) => (
@@ -23,12 +33,14 @@ const EditLink = ({ onClick, label }: { onClick: () => void; label: string }) =>
   </button>
 );
 
-const StepReview = ({ draft, preview, photos, contact, consents, setConsent, showErrors, goTo }: StepReviewProps) => {
+const StepReview = ({ draft, preview, photos, contact, consents, setConsent, showErrors, goTo, quote, onRetryQuote }: StepReviewProps) => {
   const product = getProduct(draft.productId);
   const variant = getVariant(draft.sku)?.variant;
   if (!product || !variant || !preview.ok) return null;
   const required = requiredConsents({ hasDigitalDelivery: hasDigitalDelivery(preview) });
   const anyMcbChoice = draft.units.some((unit) => unit.memories.some(mcbChoosesStyle));
+  const prCount = priorityReplacementCount(draft);
+  const country = getCountry(contact.shippingCountry)?.name;
 
   return (
     <div className="space-y-10">
@@ -70,7 +82,7 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
       </section>
 
       {/* ---- Finishing touches ---- */}
-      {(draft.plaques.length > 0 || draft.frames.length > 0 || draft.players.length > 0 || draft.priorityReplacementQuantity > 0) && (
+      {(draft.plaques.length > 0 || draft.frames.length > 0 || draft.players.length > 0 || prCount > 0) && (
         <section aria-labelledby="review-extras" className="rounded-2xl bg-white p-5 sm:p-7">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2 id="review-extras" className="!text-3xl text-ink">Finishing touches</h2>
@@ -84,6 +96,17 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
               const position = draft.units.flatMap((unit, u) => unit.memories.map((memory, m) => ({ id: memory.id, label: memoryLabel(draft, u, m) }))).find((s) => s.id === frame.memoryId);
               return <li key={frame.id}>Lyrics frame {i + 1}: {getVariant(frame.sku)?.variant.label} · {position?.label}{frame.heading ? ` · “${frame.heading}”` : ""}</li>;
             })}
+            {draft.players.map((player) => (
+              <li key={player.sku}>{getProduct(getVariant(player.sku)?.product.id ?? "")?.name ?? player.sku}{player.quantity > 1 ? ` × ${player.quantity}` : ""}</li>
+            ))}
+            {prCount > 0 && (
+              <li>
+                {PRIORITY_REPLACEMENT.name}:{" "}
+                {draft.units.length === 1
+                  ? `for your ${product.name}`
+                  : draft.units.flatMap((unit, u) => (unit.priorityReplacement ? [`${product.name} ${u + 1}`] : [])).join(", ")}
+              </li>
+            )}
           </ul>
         </section>
       )}
@@ -97,33 +120,66 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
         <p className="mt-3 text-base text-espresso/80">{contact.firstName} {contact.lastName} · {contact.email}</p>
         {preview.requiresShipping && (
           <p className="mt-2 text-base text-espresso/80">
-            Sending to {contact.shippingName}, {[contact.shippingAddress, contact.shippingAddress2, contact.shippingCity, contact.shippingPostcode, contact.shippingCountry].filter(Boolean).join(", ")}
+            Sending to {contact.shippingName}, {[contact.shippingAddress, contact.shippingAddress2, contact.shippingCity, contact.shippingState, contact.shippingPostcode, country].filter(Boolean).join(", ")}
           </p>
         )}
         {product.turnaround && <p className="mt-2 text-sm text-espresso/70">{product.turnaround.label}</p>}
       </section>
 
-      {/* ---- Price ---- */}
-      <section aria-labelledby="review-price" className="rounded-2xl border border-gold/40 bg-ivory p-5 sm:p-7">
+      {/* ---- Price: the server's figures, never this page's arithmetic ---- */}
+      <section aria-labelledby="review-price" aria-busy={quote.state === "loading"} className="rounded-2xl border border-gold/40 bg-ivory p-5 sm:p-7">
         <h2 id="review-price" className="!text-3xl text-ink">Your order</h2>
-        <dl className="mt-4 divide-y divide-espresso/10">
-          {preview.lines.map((line) => (
-            <div key={line.sku} className="flex items-start justify-between gap-4 py-3 text-base">
-              <dt className="text-espresso/85">
-                {line.name}{line.quantity > 1 && <span className="text-espresso/60"> × {line.quantity}</span>}
-              </dt>
-              <dd className="font-mono text-ink">{formatMinor(line.lineMinor)}</dd>
-            </div>
-          ))}
-          <div className="flex items-baseline justify-between gap-4 pt-4">
-            <dt className="text-lg font-medium text-ink">Total</dt>
-            <dd className="font-serif text-3xl text-ink">{formatMinor(preview.totalMinor)}</dd>
-          </div>
-        </dl>
-        {preview.requiresShipping && (
-          <p className="mt-3 text-base text-espresso/75">Delivery is calculated separately before payment.</p>
+        {quote.state === "loading" && (
+          <p role="status" className="mt-4 text-base text-espresso/80">Confirming your total with MCB…</p>
         )}
-        <p className="mt-2 text-sm text-espresso/65">Prices in GBP. Payment is taken in GBP.</p>
+        {quote.state === "error" && (
+          <div role="alert" className="mt-4">
+            <p className="text-base text-ink">{quote.message}</p>
+            <button type="button" onClick={onRetryQuote} className="mt-3 min-h-11 rounded-full border border-ink/25 px-5 text-base font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep">
+              Try again
+            </button>
+          </div>
+        )}
+        {quote.state === "ready" && (
+          <>
+            <dl className="mt-4 divide-y divide-espresso/10">
+              {quote.quote.lines.map((line) => (
+                <div key={line.sku} className="flex items-start justify-between gap-4 py-3 text-base">
+                  <dt className="text-espresso/85">
+                    {getVariant(line.sku)?.variant.name ?? line.name}{line.quantity > 1 && <span className="text-espresso/60"> × {line.quantity}</span>}
+                  </dt>
+                  <dd className="font-mono text-ink">{formatMinor(line.lineMinor)}</dd>
+                </div>
+              ))}
+              <div className="flex items-start justify-between gap-4 py-3 text-base">
+                <dt className="text-espresso/85">Subtotal</dt>
+                <dd className="font-mono text-ink">{formatMinor(quote.quote.subtotalMinor)}</dd>
+              </div>
+              <div className="flex items-start justify-between gap-4 py-3 text-base">
+                <dt className="text-espresso/85">
+                  {quote.quote.delivery.status === "NOT_REQUIRED" ? "Delivery" : `Delivery${country ? ` to ${country}` : ""}`}
+                  {quote.quote.delivery.label && <span className="mt-0.5 block text-sm text-espresso/65">{quote.quote.delivery.label}</span>}
+                </dt>
+                <dd className="font-mono text-ink">
+                  {quote.quote.delivery.status === "NOT_REQUIRED" ? "Not needed" : quote.quote.delivery.status === "QUOTED" ? formatMinor(quote.quote.delivery.minor) : "—"}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-4 pt-4">
+                <dt className="text-lg font-medium text-ink">Total</dt>
+                <dd className="font-serif text-3xl text-ink">{formatMinor(quote.quote.totalMinor)}</dd>
+              </div>
+            </dl>
+            {!quote.quote.payable && (
+              <p role="alert" className="mt-4 rounded-xl border border-ink/20 bg-white p-4 text-base leading-relaxed text-ink">
+                We can't take payment online for delivery to {country ?? "this address"} yet. Your details are safe to review — please contact MCB and we'll help you complete your order.
+              </p>
+            )}
+            {quote.quote.delivery.testOnly && (
+              <p className="mt-3 text-sm text-espresso/70">This is a test delivery rate for rehearsing checkout. It is not a real price.</p>
+            )}
+          </>
+        )}
+        <p className="mt-3 text-sm text-espresso/65">Prices in GBP. Payment is taken in GBP by Stripe; MCB never sees your card details.</p>
       </section>
 
       {/* ---- Consent ---- */}

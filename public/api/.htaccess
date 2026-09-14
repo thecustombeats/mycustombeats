@@ -13,6 +13,17 @@
 
 RedirectMatch 403 ^/api/lib/
 RedirectMatch 403 ^/api/data/
+# Customer photos, when stored inside the web root (see lib/uploads.php).
+RedirectMatch 403 ^/api/storage/
+
+# ---------------------------------------------------------------------
+# Photo uploads: 10 MB per photo (api/order-upload.php enforces it exactly).
+# mod_php reads these; PHP-FPM/LiteSpeed hosts read api/.user.ini instead.
+# ---------------------------------------------------------------------
+<IfModule mod_php.c>
+  php_value upload_max_filesize 11M
+  php_value post_max_size 12M
+</IfModule>
 
 # ---------------------------------------------------------------------
 # Endpoints are JSON, never cached.

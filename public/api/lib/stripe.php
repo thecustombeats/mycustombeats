@@ -32,6 +32,67 @@ function stripe_api_base(): string
 }
 
 /**
+ * The Stripe mode a secret key belongs to: 'test', 'live', or null when the
+ * key is empty or not a recognisable Stripe secret or restricted key.
+ */
+function stripe_key_mode(string $secretKey): ?string
+{
+    if (preg_match('/^(sk|rk)_test_[A-Za-z0-9_]+$/', $secretKey) === 1) {
+        return 'test';
+    }
+    if (preg_match('/^(sk|rk)_live_[A-Za-z0-9_]+$/', $secretKey) === 1) {
+        return 'live';
+    }
+    return null;
+}
+
+/**
+ * Whether this server may create Checkout Sessions, and in which mode.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * LIVE PAYMENT NEEDS AN EXPLICIT, SERVER-SIDE LAUNCH APPROVAL
+ * ─────────────────────────────────────────────────────────────────────────
+ * A test key rehearses. A live key alone does NOTHING: it must be accompanied
+ * by `stripe.live_checkout_approved => true`, which is set only when Bella and
+ * Lewis approve launch. Nothing in the browser can switch this on — the site
+ * asks /api/checkout/status and shows what the server says.
+ *
+ * Fails closed on an unrecognised key, and logs why without the key itself.
+ *
+ * @return array{available: bool, mode: ?string, reason: ?string}
+ */
+function stripe_checkout_availability(): array
+{
+    if (mcb_setting('stripe.checkout_sessions_enabled', false) !== true) {
+        return ['available' => false, 'mode' => null, 'reason' => 'disabled'];
+    }
+    $mode = stripe_key_mode((string) mcb_setting('stripe.secret_key', ''));
+    if ($mode === null) {
+        error_log('MCB checkout: stripe.secret_key is empty or not a Stripe secret key; checkout refused.');
+        return ['available' => false, 'mode' => null, 'reason' => 'not_configured'];
+    }
+    if ($mode === 'live' && mcb_setting('stripe.live_checkout_approved', false) !== true) {
+        error_log('MCB checkout: a LIVE Stripe key is configured without stripe.live_checkout_approved; checkout refused.');
+        return ['available' => false, 'mode' => null, 'reason' => 'live_not_approved'];
+    }
+    return ['available' => true, 'mode' => $mode, 'reason' => null];
+}
+
+/**
+ * The `livemode` a genuine event for this server must carry, or null when no
+ * Stripe key is configured (legacy Payment Link reconciliation only).
+ *
+ * Stripe signs test and live events with different endpoint secrets, so a
+ * mismatch means misconfiguration. It is still checked: a live payment must
+ * never be marked paid by a server rehearsing in test mode, or the reverse.
+ */
+function stripe_expected_livemode(): ?bool
+{
+    $mode = stripe_key_mode((string) mcb_setting('stripe.secret_key', ''));
+    return $mode === null ? null : $mode === 'live';
+}
+
+/**
  * Countries Stripe may collect a shipping address for.
  *
  * NOT a shipping-rate or delivery claim, and it charges nothing: no shipping

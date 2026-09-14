@@ -3,7 +3,17 @@
  * POST /api/checkout/session — create a Stripe Checkout Session for a SAVED order.
  *
  * DORMANT BY DEFAULT. Returns 503 unless `stripe.checkout_sessions_enabled`
- * is true in config.
+ * is true AND the configured key is a Stripe TEST key — or a LIVE key with
+ * `stripe.live_checkout_approved` (lib/stripe.php). No browser flag can
+ * enable it.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * READINESS
+ * ─────────────────────────────────────────────────────────────────────────
+ * Only an order that can actually be made is offered for payment: its
+ * per-memory personalisation saved and COMPLETE (every promised photo
+ * received), and — for anything posted — delivery QUOTED by the server. An
+ * order quoted from a TEST_ONLY delivery fixture is refused outside test mode.
  *
  * REQUEST  { orderId, checkoutToken }   — and nothing else is read.
  *
@@ -38,15 +48,15 @@ require_same_origin();
 $config = mcb_config();
 $stripe = $config['stripe'] ?? [];
 
-if (empty($stripe['checkout_sessions_enabled'])) {
-    json_error(503, 'checkout_sessions_disabled', 'Online checkout is not available yet.');
-}
-
-$secretKey = (string) ($stripe['secret_key'] ?? '');
-if ($secretKey === '') {
-    error_log('MCB checkout: stripe.secret_key is empty; refusing to create a session.');
+$availability = stripe_checkout_availability();
+if (!$availability['available']) {
+    if ($availability['reason'] === 'disabled') {
+        json_error(503, 'checkout_sessions_disabled', 'Online checkout is not available yet.');
+    }
     json_error(503, 'service_unavailable', 'The service is temporarily unavailable.');
 }
+$mode      = (string) $availability['mode'];
+$secretKey = (string) ($stripe['secret_key'] ?? '');
 
 $ipHash = hash_ip(client_ip());
 enforce_rate_limit('checkout_sessions', 'ip_hash', $ipHash, 20, 3600);
@@ -64,26 +74,29 @@ if ($orderId <= 0 || !is_string($token) || !preg_match('/^[a-f0-9]{64}$/', $toke
 }
 
 // ---- The order, authorised by its token --------------------------------
-$stmt = db()->prepare(
-    'SELECT o.id, o.status, o.package, o.fulfilment_type, o.total_minor, o.currency,
-            o.checkout_token_hash, c.email
-       FROM orders o
-       JOIN customers c ON c.id = o.customer_id
-      WHERE o.id = :id
-      LIMIT 1'
-);
-$stmt->execute([':id' => $orderId]);
-$order = $stmt->fetch();
-
-if ($order === false
-    || !is_string($order['checkout_token_hash'])
-    || !hash_equals($order['checkout_token_hash'], hash('sha256', $token))) {
+$order = find_order_by_token(db(), $orderId, $token);
+if ($order === null) {
     json_error(404, 'order_not_found', 'We could not find that order.');
 }
 
 // An order that is already paid must not get a second payable session.
 if ($order['status'] !== 'PENDING') {
     json_error(409, 'order_not_payable', 'That order is not awaiting payment.');
+}
+
+// ---- Ready to be made? ----------------------------------------------------
+$blocker = order_checkout_blocker($order, $mode);
+if ($blocker !== null) {
+    if ($blocker === 'delivery_test_only') {
+        error_log("MCB checkout: order {$orderId} was quoted TEST_ONLY delivery; refusing a {$mode} session.");
+    }
+    [$status, $code, $message] = match ($blocker) {
+        'awaiting_uploads'     => [409, 'awaiting_uploads', 'We are still waiting for a photo you chose to add. Please add it and try again.'],
+        'delivery_unavailable' => [409, 'delivery_unavailable', "We can't take payment for delivery to this address online yet. Please contact MCB and we'll help."],
+        'delivery_test_only'   => [409, 'order_not_payable_online', 'This order cannot be paid online. Please contact MCB.'],
+        default                => [409, 'order_not_ready', 'This order is missing the details we need to make your songs. Please place it again from the order page.'],
+    };
+    json_error($status, $code, $message);
 }
 
 // ---- The saved lines -----------------------------------------------------
@@ -105,21 +118,29 @@ foreach ($lines as $line) {
 }
 
 /**
- * The saved lines must add up to the saved total. An order from before the
+ * The saved lines must add up to the saved subtotal, and subtotal plus the
+ * saved delivery must be the saved payable total. An order from before the
  * canonical catalogue has no integer line amounts, and any disagreement means
  * the record cannot be trusted to charge from — both are refused rather than
  * re-priced from today's catalogue.
  */
-if ($lines === [] || $order['total_minor'] === null || $totalMinor !== (int) $order['total_minor']
+$deliveryMinor = $order['delivery_minor'] === null ? 0 : (int) $order['delivery_minor'];
+$goodsMinor    = $order['subtotal_minor'] === null ? (int) $order['total_minor'] : (int) $order['subtotal_minor'];
+if ($lines === [] || $order['total_minor'] === null || $totalMinor !== $goodsMinor
+    || $goodsMinor + $deliveryMinor !== (int) $order['total_minor']
     || $totalMinor <= 0 || $order['currency'] !== 'GBP') {
     error_log("MCB checkout: order {$orderId} has no consistent saved lines; refusing a session.");
     json_error(409, 'order_not_payable_online', 'This order cannot be paid online. Please contact MCB.');
 }
 
 // ---- Idempotency and expiry -----------------------------------------------
+$payableMinor = (int) $order['total_minor'];
+
 $fingerprint = hash('sha256', json_encode([
-    'order' => $orderId,
-    'lines' => array_map(static fn (array $l): array => [$l['item_id'], (int) $l['quantity'], (int) $l['unit_minor']], $lines),
+    'order'    => $orderId,
+    'lines'    => array_map(static fn (array $l): array => [$l['item_id'], (int) $l['quantity'], (int) $l['unit_minor']], $lines),
+    'delivery' => [$deliveryMinor, $order['delivery_rate_id']],
+    'mode'     => $mode,
 ], JSON_UNESCAPED_SLASHES));
 
 /**
@@ -184,16 +205,17 @@ try {
         db()->prepare(
             'INSERT INTO checkout_sessions
                 (order_id, basket_hash, package, format, basket_lines,
-                 expected_amount_gbp, expected_minor, currency, attempt, ip_hash)
-             VALUES (:o, :h, :p, NULL, :l, :amt, :minor, :cur, :a, :ip)'
+                 expected_amount_gbp, expected_minor, currency, livemode, attempt, ip_hash)
+             VALUES (:o, :h, :p, NULL, :l, :amt, :minor, :cur, :live, :a, :ip)'
         )->execute([
             ':o'     => $orderId,
             ':h'     => $snapshotHash,
             ':p'     => $order['package'],
             ':l'     => json_encode($lines, JSON_UNESCAPED_SLASHES),
-            ':amt'   => minor_to_decimal($totalMinor),
-            ':minor' => $totalMinor,
+            ':amt'   => minor_to_decimal($payableMinor),
+            ':minor' => $payableMinor,
             ':cur'   => 'GBP',
+            ':live'  => $mode === 'live' ? 1 : 0,
             ':a'     => $attempt,
             ':ip'    => $ipHash,
         ]);
@@ -230,7 +252,9 @@ $params = [
     'mode'                => 'payment',
     // {CHECKOUT_SESSION_ID} is substituted by Stripe; /thank-you needs it.
     'success_url'         => $origin . '/thank-you?session_id={CHECKOUT_SESSION_ID}',
-    'cancel_url'          => $origin . '/#order',
+    // Back to the order's Review step, which offers to resume payment for the
+    // saved order. Nothing about the order is put in the URL.
+    'cancel_url'          => $origin . '/create?step=review&checkout=cancelled',
     'line_items'          => $lineItems,
     'client_reference_id' => (string) $orderId,
     // Machine identifiers only — no story, contact details or address.
@@ -244,11 +268,32 @@ $params = [
 ];
 
 /**
+ * Delivery, exactly as the server quoted and saved it, as a fixed shipping
+ * amount — so Stripe shows it as delivery and `amount_total` is the saved
+ * payable total. Never added when nothing is posted.
+ */
+if ($deliveryMinor > 0) {
+    $params['shipping_options'] = [[
+        'shipping_rate_data' => [
+            'type'         => 'fixed_amount',
+            'display_name' => (string) $order['delivery_label'],
+            'fixed_amount' => ['amount' => $deliveryMinor, 'currency' => 'gbp'],
+        ],
+    ]];
+}
+
+/**
  * Automatic tax stays OFF: no tax treatment is approved, and with it off
  * `amount_total` equals the saved total exactly, which is what the webhook
  * requires before marking anything paid.
  */
 $session = stripe_create_checkout_session($secretKey, $params, 'mcb_' . $fingerprint . '_' . $attempt);
+
+// A session Stripe reports in the other mode is not one this server may use.
+if (is_array($session) && array_key_exists('livemode', $session) && $session['livemode'] !== ($mode === 'live')) {
+    error_log("MCB checkout: Stripe returned a session in the wrong mode for order {$orderId}; refusing it.");
+    $session = null;
+}
 
 if ($session === null || empty($session['url']) || empty($session['id'])) {
     try {
@@ -281,6 +326,12 @@ try {
 } catch (PDOException $e) {
     error_log('MCB checkout: could not attach Stripe session to snapshot: ' . $e->getMessage());
 }
+
+record_order_event_safely(db(), $orderId, 'CHECKOUT.SESSION_CREATED', [
+    'attempt'        => $attempt,
+    'expected_minor' => $payableMinor,
+    'mode'           => $mode,
+]);
 
 json_response(200, [
     'id'  => (string) $session['id'],

@@ -3,6 +3,7 @@
  *
  *   public/api/data/catalogue.json   from src/data/catalogue/
  *   public/api/data/legal.json       from src/data/legal/
+ *   public/api/data/personalisation.json  limits, occasions, styles, countries
  *
  * The TypeScript catalogue is the only place a price is defined. PHP reads
  * this projection of it at request time and never holds a second price table.
@@ -27,6 +28,7 @@ const checkOnly = process.argv.includes("--check");
 const TARGETS = {
   catalogue: join(root, "public/api/data/catalogue.json"),
   legal: join(root, "public/api/data/legal.json"),
+  personalisation: join(root, "public/api/data/personalisation.json"),
 };
 
 const fail = (message) => {
@@ -48,6 +50,10 @@ try {
       "tsc",
       join(root, "src/data/catalogue/index.ts"),
       join(root, "src/data/legal/index.ts"),
+      join(root, "src/data/personalisationRules.ts"),
+      join(root, "src/data/occasions.ts"),
+      join(root, "src/data/musicStyles.ts"),
+      join(root, "src/data/countries.ts"),
       "--outDir", tmp,
       "--rootDir", join(root, "src/data"),
       "--module", "esnext",
@@ -82,6 +88,10 @@ addJsSuffixes(tmp);
 
 const catalogue = await import(pathToFileURL(join(tmp, "catalogue/index.js")).href);
 const legal = await import(pathToFileURL(join(tmp, "legal/index.js")).href);
+const rules = await import(pathToFileURL(join(tmp, "personalisationRules.js")).href);
+const occasions = await import(pathToFileURL(join(tmp, "occasions.js")).href);
+const musicStyles = await import(pathToFileURL(join(tmp, "musicStyles.js")).href);
+const countries = await import(pathToFileURL(join(tmp, "countries.js")).href);
 rmSync(tmp, { recursive: true, force: true });
 
 const { PRODUCTS, ORDER_LIMITS, PRIORITY_REPLACEMENT_SKU, validateCatalogue } = catalogue;
@@ -194,9 +204,38 @@ const legalOut = {
   },
 };
 
+/* ------------------------------------------------------------------ */
+/* personalisation.json                                                */
+/* ------------------------------------------------------------------ */
+
+const countryCodes = countries.COUNTRIES.map((country) => country.code);
+if (new Set(countryCodes).size !== countryCodes.length || countryCodes.some((code) => !/^[A-Z]{2}$/.test(code))) {
+  fail("countries must be unique two-letter codes");
+}
+const styleLabels = musicStyles.MUSIC_STYLES.map((style) => style.label);
+if (styleLabels.some((label) => label.length > musicStyles.MAX_STYLE_LABEL_LENGTH)) fail("a music style label is too long");
+
+const personalisationOut = {
+  _generated: "Do not edit. Generated from src/data/ by scripts/generate-catalogue-json.mjs",
+  limits: {
+    story_max: rules.STORY_MAX,
+    about_max: rules.ABOUT_MAX,
+    song_title_max: rules.SONG_TITLE_MAX,
+    artist_max: rules.ARTIST_MAX,
+    frame_heading_max: rules.FRAME_HEADING_MAX,
+    style_label_max: musicStyles.MAX_STYLE_LABEL_LENGTH,
+  },
+  multi_unit_product_ids: [...rules.MULTI_UNIT_PRODUCT_IDS],
+  uploads: { max_bytes: rules.MAX_PHOTO_BYTES, mime_types: [...rules.PHOTO_MIME_TYPES] },
+  occasions: Object.keys(occasions.OCCASIONS),
+  styles: styleLabels,
+  countries: Object.fromEntries(countries.COUNTRIES.map((country) => [country.code, country.name])),
+};
+
 const outputs = [
   [TARGETS.catalogue, JSON.stringify(catalogueOut, null, 2) + "\n"],
   [TARGETS.legal, JSON.stringify(legalOut, null, 2) + "\n"],
+  [TARGETS.personalisation, JSON.stringify(personalisationOut, null, 2) + "\n"],
 ];
 
 if (checkOnly) {
@@ -204,7 +243,7 @@ if (checkOnly) {
   if (stale.length > 0) {
     fail(`generated data is out of date: ${stale.map(([p]) => p.replace(root + "/", "")).join(", ")}. Run npm run generate:catalogue.`);
   }
-  console.log("catalogue.json and legal.json match the TypeScript sources.");
+  console.log("catalogue.json, legal.json and personalisation.json match the TypeScript sources.");
 } else {
   for (const [path, text] of outputs) {
     mkdirSync(dirname(path), { recursive: true });
@@ -215,4 +254,5 @@ if (checkOnly) {
       `${Object.values(skus).filter((s) => s.orderable).length} orderable (hash ${catalogueOut.catalogue_hash.slice(0, 12)})`
   );
   console.log(`legal.json generated: terms ${legal.TERMS_VERSION}`);
+  console.log(`personalisation.json generated: ${countryCodes.length} countries, ${styleLabels.length} styles`);
 }

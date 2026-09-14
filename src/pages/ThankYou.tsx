@@ -4,6 +4,8 @@ import { Check, Clock, HelpCircle } from "lucide-react";
 import { trackPurchase, type ConfirmedPurchase } from "../lib/analytics";
 import { Helmet } from "react-helmet-async";
 import ShareMcb from "../components/ShareMcb";
+import { SAVED_ORDER_KEY } from "../lib/orderApi";
+import { DRAFT_STORAGE_KEY } from "../lib/personalisation";
 
 /**
  * How long to wait for the MCB reference to appear.
@@ -231,6 +233,13 @@ export default function ThankYou() {
             setLookupFinished(true);
             try {
               localStorage.setItem(STORED_REFERENCE_KEY, data.reference);
+              if (data.status === "PAID") {
+                // Paid and on MCB's record: the words saved on this device
+                // while ordering, and the saved-order note, are no longer
+                // needed here and are removed.
+                localStorage.removeItem(DRAFT_STORAGE_KEY);
+                sessionStorage.removeItem(SAVED_ORDER_KEY);
+              }
             } catch {
               // Private browsing or blocked storage. Nothing here is essential.
             }

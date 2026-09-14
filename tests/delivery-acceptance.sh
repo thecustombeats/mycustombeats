@@ -61,7 +61,7 @@ order_minor() { q "SELECT total_minor FROM orders WHERE id=$1"; }
 SECRET=whsec_test_secret_for_local_verification
 sign() { local ts=$(date +%s); local sig=$(printf '%s.%s' "$ts" "$1" | openssl dgst -sha256 -hmac "$SECRET" -hex | sed 's/.*= *//'); echo "t=$ts,v1=$sig"; }
 pay() { q "UPDATE orders SET stripe_session_id='cs_dl_$1' WHERE id=$1" >/dev/null
-  W="{\"id\":\"evt_dl_$1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_dl_$1\",\"client_reference_id\":\"$1\",\"payment_intent\":\"pi_dl_$1\",\"payment_status\":\"paid\",\"amount_total\":$(order_minor $1),\"currency\":\"gbp\"}}}"
+  W="{\"id\":\"evt_dl_$1\",\"type\":\"checkout.session.completed\",\"livemode\":false,\"data\":{\"object\":{\"id\":\"cs_dl_$1\",\"client_reference_id\":\"$1\",\"payment_intent\":\"pi_dl_$1\",\"payment_status\":\"paid\",\"amount_total\":$(order_minor $1),\"currency\":\"gbp\"}}}"
   curl -s -o /dev/null -X POST "$BASE/stripe/webhook" -H "Content-Type: application/json" -H "Stripe-Signature: $(sign "$W")" -d "$W"; }
 stub_reset() { docker exec mcb-api sh -c 'rm -f /tmp/resend-stub.log'; }
 mail_log() { docker exec mcb-api sh -c 'cat /tmp/resend-stub.log 2>/dev/null'; }
@@ -333,8 +333,8 @@ tc "94. no Stripe Payment Link remains in browser source" \
   "$(grep -rq 'buy\.stripe\.com' src/ 2>/dev/null && echo 0 || echo 1)"
 tc "95. dynamic checkout stays OFF in the shipped config" \
   "$(grep -A1 "'checkout_sessions_enabled'" public/api/config.example.php | grep -qi 'false' && echo 1 || echo 0)"
-tc "96. the client checkout flag stays false" \
-  "$(grep -q 'export const CHECKOUT_SESSIONS_ENABLED = false' src/lib/checkoutSession.ts && echo 1 || echo 0)"
+tc "96. no browser switch can open checkout; the server decides and ships closed" \
+  "$(! grep -rq 'CHECKOUT_SESSIONS_ENABLED' src/ && grep -q '/api/checkout/status' src/lib/orderApi.ts && grep -q "'live_checkout_approved' => false" public/api/config.example.php && echo 1 || echo 0)"
 tc "97. Bespoke still cannot be ordered" \
   "$(post order '{'"$CN"',"firstName":"F","lastName":"P","email":"dl-fp@example.com","lines":[{"sku":"bespoke","quantity":1}],"story":"x"}' | grep -q '^422$' && body | grep -q '"error":"unknown_sku"' && echo 1 || echo 0)"
 # The lifecycle gained SONG_READY and REVISION_REQUESTED in this amendment.

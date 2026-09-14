@@ -34,7 +34,7 @@ $params = [':cursor' => $cursor];
 
 // Whitelisted, never interpolated from the request.
 $status = strtoupper(trim((string) ($_GET['status'] ?? '')));
-if (in_array($status, ['PENDING', 'PAID', 'ABANDONED', 'REFUNDED'], true)) {
+if (in_array($status, ['PENDING', 'PAID', 'PAYMENT_REVIEW', 'ABANDONED', 'REFUNDED', 'CANCELLED'], true)) {
     $where[] = 'o.status = :status';
     $params[':status'] = $status;
 }

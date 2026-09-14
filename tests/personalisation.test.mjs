@@ -94,20 +94,23 @@ test("labels read naturally for each product", () => {
   assert.equal(P.memoryLabel(draftFor("keepsake-7-picture-disc", 3), 2, 0), "Keepsake 3 · Your memory");
 });
 
-test("Priority Replacement is never preselected and only exists for Keepsakes", () => {
+test("Priority Replacement is chosen per Keepsake, never preselected, and only for Keepsakes", () => {
   for (const sku of ["moment", "journey-6", "journey-12", "keepsake-7-picture-disc", "keepsake-12-picture-disc"]) {
-    assert.equal(draftFor(sku, 2).priorityReplacementQuantity, 0, `${sku} starts without it`);
+    assert.equal(P.priorityReplacementCount(draftFor(sku, 2)), 0, `${sku} starts without it`);
+    assert.ok(draftFor(sku, 2).units.every((unit) => unit.priorityReplacement === false));
   }
   assert.equal(P.priorityReplacementLimit(draftFor("moment")), 0);
   assert.equal(P.priorityReplacementLimit(draftFor("journey-12")), 0);
   assert.equal(P.priorityReplacementLimit(draftFor("keepsake-10-heart-picture-disc", 3)), 3);
 
-  const withPr = P.reconcileUnits({ ...draftFor("keepsake-7-picture-disc", 3), priorityReplacementQuantity: 3 });
-  assert.equal(withPr.priorityReplacementQuantity, 3);
-  assert.equal(P.chooseVariant(withPr, "keepsake-7-picture-disc", 2).priorityReplacementQuantity, 2, "capped when Keepsakes are removed");
-  assert.equal(P.chooseVariant(withPr, "journey-6").priorityReplacementQuantity, 0, "removed for Journey");
-  const journey = P.reconcileUnits({ ...draftFor("journey-6"), priorityReplacementQuantity: 1 });
-  assert.equal(journey.priorityReplacementQuantity, 0);
+  let withPr = draftFor("keepsake-7-picture-disc", 3);
+  withPr = P.setPriorityReplacement(withPr, 0, true);
+  withPr = P.setPriorityReplacement(withPr, 2, true);
+  assert.deepEqual(withPr.units.map((u) => u.priorityReplacement), [true, false, true], "for exactly the Keepsakes chosen");
+  assert.equal(P.priorityReplacementCount(withPr), 2);
+  assert.deepEqual(P.chooseVariant(withPr, "keepsake-7-picture-disc", 2).units.map((u) => u.priorityReplacement), [true, false], "removed with its Keepsake");
+  assert.equal(P.priorityReplacementCount(P.chooseVariant(withPr, "journey-6")), 0, "removed for Journey");
+  assert.equal(P.priorityReplacementCount(P.setPriorityReplacement(draftFor("journey-6"), 0, true)), 0, "a Journey cannot take it");
 });
 
 test("lines are built from the draft and priced by the catalogue", () => {
@@ -116,7 +119,7 @@ test("lines are built from the draft and priced by the catalogue", () => {
   draft = P.addFrame(draft, "lyrics-frame-12x18");
   draft = P.addFrame(draft, "lyrics-frame-12x18");
   draft = P.setPlayer(draft, "portable-suitcase-record-player", 1);
-  draft = P.reconcileUnits({ ...draft, priorityReplacementQuantity: 2 });
+  draft = P.setPriorityReplacement(P.setPriorityReplacement(draft, 0, true), 1, true);
   assert.deepEqual(P.draftLines(draft), [
     { sku: "keepsake-12-picture-disc", quantity: 2 },
     { sku: "personalised-music-plaque", quantity: 1 },
@@ -143,7 +146,7 @@ test("a lyrics frame points at one of the order's songs", () => {
   let draft = P.addFrame(draftFor("journey-6"), "lyrics-frame-10x15");
   assert.equal(draft.frames[0].memoryId, "unit-1-memory-1");
   draft = { ...draft, frames: [{ ...draft.frames[0], memoryId: "unit-1-memory-5" }] };
-  const payload = P.personalisationPayload(draft, new Map());
+  const payload = P.personalisationPayload(draft, new Set());
   assert.deepEqual(payload.frames, [{ sku: "lyrics-frame-10x15", unit: 1, memory: 5, heading: "" }]);
   assert.equal(P.chooseVariant(draft, "moment").frames[0].memoryId, "unit-1-memory-1", "re-pointed when the song disappears");
 });
@@ -171,4 +174,33 @@ test("switching product keeps words until the new variant is chosen", () => {
   draft = P.chooseVariant(draft, "keepsake-12-picture-disc");
   assert.equal(draft.units[0].memories[0].story, "Our first dance");
   assert.equal(draft.units[0].memories.length, 4);
+});
+
+test("drafts saved with a Priority Replacement count still restore it, per Keepsake", () => {
+  const now = Date.UTC(2026, 8, 14);
+  const legacy = JSON.stringify({ savedAt: now, draft: { version: 1, productId: "keepsake", sku: "keepsake-7-picture-disc", quantity: 3, units: [], plaques: [], frames: [], players: [], priorityReplacementQuantity: 2 } });
+  assert.deepEqual(P.parseDraft(legacy, now).units.map((u) => u.priorityReplacement), [true, true, false]);
+  const current = P.serialiseDraft(P.setPriorityReplacement(draftFor("keepsake-10-picture-disc", 2), 1, true), now);
+  assert.deepEqual(P.parseDraft(current, now).units.map((u) => u.priorityReplacement), [false, true]);
+});
+
+test("the server payload carries each memory, its style choice and whether a photo follows — never a photo or price", () => {
+  let draft = draftFor("keepsake-10-picture-disc", 2);
+  draft = P.updateMemory(draft, "unit-1-memory-1", { story: "  Sailaway  ", about: "Mum", occasion: "cruise", style: MCB_CHOICE_VALUE });
+  draft = P.updateMemory(draft, "unit-1-memory-2", { story: "Lisbon", style: OTHER_STYLE_VALUE, customStyle: " Fado " });
+  draft = P.updateMemory(draft, "unit-2-memory-3", { story: "Last dinner", style: "Jazz" });
+  draft = P.setPriorityReplacement(draft, 1, true);
+  draft = P.addPlaque(draft);
+  const photos = new Map([["unit-2-memory-3", "file-a"], [draft.plaques[0].id, "file-b"]]);
+  const payload = P.personalisationPayload(draft, new Set(photos.keys()));
+
+  assert.equal(payload.units.length, 2);
+  assert.deepEqual(payload.units.map((u) => u.priorityReplacement), [false, true]);
+  assert.deepEqual(payload.units[0].memories[0], { story: "Sailaway", about: "Mum", occasion: "cruise", style: { choice: "MCB_CHOICE" }, photo: false });
+  assert.deepEqual(payload.units[0].memories[1].style, { choice: "CUSTOM", label: "Fado" });
+  assert.deepEqual(payload.units[1].memories[2].style, { choice: "STYLE", label: "Jazz" });
+  assert.equal(payload.units[1].memories[2].photo, true);
+  assert.ok(!/price|minor|amount|total|file-|blob/i.test(JSON.stringify(payload)), "no prices and no photo data");
+
+  assert.deepEqual(P.uploadSlots(draft, photos).map((s) => [s.slot, s.file]), [["memory:2:3", "file-a"], ["plaque:1", "file-b"]]);
 });

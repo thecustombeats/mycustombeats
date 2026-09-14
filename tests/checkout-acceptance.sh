@@ -61,7 +61,41 @@ for k in sys.argv[2].split("."):
 print("null" if d is None else (json.dumps(d) if isinstance(d,(dict,list,bool)) else d))' "${2:-/tmp/c.json}" "$1" 2>/dev/null; }
 
 # An order body: $1 email, $2 lines JSON array, $3 extra fields (leading comma).
-order_body() { printf '{%s,"firstName":"Cs","lastName":"Tester","email":"%s","whatsapp":"+447000000123","lines":%s,%s,"story":"A story."%s}' "$CONSENT_BLOCK" "$1" "$2" "$ADDR" "$3"; }
+# Per-memory personalisation matching the lines, as /create sends it — emitted
+# only when the lines are a personalisable order (one song experience; several
+# units only for Keepsakes). Otherwise nothing, and the order is recorded
+# NOT_PROVIDED, which checkout refuses. Priority Replacement is chosen for the
+# first N Keepsakes; each frame shows the first song. No photos are promised.
+pz() {
+  python3 - "$1" "$CATALOGUE" <<'PY'
+import json, sys
+try:
+    lines = json.loads(sys.argv[1])
+    skus = json.load(open(sys.argv[2]))["skus"]
+except Exception:
+    sys.exit(0)
+if not isinstance(lines, list):
+    sys.exit(0)
+qty = {}
+for l in lines:
+    if isinstance(l, dict) and isinstance(l.get("sku"), str) and isinstance(l.get("quantity"), int):
+        qty[l["sku"]] = qty.get(l["sku"], 0) + l["quantity"]
+songs = [s for s in qty if skus.get(s, {}).get("category") == "SONG_EXPERIENCE" and skus[s]["orderable"]]
+if len(songs) != 1:
+    sys.exit(0)
+song = songs[0]; n = qty[song]
+if skus[song]["product_id"] != "keepsake" and n != 1:
+    sys.exit(0)
+pr = qty.get("priority-replacement", 0)
+units = [{"sku": song, "priorityReplacement": i < pr,
+          "memories": [{"story": "A story.", "style": {"choice": "MCB_CHOICE"}} for _ in range(skus[song]["song_count"])]}
+         for i in range(n)]
+plaques = [{"songTitle": "Our Song", "artist": "The Band"} for _ in range(qty.get("personalised-music-plaque", 0))]
+frames = [{"sku": s, "unit": 1, "memory": 1} for s in qty if s.startswith("lyrics-frame-") for _ in range(qty[s])]
+print(',"personalisation":' + json.dumps({"units": units, "plaques": plaques, "frames": frames}, separators=(",", ":")), end="")
+PY
+}
+order_body() { printf '{%s,"firstName":"Cs","lastName":"Tester","email":"%s","whatsapp":"+447000000123","lines":%s,%s,"story":"A story."%s%s}' "$CONSENT_BLOCK" "$1" "$2" "$ADDR" "$(pz "$2")" "$3"; }
 # Places an order and sets MK_OID / MK_TOK / MK_CODE. Not for use inside $( ).
 mkorder() {
   release_order_limit
@@ -109,7 +143,9 @@ if a[5] != "none":
     o["amount_total"] = int(a[5])
 if len(a) > 7 and a[7] != "":
     o["metadata"] = {"mcb_order_id": a[7]}
-print(json.dumps({"id": a[0], "type": a[1], "data": {"object": o}}, separators=(",", ":")))
+# Genuine Stripe events always say which mode they were made in; the
+# test server holds a test key, so its events are livemode false.
+print(json.dumps({"id": a[0], "type": a[1], "livemode": False, "data": {"object": o}}, separators=(",", ":")))
 PY
 }
 unrec() { q "SELECT reason FROM unreconciled_payments WHERE stripe_session_id='$1'"; }
@@ -120,8 +156,8 @@ stub_reset
 echo "================ 0. FLAGS & DORMANCY ================"
 tc "1. shipped config template keeps checkout sessions OFF" \
   "$(grep -A1 "'checkout_sessions_enabled'" public/api/config.example.php | grep -qi 'false' && echo 1 || echo 0)"
-tc "1. client flag CHECKOUT_SESSIONS_ENABLED is false" \
-  "$(grep -q 'export const CHECKOUT_SESSIONS_ENABLED = false' src/lib/checkoutSession.ts && echo 1 || echo 0)"
+tc "1. no browser switch can open checkout; the server decides and ships closed" \
+  "$(! grep -rq 'CHECKOUT_SESSIONS_ENABLED' src/ && grep -q '/api/checkout/status' src/lib/orderApi.ts && grep -q "'live_checkout_approved' => false" public/api/config.example.php && echo 1 || echo 0)"
 tc "20. no Stripe secret anywhere in browser source" \
   "$(grep -rqE 'sk_(live|test)_[A-Za-z0-9]' src/ index.html 2>/dev/null && echo 0 || echo 1)"
 tc "22. no browser source calls the Stripe API host" \
@@ -199,9 +235,12 @@ echo "================ 2. SERVER PRICES EVERY SONG EXPERIENCE ================"
 for SKU in moment keepsake-12-picture-disc keepsake-10-picture-disc keepsake-10-heart-picture-disc keepsake-7-picture-disc journey-6 journey-12; do
   P=$(price "$SKU")
   mkorder "cs-price-$SKU@example.com" "$(L "$SKU")"
+  # The goods are the catalogue price; the payable total adds the delivery the
+  # SERVER quoted (a TEST_ONLY fixture in this suite, none for a Moment).
   tc "$SKU accepted and priced ${P} from the catalogue" \
-    "$([ "$MK_CODE" = "201" ] && [ "$(jget lines.0.unit_minor /tmp/o.json)" = "$P" ] && [ "$(jget total_minor /tmp/o.json)" = "$P" ] \
-       && [ "$(q "SELECT CONCAT(unit_minor,'|',line_minor,'|',total_minor) FROM order_items i JOIN orders o ON o.id=i.order_id WHERE o.id=$MK_OID")" = "$P|$P|$P" ] && echo 1 || echo 0)"
+    "$([ "$MK_CODE" = "201" ] && [ "$(jget lines.0.unit_minor /tmp/o.json)" = "$P" ] && [ "$(jget subtotal_minor /tmp/o.json)" = "$P" ] \
+       && [ "$(jget total_minor /tmp/o.json)" = "$((P + $(jget delivery.minor /tmp/o.json)))" ] \
+       && [ "$(q "SELECT CONCAT(unit_minor,'|',line_minor,'|',subtotal_minor,'|',total_minor - delivery_minor) FROM order_items i JOIN orders o ON o.id=i.order_id WHERE o.id=$MK_OID")" = "$P|$P|$P|$P" ] && echo 1 || echo 0)"
 done
 
 PR=$(price priority-replacement); K7=$(price keepsake-7-picture-disc); LF=$(price lyrics-frame-10x15)
@@ -209,8 +248,9 @@ mkorder "cs-multi@example.com" '[{"sku":"keepsake-7-picture-disc","quantity":2},
 EXPECT=$((2*K7 + 2*PR + LF))
 t "a multi-line order is accepted" 201 "$MK_CODE"
 tc "  → Priority Replacement is priced ${PR} per unit" "$([ "$(jget lines.1.unit_minor /tmp/o.json)" = "$PR" ] && [ "$(jget lines.1.line_minor /tmp/o.json)" = "$((2*PR))" ] && echo 1 || echo 0)"
-tc "  → total is the exact integer sum of the lines ($EXPECT)" "$([ "$(jget total_minor /tmp/o.json)" = "$EXPECT" ] && [ "$(order_minor $MK_OID)" = "$EXPECT" ] && echo 1 || echo 0)"
-tc "  → amount_gbp is the same total, exact, never float-derived" "$([ "$(q "SELECT amount_gbp FROM orders WHERE id=$MK_OID")" = "$(dec $EXPECT)" ] && echo 1 || echo 0)"
+tc "  → subtotal is the exact integer sum of the lines ($EXPECT)" "$([ "$(jget subtotal_minor /tmp/o.json)" = "$EXPECT" ] && [ "$(q "SELECT subtotal_minor FROM orders WHERE id=$MK_OID")" = "$EXPECT" ] && echo 1 || echo 0)"
+tc "  → payable total is subtotal plus the server-quoted delivery" "$([ "$(order_minor $MK_OID)" = "$((EXPECT + $(q "SELECT delivery_minor FROM orders WHERE id=$MK_OID")))" ] && [ "$(jget delivery.status /tmp/o.json)" = "QUOTED" ] && echo 1 || echo 0)"
+tc "  → amount_gbp is the payable total, exact, never float-derived" "$([ "$(q "SELECT amount_gbp FROM orders WHERE id=$MK_OID")" = "$(dec $(order_minor $MK_OID))" ] && echo 1 || echo 0)"
 tc "  → every line is saved with its product, category and fulfilment" \
   "$([ "$(q "SELECT CONCAT_WS('|',item_id,product_id,category,fulfilment,quantity) FROM order_items WHERE order_id=$MK_OID ORDER BY id" | paste -sd, -)" = "keepsake-7-picture-disc|keepsake|SONG_EXPERIENCE|PHYSICAL|2,priority-replacement|priority-replacement|PROTECTION|SERVICE|2,lyrics-frame-10x15|lyrics-frame|PERSONALISED_DECOR|PHYSICAL|1" ] && echo 1 || echo 0)"
 tc "  → a name snapshot is stored for operators" "$([ "$(q "SELECT item_name FROM order_items WHERE order_id=$MK_OID AND item_id='keepsake-7-picture-disc'")" = "$(sku_name keepsake-7-picture-disc)" ] && echo 1 || echo 0)"
@@ -223,7 +263,7 @@ mkorder "cs-forged@example.com" '[{"sku":"journey-6","quantity":1,"price_minor":
   ',"price":1,"total":1,"total_minor":1,"amount":1,"amount_gbp":0.01,"unit_amount":1,"currency":"USD","displayCurrency":"INR"'
 FORGED_OID=$MK_OID; FORGED_TOK=$MK_TOK
 t "an order carrying price/total/unit_amount/currency is accepted" 201 "$MK_CODE"
-tc "  → and those fields are IGNORED: total is the catalogue price" "$([ "$(order_minor $FORGED_OID)" = "$(price journey-6)" ] && [ "$(jget total_minor /tmp/o.json)" = "$(price journey-6)" ] && echo 1 || echo 0)"
+tc "  → and those fields are IGNORED: the goods are the catalogue price" "$([ "$(q "SELECT subtotal_minor FROM orders WHERE id=$FORGED_OID")" = "$(price journey-6)" ] && [ "$(jget subtotal_minor /tmp/o.json)" = "$(price journey-6)" ] && [ "$(jget total_minor /tmp/o.json)" != "1" ] && echo 1 || echo 0)"
 tc "  → the saved line is the catalogue's, in GBP" "$([ "$(q "SELECT CONCAT(unit_minor,'|',o.currency) FROM order_items i JOIN orders o ON o.id=i.order_id WHERE o.id=$FORGED_OID")" = "$(price journey-6)|GBP" ] && echo 1 || echo 0)"
 stub_reset
 S=$(session "$FORGED_OID" "$FORGED_TOK" ',"package":"moment","format":"mp3","lines":[{"sku":"antique-brass-gramophone","quantity":50}],"enhancements":[{"id":"vinyl-frame","quantity":1}],"price":1,"unit_amount":1,"amount":1,"total":1,"currency":"usd","line_items":[{"price":1}],"success_url":"https://evil.example/steal","customer_email":"attacker@evil.example"')
@@ -460,7 +500,7 @@ stub_reset
 S=$(session "$LOID" "$LTOK")
 tc "a legacy-style order (total_minor NULL) is 409 order_not_payable_online" "$([ "$S" = "409" ] && body | grep -q '"error":"order_not_payable_online"' && echo 1 || echo 0)"
 tc "  → and is not re-priced from today's catalogue: Stripe not called" "$([ "$(stub_count)" = "0" ] && [ "$(q "SELECT COUNT(*) FROM checkout_sessions WHERE order_id=$LOID")" = "0" ] && echo 1 || echo 0)"
-mkorder "cs-tamper@example.com" '[{"sku":"moment","quantity":2}]'
+mkorder "cs-tamper@example.com" "$(L moment)"
 q "UPDATE order_items SET line_minor = line_minor + 1 WHERE order_id=$MK_OID" >/dev/null
 S=$(session "$MK_OID" "$MK_TOK")
 tc "saved lines that do not add up are 409 order_not_payable_online" "$([ "$S" = "409" ] && body | grep -q '"error":"order_not_payable_online"' && echo 1 || echo 0)"
@@ -500,22 +540,26 @@ YEAR=$(date -u +%Y)
 
 new_paid_candidate "cs-under@example.com" "$(L keepsake-10-heart-picture-disc)"
 t "underpayment acknowledged to Stripe" 200 "$(hook "$(event evt_under checkout.session.completed "$W_SID" "$W_OID" paid $((W_MINOR-1)) gbp "$W_OID")")"
-tc "  → order stays PENDING with no reference" "$([ "$(q "SELECT CONCAT(status,'|',IFNULL(mcb_reference,'NULL')) FROM orders WHERE id=$W_OID")" = "PENDING|NULL" ] && echo 1 || echo 0)"
+# Money arrived for this order, but not the amount expected: PAYMENT_REVIEW,
+# so it can never be paid a second time while a person decides.
+tc "  → order is NOT paid: PAYMENT_REVIEW with no reference" "$([ "$(q "SELECT CONCAT(status,'|',IFNULL(mcb_reference,'NULL')) FROM orders WHERE id=$W_OID")" = "PAYMENT_REVIEW|NULL" ] && echo 1 || echo 0)"
+tc "  → and it cannot start a second checkout" "$([ "$(session "$W_OID" "$MK_TOK")" = "409" ] && echo 1 || echo 0)"
+tc "  → the audit trail records the review, with no customer text" "$([ "$(q "SELECT GROUP_CONCAT(event_type ORDER BY id) FROM order_events WHERE order_id=$W_OID AND event_type LIKE 'PAYMENT.%'")" = "PAYMENT.RECEIVED,PAYMENT.REVIEW" ] && [ "$(q "SELECT COUNT(*) FROM order_events WHERE order_id=$W_OID AND detail LIKE '%story%'")" = "0" ] && echo 1 || echo 0)"
 tc "  → filed AMOUNT_MISMATCH" "$([ "$(unrec "$W_SID")" = "AMOUNT_MISMATCH" ] && echo 1 || echo 0)"
 
 new_paid_candidate "cs-over@example.com" "$(L keepsake-10-heart-picture-disc)"
 t "overpayment acknowledged to Stripe" 200 "$(hook "$(event evt_over checkout.session.completed "$W_SID" "$W_OID" paid $((W_MINOR+1)) gbp "$W_OID")")"
-tc "  → order stays PENDING" "$([ "$(q "SELECT status FROM orders WHERE id=$W_OID")" = "PENDING" ] && echo 1 || echo 0)"
+tc "  → order is NOT paid: PAYMENT_REVIEW" "$([ "$(q "SELECT status FROM orders WHERE id=$W_OID")" = "PAYMENT_REVIEW" ] && echo 1 || echo 0)"
 tc "  → filed AMOUNT_MISMATCH" "$([ "$(unrec "$W_SID")" = "AMOUNT_MISMATCH" ] && echo 1 || echo 0)"
 
 new_paid_candidate "cs-noamount@example.com" "$(L keepsake-10-heart-picture-disc)"
 t "a paid event with no amount acknowledged" 200 "$(hook "$(event evt_noamt checkout.session.completed "$W_SID" "$W_OID" paid none gbp "$W_OID")")"
-tc "  → order stays PENDING" "$([ "$(q "SELECT status FROM orders WHERE id=$W_OID")" = "PENDING" ] && echo 1 || echo 0)"
+tc "  → order is NOT paid: PAYMENT_REVIEW" "$([ "$(q "SELECT status FROM orders WHERE id=$W_OID")" = "PAYMENT_REVIEW" ] && echo 1 || echo 0)"
 tc "  → filed AMOUNT_MISMATCH" "$([ "$(unrec "$W_SID")" = "AMOUNT_MISMATCH" ] && echo 1 || echo 0)"
 
 new_paid_candidate "cs-wrongcur@example.com" "$(L keepsake-10-heart-picture-disc)"
 t "the exact figure in the wrong currency acknowledged" 200 "$(hook "$(event evt_cur checkout.session.completed "$W_SID" "$W_OID" paid "$W_MINOR" eur "$W_OID")")"
-tc "  → order stays PENDING" "$([ "$(q "SELECT status FROM orders WHERE id=$W_OID")" = "PENDING" ] && echo 1 || echo 0)"
+tc "  → order is NOT paid: PAYMENT_REVIEW" "$([ "$(q "SELECT status FROM orders WHERE id=$W_OID")" = "PAYMENT_REVIEW" ] && echo 1 || echo 0)"
 tc "  → filed CURRENCY_MISMATCH" "$([ "$(unrec "$W_SID")" = "CURRENCY_MISMATCH" ] && echo 1 || echo 0)"
 
 new_paid_candidate "cs-meta@example.com" "$(L moment)"
@@ -554,7 +598,7 @@ POID=$MK_OID; PTOK=$MK_TOK
 session "$POID" "$PTOK" >/dev/null
 PSID=$(q "SELECT stripe_session_id FROM checkout_sessions WHERE order_id=$POID")
 PMINOR=$(q "SELECT expected_minor FROM checkout_sessions WHERE order_id=$POID")
-tc "the expected amount is the saved total ($PMINOR)" "$([ "$PMINOR" = "$((2*K7 + PR))" ] && [ "$PMINOR" = "$(order_minor $POID)" ] && echo 1 || echo 0)"
+tc "the expected amount is the saved payable total ($PMINOR)" "$([ "$PMINOR" = "$((2*K7 + PR + $(q "SELECT delivery_minor FROM orders WHERE id=$POID")))" ] && [ "$PMINOR" = "$(order_minor $POID)" ] && echo 1 || echo 0)"
 SALES0=$(q "SELECT sales FROM affiliates WHERE username='csaff'")
 OKEVT=$(event evt_cs_ok checkout.session.completed "$PSID" "$POID" paid "$PMINOR" gbp "$POID")
 t "10. the exact amount in GBP is accepted" 200 "$(hook "$OKEVT")"

@@ -4,6 +4,7 @@
  */
 
 import { getVariant, type OrderPreview } from "../data/catalogue";
+import { getCountry } from "../data/countries";
 import { requiredConsents, type ConsentId } from "../data/legal";
 import { addOnIssues, isSongSku, storyIssues, type OrderDraft } from "./personalisation";
 
@@ -30,7 +31,10 @@ export interface ContactDetails {
   shippingAddress: string;
   shippingAddress2: string;
   shippingCity: string;
+  /** County, state or region, where the address needs one. Optional. */
+  shippingState: string;
   shippingPostcode: string;
+  /** ISO 3166-1 alpha-2 code, chosen from the list. Delivery is quoted on it. */
   shippingCountry: string;
 }
 
@@ -43,6 +47,7 @@ export const EMPTY_CONTACT: ContactDetails = {
   shippingAddress: "",
   shippingAddress2: "",
   shippingCity: "",
+  shippingState: "",
   shippingPostcode: "",
   shippingCountry: "",
 };
@@ -63,7 +68,7 @@ export const contactIssues = (contact: ContactDetails, requiresShipping: boolean
     if (!contact.shippingAddress.trim()) issues.shippingAddress = "Please add the delivery address.";
     if (!contact.shippingCity.trim()) issues.shippingCity = "Please add the town or city.";
     if (!contact.shippingPostcode.trim()) issues.shippingPostcode = "Please add the postcode or ZIP.";
-    if (!contact.shippingCountry.trim()) issues.shippingCountry = "Please add the country.";
+    if (!getCountry(contact.shippingCountry)) issues.shippingCountry = "Please choose the country.";
   }
   return issues;
 };

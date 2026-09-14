@@ -9,16 +9,21 @@
  *                    a Moment, each individual Keepsake, a Journey
  *       memories[]   one per song on that unit (catalogue songCount):
  *                    7" and heart Keepsake 1, 10" 3, 12" 4, Journey 6 or 12
+ *       priorityReplacement   chosen for THIS Keepsake; never preselected
  *     plaques[]      one per Personalised Music Plaque (photo, song, artist)
  *     frames[]       one per Lyrics Frame (size, which song, heading)
  *     players[]      gramophones / record player (no personalisation)
- *     priorityReplacementQuantity   0 by default, never above the Keepsakes
  *
  * Two Keepsakes are two independent units with their own memories: quantity
  * never means "the same record twice".
  *
  * Photos are NOT part of the draft. They are held in memory by the page,
- * keyed by the memory or plaque id, and never written to storage.
+ * keyed by the memory or plaque id, and never written to storage. When the
+ * order is placed they are uploaded to MCB's server, which from then on holds
+ * the only copy that matters.
+ *
+ * The limits below are shared with the server (src/data/personalisationRules.ts
+ * → public/api/data/personalisation.json), which refuses anything over them.
  */
 
 import {
@@ -32,17 +37,14 @@ import {
   type OrderPreview,
 } from "../data/catalogue";
 import { MAX_STYLE_LABEL_LENGTH, MCB_CHOICE_VALUE, OTHER_STYLE_VALUE } from "../data/musicStyles";
+import { ABOUT_MAX, ARTIST_MAX, FRAME_HEADING_MAX, MULTI_UNIT_PRODUCT_IDS as MULTI_UNIT_IDS, SONG_TITLE_MAX, STORY_MAX } from "../data/personalisationRules";
 
-export const STORY_MAX = 300;
-export const ABOUT_MAX = 120;
-export const SONG_TITLE_MAX = 120;
-export const ARTIST_MAX = 120;
-export const FRAME_HEADING_MAX = 80;
+export { ABOUT_MAX, ARTIST_MAX, FRAME_HEADING_MAX, SONG_TITLE_MAX, STORY_MAX };
 export const DRAFT_VERSION = 1;
 export const DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Song products a customer may buy several of in one order: one per memory. */
-export const MULTI_UNIT_PRODUCT_IDS: ReadonlySet<string> = new Set(["keepsake"]);
+export const MULTI_UNIT_PRODUCT_IDS: ReadonlySet<string> = new Set(MULTI_UNIT_IDS);
 
 export interface MemoryDraft {
   id: string;
@@ -62,6 +64,8 @@ export interface UnitDraft {
   id: string;
   sku: string;
   memories: MemoryDraft[];
+  /** MCB Priority Replacement for this Keepsake. Eligible variants only; never preselected. */
+  priorityReplacement: boolean;
 }
 
 export interface PlaqueDraft {
@@ -92,7 +96,6 @@ export interface OrderDraft {
   plaques: PlaqueDraft[];
   frames: FrameDraft[];
   players: PlayerDraft[];
-  priorityReplacementQuantity: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -110,7 +113,6 @@ export const emptyDraft = (): OrderDraft => ({
   plaques: [],
   frames: [],
   players: [],
-  priorityReplacementQuantity: 0,
 });
 
 /** Songs on one unit of a variant, from the catalogue. */
@@ -139,17 +141,19 @@ export const reconcileUnits = (draft: OrderDraft): OrderDraft => {
   if (!isSongSku(draft.sku)) {
     // No variant yet (e.g. Keepsake chosen, picture disc not). Words already
     // written are held until one is chosen, then kept by position.
-    return { ...draft, priorityReplacementQuantity: 0 };
+    return { ...draft, units: draft.units.map((unit) => ({ ...unit, priorityReplacement: false })) };
   }
   const product = getVariant(draft.sku)!.product;
   const quantity = Math.min(Math.max(Math.trunc(draft.quantity) || 1, 1), maxUnitsFor(product.id));
   const songs = memoriesPerUnit(draft.sku);
 
+  const eligible = getVariant(draft.sku)!.variant.priorityReplacementEligible;
   const units: UnitDraft[] = Array.from({ length: quantity }, (_, u) => {
     const previous = draft.units[u];
     return {
       id: unitId(u),
       sku: draft.sku,
+      priorityReplacement: eligible && previous?.priorityReplacement === true,
       memories: Array.from({ length: songs }, (_, m) => {
         const kept = previous?.memories[m];
         return kept ? { ...kept, id: memoryId(u, m) } : emptyMemory(memoryId(u, m));
@@ -158,7 +162,6 @@ export const reconcileUnits = (draft: OrderDraft): OrderDraft => {
   });
 
   const memoryIds = new Set(units.flatMap((unit) => unit.memories.map((memory) => memory.id)));
-  const eligible = getVariant(draft.sku)!.variant.priorityReplacementEligible ? quantity : 0;
 
   return {
     ...draft,
@@ -167,7 +170,6 @@ export const reconcileUnits = (draft: OrderDraft): OrderDraft => {
     units,
     // A frame whose song no longer exists points at the first song instead.
     frames: draft.frames.map((frame) => (memoryIds.has(frame.memoryId) ? frame : { ...frame, memoryId: memoryId(0, 0) })),
-    priorityReplacementQuantity: Math.min(Math.max(0, Math.trunc(draft.priorityReplacementQuantity) || 0), eligible),
   };
 };
 
@@ -249,6 +251,16 @@ export const setPlayer = (draft: OrderDraft, sku: string, quantity: number): Ord
 export const priorityReplacementLimit = (draft: OrderDraft): number =>
   draft.sku && getVariant(draft.sku)?.variant.priorityReplacementEligible ? draft.units.length : 0;
 
+/** How many Keepsakes the customer has chosen Priority Replacement for. */
+export const priorityReplacementCount = (draft: OrderDraft): number =>
+  priorityReplacementLimit(draft) > 0 ? draft.units.filter((unit) => unit.priorityReplacement).length : 0;
+
+/** Chooses (or removes) Priority Replacement for one Keepsake. Ineligible units never take it. */
+export const setPriorityReplacement = (draft: OrderDraft, unitIndex: number, chosen: boolean): OrderDraft => {
+  if (priorityReplacementLimit(draft) === 0) return draft;
+  return { ...draft, units: draft.units.map((unit, u) => (u === unitIndex ? { ...unit, priorityReplacement: chosen } : unit)) };
+};
+
 /* ------------------------------------------------------------------ */
 /* Lines and price preview                                             */
 /* ------------------------------------------------------------------ */
@@ -262,7 +274,7 @@ export const draftLines = (draft: OrderDraft): OrderLineRequest[] => {
   for (const frame of draft.frames) frameCounts.set(frame.sku, (frameCounts.get(frame.sku) ?? 0) + 1);
   for (const [sku, quantity] of frameCounts) lines.push({ sku, quantity });
   for (const player of draft.players) if (player.quantity > 0) lines.push({ sku: player.sku, quantity: player.quantity });
-  const priority = Math.min(draft.priorityReplacementQuantity, priorityReplacementLimit(draft));
+  const priority = priorityReplacementCount(draft);
   if (priority > 0) lines.push({ sku: PRIORITY_REPLACEMENT_SKU, quantity: priority });
   return lines;
 };
@@ -343,44 +355,77 @@ export const memoryLabel = (draft: OrderDraft, unitIndex: number, memoryIndex: n
 };
 
 /* ------------------------------------------------------------------ */
-/* The order payload (sent once online checkout is enabled)            */
+/* The order personalisation, as MCB's server receives it              */
 /* ------------------------------------------------------------------ */
 
+export type StyleChoice = { choice: "MCB_CHOICE" } | { choice: "STYLE"; label: string } | { choice: "CUSTOM"; label: string };
+
 export interface PersonalisationPayload {
-  units: { sku: string; memories: { story: string; about: string; occasion: string; style: string; customStyle: string; photoUrl: string | null }[] }[];
-  plaques: { songTitle: string; artist: string; photoUrl: string | null }[];
+  units: {
+    sku: string;
+    priorityReplacement: boolean;
+    memories: { story: string; about: string; occasion: string; style: StyleChoice; photo: boolean }[];
+  }[];
+  plaques: { songTitle: string; artist: string }[];
   frames: { sku: string; unit: number; memory: number; heading: string }[];
 }
 
+export const styleChoice = (memory: MemoryDraft): StyleChoice =>
+  memory.style === MCB_CHOICE_VALUE
+    ? { choice: "MCB_CHOICE" }
+    : memory.style === OTHER_STYLE_VALUE
+      ? { choice: "CUSTOM", label: memory.customStyle.trim() }
+      : { choice: "STYLE", label: memory.style };
+
 /**
  * The personalisation for the server, positionally aligned with the lines.
- * `photoUrls` maps memory and plaque ids to their uploaded URLs.
+ *
+ * Carries only what MCB needs to make the order. Photos are not in it: `photo`
+ * says a photo will follow, and `uploadSlots` lists what to upload once the
+ * order exists. `photoIds` are the memory and plaque ids that have a photo.
  */
-export const personalisationPayload = (draft: OrderDraft, photoUrls: ReadonlyMap<string, string>): PersonalisationPayload => {
+export const personalisationPayload = (draft: OrderDraft, photoIds: ReadonlySet<string>): PersonalisationPayload => {
   const position = new Map<string, [number, number]>();
   draft.units.forEach((unit, u) => unit.memories.forEach((memory, m) => position.set(memory.id, [u + 1, m + 1])));
+  const eligible = priorityReplacementLimit(draft) > 0;
   return {
     units: draft.units.map((unit) => ({
       sku: unit.sku,
+      priorityReplacement: eligible && unit.priorityReplacement,
       memories: unit.memories.map((memory) => ({
         story: memory.story.trim(),
         about: memory.about.trim(),
         occasion: memory.occasion,
-        style: memory.style,
-        customStyle: memory.style === OTHER_STYLE_VALUE ? memory.customStyle.trim() : "",
-        photoUrl: photoUrls.get(memory.id) ?? null,
+        style: styleChoice(memory),
+        photo: photoIds.has(memory.id),
       })),
     })),
-    plaques: draft.plaques.map((plaque) => ({
-      songTitle: plaque.songTitle.trim(),
-      artist: plaque.artist.trim(),
-      photoUrl: photoUrls.get(plaque.id) ?? null,
-    })),
+    plaques: draft.plaques.map((plaque) => ({ songTitle: plaque.songTitle.trim(), artist: plaque.artist.trim() })),
     frames: draft.frames.map((frame) => {
       const [unit, memory] = position.get(frame.memoryId) ?? [1, 1];
       return { sku: frame.sku, unit, memory, heading: frame.heading.trim() };
     }),
   };
+};
+
+/**
+ * The photos to upload after the order is saved, by the slot names the server
+ * uses: "memory:<unit>:<song>" and "plaque:<n>". The customer's own file is
+ * sent; its name is never used by MCB.
+ */
+export const uploadSlots = <T>(draft: OrderDraft, photos: ReadonlyMap<string, T>): { slot: string; photoId: string; file: T }[] => {
+  const slots: { slot: string; photoId: string; file: T }[] = [];
+  draft.units.forEach((unit, u) =>
+    unit.memories.forEach((memory, m) => {
+      const file = photos.get(memory.id);
+      if (file !== undefined) slots.push({ slot: `memory:${u + 1}:${m + 1}`, photoId: memory.id, file });
+    })
+  );
+  draft.plaques.forEach((plaque, p) => {
+    const file = photos.get(plaque.id);
+    if (file !== undefined) slots.push({ slot: `plaque:${p + 1}`, photoId: plaque.id, file });
+  });
+  return slots;
 };
 
 /* ------------------------------------------------------------------ */
@@ -434,13 +479,18 @@ export const parseDraft = (raw: string | null, now: number): OrderDraft | null =
       (player): player is PlayerDraft => typeof player?.sku === "string" && getVariant(player.sku)?.product.category === "PLAYER"
     );
 
+    // Drafts saved before Priority Replacement was chosen per Keepsake held a
+    // count; it is applied to the first Keepsakes rather than silently lost.
+    const legacyCount = (saved as { priorityReplacementQuantity?: unknown }).priorityReplacementQuantity;
+    const chosen = (u: number) =>
+      saved.units?.[u]?.priorityReplacement === true || (typeof legacyCount === "number" && u < legacyCount);
+
     return reconcileUnits({
       ...base,
-      units,
+      units: units.map((unit, u) => ({ ...unit, priorityReplacement: chosen(u) })),
       frames,
       plaques,
       players: players.map((p) => ({ sku: p.sku, quantity: Math.min(Math.max(Math.trunc(p.quantity) || 0, 0), ORDER_LIMITS.maxQuantityPerLine) })).filter((p) => p.quantity > 0),
-      priorityReplacementQuantity: typeof saved.priorityReplacementQuantity === "number" ? saved.priorityReplacementQuantity : 0,
     });
   } catch {
     return null;

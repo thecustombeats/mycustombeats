@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { Link } from "react-router-dom";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { Check, Minus, Plus, Trash2 } from "lucide-react";
 import ResponsiveImage from "../../components/ResponsiveImage";
 import {
   LYRICS_FRAME,
@@ -21,8 +21,8 @@ import {
   addPlaque,
   memoryLabel,
   priorityReplacementLimit,
-  reconcileUnits,
   setPlayer,
+  setPriorityReplacement,
   type AddOnIssue,
   type OrderDraft,
 } from "../../lib/personalisation";
@@ -231,16 +231,40 @@ const StepExtras = ({ draft, setDraft, photos, setPhoto, showErrors, onAdd }: St
           <p className="mt-3 text-base leading-relaxed text-espresso/80">
             If you choose it, please request the priority service within {PRIORITY_REPLACEMENT_CLAIM_WINDOW_DAYS} days of confirmed delivery. That window applies only to this optional service. Your normal consumer rights are not affected, and you don't need this service to use them.
           </p>
-          <div className="mt-5 flex flex-wrap items-center gap-4">
-            <span className="text-base text-ink">How many of your {prLimit === 1 ? product.name : `${prLimit} ${product.name}s`}?</span>
-            <Stepper
-              label={`${PRIORITY_REPLACEMENT.name} quantity`}
-              value={draft.priorityReplacementQuantity}
-              min={0}
-              max={prLimit}
-              onChange={(n) => setDraft((d) => reconcileUnits({ ...d, priorityReplacementQuantity: n }))}
-            />
-          </div>
+          <fieldset className="mt-5">
+            <legend className="text-base font-medium text-ink">
+              {prLimit === 1 ? `Add it for your ${product.name}?` : `Choose which of your ${prLimit} ${product.name}s to protect`}
+            </legend>
+            <ul className="m-0 mt-3 list-none space-y-3 p-0">
+              {draft.units.map((unit, u) => {
+                const id = `${uid}-pr-${unit.id}`;
+                const first = unit.memories[0]?.story.trim();
+                return (
+                  <li key={unit.id}>
+                    <label htmlFor={id} className={`flex cursor-pointer items-start gap-3 rounded-2xl border bg-white p-4 ${unit.priorityReplacement ? "border-gold-dark" : "border-espresso/15"}`}>
+                      <span className="relative -m-2.5 flex h-11 w-11 shrink-0 items-center justify-center">
+                        <input
+                          id={id}
+                          type="checkbox"
+                          checked={unit.priorityReplacement}
+                          onChange={(e) => setDraft((d) => setPriorityReplacement(d, u, e.target.checked))}
+                          className="peer h-6 w-6 cursor-pointer appearance-none rounded-md border-2 border-espresso/40 bg-white checked:border-gold-deep checked:bg-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
+                        />
+                        <Check aria-hidden="true" strokeWidth={3.5} className="pointer-events-none absolute h-4 w-4 text-white opacity-0 peer-checked:opacity-100" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-base text-ink">
+                          {prLimit === 1 ? `${PRIORITY_REPLACEMENT.name} for this ${product.name}` : `${product.name} ${u + 1}`}
+                          <span className="font-mono text-espresso/70"> · {formatMoney(PRIORITY_REPLACEMENT.variants[0].price)}</span>
+                        </span>
+                        {prLimit > 1 && first && <span className="mt-0.5 block truncate text-sm text-espresso/65">{first}</span>}
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </fieldset>
           <Link to="/priority-replacement" target="_blank" className="mt-4 inline-block text-base font-medium text-gold-deep underline underline-offset-4">
             How {PRIORITY_REPLACEMENT.name} works
           </Link>

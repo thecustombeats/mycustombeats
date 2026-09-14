@@ -367,16 +367,16 @@ tc "91. no Stripe Payment Link survives in browser or legal source" \
   "$(grep -rq 'buy\.stripe\.com' src/ 2>/dev/null && echo 0 || echo 1)"
 tc "92. dynamic checkout stays OFF in the shipped config template" \
   "$(grep -A1 "'checkout_sessions_enabled'" public/api/config.example.php | grep -qi 'false' && echo 1 || echo 0)"
-tc "93. the client checkout flag stays false" \
-  "$(grep -q 'export const CHECKOUT_SESSIONS_ENABLED = false' src/lib/checkoutSession.ts && echo 1 || echo 0)"
+tc "93. no browser switch can open checkout; the server decides and ships closed" \
+  "$(! grep -rq 'CHECKOUT_SESSIONS_ENABLED' src/ && grep -q '/api/checkout/status' src/lib/orderApi.ts && grep -q "'live_checkout_approved' => false" public/api/config.example.php && echo 1 || echo 0)"
 tc "94. no Stripe secret in browser source" \
   "$(grep -rqE 'sk_(live|test)_[A-Za-z0-9]' src/ 2>/dev/null && echo 0 || echo 1)"
 tc "95. the legal modules make no Stripe call" \
   "$(prose src/data/legal/*.ts public/api/lib/legal.php | grep -qiE 'api\.stripe\.com|fetch\(|curl_|stripe_create|sk_(live|test)_' && echo 0 || echo 1)"
 tc "96. nothing is added to an order the customer did not choose" \
   "$([ "$(q "SELECT COUNT(*) FROM order_items WHERE order_id=$OID")" = "1" ] && [ "$(q "SELECT item_id FROM order_items WHERE order_id=$OID")" = "moment" ] && echo 1 || echo 0)"
-tc "97. the order review still shows a total before payment" \
-  "$(grep -q 'formatMinor(preview.totalMinor)' src/pages/create/StepReview.tsx && grep -q '<StepReview' src/pages/CreateMemory.tsx && echo 1 || echo 0)"
+tc "97. the order review still shows a total before payment — the server's" \
+  "$(grep -q 'formatMinor(quote.quote.totalMinor)' src/pages/create/StepReview.tsx && grep -q '<StepReview' src/pages/CreateMemory.tsx && echo 1 || echo 0)"
 tc "98. the migration is additive — it alters and drops nothing" \
   "$(grep -qiE '^\s*(ALTER|DROP|DELETE|TRUNCATE)' db/migrations/2026-09-09-legal-consent-production.sql && echo 0 || echo 1)"
 

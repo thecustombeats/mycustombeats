@@ -47,8 +47,8 @@ return [
     // Stripe Dashboard. While empty, /api/stripe/webhook refuses all
     // requests rather than processing unverified ones.
     'stripe' => [
-        'webhook_secret' => '',   // whsec_…
-        'secret_key'     => '',   // sk_live_… — server-side only, never shipped
+        'webhook_secret' => '',   // whsec_… — from the endpoint in the SAME mode as the key
+        'secret_key'     => '',   // sk_test_… to rehearse; sk_live_… for real payments — server-side only
 
         // Server-created Checkout Sessions — the ONLY online payment path.
         // OFF until Bella/Lewis approve going live. While false,
@@ -56,15 +56,19 @@ return [
         // online checkout is not yet available.
         //
         // TURNING IT ON REQUIRES ALL OF:
-        //   - 'secret_key' above, a real sk_live_… (or sk_test_… to rehearse)
-        //   - 'webhook_secret' above, subscribed to checkout.session.completed
-        //     and checkout.session.async_payment_succeeded
+        //   - 'secret_key' above: sk_test_… rehearses in Stripe TEST mode
+        //   - 'webhook_secret' above, from a TEST-mode endpoint subscribed to
+        //     checkout.session.completed and checkout.session.async_payment_succeeded
         //   - 'app.site_origin' below, which builds the success/cancel URLs
         //   - every migration in db/migrations applied, including
-        //     2026-09-14-canonical-catalogue.sql
-        //   - the client flag CHECKOUT_SESSIONS_ENABLED in
-        //     src/lib/checkoutSession.ts, a separate, deliberate edit
+        //     2026-09-14-sprint4-order-persistence.sql
+        // The website asks GET /api/checkout/status; there is no browser switch.
         'checkout_sessions_enabled' => false,
+
+        // LIVE PAYMENT — FOUNDER LAUNCH APPROVAL ONLY. A sk_live_… key does
+        // nothing without this set to exactly true. Leave false until Bella
+        // and Lewis explicitly approve taking real payments.
+        'live_checkout_approved' => false,
 
         // Stripe's API base. Test override ONLY — the acceptance suite points
         // it at a local stub so tests never reach Stripe and need no key.
@@ -99,6 +103,29 @@ return [
         // https://api.resend.com/emails. The acceptance suite points this at
         // a local stub so tests never send real mail.
         // 'api_url' => '',
+
+        // TEST MODE. A confirmation for a Stripe TEST payment goes ONLY to this
+        // mailbox (with [TEST] in the subject), never to the address the
+        // customer typed. Empty = test confirmations are not sent at all.
+        'test_recipient' => '',
+    ],
+
+    // ---- Delivery ------------------------------------------------------
+    // No production delivery rates are authorised yet, so physical orders are
+    // quoted UNAVAILABLE and cannot be paid online (see api/lib/delivery.php).
+    'delivery' => [
+        // TEST ONLY. Uses clearly labelled fake rates so a physical order can
+        // be rehearsed end to end. Ignored unless the Stripe key is a TEST key.
+        'use_test_fixtures' => false,
+    ],
+
+    // ---- Customer photos ----------------------------------------------
+    // Absolute path of a private directory OUTSIDE the web root, writable by
+    // PHP, e.g. /home/<user>/mcb-uploads. A directory named mcb-uploads above
+    // the web root is found automatically. Without one, photos go to
+    // api/storage/uploads (denied over HTTP) and are lost on a redeploy.
+    'uploads' => [
+        'path' => '',
     ],
 
     // ---- Operations workflow -------------------------------------------

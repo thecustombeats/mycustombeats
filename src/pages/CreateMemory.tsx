@@ -8,8 +8,16 @@
  * 12-chapter Journey. Never photos, contact details, addresses or consents.
  * "Start again" clears it.
  *
- * PAYMENT: while online checkout is switched off, the final step says so and
- * nothing is submitted, uploaded or charged.
+ * PAYMENT: MCB's server says whether it is open (GET /api/checkout/status).
+ * While it is closed, the final step says so and nothing is submitted,
+ * uploaded or charged. When it is open, "Continue to secure payment":
+ *   1. saves the order on the server (idempotent: a double click or a retry
+ *      returns the same order)
+ *   2. uploads each photo against the memory or plaque it belongs to
+ *   3. confirms with the server that the order is ready
+ *   4. opens the Stripe Checkout Session the server built from the SAVED order
+ * Every amount on the Review step is the server's. Coming back from Stripe
+ * without paying offers to resume the saved order.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
@@ -17,8 +25,24 @@ import { useSearchParams } from "react-router-dom";
 import { Check, ChevronLeft } from "lucide-react";
 import { formatMinor, getProduct, getVariant } from "../data/catalogue";
 import { INITIAL_CONSENT_STATE, type ConsentId } from "../data/legal";
-import { trackAddToCart, trackEvent, trackFunnel } from "../lib/analytics";
-import { CHECKOUT_SESSIONS_ENABLED } from "../lib/checkoutSession";
+import { trackAddToCart, trackBeginCheckout, trackEvent, trackFunnel } from "../lib/analytics";
+import {
+  blockerMessage,
+  createCheckoutSession,
+  fetchCheckoutStatus,
+  fetchOrderState,
+  forgetSavedOrder,
+  newIdempotencyKey,
+  recallSavedOrder,
+  rememberSavedOrder,
+  requestQuote,
+  submitOrder,
+  uploadPhoto,
+  type ApiFailure,
+  type CheckoutStatus,
+  type OrderState,
+} from "../lib/orderApi";
+import { buildOrderRequest, requestFingerprint } from "../lib/orderRequest";
 import {
   EMPTY_CONTACT,
   STEPS,
@@ -34,16 +58,18 @@ import {
   chooseProduct,
   chooseVariant,
   draftHasContent,
+  draftLines,
   emptyDraft,
   parseDraft,
   previewDraft,
   serialiseDraft,
+  uploadSlots,
   type OrderDraft,
 } from "../lib/personalisation";
 import StepChoose from "./create/StepChoose";
 import StepDetails from "./create/StepDetails";
 import StepExtras from "./create/StepExtras";
-import StepReview from "./create/StepReview";
+import StepReview, { type QuoteState } from "./create/StepReview";
 import StepStory from "./create/StepStory";
 
 const readSaved = (): OrderDraft | null => {
@@ -63,6 +89,24 @@ const initialDraft = (params: URLSearchParams): OrderDraft => {
   return emptyDraft();
 };
 
+type PayState =
+  | { phase: "idle" }
+  | { phase: "saving" }
+  | { phase: "uploading"; done: number; total: number }
+  | { phase: "opening" }
+  | { phase: "problem"; message: string };
+
+const UNREACHABLE = "We couldn't reach MCB just now. Everything you've entered is still here — please try again.";
+
+const problemFrom = (failure: ApiFailure): string => {
+  if (failure.kind === "unreachable") return UNREACHABLE;
+  if (failure.kind === "invalid") {
+    const messages = [...new Set(Object.values(failure.fields))];
+    return messages.length === 1 ? messages[0] : `${failure.message} ${messages.slice(0, 3).join(" ")}`;
+  }
+  return failure.message;
+};
+
 const CreateMemory = () => {
   const [params, setParams] = useSearchParams();
   const [draft, setDraftState] = useState<OrderDraft>(() => initialDraft(params));
@@ -75,8 +119,15 @@ const CreateMemory = () => {
   const [consents, setConsents] = useState<Record<ConsentId, boolean>>({ ...INITIAL_CONSENT_STATE });
   const [showErrors, setShowErrors] = useState(false);
   const [paymentPreview, setPaymentPreview] = useState(false);
+  const [checkout, setCheckout] = useState<CheckoutStatus | null>(null);
+  const [quote, setQuote] = useState<QuoteState>({ state: "loading" });
+  const [quoteRequest, setQuoteRequest] = useState(0);
+  const [pay, setPay] = useState<PayState>({ phase: "idle" });
+  const [resume, setResume] = useState<OrderState | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const startedRef = useRef(false);
+  const idempotency = useRef<{ fingerprint: string; key: string } | null>(null);
+  const paying = useRef(false);
 
   const preview = useMemo(() => previewDraft(draft), [draft]);
   const photoIds = useMemo(() => new Set(photos.keys()), [photos]);
@@ -142,6 +193,7 @@ const CreateMemory = () => {
   const goTo = (target: StepId) => {
     setShowErrors(false);
     setPaymentPreview(false);
+    if (!busy) setPay({ phase: "idle" });
     const next = new URLSearchParams(params);
     next.set("step", target);
     if (draft.sku) next.set("sku", draft.sku);
@@ -150,6 +202,132 @@ const CreateMemory = () => {
     next.delete("quantity");
     setParams(next, { replace: false });
   };
+
+  // ---- What the server says about payment ----------------------------------
+  useEffect(() => {
+    let live = true;
+    void fetchCheckoutStatus().then((status) => live && setCheckout(status));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  // ---- Back from Stripe without paying: offer the order already saved ------
+  useEffect(() => {
+    if (params.get("checkout") !== "cancelled") return;
+    const saved = recallSavedOrder();
+    if (!saved) return;
+    let live = true;
+    void fetchOrderState(saved).then((result) => {
+      if (!live) return;
+      if (result.ok && result.order.status === "PENDING") setResume(result.order);
+      else forgetSavedOrder();
+    });
+    return () => {
+      live = false;
+    };
+    // Once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---- The server's figures for the Review step ------------------------------
+  const requiresShipping = preview.ok && preview.requiresShipping;
+  const linesKey = JSON.stringify(draftLines(draft));
+  const quoteCountry = requiresShipping ? contact.shippingCountry : "";
+  useEffect(() => {
+    if (step !== "review" || !preview.ok) return;
+    let live = true;
+    setQuote({ state: "loading" });
+    void requestQuote(JSON.parse(linesKey), quoteCountry).then((result) => {
+      if (!live) return;
+      if (result.ok) setQuote({ state: "ready", quote: result.quote });
+      else setQuote({ state: "error", message: result.kind === "unreachable" ? "We couldn't confirm your total just now." : problemFrom(result) });
+    });
+    return () => {
+      live = false;
+    };
+    // preview.ok follows linesKey.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, linesKey, quoteCountry, quoteRequest]);
+
+  const openCheckout = async (order: OrderState) => {
+    setPay({ phase: "opening" });
+    const session = await createCheckoutSession(order);
+    if (!session.ok) {
+      setPay({ phase: "problem", message: problemFrom(session) });
+      return false;
+    }
+    // The server has created a real session: only now is checkout "begun".
+    trackFunnel("checkout_begin", { product_id: draft.productId, sku: draft.sku, quantity: draft.units.length, location: "create" });
+    trackBeginCheckout(draftLines(draft));
+    window.location.assign(session.url);
+    return true;
+  };
+
+  const startPayment = async () => {
+    if (paying.current) return;
+    paying.current = true;
+    try {
+      const body = buildOrderRequest(draft, contact, consents, photoIds, requiresShipping);
+      const fingerprint = requestFingerprint(body);
+      if (idempotency.current?.fingerprint !== fingerprint) idempotency.current = { fingerprint, key: newIdempotencyKey() };
+
+      setPay({ phase: "saving" });
+      const saved = await submitOrder(body, idempotency.current.key);
+      if (!saved.ok) {
+        setPay({ phase: "problem", message: problemFrom(saved) });
+        return;
+      }
+      const order = saved.order;
+      rememberSavedOrder(order);
+
+      if (quote.state === "ready" && order.totalMinor !== quote.quote.totalMinor) {
+        // The saved total is what will be charged. Show it before anything else.
+        setQuoteRequest((n) => n + 1);
+        setPay({ phase: "problem", message: "Your total has been updated. Please check it below, then continue to payment." });
+        return;
+      }
+
+      const toUpload = uploadSlots(draft, photos).filter((slot) => order.missingUploads.includes(slot.slot));
+      for (let i = 0; i < toUpload.length; i++) {
+        setPay({ phase: "uploading", done: i, total: toUpload.length });
+        const uploaded = await uploadPhoto(order, toUpload[i].slot, toUpload[i].file);
+        if (!uploaded.ok) {
+          setPay({
+            phase: "problem",
+            message: uploaded.kind === "unreachable" ? "One of your photos didn't upload. Please check your connection and try again." : problemFrom(uploaded),
+          });
+          return;
+        }
+      }
+
+      const state = await fetchOrderState(order);
+      if (!state.ok) {
+        setPay({ phase: "problem", message: problemFrom(state) });
+        return;
+      }
+      const blocked = blockerMessage(state.order.checkoutBlocker);
+      if (blocked) {
+        setPay({ phase: "problem", message: blocked });
+        return;
+      }
+      trackFunnel("personalisation_complete", { product_id: draft.productId, sku: draft.sku, quantity: draft.units.length, location: "create" });
+
+      await openCheckout(state.order);
+    } finally {
+      paying.current = false;
+    }
+  };
+
+  const busy = pay.phase === "saving" || pay.phase === "uploading" || pay.phase === "opening";
+  const payLabel =
+    pay.phase === "saving"
+      ? "Saving your order…"
+      : pay.phase === "uploading"
+        ? `Uploading your photos (${pay.done + 1} of ${pay.total})…`
+        : pay.phase === "opening"
+          ? "Opening secure payment…"
+          : "Continue to secure payment";
 
   const blockers = stepBlockers(step, draft, preview, photoIds, contact, consents);
 
@@ -178,8 +356,17 @@ const CreateMemory = () => {
       trackFunnel("personalisation_start", { product_id: draft.productId, sku: draft.sku, quantity: draft.units.length, location: "create" });
     }
     if (step === "review") {
-      // Checkout stays off in the release candidate: nothing is sent anywhere.
-      setPaymentPreview(true);
+      if (!checkout || !checkout.onlineCheckout) {
+        // Payment is closed on the server: nothing is sent anywhere.
+        setPaymentPreview(true);
+        return;
+      }
+      if (quote.state !== "ready") return;
+      if (!quote.quote.payable) {
+        setPay({ phase: "problem", message: "We can't take payment online for this delivery address yet. Please contact MCB and we'll help." });
+        return;
+      }
+      void startPayment();
       return;
     }
     goTo(STEPS[current + 1].id);
@@ -208,7 +395,52 @@ const CreateMemory = () => {
       </Helmet>
 
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
-        {saved && (
+        {resume && (
+          <div role="region" aria-label="Your saved order" className="mb-8 rounded-2xl border-2 border-ink bg-white p-5 sm:p-6">
+            <p className="font-serif text-2xl text-ink">Your order is saved</p>
+            <p className="mt-2 text-base leading-relaxed text-espresso/80">
+              You left payment before it was finished, so nothing has been charged.
+              {resume.totalMinor !== null && <> The total is {formatMinor(resume.totalMinor)}.</>} You can continue to payment, or make changes and place it again.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  const blocked = blockerMessage(resume.checkoutBlocker);
+                  if (blocked) setPay({ phase: "problem", message: blocked });
+                  else void openCheckout(resume);
+                }}
+                className="min-h-12 rounded-full bg-ink px-6 text-base font-semibold text-ivory disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
+              >
+                {pay.phase === "opening" ? "Opening secure payment…" : "Continue to secure payment"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  forgetSavedOrder();
+                  setResume(null);
+                  idempotency.current = null;
+                  // Bring back the words saved on this device, ready to edit.
+                  if (saved) {
+                    setDraftState(saved);
+                    setSaved(null);
+                    const next = new URLSearchParams();
+                    next.set("sku", saved.sku);
+                    next.set("step", "story");
+                    setParams(next);
+                  }
+                }}
+                className="min-h-12 rounded-full border border-ink/25 px-6 text-base font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep"
+              >
+                Make changes
+              </button>
+            </div>
+            <p className="mt-3 text-sm text-espresso/65">For your privacy, contact details and photos aren't kept on this device, so you'll add them again if you make changes.</p>
+          </div>
+        )}
+
+        {saved && !resume && (
           <div role="region" aria-label="Saved progress" className="mb-8 rounded-2xl border border-gold/50 bg-white p-5">
             <p className="text-base text-ink">
               Welcome back. You started {getProduct(saved.productId)?.name ? `a ${getProduct(saved.productId)?.name}` : "a memory"} on this device. Photos aren't saved, so you may need to add them again.
@@ -308,10 +540,18 @@ const CreateMemory = () => {
                 setConsent={(id, value) => setConsents((c) => ({ ...c, [id]: value }))}
                 showErrors={showErrors}
                 goTo={goTo}
+                quote={quote}
+                onRetryQuote={() => setQuoteRequest((n) => n + 1)}
               />
             )}
 
-            {paymentPreview && !CHECKOUT_SESSIONS_ENABLED && (
+            {step === "review" && checkout?.mode === "test" && (
+              <p role="note" className="mt-8 rounded-2xl border-2 border-dashed border-gold-dark bg-white p-5 text-base leading-relaxed text-ink">
+                <strong>Test mode.</strong> This checkout uses Stripe's test environment. No real payment will be taken and nothing will be made.
+              </p>
+            )}
+
+            {paymentPreview && checkout !== null && !checkout.onlineCheckout && (
               <div role="status" className="mt-10 rounded-2xl border-2 border-ink bg-white p-6">
                 <p className="font-serif text-2xl text-ink">Online payment isn't open yet</p>
                 <p className="mt-2 text-base leading-relaxed text-espresso/80">
@@ -332,11 +572,18 @@ const CreateMemory = () => {
               <button
                 type="button"
                 onClick={continueOn}
-                className="inline-flex min-h-14 items-center justify-center rounded-full bg-ink px-8 text-lg font-semibold text-ivory transition-colors hover:bg-[#1c2d40] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
+                disabled={busy || (step === "review" && checkout?.onlineCheckout === true && quote.state !== "ready")}
+                aria-busy={busy}
+                className="inline-flex min-h-14 items-center justify-center rounded-full bg-ink px-8 text-lg font-semibold text-ivory transition-colors hover:bg-[#1c2d40] disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
               >
-                {step === "review" ? "Continue to secure payment" : `Continue to ${STEPS[current + 1].label.toLowerCase()}`}
+                {step === "review" ? payLabel : `Continue to ${STEPS[current + 1].label.toLowerCase()}`}
               </button>
             </div>
+            {step === "review" && (busy || pay.phase === "problem") && (
+              <p role={pay.phase === "problem" ? "alert" : "status"} className={`mt-4 text-right text-base ${pay.phase === "problem" ? "text-red-700" : "text-espresso/80"}`}>
+                {pay.phase === "problem" ? pay.message : payLabel}
+              </p>
+            )}
             {showErrors && blockers.length > 0 && (
               <p role="alert" className="mt-4 text-right text-base text-red-700">
                 {blockers.length === 1 ? blockers[0] : `A few things still need your attention (${blockers.length}).`}
@@ -348,7 +595,32 @@ const CreateMemory = () => {
           <aside aria-label="Your order so far" className="lg:sticky lg:top-28 lg:self-start">
             <div className="rounded-2xl border border-gold/40 bg-white p-5">
               <p className="label-uppercase text-gold-deep">Your memory</p>
-              {preview.ok ? (
+              {step === "review" && quote.state === "ready" ? (
+                // On Review, the same server figures as the order itself.
+                <>
+                  <ul className="mt-3 list-none space-y-2 p-0 text-base">
+                    {quote.quote.lines.map((line) => (
+                      <li key={line.sku} className="flex justify-between gap-3">
+                        <span className="text-espresso/85">
+                          {getVariant(line.sku)?.variant.name ?? line.name}
+                          {line.quantity > 1 && <span className="text-espresso/60"> × {line.quantity}</span>}
+                        </span>
+                        <span className="font-mono text-ink">{formatMinor(line.lineMinor)}</span>
+                      </li>
+                    ))}
+                    {quote.quote.delivery.status === "QUOTED" && (
+                      <li className="flex justify-between gap-3">
+                        <span className="text-espresso/85">Delivery</span>
+                        <span className="font-mono text-ink">{formatMinor(quote.quote.delivery.minor)}</span>
+                      </li>
+                    )}
+                  </ul>
+                  <p className="mt-4 flex items-baseline justify-between border-t border-espresso/10 pt-3">
+                    <span className="text-base font-medium text-ink">Total</span>
+                    <span className="font-serif text-2xl text-ink">{formatMinor(quote.quote.totalMinor)}</span>
+                  </p>
+                </>
+              ) : preview.ok ? (
                 <>
                   <ul className="mt-3 list-none space-y-2 p-0 text-base">
                     {preview.lines.map((line) => (
@@ -365,7 +637,7 @@ const CreateMemory = () => {
                     <span className="text-base font-medium text-ink">Total</span>
                     <span className="font-serif text-2xl text-ink">{formatMinor(preview.totalMinor)}</span>
                   </p>
-                  {preview.requiresShipping && <p className="mt-2 text-sm text-espresso/70">Delivery calculated separately before payment.</p>}
+                  {preview.requiresShipping && <p className="mt-2 text-sm text-espresso/70">Delivery is confirmed on the Review step, before payment.</p>}
                 </>
               ) : (
                 <p className="mt-3 text-base text-espresso/70">Choose an experience to see your order here.</p>

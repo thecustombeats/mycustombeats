@@ -282,7 +282,13 @@ test("the Rinaldi portrait appears only on Our Story, and the founder note stays
   }
 });
 
-test("checkout remains disabled on both switches", () => {
-  assert.match(readFileSync(join(root, "src/lib/checkoutSession.ts"), "utf8"), /export const CHECKOUT_SESSIONS_ENABLED = false;/);
-  assert.match(readFileSync(join(root, "public/api/config.example.php"), "utf8"), /'checkout_sessions_enabled' => false,/);
+test("checkout stays off: the shipped server config is closed and the browser has no switch", () => {
+  const config = readFileSync(join(root, "public/api/config.example.php"), "utf8");
+  assert.match(config, /'checkout_sessions_enabled' => false,/);
+  assert.match(config, /'live_checkout_approved' => false,/);
+  assert.match(config, /'use_test_fixtures' => false,/);
+  assert.ok(!existsSync(join(root, "src/lib/checkoutSession.ts")), "the old client flag module is gone");
+  const src = readdirSync(join(root, "src"), { recursive: true }).filter((f) => /\.(ts|tsx)$/.test(f)).map((f) => readFileSync(join(root, "src", f), "utf8")).join("\n");
+  assert.ok(!/CHECKOUT_SESSIONS_ENABLED|online_checkout\s*[:=]\s*true/.test(src), "no client-side switch");
+  assert.match(readFileSync(join(root, "src/lib/orderApi.ts"), "utf8"), /"\/api\/checkout\/status"/, "the page asks the server");
 });

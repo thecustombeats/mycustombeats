@@ -144,7 +144,7 @@ tc "26.  → and no order row was written for any of them" \
   "$([ "$(q "SELECT COUNT(*) FROM orders")" = "$BEFORE" ] && [ "$(q "SELECT COUNT(*) FROM orders WHERE package IN ('bespoke','mcb-live')")" = "0" ] && echo 1 || echo 0)"
 release_order_limit
 curl -s -o /tmp/fpk.json -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -H "Idempotency-Key: $(idem)" \
-  -d '{'"$CONSENT_BLOCK"',"firstName":"Con","lastName":"Trol","email":"fp-control@example.com","lines":[{"sku":"moment","quantity":1}],"story":"x"}' >/dev/null
+  -d '{'"$CONSENT_BLOCK"',"firstName":"Con","lastName":"Trol","email":"fp-control@example.com","lines":[{"sku":"moment","quantity":1}],"personalisation":{"units":[{"sku":"moment","memories":[{"story":"x","style":{"choice":"MCB_CHOICE"}}]}]},"story":"x"}' >/dev/null
 OIDK=$(sed -n 's/.*"order_id":\([0-9]*\).*/\1/p' /tmp/fpk.json)
 TOKK=$(sed -n 's/.*"checkout_token":"\([a-f0-9]*\)".*/\1/p' /tmp/fpk.json)
 tc "27. the control order (Moment) was accepted, so 24 is not a blanket failure" \
@@ -298,8 +298,8 @@ echo ""
 echo "================ 11. NOTHING WAS SWITCHED ON ================"
 tc "81. the shipped config template still keeps checkout sessions OFF" \
   "$(grep -A1 "'checkout_sessions_enabled'" public/api/config.example.php | grep -qi 'false' && echo 1 || echo 0)"
-tc "82. the client checkout flag is still false" \
-  "$(grep -q 'export const CHECKOUT_SESSIONS_ENABLED = false' src/lib/checkoutSession.ts && echo 1 || echo 0)"
+tc "82. no browser switch can open checkout; the server decides and ships closed" \
+  "$(! grep -rq 'CHECKOUT_SESSIONS_ENABLED' src/ && grep -q '/api/checkout/status' src/lib/orderApi.ts && grep -q "'live_checkout_approved' => false" public/api/config.example.php && echo 1 || echo 0)"
 tc "83. no Stripe secret in browser source" \
   "$(grep -rqE 'sk_(live|test)_[A-Za-z0-9]' src/ 2>/dev/null && echo 0 || echo 1)"
 tc "84. the concierge endpoint contains no Stripe call of any kind" \

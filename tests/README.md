@@ -1,6 +1,6 @@
 # CRM API acceptance tests
 
-Seven suites, 981 assertions, against a live PHP + MariaDB stack. Everything
+Eight suites, 1,176 assertions, against a live PHP + MariaDB stack. Everything
 runs in throwaway containers — no local PHP or MySQL install, nothing left
 behind. Each suite expects a FRESH database loaded from `db/schema.sql`.
 
@@ -18,10 +18,13 @@ docker exec -i mcb-db mariadb -umcb -ptestpass mcb_crm < db/schema.sql
 # db.host mcb-db; stripe.webhook_secret whsec_test_secret_for_local_verification;
 # crm_api_key test_crm_key_not_real_000000000000000000000;
 # stripe.checkout_sessions_enabled true, stripe.api_base
-# http://localhost/api/_test-stripe-stub.php and a random sk_test_stub_ key;
+# http://localhost/api/_test-stripe-stub.php and a random sk_test_stub_ key (a
+# TEST-mode key shape: the server refuses anything else);
 # resend.api_url http://localhost/api/_test-resend-stub.php, a random
-# re_teststub_ key and a from address; reviews.url; app.site_origin
-# http://localhost:8080. Leave `operations` unset (the ops notice stays dormant).
+# re_teststub_ key, a from address and resend.test_mode_send_to_customer true
+# (safe ONLY because Resend is the stub); delivery.use_test_fixtures true;
+# reviews.url; app.site_origin http://localhost:8080. Leave `operations` unset
+# (the ops notice stays dormant).
 cp /path/outside/repo/config.php public/api/config.php
 # Stand-ins for api.stripe.com and api.resend.com — removed afterwards
 cp tests/stripe-stub.php public/api/_test-stripe-stub.php
@@ -33,13 +36,18 @@ docker run -d --name mcb-api --link mcb-db \
   -p 8080:80 php:8.2-apache \
   sh -c "docker-php-ext-install pdo_mysql; a2enmod rewrite; apache2-foreground"
 
-for s in api checkout delivery full-package hardening legal lifecycle; do
+for s in api checkout delivery full-package hardening legal lifecycle transaction; do
   # reset: DROP/CREATE mcb_crm, reload db/schema.sql, clear /tmp/*-stub.log
   bash tests/$s-acceptance.sh
 done
 docker rm -f mcb-db mcb-api
 rm -f public/api/config.php public/api/_test-*.php
+rm -rf public/api/storage/uploads
 ```
+
+The PHP image runs OPcache, which rechecks a changed PHP file every 2 seconds.
+`transaction-acceptance.sh` swaps the config for a few scenarios (a live key,
+fixtures off, test-mode email) and waits for that; it always restores it.
 
 Apache is used rather than PHP's built-in server on purpose: the built-in
 server ignores `.htaccess`, so it cannot verify clean-URL routing, the denial
@@ -62,6 +70,7 @@ the authorised price table, once. Every order POST sends a fresh
 | full-package | Bespoke (formerly The Full Package) and MCB LIVE are QUOTED with no SKU and cannot be ordered; no `£799`/Payment Link in source; checkout builds from the saved order whatever the request names; concierge enquiry intake, budget storage, validation, rate limit and CRM surface |
 | hardening | Thank-you page claims payment only from the server; `purchase` disclosed only for a PAID order; Bespoke page title and `/bespoke` sitemap entry (`/full-package` 301 rule asserted statically — the test Apache serves `public/api` only); order limiter ordering (replay → limit → validation), burst refused after ten, retry of an accepted order still answered while limited |
 | legal | Consent as evidence, versions, production lock, banned phrases absent from all `src/`, revision entitlements from the catalogue, Bespoke enquiry is not a purchase, cruise field, review states, register not imported |
+| transaction | Sprint 4, end to end: server says whether checkout is open and in which mode; the £15 Moment golden path (server quote, per-memory persistence, TEST session with minimal metadata and no customer text, double-click reuse, bad signature, signed payment → PAID, one reference, audit trail, one confirmation without story text, duplicate webhook harmless); under/over/wrong-currency → PAYMENT_REVIEW; live-mode or mode-less events filed MODE_MISMATCH; Keepsake 7"/heart/10"/12" memory counts and format snapshots; two Keepsakes independent; Priority Replacement per Keepsake only; delivery quoted by the server (TEST_ONLY fixture, UNAVAILABLE without rates, refused with a live key); physical Keepsake with photo, Priority Replacement, delivery and payment; staff production brief; Journey 6/12 chapters on standard vinyl with per-chapter styles; plaque/frame/player personalisation; 300-character and other limits refused, never truncated; uploads (types, polyglot, SVG, size, near-limit, traversal, private storage, CRM retrieval, replacement, wrong token); forged prices/variants/add-ons; stale and foreign tokens; live payment cannot switch itself on; test-mode email never reaches a customer; retired products |
 | lifecycle | Customer referral vs affiliate, eligibility on verified payment, attribution/confirmation, precedence, completion and review request, provider failure isolation, public code privacy, CRM customer view (gross paid equals saved totals) |
 
 ## A bug these tests caught

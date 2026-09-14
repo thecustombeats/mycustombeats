@@ -79,7 +79,7 @@ order_minor() { q "SELECT total_minor FROM orders WHERE id=$1"; }
 # Marks an order paid through the real verified-webhook path.
 paynow() {
   q "UPDATE orders SET stripe_session_id='cs_test_lc_$1' WHERE id=$1" >/dev/null
-  hook "{\"id\":\"evt_lc_$1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_test_lc_$1\",\"client_reference_id\":\"$1\",\"payment_intent\":\"pi_lc_$1\",\"payment_status\":\"paid\",\"amount_total\":$(order_minor $1),\"currency\":\"gbp\"}}}" >/dev/null
+  hook "{\"id\":\"evt_lc_$1\",\"type\":\"checkout.session.completed\",\"livemode\":false,\"data\":{\"object\":{\"id\":\"cs_test_lc_$1\",\"client_reference_id\":\"$1\",\"payment_intent\":\"pi_lc_$1\",\"payment_status\":\"paid\",\"amount_total\":$(order_minor $1),\"currency\":\"gbp\"}}}" >/dev/null
 }
 
 prose() { grep -v -E '^\s*(\*|//|/\*|#)' "$@"; }
@@ -371,8 +371,8 @@ tc "107. no Stripe Payment Link survives in browser source" \
   "$(grep -rq 'buy\.stripe\.com' src/ 2>/dev/null && echo 0 || echo 1)"
 tc "108. dynamic checkout stays OFF in the shipped config" \
   "$(grep -A1 "'checkout_sessions_enabled'" public/api/config.example.php | grep -qi 'false' && echo 1 || echo 0)"
-tc "109. the client checkout flag stays false" \
-  "$(grep -q 'export const CHECKOUT_SESSIONS_ENABLED = false' src/lib/checkoutSession.ts && echo 1 || echo 0)"
+tc "109. no browser switch can open checkout; the server decides and ships closed" \
+  "$(! grep -rq 'CHECKOUT_SESSIONS_ENABLED' src/ && grep -q '/api/checkout/status' src/lib/orderApi.ts && grep -q "'live_checkout_approved' => false" public/api/config.example.php && echo 1 || echo 0)"
 tc "110. Bespoke still cannot be ordered" \
   "$(post order '{'"$CONSENT"',"firstName":"F","lastName":"P","email":"lc-fpo@example.com","lines":[{"sku":"bespoke","quantity":1}],"story":"x"}' | grep -q '^422$' && body | grep -q '"error":"unknown_sku"' && echo 1 || echo 0)"
 tc "111. legal consent is still required" \

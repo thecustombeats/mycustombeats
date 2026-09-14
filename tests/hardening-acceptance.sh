@@ -154,7 +154,7 @@ tc "29. an order is created for the verified-path check" "$([ -n "$OID" ] && ech
 
 SID="cs_live_hardening$OID"
 q "UPDATE orders SET stripe_session_id='$SID' WHERE id=$OID" >/dev/null
-W="{\"id\":\"evt_hd_$OID\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"$SID\",\"client_reference_id\":\"$OID\",\"payment_intent\":\"pi_hd_$OID\",\"payment_status\":\"paid\",\"amount_total\":$(order_minor $OID),\"currency\":\"gbp\"}}}"
+W="{\"id\":\"evt_hd_$OID\",\"type\":\"checkout.session.completed\",\"livemode\":false,\"data\":{\"object\":{\"id\":\"$SID\",\"client_reference_id\":\"$OID\",\"payment_intent\":\"pi_hd_$OID\",\"payment_status\":\"paid\",\"amount_total\":$(order_minor $OID),\"currency\":\"gbp\"}}}"
 SW=$(curl -s -o /tmp/hd.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Content-Type: application/json" -H "Stripe-Signature: $(sign "$W")" -d "$W")
 t  "30. the signed webhook is accepted" 200 "$SW"
 tc "31.   → the order is PAID on MCB's own record" \
@@ -308,8 +308,8 @@ echo "================ 5. NOTHING ELSE MOVED ================"
 tc "65. no Stripe Payment Link survives in browser source" \
   "$(grep -rq 'buy\.stripe\.com' src/ 2>/dev/null && echo 0 || echo 1)"
 
-tc "67. dynamic checkout is still OFF in the client" \
-  "$(grep -q 'export const CHECKOUT_SESSIONS_ENABLED = false' src/lib/checkoutSession.ts && echo 1 || echo 0)"
+tc "67. no browser switch can open checkout; the server decides and ships closed" \
+  "$(! grep -rq 'CHECKOUT_SESSIONS_ENABLED' src/ && grep -q '/api/checkout/status' src/lib/orderApi.ts && grep -q "'live_checkout_approved' => false" public/api/config.example.php && echo 1 || echo 0)"
 
 tc "68. dynamic checkout is still OFF in the config template" \
   "$(grep -q "'checkout_sessions_enabled' => false" public/api/config.example.php && echo 1 || echo 0)"
@@ -341,10 +341,10 @@ tc "75. Resend behaviour is unchanged — the closure sends no mail" \
 tc "76. the review URL is still configuration and still empty" \
   "$(grep -A3 "'reviews'" public/api/config.example.php | grep -q "'url' => ''" && echo 1 || echo 0)"
 
-tc "77. the seven pre-existing migrations are untouched; one additive migration follows" \
-  "$([ "$(ls db/migrations/*.sql | wc -l | tr -d ' ')" = "8" ] \
-     && [ -f db/migrations/2026-09-14-canonical-catalogue.sql ] \
-     && git diff --quiet HEAD -- db/migrations/2026-08-31-mcb-reference.sql db/migrations/2026-09-09-*.sql && echo 1 || echo 0)"
+tc "77. the eight earlier migrations are untouched; Sprint 4's additive migration follows" \
+  "$([ "$(ls db/migrations/*.sql | wc -l | tr -d ' ')" = "9" ] \
+     && [ -f db/migrations/2026-09-14-canonical-catalogue.sql ] && [ -f db/migrations/2026-09-14-sprint4-order-persistence.sql ] \
+     && git diff --quiet 056f783d -- db/migrations/2026-08-31-mcb-reference.sql db/migrations/2026-09-09-*.sql db/migrations/2026-09-14-canonical-catalogue.sql && echo 1 || echo 0)"
 
 tc "78. no Stripe secret in browser source" \
   "$(grep -rqE 'sk_(live|test)_[A-Za-z0-9]' src/ 2>/dev/null && echo 0 || echo 1)"

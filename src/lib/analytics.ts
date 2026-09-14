@@ -256,7 +256,11 @@ export type FunnelEvent =
   | "personalisation_step_complete"
   | "concierge_start"
   | "concierge_recommendation"
-  | "order_review";
+  | "order_review"
+  /** MCB's server saved the order with every memory and photo it needs. */
+  | "personalisation_complete"
+  /** MCB's server created a Stripe Checkout Session; the customer is leaving to pay. */
+  | "checkout_begin";
 
 export interface FunnelParams {
   product_id?: string;

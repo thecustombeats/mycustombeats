@@ -226,7 +226,26 @@ function mcb_e(?string $value): string
 /** Subject line. Leads with the reference so it is findable by search. */
 function post_payment_email_subject(array $payload): string
 {
-    return 'Your My Custom Beats order — ' . $payload['mcb_reference'];
+    $prefix = ($payload['test_mode'] ?? false) === true ? '[TEST] ' : '';
+    return $prefix . 'Your My Custom Beats order — ' . $payload['mcb_reference'];
+}
+
+/**
+ * Whether this order was paid in Stripe TEST mode.
+ *
+ * The payment's own recorded mode decides; an order without one (reconciled
+ * by hand) follows the configured key. Legacy orders on a server with no key
+ * are not test orders.
+ */
+function order_paid_in_test_mode(PDO $pdo, int $orderId): bool
+{
+    $stmt = $pdo->prepare('SELECT stripe_livemode FROM orders WHERE id = :id');
+    $stmt->execute([':id' => $orderId]);
+    $livemode = $stmt->fetchColumn();
+    if ($livemode !== false && $livemode !== null) {
+        return (int) $livemode === 0;
+    }
+    return stripe_expected_livemode() === false;
 }
 
 /**
@@ -435,7 +454,9 @@ function deliver_via_resend(array $payload, string $apiKey, string $from, string
         //
         // Resend expires these after 24 hours; the database claim remains the
         // durable guarantee.
-        'Idempotency-Key: mcb-' . $payload['mcb_reference'],
+        // A rehearsal database numbers references from 1 too, so test sends
+        // are keyed apart from live ones and can never suppress a real email.
+        'Idempotency-Key: mcb-' . (($payload['test_mode'] ?? false) === true ? 'test-' : '') . $payload['mcb_reference'],
     ];
 
     $raw    = null;
@@ -531,6 +552,33 @@ function notify_customer_of_payment(PDO $pdo, int $orderId): string
         return 'not_configured';
     }
 
+    /**
+     * ---- TEST MODE NEVER EMAILS A REAL CUSTOMER BY ACCIDENT ---------------
+     *
+     * A rehearsal payment is confirmed to `resend.test_recipient` (a mailbox
+     * MCB controls), with [TEST] in the subject, or not at all. Only the
+     * acceptance harness, whose Resend endpoint is a local stub, sets
+     * `resend.test_mode_send_to_customer`. An unsent test confirmation does
+     * not claim the order, so nothing is recorded as sent.
+     */
+    $testMode = false;
+    $testRecipient = null;
+    try {
+        $testMode = order_paid_in_test_mode($pdo, $orderId);
+    } catch (PDOException $e) {
+        error_log('MCB CRM: could not read payment mode for order ' . $orderId . ': ' . $e->getMessage());
+        return 'claim_failed';
+    }
+    if ($testMode && mcb_setting('resend.test_mode_send_to_customer', false) !== true) {
+        $configured = (string) mcb_setting('resend.test_recipient', '');
+        if (filter_var($configured, FILTER_VALIDATE_EMAIL) === false) {
+            error_log('MCB CRM: test-mode confirmation for order ' . $orderId
+                . ' not sent — set resend.test_recipient to receive rehearsal emails.');
+            return 'skipped_test_mode';
+        }
+        $testRecipient = $configured;
+    }
+
     try {
         if (!claim_customer_notification($pdo, $orderId)) {
             // Either already notified, or the order is not PAID. Both mean
@@ -555,6 +603,13 @@ function notify_customer_of_payment(PDO $pdo, int $orderId): string
     if ($payload === null) {
         release_customer_notification($pdo, $orderId);
         return 'no_reference';
+    }
+
+    if ($testMode) {
+        $payload['test_mode'] = true;
+        if ($testRecipient !== null) {
+            $payload['customer_email'] = $testRecipient;
+        }
     }
 
     if (!deliver_via_resend($payload, $apiKey, $from, $endpoint)) {
