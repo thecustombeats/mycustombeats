@@ -2,6 +2,34 @@ import { useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { revealOnScroll } from "../lib/scrollReveal";
 
+/**
+ * A silent, decorative loop that downloads and plays only while it is on
+ * screen, and never for visitors who ask for reduced motion or data saving
+ * (they see the still poster). Previously all three loops downloaded (~6.5 MB)
+ * and played as soon as the page opened.
+ */
+const AmbientVideo = ({ src, poster }: { src: string; poster: string }) => {
+  const ref = useRef<HTMLVideoElement | null>(null);
+  useEffect(() => {
+    const video = ref.current;
+    if (!video || typeof IntersectionObserver === "undefined") return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
+    if (reduce || saveData) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) void video.play().catch(() => {});
+      else video.pause();
+    }, { threshold: 0.25 });
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <video ref={ref} aria-hidden="true" muted loop playsInline preload="none" poster={poster} className="w-full h-56 object-cover">
+      <source src={src} type="video/mp4" />
+    </video>
+  );
+};
+
 export default function Occasions() {
   const sectionRef = useRef<HTMLDivElement>(null);
 
@@ -49,7 +77,7 @@ export default function Occasions() {
             Not Every Moment<br />
             <span className="italic">Can Be Put Into Words</span>
           </h1>
-          <p className="text-black/60 max-w-2xl mx-auto mb-10 text-lg">
+          <p className="text-black/75 max-w-2xl mx-auto mb-10 text-lg">
             We turn your most meaningful memories into bespoke songs — crafted to be felt, remembered, and treasured forever.
           </p>
           <a
@@ -64,7 +92,7 @@ export default function Occasions() {
         {/* STORY */}
         <section className="max-w-4xl mx-auto text-center px-6 pb-24">
           <p className="text-xl text-black/70 mb-6">Some moments deserve more than a gift.</p>
-          <p className="text-black/60">A love story. A milestone. A memory you never want to fade.</p>
+          <p className="text-black/75">A love story. A milestone. A memory you never want to fade.</p>
           <p className="mt-6 text-black/80 font-medium">We turn these into songs you can keep forever.</p>
         </section>
 
@@ -74,18 +102,17 @@ export default function Occasions() {
             {occasions.map((item, index) => (
               <div key={index} className="occasion-card border border-black/10 rounded-2xl bg-white overflow-hidden hover:shadow-xl transition">
                 {item.type === "video" ? (
-                  <video autoPlay loop muted playsInline poster={item.poster || "/images/hero-poster.jpg"} className="w-full h-56 object-cover">
-                    <source src={item.src} type="video/mp4" />
-                  </video>
+                  <AmbientVideo src={item.src} poster={item.poster || "/images/hero-poster.jpg"} />
                 ) : (
-                  <img src={item.src || "/images/hero-poster.jpg"} alt={`Custom song for ${item.title}. ${item.hook} ${item.desc}`} className="w-full h-56 object-cover" />
+                  // Decorative: the card's heading and text say what it is.
+                  <img src={item.src || "/images/hero-poster.jpg"} alt="" loading="lazy" decoding="async" className="w-full h-56 object-cover" />
                 )}
 
                 {/* Card Content */}
                 <div className="p-8">
                   <h2 className="text-2xl mb-2 font-medium">{item.title}</h2>
-                  <p className="italic text-black/50 mb-3">{item.hook}</p>
-                  <p className="text-black/60 mb-6">
+                  <p className="italic text-black/75 mb-3">{item.hook}</p>
+                  <p className="text-black/75 mb-6">
   {item.title === "Wedding Songs" &&
     "Celebrate your wedding day with a custom wedding song crafted by professional musicians. Each personalised track captures your love story, creating a timeless music gift for your first dance and beyond."}
 
@@ -141,12 +168,12 @@ export default function Occasions() {
         {/* HOW IT WORKS */}
         <section className="max-w-6xl mx-auto px-6 py-24">
           <h2 className="text-4xl text-center font-light mb-6">How It Works</h2>
-          <p className="text-center text-black/60 max-w-xl mx-auto mb-12">A simple, guided process designed to turn your story into something unforgettable.</p>
+          <p className="text-center text-black/75 max-w-xl mx-auto mb-12">A simple, guided process designed to turn your story into something unforgettable.</p>
           <div className="grid md:grid-cols-4 gap-10 text-center">
             {["Tell us your story", "We craft your song", "Refine it together", "Receive your keepsake"].map((step, i) => (
               <div key={i}>
                 <div className="text-3xl mb-4">0{i + 1}</div>
-                <p className="text-black/60">{step}</p>
+                <p className="text-black/75">{step}</p>
               </div>
             ))}
           </div>
@@ -155,7 +182,7 @@ export default function Occasions() {
         {/* FINAL CTA */}
         <section className="text-center py-32 px-6 border-t border-black/10">
           <h2 className="text-4xl font-light mb-6">Your Story Deserves More Than a Gift</h2>
-          <p className="text-black/60 max-w-xl mx-auto mb-10">Let’s turn it into something unforgettable.</p>
+          <p className="text-black/75 max-w-xl mx-auto mb-10">Let’s turn it into something unforgettable.</p>
           
           <a
   href="/#order"

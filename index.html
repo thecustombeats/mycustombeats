@@ -4,17 +4,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XQFNJC4HND"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      // send_page_view: false — the app sends exactly one page_view per route,
-      // including the landing page (src/lib/analytics.ts trackPageView).
-      // Leaving the default on counted every landing twice.
-      gtag('config', 'G-XQFNJC4HND', { send_page_view: false });
-    </script>
+    <!-- Google Analytics 4: public/analytics-init.js. External (no inline
+         script, for the Content-Security-Policy); loads nothing on private
+         pages and strips fragments and private query strings from URLs. -->
+    <script defer src="/analytics-init.js"></script>
 
     <!-- MVIS™ typography: Cormorant Garamond (display) + Manrope (body/UI)
          + IBM Plex Mono (technical values: prices, capacities, lead times).

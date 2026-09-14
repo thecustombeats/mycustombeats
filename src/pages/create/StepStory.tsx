@@ -115,7 +115,7 @@ const StepStory = ({ draft, setDraft, photos, setPhoto, showErrors, onStyleEvent
                   }`}
                 >
                   {product.name} {i + 1}
-                  <span className={`font-mono text-xs ${current ? "text-ivory/75" : "text-espresso/60"}`}>
+                  <span className={`font-mono text-sm ${current ? "text-ivory/75" : "text-espresso/75"}`}>
                     {done}/{u.memories.length}
                   </span>
                   {done === u.memories.length && <Check className="h-4 w-4" aria-label="ready" />}
@@ -168,7 +168,7 @@ const StepStory = ({ draft, setDraft, photos, setPhoto, showErrors, onStyleEvent
                     </span>
                   </span>
                   {unit.memories.length > 1 && (
-                    <ChevronDown aria-hidden="true" className={`h-5 w-5 shrink-0 text-espresso/60 transition-transform ${open ? "rotate-180" : ""}`} />
+                    <ChevronDown aria-hidden="true" className={`h-5 w-5 shrink-0 text-espresso/75 transition-transform ${open ? "rotate-180" : ""}`} />
                   )}
                 </button>
               </h2>

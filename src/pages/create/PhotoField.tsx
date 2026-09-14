@@ -35,7 +35,7 @@ const PhotoField = ({ label, file, onChange, required = false, hint, error }: Ph
     <div>
       <p className="text-base font-medium text-ink">
         {label}
-        {!required && <span className="font-normal text-espresso/60"> (optional)</span>}
+        {!required && <span className="font-normal text-espresso/75"> (optional)</span>}
       </p>
       {hint && (
         <p id={hintId} className="mt-1 text-sm leading-relaxed text-espresso/65">

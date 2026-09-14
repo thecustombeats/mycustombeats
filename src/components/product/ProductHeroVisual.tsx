@@ -47,7 +47,7 @@ const ProductHeroVisual = ({ product, variant }: ProductHeroVisualProps) => {
       {overlay && (
       <div className="absolute -bottom-6 left-4 w-36 rounded-2xl border border-ink/10 bg-ivory p-3 shadow-[0_18px_40px_-18px_rgba(13,27,42,0.45)] sm:left-6 sm:w-44">
         <FormatVisual key={variant.sku} product={product} variant={variant} className="h-auto w-full" />
-        <p className="mt-1 text-center text-xs font-medium text-espresso/70">Illustration</p>
+        <p className="mt-1 text-center text-sm font-medium text-espresso/70">Illustration</p>
       </div>
       )}
     </figure>

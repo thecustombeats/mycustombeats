@@ -62,7 +62,7 @@ const About = () => (
       <script type="application/ld+json">{JSON.stringify(aboutPageStructuredData())}</script>
     </Helmet>
 
-    <main id="about" className="bg-ivory text-espresso">
+    <div id="about" className="bg-ivory text-espresso">
       {/* ---- Opening ------------------------------------------------------ */}
       <section className="px-5 pb-16 pt-28 sm:px-8 md:pb-24 md:pt-36">
         <div className="mx-auto max-w-3xl text-center">
@@ -182,7 +182,7 @@ const About = () => (
           </div>
         </div>
       </section>
-    </main>
+    </div>
   </>
 );
 

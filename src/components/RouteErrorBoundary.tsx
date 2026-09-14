@@ -105,20 +105,20 @@ class RouteErrorBoundary extends Component<Props, State> {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="px-7 py-3 text-[11px] tracking-[0.2em] uppercase rounded-full bg-ink text-ivory hover:bg-gold hover:text-ink transition-colors duration-300"
+              className="px-7 py-3 text-sm tracking-[0.2em] uppercase rounded-full bg-ink text-ivory hover:bg-gold hover:text-ink transition-colors duration-300"
             >
               Reload the page
             </button>
 
             <a
               href="/"
-              className="px-7 py-3 text-[11px] tracking-[0.2em] uppercase rounded-full border border-espresso/25 text-espresso hover:border-ink transition-colors duration-300"
+              className="px-7 py-3 text-sm tracking-[0.2em] uppercase rounded-full border border-espresso/25 text-espresso hover:border-ink transition-colors duration-300"
             >
               Back to home
             </a>
           </div>
 
-          <p className="text-sm text-espresso/50 mt-9">
+          <p className="text-sm text-espresso/75 mt-9">
             Still stuck?{" "}
             <a
               href="mailto:hello@mycustombeats.com"

@@ -25,6 +25,7 @@ import {
 } from '../data/catalogue';
 import { faqPageStructuredData } from '../lib/seo';
 import { refinementOrRemake } from '../lib/productDetail';
+import { AFTER_YOU_ORDER, HOW_APPROVAL_WORKS, JOURNEY_NOT_PICTURE_DISC, KEEPSAKE_SONG_CAPACITY, PLAQUE_PLAYS_MUSIC, WHAT_IS_A_PICTURE_DISC_KEEPSAKE } from '../lib/productAnswers';
 
 /* ------------------------------------------------------------------ */
 /* Catalogue phrasing                                                  */
@@ -136,6 +137,9 @@ const faqs: { question: string; answer: string }[] = [
     question: `What is the difference between ${MOMENT.name}, ${KEEPSAKE.name}, ${JOURNEY.name} and ${BESPOKE.name}?`,
     answer: `They differ in scale and in what you end up holding. ${MOMENT.name} is ${songs(MOMENT_VARIANT?.songCount ?? null)}, delivered digitally. ${KEEPSAKE.name} puts ${songRange(KEEPSAKE)} on a personalised picture disc. ${JOURNEY.name} is an album of ${songRange(JOURNEY)} on standard vinyl — not a picture disc. ${BESPOKE.name} is different in kind rather than in size: it is curated privately around one recipient, arranged through a consultation and individually quoted.`,
   },
+  WHAT_IS_A_PICTURE_DISC_KEEPSAKE,
+  KEEPSAKE_SONG_CAPACITY,
+  JOURNEY_NOT_PICTURE_DISC,
   {
     question: 'Can I get my personalised song on vinyl?',
     /**
@@ -181,6 +185,9 @@ const faqs: { question: string; answer: string }[] = [
     question: `What is ${PRIORITY_REPLACEMENT.name}?`,
     answer: `${PRIORITY_REPLACEMENT.shortDescription} It is ${PRIORITY_VARIANT ? formatMoney(PRIORITY_VARIANT.price) : ''}, ${lower(PRIORITY_VARIANT?.label ?? '')}. ${PRIORITY_REPLACEMENT.disclosures.join(' ')} Requests must be made within ${PRIORITY_REPLACEMENT_CLAIM_WINDOW_DAYS} days of confirmed delivery.`,
   },
+  PLAQUE_PLAYS_MUSIC,
+  AFTER_YOU_ORDER,
+  HOW_APPROVAL_WORKS,
   {
     question: 'Do I need to write lyrics?',
     answer:
@@ -247,7 +254,7 @@ const FAQSection = () => (
       </script>
     </Helmet>
 
-    <main id="faq" className="w-full bg-ivory px-5 pb-20 pt-28 sm:px-8 md:pb-28 md:pt-36">
+    <div id="faq" className="w-full bg-ivory px-5 pb-20 pt-28 sm:px-8 md:pb-28 md:pt-36">
       <div className="mx-auto max-w-3xl">
         <div className="text-center">
           <p className="label-uppercase text-gold-deep">Help</p>
@@ -287,7 +294,7 @@ const FAQSection = () => (
           .
         </p>
       </div>
-    </main>
+    </div>
   </>
 );
 

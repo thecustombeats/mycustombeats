@@ -45,7 +45,7 @@ const BOOKING_STEPS: readonly [string, string][] = [
   ["Confirmation", "Your booking is confirmed."],
 ];
 
-const field = "mt-2 w-full min-h-12 rounded-xl border border-ink/25 bg-white px-4 py-3 text-base text-ink placeholder:text-espresso/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2";
+const field = "mt-2 w-full min-h-12 rounded-xl border border-ink/25 bg-white px-4 py-3 text-base text-ink placeholder:text-espresso/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2";
 const label = "block text-base font-semibold text-ink";
 const goldButton =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-8 py-3 text-base font-semibold text-ink transition-colors hover:bg-gold-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-ink";
@@ -72,7 +72,9 @@ const MCBLive = () => {
     setErrors(found);
     setSubmitError(null);
     if (Object.keys(found).length > 0) {
-      document.querySelector<HTMLElement>("[data-field-error]")?.focus();
+      // After React has rendered the error state, take the customer to the
+      // first field that needs attention.
+      window.setTimeout(() => document.querySelector<HTMLElement>("#enquire [data-field-error]")?.focus(), 0);
       return;
     }
     setSending(true);
@@ -112,7 +114,7 @@ const MCBLive = () => {
       </script>
     </Helmet>
 
-    <main className="bg-ink text-ivory">
+    <div className="bg-ink text-ivory">
       {/* ---- Identity ---------------------------------------------------- */}
       <section className="relative overflow-hidden px-5 pb-20 pt-32 text-center sm:px-8 md:pb-28 md:pt-40">
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-full bg-[radial-gradient(ellipse_at_top,rgba(201,161,74,0.18),transparent_60%)]" />
@@ -262,7 +264,7 @@ const MCBLive = () => {
           </p>
         </div>
       </section>
-    </main>
+    </div>
   </>;
 };
 

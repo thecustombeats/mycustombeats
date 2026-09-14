@@ -146,7 +146,7 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
               {quote.quote.lines.map((line) => (
                 <div key={line.sku} className="flex items-start justify-between gap-4 py-3 text-base">
                   <dt className="text-espresso/85">
-                    {getVariant(line.sku)?.variant.name ?? line.name}{line.quantity > 1 && <span className="text-espresso/60"> × {line.quantity}</span>}
+                    {getVariant(line.sku)?.variant.name ?? line.name}{line.quantity > 1 && <span className="text-espresso/75"> × {line.quantity}</span>}
                   </dt>
                   <dd className="font-mono text-ink">{formatMinor(line.lineMinor)}</dd>
                 </div>
@@ -213,7 +213,7 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
                       <Link to="/legal/refund" target="_blank" className="text-gold-deep underline underline-offset-4">Refunds &amp; Cancellations</Link>
                       {" · "}
                       <Link to="/legal/privacy" target="_blank" className="text-gold-deep underline underline-offset-4">Privacy Policy</Link>
-                      <span className="mt-1 block text-espresso/60">Terms version {TERMS_VERSION}.</span>
+                      <span className="mt-1 block text-espresso/75">Terms version {TERMS_VERSION}.</span>
                     </span>
                   )}
                 </span>

@@ -60,7 +60,7 @@ const Terms = () => {
             machine-readable date; the version is what an order records and
             what the confirmation email names, so a customer can match the two.
           */}
-          <p className="mt-6 font-mono text-xs uppercase tracking-[0.14em] text-espresso/55">
+          <p className="mt-6 font-mono text-sm uppercase tracking-[0.14em] text-espresso/75">
             Version {TERMS_VERSION} · in effect from{" "}
             <time dateTime={TERMS_EFFECTIVE_DATE}>
               {TERMS_EFFECTIVE_DATE_DISPLAY}
@@ -75,7 +75,7 @@ const Terms = () => {
             aria-label="On this page"
             className="mt-12 rounded-2xl border border-espresso/10 bg-white p-6"
           >
-            <h2 className="font-mono text-xs uppercase tracking-[0.16em] text-espresso/45">
+            <h2 className="font-mono text-sm uppercase tracking-[0.16em] text-espresso/75">
               On this page
             </h2>
             <ul className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
@@ -159,7 +159,7 @@ const Terms = () => {
                         <dd className="text-sm leading-relaxed text-espresso/70 sm:text-right">
                           {entitlement.entitlement}
                           {entitlement.concierge && (
-                            <span className="mt-1 block text-xs text-espresso/50">
+                            <span className="mt-1 block text-sm text-espresso/75">
                               Agreed in your written proposal.
                             </span>
                           )}

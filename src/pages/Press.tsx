@@ -21,7 +21,7 @@ export default function Press() {
           Media & Affiliations
         </h1>
 
-        <p className="text-black/60 max-w-2xl mx-auto mb-10 leading-relaxed">
+        <p className="text-black/75 max-w-2xl mx-auto mb-10 leading-relaxed">
           MyCustomBeats collaborates with media outlets, music networks
           and lifestyle publications around the world.
         </p>
@@ -29,7 +29,7 @@ export default function Press() {
 
       {/* CONTACT */}
       <section className="text-center pb-24">
-        <p className="text-black/60 mb-4">
+        <p className="text-black/75 mb-4">
           For press inquiries, please contact:
         </p>
 

@@ -109,6 +109,14 @@ Unchanged from the existing foundation: a paid customer gets a share code; order
 
 `status_link_ttl_days` (180), `approval_link_ttl_days` (30), `follow_up_delay_days` (0), `overdue_after_days` (0 = off), `delivery_delay_days` (0 = off). `token_secret` must be 32+ characters or customer links are refused (preflight `customer_links_secret`).
 
+## 10b. Founder decisions recorded in Sprint 6
+
+- Review requests stay **off** until a verified official MCB review URL is configured (`reviews.url` empty → `not_configured`).
+- Overdue and delivery-delay thresholds stay configurable and **off** (0) until operating data supports a figure.
+- Listening/approval pages are hosted on MCB's own domain (`/approve#…`) using the private-link architecture; staff paste the private listening link when requesting approval.
+- Article author identity: "My Custom Beats".
+- Automation event meanings: `docs/AGENTIC-COMMERCE-READINESS.md` §4.
+
 ## 11. Rate limits (per source)
 
-Approval page 30 / 10 min; progress page 60 / 10 min; problem reports 8 / hour; MCB LIVE enquiries 5 / hour; Bespoke enquiries 5 / hour; delivery quote 60 / 10 min; order status 120 / 10 min; order reference 120 / 10 min.
+Approval page 30 / 10 min; progress page 60 / 10 min; problem reports 8 / hour; MCB LIVE enquiries 5 / hour; Bespoke enquiries 5 / hour; delivery quote 60 / 10 min; order status 120 / 10 min; order reference 120 / 10 min; affiliate dashboard check 60 / 10 min.

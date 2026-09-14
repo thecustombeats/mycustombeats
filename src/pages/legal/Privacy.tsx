@@ -50,7 +50,7 @@ const Privacy = () => (
           Privacy Policy
         </h1>
 
-        <p className="mt-6 font-mono text-xs uppercase tracking-[0.14em] text-espresso/55">
+        <p className="mt-6 font-mono text-sm uppercase tracking-[0.14em] text-espresso/75">
           Version {PRIVACY_POLICY_VERSION} · in effect from{" "}
           <time dateTime={PRIVACY_EFFECTIVE_DATE}>
             {PRIVACY_EFFECTIVE_DATE_DISPLAY}
@@ -126,7 +126,7 @@ const Privacy = () => (
                     </table>
                   </div>
 
-                  <p className="mt-4 text-sm leading-relaxed text-espresso/60">
+                  <p className="mt-4 text-sm leading-relaxed text-espresso/75">
                     {FX_NOTE}
                   </p>
                 </>
@@ -136,13 +136,13 @@ const Privacy = () => (
                 <ul className="mt-5 space-y-3 rounded-2xl border border-espresso/10 bg-white p-5 list-none">
                   {BROWSER_STORAGE.map((value) => (
                     <li key={value.key} className="leading-relaxed">
-                      <span className="font-mono text-xs text-espresso">
+                      <span className="font-mono text-sm text-espresso">
                         {value.key}
                       </span>
                       <span className="mt-1 block text-sm text-espresso/70">
                         {value.purpose}
                         {value.note && (
-                          <span className="mt-0.5 block text-espresso/55">
+                          <span className="mt-0.5 block text-espresso/75">
                             {value.note}
                           </span>
                         )}

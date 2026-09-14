@@ -176,7 +176,7 @@ const StepExtras = ({ draft, setDraft, photos, setPhoto, showErrors, onAdd }: St
                 {songError && <p id={`${songId}-error`} role="alert" className="mt-1 text-sm text-red-700">{songError}</p>}
               </div>
               <div>
-                <label htmlFor={headingId} className="block text-base font-medium text-ink">Heading <span className="font-normal text-espresso/60">(optional)</span></label>
+                <label htmlFor={headingId} className="block text-base font-medium text-ink">Heading <span className="font-normal text-espresso/75">(optional)</span></label>
                 <input id={headingId} value={frame.heading} maxLength={FRAME_HEADING_MAX} onChange={(e) => update({ heading: e.target.value })} className={fieldClass()} placeholder="Our Song" autoComplete="off" />
               </div>
               <button

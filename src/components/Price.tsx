@@ -56,7 +56,7 @@ const Price = ({
   const qualifier = prefix ? `${prefix} ` : "";
 
   const strong = tone === "light" ? "text-ivory" : "text-espresso";
-  const quiet = tone === "light" ? "text-ivory/70" : "text-espresso/60";
+  const quiet = tone === "light" ? "text-ivory/70" : "text-espresso/75";
 
   /**
    * GBP selected, or no rates to convert with. One figure, stated plainly —
@@ -82,7 +82,7 @@ const Price = ({
         {qualifier}
         {approx}
       </p>
-      <p className={`mt-0.5 text-xs ${quiet}`}>
+      <p className={`mt-0.5 text-sm ${quiet}`}>
         {qualifier}
         {gbpText} · charged in {BASE_CURRENCY}
       </p>

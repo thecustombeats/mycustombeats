@@ -45,7 +45,7 @@ const MemoryEditor = ({ memory, label, storyPrompt, photoHint, photo, onPhoto, o
           onChange={(e) => onChange({ story: e.target.value })}
           aria-describedby={[counterId, errors.story ? storyErrorId : null].filter(Boolean).join(" ")}
           {...(errors.story ? { "aria-invalid": true } : {})}
-          className={`mt-3 w-full rounded-2xl border bg-white px-4 py-3 text-base leading-relaxed text-ink placeholder:text-espresso/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep ${
+          className={`mt-3 w-full rounded-2xl border bg-white px-4 py-3 text-base leading-relaxed text-ink placeholder:text-espresso/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep ${
             errors.story ? "border-red-600" : "border-espresso/15"
           }`}
           placeholder="The evening we…"
@@ -58,7 +58,7 @@ const MemoryEditor = ({ memory, label, storyPrompt, photoHint, photo, onPhoto, o
           ) : (
             <span />
           )}
-          <p id={counterId} aria-live="polite" className={`shrink-0 font-mono text-sm ${remaining < 30 ? "text-gold-deep" : "text-espresso/55"}`}>
+          <p id={counterId} aria-live="polite" className={`shrink-0 font-mono text-sm ${remaining < 30 ? "text-gold-deep" : "text-espresso/75"}`}>
             {memory.story.length} / {STORY_MAX}
             <span className="sr-only"> characters used</span>
           </p>
@@ -68,7 +68,7 @@ const MemoryEditor = ({ memory, label, storyPrompt, photoHint, photo, onPhoto, o
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
           <label htmlFor={aboutId} className="block text-base font-medium text-ink">
-            Who is it for, or about? <span className="font-normal text-espresso/60">(optional)</span>
+            Who is it for, or about? <span className="font-normal text-espresso/75">(optional)</span>
           </label>
           <input
             id={aboutId}
@@ -82,7 +82,7 @@ const MemoryEditor = ({ memory, label, storyPrompt, photoHint, photo, onPhoto, o
         </div>
         <div>
           <label htmlFor={occasionId} className="block text-base font-medium text-ink">
-            Occasion <span className="font-normal text-espresso/60">(optional)</span>
+            Occasion <span className="font-normal text-espresso/75">(optional)</span>
           </label>
           <select
             id={occasionId}

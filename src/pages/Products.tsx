@@ -95,7 +95,7 @@ const Products = () => {
         <script type="application/ld+json">{JSON.stringify(productsPageStructuredData())}</script>
       </Helmet>
 
-      <main className="bg-ivory text-espresso">
+      <div className="bg-ivory text-espresso">
         {/* ---- Opening ---------------------------------------------------- */}
         <section className="px-5 pb-12 pt-28 sm:px-8 md:pb-16 md:pt-36">
           <div className="mx-auto max-w-3xl text-center">
@@ -255,7 +255,7 @@ const Products = () => {
             </div>
           </div>
         </section>
-      </main>
+      </div>
     </>
   );
 };

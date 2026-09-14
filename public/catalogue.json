@@ -1,0 +1,825 @@
+{
+  "_generated": "Generated from src/data/catalogue by scripts/generate-catalogue-json.mjs. Public product information only.",
+  "feed_version": "1.0",
+  "publisher": {
+    "name": "My Custom Beats",
+    "url": "https://www.mycustombeats.com"
+  },
+  "currency": "GBP",
+  "catalogue_hash": "c356d8d5742c670eb6c39b24d34888ab25e5cac8da80e0b5eeba7971fd40a7cc",
+  "how_to_order": "https://www.mycustombeats.com/create",
+  "ordering_rules": {
+    "automated_ordering": false,
+    "note": "Orders are placed by the customer on the website. The server validates every personalisation, records the customer's consent, prices the order and takes payment through Stripe Checkout. This file grants no ability to order, reserve or pay.",
+    "song_experience_required": "Every order includes at least one Moment, Keepsake or Journey.",
+    "priority_replacement": "At most one per eligible Keepsake in the same order.",
+    "max_lines": 20,
+    "delivery": "Physical items: delivery is quoted before payment for the destination; some destinations may not be available."
+  },
+  "products": [
+    {
+      "id": "moment",
+      "name": "Moment",
+      "description": "A simple, beautiful way to turn a memory into music.",
+      "positioning": "A memory, made instantly.",
+      "product_type": "SONG_EXPERIENCE",
+      "commercial_model": "FIXED",
+      "url": "https://www.mycustombeats.com/moment",
+      "image_url": null,
+      "availability": "ORDERABLE_ONLINE",
+      "enquiry_url": null,
+      "timing": "Target delivery within 1 hour",
+      "included_revisions": "1 revision",
+      "disclosures": [],
+      "requires_song_experience_in_order": false,
+      "variants": [
+        {
+          "sku": "moment",
+          "name": "Moment",
+          "label": "Moment",
+          "price": {
+            "amount": "15.00",
+            "minor_units": 1500,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "DIGITAL",
+          "shipping_required": false,
+          "song_capacity": 1,
+          "format": {
+            "type": "DIGITAL"
+          },
+          "personalisation": {
+            "required": true,
+            "unit": "memory",
+            "count": 1,
+            "each": {
+              "story_max_characters": 300,
+              "about_max_characters": 120,
+              "music_style": "catalogued style, own words, or MCB's choice",
+              "photo": "optional"
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [
+            "1 personalised song",
+            "Customised lyrics from your story",
+            "Choose your mood and style",
+            "1 revision",
+            "MP4 delivery",
+            "Target delivery within 1 hour"
+          ],
+          "order_url": "https://www.mycustombeats.com/create?sku=moment"
+        }
+      ]
+    },
+    {
+      "id": "keepsake",
+      "name": "Keepsake",
+      "description": "Your personalised music on a picture disc. Choose one for every memory or every day of a journey.",
+      "positioning": "Turn the memory into something you can hold.",
+      "product_type": "SONG_EXPERIENCE",
+      "commercial_model": "VARIANT_FIXED",
+      "url": "https://www.mycustombeats.com/keepsake",
+      "image_url": null,
+      "availability": "ORDERABLE_ONLINE",
+      "enquiry_url": null,
+      "timing": "Allow at least 15 working days for personalised production and delivery",
+      "included_revisions": "1 refinement per song",
+      "disclosures": [],
+      "requires_song_experience_in_order": false,
+      "variants": [
+        {
+          "sku": "keepsake-12-picture-disc",
+          "name": "12-inch Picture Disc Keepsake",
+          "label": "12-inch Picture Disc",
+          "price": {
+            "amount": "149.99",
+            "minor_units": 14999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": 4,
+          "format": {
+            "type": "PICTURE_DISC",
+            "size_inches": 12,
+            "shape": "ROUND",
+            "records": 1,
+            "gatefold": false
+          },
+          "personalisation": {
+            "required": true,
+            "unit": "memory",
+            "count": 4,
+            "each": {
+              "story_max_characters": 300,
+              "about_max_characters": 120,
+              "music_style": "catalogued style, own words, or MCB's choice",
+              "photo": "optional"
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": true
+          },
+          "features": [
+            "4 personalised songs",
+            "12-inch picture disc",
+            "Personalised picture-disc artwork",
+            "Allow at least 15 working days for personalised production and delivery"
+          ],
+          "order_url": "https://www.mycustombeats.com/create?sku=keepsake-12-picture-disc"
+        },
+        {
+          "sku": "keepsake-10-picture-disc",
+          "name": "10-inch Picture Disc Keepsake",
+          "label": "10-inch Picture Disc",
+          "price": {
+            "amount": "139.99",
+            "minor_units": 13999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": 3,
+          "format": {
+            "type": "PICTURE_DISC",
+            "size_inches": 10,
+            "shape": "ROUND",
+            "records": 1,
+            "gatefold": false
+          },
+          "personalisation": {
+            "required": true,
+            "unit": "memory",
+            "count": 3,
+            "each": {
+              "story_max_characters": 300,
+              "about_max_characters": 120,
+              "music_style": "catalogued style, own words, or MCB's choice",
+              "photo": "optional"
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": true
+          },
+          "features": [
+            "3 personalised songs",
+            "10-inch picture disc",
+            "Personalised picture-disc artwork",
+            "Allow at least 15 working days for personalised production and delivery"
+          ],
+          "order_url": "https://www.mycustombeats.com/create?sku=keepsake-10-picture-disc"
+        },
+        {
+          "sku": "keepsake-10-heart-picture-disc",
+          "name": "Heart-Shaped Picture Disc Keepsake",
+          "label": "Heart-Shaped Picture Disc",
+          "price": {
+            "amount": "119.99",
+            "minor_units": 11999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": 1,
+          "format": {
+            "type": "PICTURE_DISC",
+            "size_inches": 10,
+            "shape": "HEART",
+            "records": 1,
+            "gatefold": false
+          },
+          "personalisation": {
+            "required": true,
+            "unit": "memory",
+            "count": 1,
+            "each": {
+              "story_max_characters": 300,
+              "about_max_characters": 120,
+              "music_style": "catalogued style, own words, or MCB's choice",
+              "photo": "optional"
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": true
+          },
+          "features": [
+            "1 personalised song",
+            "10-inch heart-shaped picture disc",
+            "Personalised picture-disc artwork",
+            "Allow at least 15 working days for personalised production and delivery"
+          ],
+          "order_url": "https://www.mycustombeats.com/create?sku=keepsake-10-heart-picture-disc"
+        },
+        {
+          "sku": "keepsake-7-picture-disc",
+          "name": "7-inch Picture Disc Keepsake",
+          "label": "7-inch Picture Disc",
+          "price": {
+            "amount": "99.00",
+            "minor_units": 9900,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": 1,
+          "format": {
+            "type": "PICTURE_DISC",
+            "size_inches": 7,
+            "shape": "ROUND",
+            "records": 1,
+            "gatefold": false
+          },
+          "personalisation": {
+            "required": true,
+            "unit": "memory",
+            "count": 1,
+            "each": {
+              "story_max_characters": 300,
+              "about_max_characters": 120,
+              "music_style": "catalogued style, own words, or MCB's choice",
+              "photo": "optional"
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": true
+          },
+          "features": [
+            "1 personalised song",
+            "7-inch picture disc",
+            "Personalised picture-disc artwork",
+            "Allow at least 15 working days for personalised production and delivery"
+          ],
+          "order_url": "https://www.mycustombeats.com/create?sku=keepsake-7-picture-disc"
+        }
+      ]
+    },
+    {
+      "id": "journey",
+      "name": "Journey",
+      "description": "A personalised album on standard vinyl, with a different music style for every chapter if you wish.",
+      "positioning": "Every chapter of your story, on record.",
+      "product_type": "SONG_EXPERIENCE",
+      "commercial_model": "VARIANT_FIXED",
+      "url": "https://www.mycustombeats.com/journey",
+      "image_url": "https://www.mycustombeats.com/images/responsive/vinyl-sleeve-1600.jpg",
+      "availability": "ORDERABLE_ONLINE",
+      "enquiry_url": null,
+      "timing": "Allow at least 15 working days for personalised production and delivery",
+      "included_revisions": "1 refinement per song",
+      "disclosures": [
+        "Standard vinyl — not a Picture Disc"
+      ],
+      "requires_song_experience_in_order": false,
+      "variants": [
+        {
+          "sku": "journey-6",
+          "name": "Journey — 6 Songs",
+          "label": "6 Songs",
+          "price": {
+            "amount": "199.00",
+            "minor_units": 19900,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": 6,
+          "format": {
+            "type": "STANDARD_VINYL",
+            "size_inches": 12,
+            "shape": "ROUND",
+            "records": 1,
+            "gatefold": false
+          },
+          "personalisation": {
+            "required": true,
+            "unit": "chapter",
+            "count": 6,
+            "each": {
+              "story_max_characters": 300,
+              "about_max_characters": 120,
+              "music_style": "catalogued style, own words, or MCB's choice",
+              "photo": "optional"
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [
+            "6 personalised songs",
+            "A different music style for each song if you wish",
+            "Standard 12-inch vinyl record — not a Picture Disc",
+            "Personalised album artwork, which can include your approved photograph",
+            "Mastering",
+            "Allow at least 15 working days for personalised production and delivery"
+          ],
+          "order_url": "https://www.mycustombeats.com/create?sku=journey-6"
+        },
+        {
+          "sku": "journey-12",
+          "name": "Journey — 12 Songs",
+          "label": "12 Songs",
+          "price": {
+            "amount": "349.00",
+            "minor_units": 34900,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": 12,
+          "format": {
+            "type": "STANDARD_VINYL",
+            "size_inches": 12,
+            "shape": "ROUND",
+            "records": 2,
+            "gatefold": true
+          },
+          "personalisation": {
+            "required": true,
+            "unit": "chapter",
+            "count": 12,
+            "each": {
+              "story_max_characters": 300,
+              "about_max_characters": 120,
+              "music_style": "catalogued style, own words, or MCB's choice",
+              "photo": "optional"
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [
+            "12 personalised songs",
+            "A different music style for each song if you wish",
+            "Double 12-inch standard vinyl in a gatefold sleeve — not a Picture Disc",
+            "Personalised gatefold artwork, which can include your approved photograph",
+            "Mastering",
+            "Allow at least 15 working days for personalised production and delivery"
+          ],
+          "order_url": "https://www.mycustombeats.com/create?sku=journey-12"
+        }
+      ]
+    },
+    {
+      "id": "bespoke",
+      "name": "Bespoke",
+      "description": "Every Bespoke commission is individually curated. We combine MCB's signature creations with carefully selected gifts and experiences chosen specifically for your recipient, story and occasion.",
+      "positioning": "Curated entirely around one person.",
+      "product_type": "COMMISSION",
+      "commercial_model": "QUOTED",
+      "url": "https://www.mycustombeats.com/bespoke",
+      "image_url": null,
+      "availability": "QUOTE_ONLY_BY_ENQUIRY",
+      "enquiry_url": "https://www.mycustombeats.com/bespoke",
+      "timing": "Timeline agreed with you during the consultation",
+      "included_revisions": "Refinement continues until the agreed scope is met",
+      "disclosures": [
+        "Individually quoted"
+      ],
+      "requires_song_experience_in_order": false,
+      "variants": []
+    },
+    {
+      "id": "mcb-live",
+      "name": "MCB LIVE",
+      "description": "DJ Rinaldi, Lady Lakh or both, for selected events. Every event is priced individually.",
+      "positioning": "We create the soundtrack to your memory — and, for selected events, we can be there to play it.",
+      "product_type": "LIVE_PERFORMANCE",
+      "commercial_model": "QUOTED",
+      "url": "https://www.mycustombeats.com/mcb-live",
+      "image_url": null,
+      "availability": "QUOTE_ONLY_BY_ENQUIRY",
+      "enquiry_url": "https://www.mycustombeats.com/mcb-live",
+      "timing": null,
+      "included_revisions": null,
+      "disclosures": [
+        "Individually quoted"
+      ],
+      "requires_song_experience_in_order": false,
+      "variants": []
+    },
+    {
+      "id": "personalised-music-plaque",
+      "name": "Personalised Music Plaque",
+      "description": "You provide a photograph and tell us your favourite song and artist. We design a display piece featuring your photo with that song's visual details.",
+      "positioning": "Your photograph and your favourite song, made to display.",
+      "product_type": "PERSONALISED_DECOR",
+      "commercial_model": "FIXED",
+      "url": "https://www.mycustombeats.com/products",
+      "image_url": null,
+      "availability": "ORDERABLE_ONLINE",
+      "enquiry_url": null,
+      "timing": "Allow at least 15 working days for personalised production and delivery",
+      "included_revisions": null,
+      "disclosures": [
+        "This plaque does not play music.",
+        "The song and artist you choose are shown for display only. MCB does not supply, sell, stream or license that recording."
+      ],
+      "requires_song_experience_in_order": true,
+      "variants": [
+        {
+          "sku": "personalised-music-plaque",
+          "name": "Personalised Music Plaque",
+          "label": "Personalised Music Plaque",
+          "price": {
+            "amount": "49.99",
+            "minor_units": 4999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": true,
+            "unit": "plaque",
+            "count": 1,
+            "each": {
+              "photo": "required",
+              "song_title_max_characters": 120,
+              "artist_max_characters": 120
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [
+            "Your photograph",
+            "Your favourite song and artist, shown as a visual display",
+            "This plaque does not play music."
+          ],
+          "order_url": null
+        }
+      ]
+    },
+    {
+      "id": "lyrics-frame",
+      "name": "Lyrics Frames",
+      "description": "Timeless typography designed to live on walls.",
+      "positioning": "Your lyrics, set as typography and framed for the wall.",
+      "product_type": "PERSONALISED_DECOR",
+      "commercial_model": "VARIANT_FIXED",
+      "url": "https://www.mycustombeats.com/products",
+      "image_url": "https://www.mycustombeats.com/images/responsive/lyrics-frame-1600.jpg",
+      "availability": "ORDERABLE_ONLINE",
+      "enquiry_url": null,
+      "timing": "Allow at least 15 working days for personalised production and delivery",
+      "included_revisions": null,
+      "disclosures": [],
+      "requires_song_experience_in_order": true,
+      "variants": [
+        {
+          "sku": "lyrics-frame-10x15",
+          "name": "Lyrics Frame — 10 × 15 inches",
+          "label": "10 × 15 inches",
+          "price": {
+            "amount": "49.99",
+            "minor_units": 4999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": true,
+            "unit": "frame",
+            "count": 1,
+            "each": {
+              "lyrics_from": "one song in the same order",
+              "heading_max_characters": 80
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [
+            "10 × 15 inches",
+            "Your lyrics, framed for the wall"
+          ],
+          "order_url": null
+        },
+        {
+          "sku": "lyrics-frame-12x18",
+          "name": "Lyrics Frame — 12 × 18 inches",
+          "label": "12 × 18 inches",
+          "price": {
+            "amount": "69.99",
+            "minor_units": 6999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": true,
+            "unit": "frame",
+            "count": 1,
+            "each": {
+              "lyrics_from": "one song in the same order",
+              "heading_max_characters": 80
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [
+            "12 × 18 inches",
+            "Your lyrics, framed for the wall"
+          ],
+          "order_url": null
+        },
+        {
+          "sku": "lyrics-frame-14x21",
+          "name": "Lyrics Frame — 14 × 21 inches",
+          "label": "14 × 21 inches",
+          "price": {
+            "amount": "79.99",
+            "minor_units": 7999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": true,
+            "unit": "frame",
+            "count": 1,
+            "each": {
+              "lyrics_from": "one song in the same order",
+              "heading_max_characters": 80
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [
+            "14 × 21 inches",
+            "Your lyrics, framed for the wall"
+          ],
+          "order_url": null
+        },
+        {
+          "sku": "lyrics-frame-16x24",
+          "name": "Lyrics Frame — 16 × 24 inches",
+          "label": "16 × 24 inches",
+          "price": {
+            "amount": "89.99",
+            "minor_units": 8999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": true,
+            "unit": "frame",
+            "count": 1,
+            "each": {
+              "lyrics_from": "one song in the same order",
+              "heading_max_characters": 80
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [
+            "16 × 24 inches",
+            "Your lyrics, framed for the wall"
+          ],
+          "order_url": null
+        },
+        {
+          "sku": "lyrics-frame-20x30",
+          "name": "Lyrics Frame — 20 × 30 inches",
+          "label": "20 × 30 inches",
+          "price": {
+            "amount": "99.99",
+            "minor_units": 9999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": true,
+            "unit": "frame",
+            "count": 1,
+            "each": {
+              "lyrics_from": "one song in the same order",
+              "heading_max_characters": 80
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [
+            "20 × 30 inches",
+            "Your lyrics, framed for the wall"
+          ],
+          "order_url": null
+        }
+      ]
+    },
+    {
+      "id": "vintage-smartphone-gramophone",
+      "name": "Vintage Smartphone Gramophone",
+      "description": "An acoustic gramophone built around a mobile phone.",
+      "positioning": "An acoustic gramophone built around a mobile phone.",
+      "product_type": "PLAYER",
+      "commercial_model": "FIXED",
+      "url": "https://www.mycustombeats.com/products",
+      "image_url": "https://www.mycustombeats.com/images/responsive/phone-gramophone-1600.jpg",
+      "availability": "ORDERABLE_ONLINE",
+      "enquiry_url": null,
+      "timing": null,
+      "included_revisions": null,
+      "disclosures": [],
+      "requires_song_experience_in_order": true,
+      "variants": [
+        {
+          "sku": "vintage-smartphone-gramophone",
+          "name": "Vintage Smartphone Gramophone",
+          "label": "Vintage Smartphone Gramophone",
+          "price": {
+            "amount": "100.00",
+            "minor_units": 10000,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        }
+      ]
+    },
+    {
+      "id": "antique-brass-gramophone",
+      "name": "Antique Brass Gramophone",
+      "description": "A classic horn gramophone with an ornate brass finish.",
+      "positioning": "A classic horn gramophone with an ornate brass finish.",
+      "product_type": "PLAYER",
+      "commercial_model": "FIXED",
+      "url": "https://www.mycustombeats.com/products",
+      "image_url": "https://www.mycustombeats.com/images/responsive/brass-gramophone-1600.jpg",
+      "availability": "ORDERABLE_ONLINE",
+      "enquiry_url": null,
+      "timing": null,
+      "included_revisions": null,
+      "disclosures": [],
+      "requires_song_experience_in_order": true,
+      "variants": [
+        {
+          "sku": "antique-brass-gramophone",
+          "name": "Antique Brass Gramophone",
+          "label": "Antique Brass Gramophone",
+          "price": {
+            "amount": "1000.00",
+            "minor_units": 100000,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        }
+      ]
+    },
+    {
+      "id": "portable-suitcase-record-player",
+      "name": "Portable Suitcase Record Player",
+      "description": "A record player that travels with the memory.",
+      "positioning": "A record player that travels with the memory.",
+      "product_type": "PLAYER",
+      "commercial_model": "FIXED",
+      "url": "https://www.mycustombeats.com/products",
+      "image_url": "https://www.mycustombeats.com/images/responsive/suitcase-player-1600.jpg",
+      "availability": "ORDERABLE_ONLINE",
+      "enquiry_url": null,
+      "timing": null,
+      "included_revisions": null,
+      "disclosures": [],
+      "requires_song_experience_in_order": true,
+      "variants": [
+        {
+          "sku": "portable-suitcase-record-player",
+          "name": "Portable Suitcase Record Player",
+          "label": "Portable Suitcase Record Player",
+          "price": {
+            "amount": "200.00",
+            "minor_units": 20000,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        }
+      ]
+    },
+    {
+      "id": "priority-replacement",
+      "name": "MCB Priority Replacement™",
+      "description": "Optional priority handling and expedited replacement delivery where available for an eligible keepsake that arrived damaged or faulty.",
+      "positioning": "An optional priority service for eligible personalised keepsakes that arrive damaged or faulty.",
+      "product_type": "PROTECTION",
+      "commercial_model": "FIXED",
+      "url": "https://www.mycustombeats.com/priority-replacement",
+      "image_url": null,
+      "availability": "ORDERABLE_ONLINE",
+      "enquiry_url": null,
+      "timing": null,
+      "included_revisions": null,
+      "disclosures": [
+        "Your normal consumer rights are not affected. You do not need to buy MCB Priority Replacement to exercise any rights you already have for faulty, damaged or misdescribed goods.",
+        "Optional and never pre-selected. Priced per eligible individual Keepsake."
+      ],
+      "requires_song_experience_in_order": true,
+      "variants": [
+        {
+          "sku": "priority-replacement",
+          "name": "MCB Priority Replacement™",
+          "label": "Per eligible Keepsake",
+          "price": {
+            "amount": "19.99",
+            "minor_units": 1999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "SERVICE",
+          "shipping_required": false,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": {
+              "applies_to": "one eligible Keepsake in the same order"
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        }
+      ]
+    }
+  ]
+}

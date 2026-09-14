@@ -77,7 +77,7 @@ const attributionFromUrl = (): { referral?: string; partner?: string } => {
 const labelClass = "block mb-2 text-base font-semibold text-ink";
 
 const inputClass =
-  "w-full min-h-12 rounded-xl border border-ink/25 bg-white px-4 py-3 text-base text-ink placeholder:text-espresso/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2";
+  "w-full min-h-12 rounded-xl border border-ink/25 bg-white px-4 py-3 text-base text-ink placeholder:text-espresso/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2";
 
 /** Helper text under a field: readable size, readable contrast. */
 const hintClass = "mt-2 text-sm leading-relaxed text-espresso/75";
@@ -157,8 +157,8 @@ const Bespoke = () => {
     if (Object.keys(found).length > 0) {
       // Move focus to the first problem rather than announcing a count. The
       // customer needs to be at the field, not told there are three.
-      const first = document.querySelector<HTMLElement>("[data-field-error]");
-      first?.focus();
+      // Wait for React to render the error state before moving focus.
+      window.setTimeout(() => document.querySelector<HTMLElement>("[data-field-error]")?.focus(), 0);
       return;
     }
 

@@ -55,6 +55,7 @@ import {
   type Variant,
 } from "../data/catalogue";
 import { SAMPLE_SONGS, sampleAudioPath } from "../data/sampleSongs";
+import { PRODUCT_IMAGERY, imageSrc } from "../data/imagery";
 
 /**
  * One canonical host for the whole site. `www` is what the site actually
@@ -501,8 +502,26 @@ const variantSize = (variant: Variant): string | null => {
   return null;
 };
 
-const imageFor = (product: Product): Node =>
-  product.image ? { image: `${SITE_URL}${product.image}` } : {};
+/**
+ * A product image only where the approved photograph shows the product
+ * itself. Moment, Keepsake and Bespoke are illustrated on their pages with
+ * lifestyle and display-wall photographs, which would misdescribe the product
+ * (a Keepsake includes no wall mounting), so no image is claimed for them.
+ * The same set is used by public/catalogue.json.
+ */
+export const PRODUCT_SCHEMA_IMAGE_IDS: readonly string[] = [
+  "journey",
+  "lyrics-frame",
+  "vintage-smartphone-gramophone",
+  "antique-brass-gramophone",
+  "portable-suitcase-record-player",
+];
+
+const imageFor = (product: Product): Node => {
+  if (product.image) return { image: `${SITE_URL}${product.image}` };
+  const photo = PRODUCT_IMAGERY[product.id];
+  return photo && PRODUCT_SCHEMA_IMAGE_IDS.includes(product.id) ? { image: `${SITE_URL}${imageSrc(photo, 1600)}` } : {};
+};
 
 /** The fields every product node shares. */
 const baseProductFields = (product: Product): Node => ({

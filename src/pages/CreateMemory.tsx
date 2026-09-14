@@ -387,7 +387,7 @@ const CreateMemory = () => {
   const meta = STEPS[current];
 
   return (
-    <main id="create" className="min-h-screen bg-ivory pb-24 pt-28 sm:pt-32">
+    <div id="create" className="min-h-screen bg-ivory pb-24 pt-28 sm:pt-32">
       <Helmet>
         <title>Create Your Memory | My Custom Beats</title>
         <meta name="description" content="Choose your song, tell us your story memory by memory, and review everything before you order." />
@@ -488,10 +488,10 @@ const CreateMemory = () => {
                     disabled={!canOpen}
                     aria-current={isCurrent ? "step" : undefined}
                     className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep sm:px-4 sm:text-base ${
-                      isCurrent ? "border-ink bg-ink text-ivory" : done ? "border-gold-dark bg-white text-ink" : "border-espresso/15 bg-transparent text-espresso/60"
+                      isCurrent ? "border-ink bg-ink text-ivory" : done ? "border-gold-dark bg-white text-ink" : "border-espresso/15 bg-transparent text-espresso/75"
                     } disabled:cursor-default`}
                   >
-                    <span aria-hidden="true" className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${isCurrent ? "bg-ivory text-ink" : done ? "bg-gold-dark text-white" : "border border-espresso/30"}`}>
+                    <span aria-hidden="true" className={`flex h-6 w-6 items-center justify-center rounded-full text-sm ${isCurrent ? "bg-ivory text-ink" : done ? "bg-gold-dark text-white" : "border border-espresso/30"}`}>
                       {done ? <Check className="h-3.5 w-3.5" /> : i + 1}
                     </span>
                     <span className={isCurrent ? "" : "sr-only sm:not-sr-only"}>{s.label}</span>
@@ -603,7 +603,7 @@ const CreateMemory = () => {
                       <li key={line.sku} className="flex justify-between gap-3">
                         <span className="text-espresso/85">
                           {getVariant(line.sku)?.variant.name ?? line.name}
-                          {line.quantity > 1 && <span className="text-espresso/60"> × {line.quantity}</span>}
+                          {line.quantity > 1 && <span className="text-espresso/75"> × {line.quantity}</span>}
                         </span>
                         <span className="font-mono text-ink">{formatMinor(line.lineMinor)}</span>
                       </li>
@@ -627,7 +627,7 @@ const CreateMemory = () => {
                       <li key={line.sku} className="flex justify-between gap-3">
                         <span className="text-espresso/85">
                           {line.name}
-                          {line.quantity > 1 && <span className="text-espresso/60"> × {line.quantity}</span>}
+                          {line.quantity > 1 && <span className="text-espresso/75"> × {line.quantity}</span>}
                         </span>
                         <span className="font-mono text-ink">{formatMinor(line.lineMinor)}</span>
                       </li>
@@ -651,7 +651,7 @@ const CreateMemory = () => {
           </aside>
         </div>
       </div>
-    </main>
+    </div>
   );
 };
 

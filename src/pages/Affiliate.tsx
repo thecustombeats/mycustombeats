@@ -152,7 +152,7 @@ if (blockedDomains.includes(domain)) {
             Earn With Us
           </h1>
 
-          <p className="text-black/60 max-w-2xl mx-auto">
+          <p className="text-black/75 max-w-2xl mx-auto">
             Share meaningful music experiences and earn commission.
           </p>
         </section>
@@ -185,7 +185,7 @@ if (blockedDomains.includes(domain)) {
                   className="w-full p-4 rounded-xl border"
                 />
 
-                <div className="text-sm text-black/50 mt-5">
+                <div className="text-sm text-black/75 mt-5">
   <p>* This is your personal code.</p>
   <p>* Do NOT enter someone else's name.</p>
 </div>

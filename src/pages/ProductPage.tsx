@@ -47,6 +47,7 @@ import ProductHeroVisual from "../components/product/ProductHeroVisual";
 import ResponsiveImage from "../components/ResponsiveImage";
 import { IMAGES } from "../data/imagery";
 import RefinementOrRemake from "../components/product/RefinementOrRemake";
+import { PRODUCT_PAGE_ANSWERS } from "../lib/productAnswers";
 
 type ProductPageId = Extract<ProductId, "moment" | "keepsake" | "journey">;
 
@@ -118,7 +119,7 @@ const ProductDetail = ({ product }: { product: Product }) => {
   const priority = product.id === "keepsake" && variant.priorityReplacementEligible ? priorityReplacementLine() : null;
 
   return (
-    <main className="min-h-screen bg-ivory text-espresso">
+    <div className="min-h-screen bg-ivory text-espresso">
       <Helmet>
         <title>{`${product.name} — ${product.positioning} | My Custom Beats`}</title>
         <meta name="description" content={`${product.shortDescription} ${priceSummary(product)}.`} />
@@ -328,6 +329,33 @@ const ProductDetail = ({ product }: { product: Product }) => {
         </div>
       </section>
 
+      {/* ---- Quick answers (visible; catalogue-derived) ---------------- */}
+      <section aria-labelledby="quick-answers" className="bg-[#F1ECE3] px-5 py-16 sm:px-8 md:py-20">
+        <div className="mx-auto max-w-3xl">
+          <h2 id="quick-answers" className={sectionHeading}>
+            Questions people ask
+          </h2>
+          <div className="mt-8 space-y-6">
+            {PRODUCT_PAGE_ANSWERS[product.id as ProductPageId].answers.map((item) => (
+              <div key={item.question}>
+                <h3 className="font-serif text-2xl text-ink">{item.question}</h3>
+                <p className={`mt-2 ${bodyText}`}>{item.answer}</p>
+              </div>
+            ))}
+          </div>
+          <p className={`mt-8 ${bodyText}`}>
+            {"Further reading: "}
+            <Link to={`/blog/${PRODUCT_PAGE_ANSWERS[product.id as ProductPageId].article.slug}`} className="font-medium text-ink underline underline-offset-4 hover:text-gold-deep">
+              {PRODUCT_PAGE_ANSWERS[product.id as ProductPageId].article.title}
+            </Link>
+            {" · "}
+            <Link to="/faq" className="font-medium text-ink underline underline-offset-4 hover:text-gold-deep">
+              All questions
+            </Link>
+          </p>
+        </div>
+      </section>
+
       {/* ---- Closing action ------------------------------------------- */}
       <section aria-labelledby="begin" className="bg-ink px-5 py-16 text-center sm:px-8 md:py-20">
         <div className="mx-auto max-w-2xl">
@@ -346,7 +374,7 @@ const ProductDetail = ({ product }: { product: Product }) => {
           </div>
         </div>
       </section>
-    </main>
+    </div>
   );
 };
 

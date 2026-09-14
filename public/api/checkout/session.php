@@ -304,7 +304,9 @@ if (is_array($session) && array_key_exists('livemode', $session) && $session['li
     $session = null;
 }
 
-if ($session === null || empty($session['url']) || empty($session['id'])) {
+// Only Stripe's own Checkout host is ever handed to the browser.
+if ($session === null || empty($session['url']) || empty($session['id'])
+    || !str_starts_with((string) $session['url'], 'https://checkout.stripe.com/')) {
     try {
         db()->prepare(
             "UPDATE checkout_sessions SET status = 'FAILED'

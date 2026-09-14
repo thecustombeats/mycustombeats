@@ -180,11 +180,11 @@ const StyleGroup = ({
   onSelect: (style: MusicStyle) => void;
 }) => (
   <div className="mt-6 first:mt-0">
-    <p className="font-mono text-xs uppercase tracking-[0.14em] text-gold-deep">
+    <p className="font-mono text-sm uppercase tracking-[0.14em] text-gold-deep">
       {heading}
     </p>
     {blurb && (
-      <p className="mt-1 text-sm leading-relaxed text-espresso/55">{blurb}</p>
+      <p className="mt-1 text-sm leading-relaxed text-espresso/75">{blurb}</p>
     )}
     <div className="mt-3 flex flex-wrap gap-2">
       {styles.map((style) => (
@@ -285,7 +285,7 @@ const MusicStyleSelector = ({
         <h3 id={fieldId} className="!font-sans !text-lg !font-semibold !leading-snug text-ink">
           {heading}
         </h3>
-        <p className="mt-2 text-sm leading-relaxed text-espresso/60">
+        <p className="mt-2 text-sm leading-relaxed text-espresso/75">
           Choose a direction you love, explore more styles, or leave the
           musical direction to MCB.
         </p>
@@ -355,7 +355,7 @@ const MusicStyleSelector = ({
               >
                 Let MCB choose the musical style for me
               </span>
-              <span className="mt-1 block text-sm leading-relaxed text-espresso/60">
+              <span className="mt-1 block text-sm leading-relaxed text-espresso/75">
                 Not sure what fits your story? Leave the musical direction to MCB.
               </span>
               {isMcbChoice && (
@@ -420,7 +420,7 @@ const MusicStyleSelector = ({
             <div className="relative">
               <Search
                 aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-espresso/40"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-espresso/75"
               />
               <input
                 id={searchId}
@@ -428,7 +428,7 @@ const MusicStyleSelector = ({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search styles — try “80s”, “jazz”, “dnb”"
-                className="min-h-11 w-full rounded-xl border border-espresso/15 bg-white py-3 pl-9 pr-4 text-sm text-espresso placeholder:text-espresso/40 focus:outline-none focus:ring-2 focus:ring-gold-deep"
+                className="min-h-11 w-full rounded-xl border border-espresso/15 bg-white py-3 pl-9 pr-4 text-sm text-espresso placeholder:text-espresso/60 focus:outline-none focus:ring-2 focus:ring-gold-deep"
               />
             </div>
 
@@ -440,7 +440,7 @@ const MusicStyleSelector = ({
             </p>
 
             {groups.length === 0 ? (
-              <p className="mt-5 text-sm leading-relaxed text-espresso/60">
+              <p className="mt-5 text-sm leading-relaxed text-espresso/75">
                 No styles match “{query.trim()}”. Try a decade such as 80s, or
                 choose <strong className="font-semibold">Something else</strong>{" "}
                 below and tell us in your own words.
@@ -498,12 +498,12 @@ const MusicStyleSelector = ({
               {...(customError
                 ? { "aria-invalid": true, "aria-describedby": customErrorId }
                 : {})}
-              className={`mt-2 min-h-11 w-full rounded-xl border bg-white px-4 py-3 text-sm text-espresso placeholder:text-espresso/40 focus:outline-none focus:ring-2 focus:ring-gold-deep ${
+              className={`mt-2 min-h-11 w-full rounded-xl border bg-white px-4 py-3 text-sm text-espresso placeholder:text-espresso/60 focus:outline-none focus:ring-2 focus:ring-gold-deep ${
                 customError ? "border-red-500" : "border-espresso/15"
               }`}
             />
             {customError && (
-              <p id={customErrorId} role="alert" className="mt-1 text-xs text-red-500">
+              <p id={customErrorId} role="alert" className="mt-1 text-sm text-[#9B2C2C]">
                 {customError}
               </p>
             )}
@@ -515,7 +515,7 @@ const MusicStyleSelector = ({
           non-visual confirmation of the selected state. */}
       {summary && (
         <p id={summaryId} className="text-sm text-espresso/70">
-          <span className="font-mono text-xs uppercase tracking-[0.14em] text-espresso/45">
+          <span className="font-mono text-sm uppercase tracking-[0.14em] text-espresso/75">
             Your musical direction
           </span>
           <span className="mt-1 block font-medium text-espresso">{summary}</span>
@@ -523,7 +523,7 @@ const MusicStyleSelector = ({
       )}
 
       {error && (
-        <p id={errorId} role="alert" className="text-sm text-red-500">
+        <p id={errorId} role="alert" className="text-sm text-[#9B2C2C]">
           {error}
         </p>
       )}

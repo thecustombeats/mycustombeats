@@ -185,10 +185,15 @@ test("the Apollo website tracker and its identity-resolution script are gone", (
   const html = read("index.html");
   assert.ok(!/apollo|aplo-evnt|liadm|trackingFunctions/i.test(html));
   for (const file of sourceFiles("src")) assert.ok(!/apollo\.io|aplo-evnt|liadm/i.test(read(file)), file);
+  // Sprint 6: no inline executable script at all (CSP); GA is bootstrapped by
+  // /analytics-init.js, which loads nothing but Google's gtag.js.
   const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
-  assert.ok(inline.every((code) => /gtag\(/.test(code) && !/createElement|src\s*=/.test(code)), "the only inline script left is the Google Analytics set-up, which loads nothing else");
+  assert.deepEqual(inline, [], "no inline executable script");
   const external = [...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(external.filter((src) => !src.startsWith("/src/")), ["https://www.googletagmanager.com/gtag/js?id=G-XQFNJC4HND"], "no third-party script but Google Analytics");
+  assert.deepEqual(external.filter((src) => !src.startsWith("/src/")), ["/analytics-init.js"]);
+  const init = read("public/analytics-init.js");
+  assert.deepEqual([...init.matchAll(/https:\/\/[a-z.]+/g)].map((m) => m[0]), ["https://www.googletagmanager.com"], "no third-party script but Google Analytics");
+  assert.ok(!/apollo|liadm|liveintent/i.test(init));
 });
 
 test("after a verified payment the device forgets the order's words", () => {

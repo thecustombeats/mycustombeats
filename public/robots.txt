@@ -9,5 +9,6 @@ Disallow: /dashboard
 Disallow: /your-order
 Disallow: /approve
 Disallow: /operations
+Disallow: /api/
 
 Sitemap: https://www.mycustombeats.com/sitemap.xml

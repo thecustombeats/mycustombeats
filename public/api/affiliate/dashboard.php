@@ -15,6 +15,9 @@ require_once __DIR__ . '/../lib/bootstrap.php';
 
 require_method('GET');
 
+// A token is unguessable; this only stops a script hammering the check.
+enforce_scoped_rate_limit('affiliate-dashboard', 60, 600);
+
 $token = bearer_token();
 if ($token === null) {
     header('WWW-Authenticate: Bearer');

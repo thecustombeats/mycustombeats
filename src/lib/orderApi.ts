@@ -225,7 +225,9 @@ export const createCheckoutSession = async (order: SavedOrder): Promise<ApiResul
   });
   if (!result || result.status !== 200 || !isObject(result.data)) return failure(result);
   const { url, id } = result.data;
-  if (typeof url !== "string" || !url.startsWith("https://") || typeof id !== "string") return failure(null);
+  // Only ever send the browser to Stripe's own Checkout host (no open redirect,
+  // even if a response were tampered with).
+  if (typeof url !== "string" || !url.startsWith("https://checkout.stripe.com/") || typeof id !== "string") return failure(null);
   return { ok: true, url, id };
 };
 

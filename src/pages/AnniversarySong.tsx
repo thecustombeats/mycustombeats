@@ -34,7 +34,7 @@ const AnniversarySong = () => {
           Transform your story into a timeless musical composition — crafted with care, discretion, and artistic precision.
         </p>
 
-        <p className="text-sm text-espresso/60 mb-10">
+        <p className="text-sm text-espresso/75 mb-10">
           Created for private celebrations, milestone anniversaries and the moments you want to keep
         </p>
 
@@ -99,7 +99,7 @@ const AnniversarySong = () => {
             Ten Years Together
           </h3>
 
-          <p className="text-sm text-espresso/60 mb-4">
+          <p className="text-sm text-espresso/75 mb-4">
             A private anniversary composition capturing a decade of shared memories and quiet moments.
           </p>
 
@@ -107,7 +107,7 @@ const AnniversarySong = () => {
             <source src="/audio/anniversary.mp3" type="audio/mpeg" />
           </audio>
 
-          <p className="mt-4 text-sm text-espresso/60">
+          <p className="mt-4 text-sm text-espresso/75">
             Your story, composed with the same care and attention to detail
           </p>
         </div>

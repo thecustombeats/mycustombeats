@@ -48,7 +48,7 @@ const Refund = () => (
           Refunds &amp; Cancellations
         </h1>
 
-        <p className="mt-6 font-mono text-xs uppercase tracking-[0.14em] text-espresso/55">
+        <p className="mt-6 font-mono text-sm uppercase tracking-[0.14em] text-espresso/75">
           Version {REFUND_POLICY_VERSION} · in effect from{" "}
           <time dateTime={REFUND_EFFECTIVE_DATE}>
             {REFUND_EFFECTIVE_DATE_DISPLAY}
@@ -92,7 +92,7 @@ const Refund = () => (
                 Someone scanning for their situation recognises the question
                 faster than the heading.
               */}
-              <p className="mt-2 text-sm italic leading-relaxed text-espresso/55">
+              <p className="mt-2 text-sm italic leading-relaxed text-espresso/75">
                 “{section.question}”
               </p>
 
@@ -116,7 +116,7 @@ const Refund = () => (
               )}
 
               {/* The clause this restates, so the two documents stay checkable. */}
-              <p className="mt-3 text-xs text-espresso/50">
+              <p className="mt-3 text-sm text-espresso/75">
                 Terms:{" "}
                 <Link
                   to={`/legal/terms#${section.clause}`}

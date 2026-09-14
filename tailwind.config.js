@@ -27,11 +27,13 @@ module.exports = {
          *
          * Heritage Gold on Ivory measures 2.22:1 — well below WCAG AA — so it
          * must not carry small copy on a light field. This shade reaches
-         * 4.83:1 while reading as the same accent. Gold on Midnight Ink is
+         * 5.53:1 on Ivory and 5.11:1 on the #F1ECE3 sand bands while reading
+         * as the same accent. (Sprint 6: #856823 measured 4.45:1 on sand, just
+         * under AA, in an axe audit of the homepage and /products.) Gold on Midnight Ink is
          * 7.19:1 and needs no substitute, so dark sections keep `gold`.
          * MVIS: "Legibility always wins over decorative brand colour."
          */
-        "gold-deep": "#856823",
+        "gold-deep": "#78601F",
 
         /* ---- Legacy palette (pre-MVIS) -------------------------------
          * Retained so unmodified routes are not silently repainted.
@@ -56,8 +58,8 @@ module.exports = {
         /* MVIS™: Cormorant Garamond for display, Manrope for body and UI,
          * IBM Plex Mono for technical values — prices, song capacities,
          * lead times. Mono is for figures only, never for prose. */
-        serif: ['Cormorant Garamond', 'Georgia', 'serif'],
-        sans: ['Manrope', 'system-ui', 'sans-serif'],
+        serif: ['Cormorant Garamond', 'Cormorant Garamond Fallback', 'Georgia', 'serif'],
+        sans: ['Manrope', 'Manrope Fallback', 'system-ui', 'sans-serif'],
         mono: ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
 

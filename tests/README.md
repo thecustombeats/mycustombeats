@@ -1,6 +1,6 @@
 # CRM API acceptance tests
 
-Nine suites, over 1,400 assertions, against a live PHP + MariaDB stack. Everything
+Ten suites, over 1,500 assertions, against a live PHP + MariaDB stack. Everything
 runs in throwaway containers — no local PHP or MySQL install, nothing left
 behind. Each suite expects a FRESH database loaded from `db/schema.sql`.
 
@@ -37,7 +37,7 @@ docker run -d --name mcb-api --link mcb-db \
   -p 8080:80 php:8.2-apache \
   sh -c "docker-php-ext-install pdo_mysql; a2enmod rewrite; apache2-foreground"
 
-for s in api checkout delivery full-package hardening legal lifecycle operations transaction; do
+for s in api checkout delivery full-package hardening legal lifecycle operations release transaction; do
   # reset: DROP/CREATE mcb_crm, reload db/schema.sql, clear /tmp/*-stub.log
   bash tests/$s-acceptance.sh
 done
@@ -50,7 +50,10 @@ The PHP image runs OPcache, which rechecks a changed PHP file every 2 seconds.
 few scenarios (a live key, fixtures off, test-mode email, a weak token secret)
 and wait for that; they always restore it. `operations-acceptance.sh` also
 needs the MariaDB root password (`testroot`) to prove the Sprint 5 migration
-against a scratch database.
+against a scratch database. `release-acceptance.sh` copies the real
+`public/.htaccess`, `robots.txt`, `catalogue.json` and `analytics-init.js` (with a
+placeholder `index.html`) into the Apache web root to test served headers,
+redirects and endpoint protection, and removes them afterwards.
 
 Apache is used rather than PHP's built-in server on purpose: the built-in
 server ignores `.htaccess`, so it cannot verify clean-URL routing, the denial

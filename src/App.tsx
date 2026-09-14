@@ -53,6 +53,7 @@ import {
 } from "./lib/seo";
 import { scrollToSection } from "./utils/scrollToSection";
 import RouteErrorBoundary from "./components/RouteErrorBoundary";
+import NoIndex from "./components/NoIndex";
 import NotFound from "./pages/NotFound";
 
 const AnniversarySong = lazy(() => import("./pages/AnniversarySong"));
@@ -181,7 +182,7 @@ function MainSite() {
         </script>
       </Helmet>
 
-      <main id="main-content" className="relative bg-ivory">
+      <div id="home" className="relative bg-ivory">
         <HeroSection />
 
         {/* Renders only when a seasonal edition is switched on and in window. */}
@@ -200,13 +201,15 @@ function MainSite() {
           <FounderNote />
           <ContactSection />
         </Suspense>
-      </main>
+      </div>
     </>
   );
 }
 
 function Layout({ children }: { children: React.ReactNode }) {
-  const { pathname } = useLocation();
+  const { pathname: rawPathname } = useLocation();
+  // One canonical per page: "/bespoke/" is "/bespoke" (the server 301s too).
+  const pathname = rawPathname.length > 1 ? rawPathname.replace(/\/+$/, "") || "/" : rawPathname;
   const share = shareImageFor(pathname);
 
   return (
@@ -231,7 +234,9 @@ function Layout({ children }: { children: React.ReactNode }) {
         <meta name="twitter:image" content={share.url} />
       </Helmet>
       <Navigation />
-      {children}
+      {/* The one main landmark for every page in the layout; pages render
+          their content inside it. The skip link focuses it. */}
+      <main id="main-content">{children}</main>
       <FloatingCTA />
       <Footer />
     </>
@@ -311,7 +316,7 @@ function App() {
     </Layout>
   } 
 />
-     <Route path="/dashboard" element={<AffiliateDashboard />} />
+     <Route path="/dashboard" element={<><NoIndex title="Affiliate dashboard | My Custom Beats" /><AffiliateDashboard /></>} />
          
         {/* ✅ FIXED OCCASIONS */}
         <Route 
@@ -349,6 +354,8 @@ function App() {
             with a 301; this covers client-side navigation and any host that
             ignores that file. The query string is kept for attribution. */}
         <Route path="/full-package" element={<FullPackageRedirect />} />
+        {/* Contact lives on the homepage; /contact is the address people type. */}
+        <Route path="/contact" element={<Navigate to={{ pathname: "/", hash: "#contact" }} replace />} />
         <Route path="/about" element={<Layout><About /></Layout>} />
         <Route path="/faq" element={<Layout><FAQ /></Layout>} />
 

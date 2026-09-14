@@ -72,7 +72,7 @@ const Approve = () => {
   const thing = physical ? "your music" : "your song";
 
   return (
-    <main className="min-h-screen bg-ivory px-5 pb-20 pt-28 text-espresso sm:px-8 md:pt-36">
+    <div className="min-h-screen bg-ivory px-5 pb-20 pt-28 text-espresso sm:px-8 md:pt-36">
       <Helmet>
         <title>Listen and approve | My Custom Beats</title>
         <meta name="robots" content="noindex, nofollow" />
@@ -199,7 +199,7 @@ const Approve = () => {
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 };
 

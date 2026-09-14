@@ -36,6 +36,33 @@ const getGtag = (): GtagType | null => {
 let lastTrackedPath: string | null = null;
 
 /**
+ * Pages that must never be measured: they carry a secret link in the URL
+ * fragment, or staff data. public/analytics-init.js does not load GA on them;
+ * this also covers arriving at one by in-app navigation.
+ */
+export const isPrivateAnalyticsPath = (path: string): boolean =>
+  /^\/(your-order|approve|operations)(\/|$)/.test(path);
+
+/**
+ * The URL analytics may see: origin + path, plus utm_ campaign parameters.
+ * Never a fragment (private links), never ?session_id= (Stripe) or any other
+ * query value.
+ */
+export const analyticsSafeLocation = (href: string): string => {
+  try {
+    const url = new URL(href);
+    const kept = new URLSearchParams();
+    url.searchParams.forEach((value, key) => {
+      if (/^utm_[a-z_]+$/.test(key)) kept.set(key, value);
+    });
+    const query = kept.toString();
+    return `${url.origin}${url.pathname}${query ? `?${query}` : ""}`;
+  } catch {
+    return "";
+  }
+};
+
+/**
  * Track client-side page views in SPA context.
  *
  * WHY THIS SENDS AN EVENT RATHER THAN RE-RUNNING `config`
@@ -54,9 +81,14 @@ export const trackPageView = (path: string) => {
   const gtag = getGtag();
   if (!gtag) return;
   lastTrackedPath = path;
+  // Keep every later hit (enhanced measurement included) on a safe URL.
+  (gtag as unknown as (command: "set", fields: Record<string, unknown>) => void)("set", {
+    page_location: analyticsSafeLocation(window.location.href),
+  });
+  if (isPrivateAnalyticsPath(path)) return;
   gtag("event", "page_view", {
     page_path: path,
-    page_location: window.location.href,
+    page_location: analyticsSafeLocation(window.location.href),
     // No page_title: the route's <title> is applied by Helmet after this
     // effect runs, so GA's own read at dispatch is no worse than ours.
     send_to: GA_MEASUREMENT_ID,

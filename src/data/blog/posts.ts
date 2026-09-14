@@ -95,7 +95,8 @@ export const BLOG_POSTS: readonly BlogPost[] = [
         `${KEEPSAKE.name}: your music on a personalised picture disc — something to display as well as play.`,
         `${JOURNEY.name}: a personalised album on standard vinyl, for telling a longer story in chapters.`,
       ] },
-      { type: "cta", text: "Not sure which suits your memory? Compare the options side by side.", label: "See the song experiences", to: "/products" },
+      { type: "cta", text: "One memory, delivered digitally?", label: `See ${MOMENT.name}`, to: "/moment" },
+      { type: "cta", text: "A whole story told in chapters, on vinyl?", label: `See ${JOURNEY.name}`, to: "/journey" },
 
       { type: "h2", id: "summary", text: "In short" },
       { type: "p", text: "Pick one moment. Add the details only you would know. Say how it felt. Keep it to a few clear sentences, and choose a style or let us choose. That is everything a songwriter needs to make a song that sounds like your story." },
@@ -161,6 +162,7 @@ export const BLOG_POSTS: readonly BlogPost[] = [
         `The whole trip, chapter by chapter: ${JOURNEY.name}, a personalised album on standard vinyl, with a different style for each song if you wish.`,
       ] },
       { type: "cta", text: "Planning something for a trip you are about to take? You can order a separate record for each day of a voyage.", label: "See Keepsake", to: "/keepsake" },
+      { type: "cta", text: "Rather tell the whole voyage on one album, a chapter for each part of the trip?", label: `See ${JOURNEY.name}`, to: "/journey" },
 
       { type: "h2", id: "describe-the-trip", text: "How to describe a trip for a song" },
       { type: "p", text: "When you come to describe the voyage, resist the urge to list every port. Pick the scene that sums it up and give it detail: where you were standing, who was there, what was happening, and how it felt. Your notes from on board are perfect for this." },

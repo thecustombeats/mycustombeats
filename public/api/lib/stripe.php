@@ -87,7 +87,7 @@ function stripe_checkout_availability(): array
 
 /**
  * The `livemode` a genuine event for this server must carry, or null when no
- * Stripe key is configured (legacy Payment Link reconciliation only).
+ * Stripe key is configured (payments then cannot be verified by mode).
  *
  * Stripe signs test and live events with different endpoint secrets, so a
  * mismatch means misconfiguration. It is still checked: a live payment must

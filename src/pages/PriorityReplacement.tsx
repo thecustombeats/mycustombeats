@@ -44,7 +44,7 @@ const QUESTIONS: readonly { question: string; answer: string }[] = [
 
 const PriorityReplacement = () => {
   return (
-    <main className="min-h-screen bg-ivory text-espresso">
+    <div className="min-h-screen bg-ivory text-espresso">
       <Helmet>
         <title>MCB Priority Replacement | My Custom Beats</title>
         <meta
@@ -126,7 +126,7 @@ const PriorityReplacement = () => {
           </div>
         </div>
       </section>
-    </main>
+    </div>
   );
 };
 

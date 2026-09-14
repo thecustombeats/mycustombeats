@@ -50,7 +50,7 @@ const StepDetails = ({ contact, setContact, requiresShipping, showErrors }: Step
       <div key={spec.field} className={spec.wide ? "sm:col-span-2" : ""} data-field={spec.field}>
         <label htmlFor={id} className="block text-base font-medium text-ink">
           {spec.label}
-          {spec.optional && <span className="font-normal text-espresso/60"> (optional)</span>}
+          {spec.optional && <span className="font-normal text-espresso/75"> (optional)</span>}
         </label>
         {spec.hint && <p id={`${id}-hint`} className="mt-1 text-sm text-espresso/65">{spec.hint}</p>}
         {spec.country ? (

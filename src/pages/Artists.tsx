@@ -22,7 +22,7 @@ export default function Artists() {
           Join Our Artist Network
         </h1>
 
-        <p className="text-black/60 max-w-2xl mx-auto mb-10 leading-relaxed">
+        <p className="text-black/75 max-w-2xl mx-auto mb-10 leading-relaxed">
           We collaborate with talented singers, songwriters and producers 
           to create deeply personal, world-class music experiences for our clients.
         </p>
@@ -44,7 +44,7 @@ export default function Artists() {
           Why Work With Us
         </h2>
 
-        <p className="text-black/60 leading-relaxed">
+        <p className="text-black/75 leading-relaxed">
           Work on meaningful projects, collaborate with global clients, and turn real stories 
           into music that lasts forever. Every project is unique, emotional, and creatively fulfilling.
         </p>

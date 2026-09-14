@@ -347,6 +347,7 @@ export default function ThankYou() {
      <Helmet>
        <title>Order received | My Custom Beats</title>
        <meta name="description" content="Your My Custom Beats order status and reference." />
+       <meta name="robots" content="noindex, nofollow" />
      </Helmet>
 
     {/* MVIS Midnight Ink, never bg-black. */}
@@ -411,7 +412,7 @@ export default function ThankYou() {
         >
           <h2
             id="mcb-reference-label"
-            className={`font-mono text-xs font-semibold uppercase tracking-[0.2em] ${TEXT_ACCENT}`}
+            className={`font-mono text-sm font-semibold uppercase tracking-[0.2em] ${TEXT_ACCENT}`}
           >
             {shownReference ? "Your MCB reference" : "Reference"}
           </h2>

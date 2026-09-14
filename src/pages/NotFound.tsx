@@ -25,51 +25,54 @@ const NotFound = () => (
       <meta name="robots" content="noindex, follow" />
     </Helmet>
 
-    <main className="min-h-screen bg-ivory flex items-center justify-center px-6 py-24">
-      <div className="max-w-lg text-center">
-        <p className="label-uppercase text-gold-deep mb-5">Page not found</p>
+    <div className="flex min-h-screen items-center justify-center bg-ivory px-5 py-28 sm:px-8">
+      <div className="max-w-xl text-center">
+        <p className="label-uppercase mb-5 text-gold-deep">Page not found</p>
 
-        <h1 className="font-serif text-espresso mb-5">
+        <h1 className="mb-5 font-serif text-espresso">
           We couldn&rsquo;t find that page
         </h1>
 
-        <p className="text-espresso/70 leading-relaxed mb-10">
-          The link may be out of date, or the address slightly off. Here is
-          where most people are heading:
+        <p className="mb-10 text-lg leading-relaxed text-espresso/85">
+          The link may be out of date, or the address slightly off. These will
+          take you somewhere useful:
         </p>
 
-        <nav
-          aria-label="Popular pages"
-          className="flex flex-wrap gap-3 justify-center mb-10"
-        >
-          {[
-            { to: "/", label: "Home" },
-            { to: "/#packages", label: "Experiences" },
-            { to: "/products", label: "Keepsakes" },
-            { to: "/faq", label: "FAQ" },
-            { to: "/about", label: "Our story" },
-          ].map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="px-6 py-2.5 text-[11px] tracking-[0.2em] uppercase rounded-full border border-espresso/25 text-espresso hover:bg-ink hover:text-ivory hover:border-ink transition-colors duration-300"
-            >
-              {item.label}
-            </Link>
-          ))}
+        <nav aria-label="Popular pages" className="mb-10">
+          <ul className="m-0 flex list-none flex-wrap justify-center gap-3 p-0">
+            {[
+              { to: "/", label: "Home" },
+              { to: "/create", label: "Create your memory" },
+              { to: "/products", label: "Keepsakes & gifts" },
+              { to: "/blog", label: "Blog" },
+              { to: "/faq", label: "FAQ" },
+              { to: "/contact", label: "Contact us" },
+            ].map((item) => (
+              <li key={item.to}>
+                <Link
+                  to={item.to}
+                  className="inline-flex min-h-12 items-center rounded-full border border-espresso/30 px-6 text-base font-semibold text-espresso transition-colors duration-300 hover:border-ink hover:bg-ink hover:text-ivory focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
+                >
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </nav>
 
-        <p className="text-sm text-espresso/50">
-          Looking for an order you&rsquo;ve already placed?{" "}
+        <p className="text-base text-espresso/85">
+          Looking for an order you&rsquo;ve already placed? Use the link in your
+          email, or write to{" "}
           <a
             href="mailto:hello@mycustombeats.com"
-            className="text-gold-deep underline underline-offset-2"
+            className="font-semibold text-ink underline underline-offset-2"
           >
             hello@mycustombeats.com
           </a>
+          .
         </p>
       </div>
-    </main>
+    </div>
   </>
 );
 

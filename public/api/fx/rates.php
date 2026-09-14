@@ -6,8 +6,9 @@
  * WHAT THIS IS NOT
  * ─────────────────────────────────────────────────────────────────────────
  * Not a pricing endpoint. Nothing here decides what anyone pays. MCB's
- * commercial prices are GBP and live in `src/data/packages.ts` and the
- * catalogue; Stripe charges GBP through fixed Payment Links. These rates let
+ * commercial prices are GBP and live in the canonical catalogue
+ * (`src/data/catalogue/`); the server prices every order and Stripe Checkout
+ * charges that GBP amount. These rates let
  * the browser show a customer roughly what a GBP price means in their own
  * money, and that is the whole of it. No amount produced from this response
  * is ever sent back to a server or used to build a charge.

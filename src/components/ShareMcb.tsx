@@ -156,7 +156,7 @@ const ShareMcb = ({ code }: ShareMcbProps) => {
         <button
           type="button"
           onClick={copy}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-espresso px-6 py-3 text-[11px] uppercase tracking-[0.16em] text-ivory transition-colors hover:bg-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
+          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-espresso px-6 py-3 text-sm uppercase tracking-[0.16em] text-ivory transition-colors hover:bg-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
         >
           {copied ? (
             <Check aria-hidden="true" className="h-4 w-4" />
@@ -170,7 +170,7 @@ const ShareMcb = ({ code }: ShareMcbProps) => {
           <button
             type="button"
             onClick={share}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-espresso/20 px-6 py-3 text-[11px] uppercase tracking-[0.16em] text-espresso transition-colors hover:border-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-espresso/20 px-6 py-3 text-sm uppercase tracking-[0.16em] text-espresso transition-colors hover:border-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
           >
             <Share2 aria-hidden="true" className="h-4 w-4" />
             Share
@@ -187,7 +187,7 @@ const ShareMcb = ({ code }: ShareMcbProps) => {
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => announceShare("whatsapp")}
-          className="inline-flex min-h-11 items-center rounded-full border border-espresso/20 px-6 py-3 text-[11px] uppercase tracking-[0.16em] text-espresso transition-colors hover:border-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
+          className="inline-flex min-h-11 items-center rounded-full border border-espresso/20 px-6 py-3 text-sm uppercase tracking-[0.16em] text-espresso transition-colors hover:border-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
         >
           WhatsApp
         </a>
@@ -197,7 +197,7 @@ const ShareMcb = ({ code }: ShareMcbProps) => {
         Announced, not just shown. A tick that only changes colour tells a
         screen-reader user nothing about whether the copy worked.
       */}
-      <p aria-live="polite" className="mt-3 min-h-5 text-xs text-espresso/60">
+      <p aria-live="polite" className="mt-3 min-h-5 text-sm text-espresso/75">
         {copied ? "Link copied to your clipboard." : ""}
       </p>
     </section>

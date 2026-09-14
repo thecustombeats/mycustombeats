@@ -83,7 +83,7 @@ export default function AffiliateDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FBF9F6] text-black p-6">
+    <main id="main-content" className="min-h-screen bg-[#FBF9F6] text-black p-6">
 
       <h1 className="text-4xl font-light mb-6 text-center">
         Your Affiliate Dashboard
@@ -105,17 +105,17 @@ export default function AffiliateDashboard() {
         <div className="grid grid-cols-3 gap-4 text-center mt-6">
 
           <div className="bg-[#FBF9F6] p-4 rounded-xl">
-            <p className="text-sm text-black/60">Clicks</p>
+            <p className="text-sm text-black/75">Clicks</p>
             <p className="text-2xl font-semibold">{data.clicks || 0}</p>
           </div>
 
           <div className="bg-[#FBF9F6] p-4 rounded-xl">
-            <p className="text-sm text-black/60">Sales</p>
+            <p className="text-sm text-black/75">Sales</p>
             <p className="text-2xl font-semibold">{data.sales || 0}</p>
           </div>
 
           <div className="bg-[#FBF9F6] p-4 rounded-xl">
-            <p className="text-sm text-black/60">Conversion</p>
+            <p className="text-sm text-black/75">Conversion</p>
             <p className="text-2xl font-semibold">
               {data.clicks > 0
                 ? ((data.sales / data.clicks) * 100).toFixed(1) + "%"
@@ -132,6 +132,6 @@ export default function AffiliateDashboard() {
         </div>
 
       </div>
-    </div>
+    </main>
   );
 }

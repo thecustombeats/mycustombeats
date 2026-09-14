@@ -1,27 +1,20 @@
+import { Link } from "react-router-dom";
+import NoIndex from "../components/NoIndex";
+
 export default function ArtistThankYou() {
-
   return (
-
-    <section className="py-32 px-[7vw] text-center max-w-3xl mx-auto">
-
-      <h1 className="text-5xl font-serif text-espresso mb-6">
-        Application Received
-      </h1>
-
-      <p className="text-lg text-espresso/70 mb-10">
-        Thank you for applying to join the MyCustomBeats artist network.
-        Our team reviews every submission carefully and will contact you if there
-        is a fit for upcoming projects.
+    <div className="mx-auto max-w-3xl px-5 py-32 text-center sm:px-8">
+      <NoIndex title="Application received | My Custom Beats" />
+      <h1 className="mb-6 font-serif text-5xl text-espresso">Application received</h1>
+      <p className="mb-10 text-lg leading-relaxed text-espresso/85">
+        Thank you for applying to join the My Custom Beats artist network. Our team reviews every submission carefully and will contact you if there is a fit for upcoming projects.
       </p>
-
-      <a
-        href="/"
-        className="px-8 py-3 bg-gold text-espresso rounded-full hover:bg-espresso hover:text-ivory"
+      <Link
+        to="/"
+        className="inline-flex min-h-12 items-center rounded-full bg-ink px-8 py-3 text-base font-semibold text-ivory hover:bg-[#1c2d40] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
       >
-        Return to Homepage
-      </a>
-
-    </section>
-
-  )
+        Return to the homepage
+      </Link>
+    </div>
+  );
 }

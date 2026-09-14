@@ -78,7 +78,7 @@ const CruiseMemories = () => {
         <script type="application/ld+json">{JSON.stringify(cruisePageStructuredData())}</script>
       </Helmet>
 
-      <main className="bg-ivory text-espresso">
+      <div className="bg-ivory text-espresso">
         {/* ---- Hero --------------------------------------------------------- */}
         <section className="relative flex min-h-[78vh] items-end overflow-hidden bg-ink">
           <ResponsiveImage image={IMAGES.soloDeck} sizes="100vw" priority alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -226,7 +226,7 @@ const CruiseMemories = () => {
             </div>
           </div>
         </section>
-      </main>
+      </div>
     </>
   );
 };

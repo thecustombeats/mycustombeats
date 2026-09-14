@@ -132,7 +132,9 @@ test("every internal link points at a route the app defines", () => {
   const hrefs = new Set([...everything.matchAll(/href="(\/[^"#?]*)/g)].map((m) => m[1] || "/"));
   const staticFiles = (dir) => readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? staticFiles(join(dir, n)) : [join(dir, n).slice(join(root, "public").length)]));
   const files = new Set(staticFiles(join(root, "public")));
-  const broken = [...hrefs].filter((href) => !routes.has(href) && !files.has(href));
+  // /blog/:slug is a real page only for an article that exists.
+  const slugs = new Set([...readFileSync(join(root, "src/data/blog/posts.ts"), "utf8").matchAll(/slug: "([a-z0-9-]+)"/g)].map((m) => `/blog/${m[1]}`));
+  const broken = [...hrefs].filter((href) => !routes.has(href) && !files.has(href) && !(routes.has("/blog/:slug") && slugs.has(href)));
   assert.deepEqual(broken, []);
   assert.ok(!routes.has("/heirloom"));
   assert.ok(routes.has("/create") && routes.has("/bespoke") && routes.has("/full-package"));

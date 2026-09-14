@@ -157,7 +157,7 @@ const YourOrder = () => {
   const tracking = safeExternalUrl(progress?.delivery?.tracking_url ?? null);
 
   return (
-    <main className="min-h-screen bg-ivory px-5 pb-20 pt-28 text-espresso sm:px-8 md:pt-36">
+    <div className="min-h-screen bg-ivory px-5 pb-20 pt-28 text-espresso sm:px-8 md:pt-36">
       <Helmet>
         <title>Your order | My Custom Beats</title>
         <meta name="robots" content="noindex, nofollow" />
@@ -222,7 +222,7 @@ const YourOrder = () => {
                         {stage.status === "done" && <Check size={18} />}
                       </span>
                       <div>
-                        <p className={`text-lg ${stage.status === "upcoming" ? "text-espresso/60" : "font-semibold text-ink"}`}>
+                        <p className={`text-lg ${stage.status === "upcoming" ? "text-espresso/75" : "font-semibold text-ink"}`}>
                           {definition.title}
                           <span className="sr-only">{stage.status === "done" ? " — done" : stage.status === "current" ? " — happening now" : " — still to come"}</span>
                         </p>
@@ -263,7 +263,7 @@ const YourOrder = () => {
           </>
         )}
       </div>
-    </main>
+    </div>
   );
 };
 

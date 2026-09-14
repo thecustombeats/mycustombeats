@@ -52,7 +52,7 @@ const BlogPost = () => {
   const sections = post.content.filter((b): b is Extract<BlogBlock, { type: "h2" }> => b.type === "h2");
 
   return (
-    <main className="bg-ivory px-5 pb-20 pt-28 text-espresso sm:px-8 md:pt-36">
+    <div className="bg-ivory px-5 pb-20 pt-28 text-espresso sm:px-8 md:pt-36">
       <Helmet>
         <title>{post.seoTitle}</title>
         <meta name="description" content={post.metaDescription} />
@@ -134,7 +134,7 @@ const BlogPost = () => {
 
         <p className="mt-12"><Link to="/blog" className={ctaClass}>All articles</Link></p>
       </article>
-    </main>
+    </div>
   );
 };
 

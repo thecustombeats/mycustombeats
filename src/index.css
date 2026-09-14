@@ -3,18 +3,40 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Size-matched fallbacks for the web fonts (measured against the loaded faces
+   in Chrome). Until Cormorant Garamond and Manrope arrive, text is set in a
+   local font scaled to the same width and line metrics, so the swap does not
+   reflow the page. Sprint 6: the homepage hero shifted by ~110px on swap
+   (lab CLS 0.164) because Georgia runs ~13% wider than Cormorant. */
+@font-face {
+  font-family: "Cormorant Garamond Fallback";
+  src: local("Georgia"), local("Times New Roman");
+  size-adjust: 88.6%;
+  ascent-override: 103.8%;
+  descent-override: 32.7%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Manrope Fallback";
+  src: local("Arial"), local("Helvetica Neue"), local("Helvetica");
+  size-adjust: 102%;
+  ascent-override: 104.9%;
+  descent-override: 29.4%;
+  line-gap-override: 0%;
+}
+
 /* Base styles */
 @layer base {
   body {
     /* MVIS™ secondary typeface — body, UI, forms, navigation. */
-    font-family: 'Manrope', system-ui, sans-serif !important;
+    font-family: 'Manrope', 'Manrope Fallback', system-ui, sans-serif !important;
     background-color: #F8F5F0; /* MVIS Ivory */
     color: rgba(46, 38, 35, 0.85);
   }
 
   h1, h2, h3, h4, h5, h6 {
     /* MVIS™ primary display typeface. */
-    font-family: 'Cormorant Garamond', Georgia, serif !important;
+    font-family: 'Cormorant Garamond', 'Cormorant Garamond Fallback', Georgia, serif !important;
     font-weight: 600;
     letter-spacing: 0;
     line-height: 1.12;
@@ -48,7 +70,7 @@
    */
   .label-uppercase {
     display: inline-block;
-    font-family: 'Manrope', system-ui, sans-serif;
+    font-family: 'Manrope', 'Manrope Fallback', system-ui, sans-serif;
     font-size: 0.8125rem;
     font-weight: 600;
     line-height: 1.4;

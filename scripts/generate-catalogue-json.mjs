@@ -5,6 +5,7 @@
  *   public/api/data/legal.json       from src/data/legal/
  *   public/api/data/personalisation.json  limits, occasions, styles, countries
  *   public/api/data/operations.json  post-payment states, revisions, templates
+ *   public/catalogue.json            PUBLIC machine-readable product catalogue
  *
  * The TypeScript catalogue is the only place a price is defined. PHP reads
  * this projection of it at request time and never holds a second price table.
@@ -31,6 +32,7 @@ const TARGETS = {
   legal: join(root, "public/api/data/legal.json"),
   personalisation: join(root, "public/api/data/personalisation.json"),
   operations: join(root, "public/api/data/operations.json"),
+  publicCatalogue: join(root, "public/catalogue.json"),
 };
 
 const fail = (message) => {
@@ -57,6 +59,7 @@ try {
       join(root, "src/data/musicStyles.ts"),
       join(root, "src/data/countries.ts"),
       join(root, "src/data/operations.ts"),
+      join(root, "src/data/imagery.ts"),
       "--outDir", tmp,
       "--rootDir", join(root, "src/data"),
       "--module", "esnext",
@@ -96,6 +99,7 @@ const occasions = await import(pathToFileURL(join(tmp, "occasions.js")).href);
 const musicStyles = await import(pathToFileURL(join(tmp, "musicStyles.js")).href);
 const countries = await import(pathToFileURL(join(tmp, "countries.js")).href);
 const operations = await import(pathToFileURL(join(tmp, "operations.js")).href);
+const imagery = await import(pathToFileURL(join(tmp, "imagery.js")).href);
 rmSync(tmp, { recursive: true, force: true });
 
 const { PRODUCTS, ORDER_LIMITS, PRIORITY_REPLACEMENT_SKU, validateCatalogue } = catalogue;
@@ -267,11 +271,133 @@ const operationsOut = {
   ),
 };
 
+/* ------------------------------------------------------------------ */
+/* catalogue.json — the PUBLIC machine-readable catalogue              */
+/* ------------------------------------------------------------------ */
+//
+// For search engines, answer engines and future machine clients. Built from
+// the same canonical catalogue as the site and the server, so there is no
+// second price list. PUBLIC FIELDS ONLY: no supplier, cost, margin, internal
+// id or fulfilment routing exists in the catalogue, and none is added here.
+// Ordering it describes still happens only through the website, where the
+// server validates the personalisation, records consent and takes payment.
+
+const SITE = "https://www.mycustombeats.com";
+const addOnIds = new Set(catalogue.addOnProducts().map((p) => p.id));
+const feedProducts = PRODUCTS.filter(
+  (p) => p.active && p.public && p.commercialModel !== "STORED_VALUE" && (p.route !== null || addOnIds.has(p.id))
+);
+// Photographs that show the product itself. Lifestyle and display-wall images
+// (Moment, Keepsake, Bespoke) are deliberately not offered as product images.
+const FEED_IMAGE_IDS = new Set(["journey", "lyrics-frame", "vintage-smartphone-gramophone", "antique-brass-gramophone", "portable-suitcase-record-player"]);
+const imageUrl = (id) => {
+  const img = imagery.PRODUCT_IMAGERY[id];
+  return img && FEED_IMAGE_IDS.has(id) ? `${SITE}/images/responsive/${img.name}-1600.jpg` : null;
+};
+const decimal = (minor) => `${Math.floor(minor / 100)}.${String(minor % 100).padStart(2, "0")}`;
+const unitWord = (productId) => (productId === "journey" ? "chapter" : "memory");
+const personalisationFor = (product, variant) => {
+  if (product.category === "SONG_EXPERIENCE") {
+    return {
+      required: true,
+      unit: unitWord(product.id),
+      count: variant.songCount,
+      each: { story_max_characters: rules.STORY_MAX, about_max_characters: rules.ABOUT_MAX, music_style: "catalogued style, own words, or MCB's choice", photo: "optional" },
+    };
+  }
+  if (product.id === "personalised-music-plaque") {
+    return { required: true, unit: "plaque", count: 1, each: { photo: "required", song_title_max_characters: rules.SONG_TITLE_MAX, artist_max_characters: rules.ARTIST_MAX } };
+  }
+  if (product.id === "lyrics-frame") {
+    return { required: true, unit: "frame", count: 1, each: { lyrics_from: "one song in the same order", heading_max_characters: rules.FRAME_HEADING_MAX } };
+  }
+  if (product.id === "priority-replacement") {
+    return { required: false, unit: null, count: null, each: { applies_to: "one eligible Keepsake in the same order" } };
+  }
+  return { required: false, unit: null, count: null, each: null };
+};
+const formatFor = (variant) =>
+  variant.fulfilment === "DIGITAL"
+    ? { type: "DIGITAL" }
+    : variant.vinyl
+      ? {
+          type: variant.vinyl.pictureDisc ? "PICTURE_DISC" : "STANDARD_VINYL",
+          size_inches: variant.vinyl.sizeInches,
+          shape: variant.vinyl.shape,
+          records: variant.vinyl.discCount,
+          gatefold: variant.vinyl.gatefold,
+        }
+      : null;
+
+const publicCatalogueBody = {
+  feed_version: "1.0",
+  publisher: { name: "My Custom Beats", url: SITE },
+  currency: "GBP",
+  catalogue_hash: catalogueOut.catalogue_hash,
+  how_to_order: `${SITE}/create`,
+  ordering_rules: {
+    automated_ordering: false,
+    note: "Orders are placed by the customer on the website. The server validates every personalisation, records the customer's consent, prices the order and takes payment through Stripe Checkout. This file grants no ability to order, reserve or pay.",
+    song_experience_required: "Every order includes at least one Moment, Keepsake or Journey.",
+    priority_replacement: "At most one per eligible Keepsake in the same order.",
+    max_lines: ORDER_LIMITS.maxLines,
+    delivery: "Physical items: delivery is quoted before payment for the destination; some destinations may not be available.",
+  },
+  products: feedProducts.map((product) => {
+    const quoted = product.commercialModel === "QUOTED";
+    const orderable = product.active && product.onlineCheckout && !quoted;
+    return {
+      id: product.id,
+      name: product.name,
+      description: product.shortDescription,
+      positioning: product.positioning,
+      product_type: product.category,
+      commercial_model: product.commercialModel,
+      url: `${SITE}${product.route ?? "/products"}`,
+      image_url: imageUrl(product.id),
+      availability: orderable ? "ORDERABLE_ONLINE" : quoted ? "QUOTE_ONLY_BY_ENQUIRY" : "NOT_AVAILABLE_ONLINE",
+      enquiry_url: quoted ? `${SITE}${product.route}` : null,
+      timing: product.turnaround?.label ?? null,
+      included_revisions: product.revisions,
+      disclosures: [...product.disclosures],
+      requires_song_experience_in_order: orderable && product.category !== "SONG_EXPERIENCE",
+      variants: quoted
+        ? []
+        : product.variants.map((variant) => ({
+            sku: variant.sku,
+            name: variant.name,
+            label: variant.label,
+            price: { amount: decimal(variant.price.minor), minor_units: variant.price.minor, currency: variant.price.currency },
+            orderable_online: orderable,
+            fulfilment: variant.fulfilment,
+            shipping_required: variant.fulfilment === "PHYSICAL",
+            song_capacity: variant.songCount,
+            format: formatFor(variant),
+            personalisation: personalisationFor(product, variant),
+            add_ons: { priority_replacement_eligible: variant.priorityReplacementEligible },
+            features: [...variant.features],
+            order_url: orderable && product.category === "SONG_EXPERIENCE" ? `${SITE}/create?sku=${variant.sku}` : null,
+          })),
+    };
+  }),
+};
+for (const product of publicCatalogueBody.products) {
+  if (product.commercial_model === "QUOTED" && product.variants.length > 0) fail(`public catalogue gives quoted ${product.id} a price`);
+  for (const v of product.variants) {
+    if (skus[v.sku]?.price_minor !== v.price.minor_units) fail(`public catalogue price drift for ${v.sku}`);
+  }
+}
+const publicCatalogueOut = {
+  _generated: "Generated from src/data/catalogue by scripts/generate-catalogue-json.mjs. Public product information only.",
+  ...publicCatalogueBody,
+};
+
 const outputs = [
   [TARGETS.catalogue, JSON.stringify(catalogueOut, null, 2) + "\n"],
   [TARGETS.legal, JSON.stringify(legalOut, null, 2) + "\n"],
   [TARGETS.personalisation, JSON.stringify(personalisationOut, null, 2) + "\n"],
   [TARGETS.operations, JSON.stringify(operationsOut, null, 2) + "\n"],
+  [TARGETS.publicCatalogue, JSON.stringify(publicCatalogueOut, null, 2) + "\n"],
 ];
 
 if (checkOnly) {
@@ -279,7 +405,7 @@ if (checkOnly) {
   if (stale.length > 0) {
     fail(`generated data is out of date: ${stale.map(([p]) => p.replace(root + "/", "")).join(", ")}. Run npm run generate:catalogue.`);
   }
-  console.log("catalogue.json, legal.json, personalisation.json and operations.json match the TypeScript sources.");
+  console.log("catalogue.json, legal.json, personalisation.json, operations.json and the public catalogue match the TypeScript sources.");
 } else {
   for (const [path, text] of outputs) {
     mkdirSync(dirname(path), { recursive: true });

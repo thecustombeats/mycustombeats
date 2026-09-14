@@ -15,7 +15,7 @@ const Blog = () => {
   const share = posts[0] ? IMAGES[posts[0].heroImage] : null;
 
   return (
-    <main className="bg-ivory px-5 pb-20 pt-28 text-espresso sm:px-8 md:pt-36">
+    <div className="bg-ivory px-5 pb-20 pt-28 text-espresso sm:px-8 md:pt-36">
       <Helmet>
         <title>Blog — Memories, Music and Keepsakes | My Custom Beats</title>
         <meta name="description" content={DESCRIPTION} />
@@ -69,7 +69,7 @@ const Blog = () => {
           ))}
         </ul>
       </div>
-    </main>
+    </div>
   );
 };
 

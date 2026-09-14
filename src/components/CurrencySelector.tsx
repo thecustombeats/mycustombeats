@@ -34,7 +34,7 @@ const CurrencySelector = ({
   const id = useId();
   const { currency, setCurrency } = useCurrency();
 
-  const label = tone === "light" ? "text-ivory/70" : "text-espresso/60";
+  const label = tone === "light" ? "text-ivory/70" : "text-espresso/75";
   const field =
     tone === "light"
       ? "border-ivory/25 bg-transparent text-ivory"
@@ -44,7 +44,7 @@ const CurrencySelector = ({
     <div className={`flex items-center gap-2 ${className}`}>
       <label
         htmlFor={id}
-        className={`font-mono text-xs uppercase tracking-[0.14em] ${label}`}
+        className={`font-mono text-sm uppercase tracking-[0.14em] ${label}`}
       >
         Currency
       </label>
