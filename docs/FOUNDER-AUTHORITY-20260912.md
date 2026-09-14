@@ -1,5 +1,7 @@
 # Active founder authority — 12 September 2026
 
+> **Commercial content superseded on 14 September 2026** by `COMMERCIAL-AUTHORITY-20260914.md`. The package line-up, prices, Heirloom, "12-inch vinyl only" and the Journey Collection model below are obsolete. The non-negotiable boundaries remain in force.
+
 Bella and Lewis authorise substantial reversible design, implementation and testing on `mcb-release-review-20260912`. This supersedes the earlier restriction to preserving existing UX. Preserve MCB's identity and premium emotional positioning, not weak interfaces.
 
 MCB is a memory company: help customers capture, preserve, relive and gift meaningful moments. Emotion leads, prices remain clear, and the interface must work comfortably for older mobile customers. Cruise is a genuine specialism, not the entire brand.
