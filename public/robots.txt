@@ -6,5 +6,8 @@ Disallow: /thank-you
 Disallow: /artist-thank-you
 Disallow: /partner-thank-you
 Disallow: /dashboard
+Disallow: /your-order
+Disallow: /approve
+Disallow: /operations
 
 Sitemap: https://www.mycustombeats.com/sitemap.xml

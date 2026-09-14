@@ -27,6 +27,11 @@ const MCBLive = lazy(() => import("./pages/MCBLive"));
 const PriorityReplacement = lazy(() => import("./pages/PriorityReplacement"));
 const Artists = lazy(() => import("./pages/Artists"));
 const CreateMemory = lazy(() => import("./pages/CreateMemory"));
+const Blog = lazy(() => import("./pages/Blog"));
+const BlogPost = lazy(() => import("./pages/BlogPost"));
+const YourOrder = lazy(() => import("./pages/YourOrder"));
+const Approve = lazy(() => import("./pages/Approve"));
+const Operations = lazy(() => import("./pages/Operations"));
 
 import Terms from "./pages/legal/Terms";
 import Privacy from "./pages/legal/Privacy";
@@ -357,6 +362,13 @@ function App() {
 
         {/* Thank You */}
         <Route path="/thank-you" element={<Layout><ThankYou /></Layout>} />
+        <Route path="/blog" element={<Layout><Blog /></Layout>} />
+        <Route path="/blog/:slug" element={<Layout><BlogPost /></Layout>} />
+        {/* Private customer links: the token is in the URL fragment. */}
+        <Route path="/your-order" element={<Layout><YourOrder /></Layout>} />
+        <Route path="/approve" element={<Layout><Approve /></Layout>} />
+        {/* Staff console, CRM key required by every request it makes. */}
+        <Route path="/operations" element={<Operations />} />
         <Route path="/artist-thank-you" element={<Layout><ArtistThankYou /></Layout>} />
         <Route path="/partner-thank-you" element={<Layout><PartnerThankYou /></Layout>} />
 

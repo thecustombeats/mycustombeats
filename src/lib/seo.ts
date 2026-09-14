@@ -886,3 +886,84 @@ export const siteStructuredData = () => graph(identity());
 /** The experience catalogue and its product nodes, for any page that needs them alone. */
 export const packagesStructuredData = () =>
   graph([experienceListEntity(), ...productNodes(experienceProducts())]);
+
+/* ------------------------------------------------------------------ */
+/* Blog                                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * BlogPosting with its real dates, author and image, and a breadcrumb. The
+ * articles carry no FAQ markup: they are not written as questions and answers,
+ * and FAQPage schema on them would describe something the page is not.
+ */
+export const blogPostStructuredData = (post: {
+  slug: string;
+  title: string;
+  metaDescription: string;
+  publishedAt: string;
+  updatedAt: string;
+  author: { type: "Organization"; name: string };
+  categories: readonly string[];
+  imageUrl: string;
+}) => {
+  const path = `/blog/${post.slug}`;
+  return graph([
+    ...identity(),
+    webPageEntity({
+      path,
+      name: post.title,
+      description: post.metaDescription,
+      mainEntity: `${canonical(path)}#article`,
+      breadcrumb: `${canonical(path)}#breadcrumb`,
+    }),
+    {
+      "@type": "BlogPosting",
+      "@id": `${canonical(path)}#article`,
+      headline: post.title,
+      description: post.metaDescription,
+      image: `${SITE_URL}${post.imageUrl}`,
+      datePublished: post.publishedAt,
+      dateModified: post.updatedAt,
+      author: post.author.name === "My Custom Beats" ? ref(ENTITY.organization) : { "@type": post.author.type, name: post.author.name },
+      publisher: ref(ENTITY.organization),
+      mainEntityOfPage: ref(pageEntityId(path)),
+      articleSection: post.categories[0],
+      keywords: post.categories.join(", "),
+      inLanguage: "en-GB",
+      isPartOf: { "@type": "Blog", "@id": `${canonical("/blog")}#blog` },
+    },
+    breadcrumbEntity(path, [
+      { name: "Blog", path: "/blog" },
+      { name: post.title, path },
+    ]),
+  ]);
+};
+
+export const blogIndexStructuredData = (posts: readonly { slug: string; title: string; publishedAt: string }[]) =>
+  graph([
+    ...identity(),
+    webPageEntity({
+      path: "/blog",
+      name: "The My Custom Beats blog",
+      description: "Guides to turning memories into music and keepsakes.",
+      type: "CollectionPage",
+      mainEntity: `${canonical("/blog")}#blog`,
+      breadcrumb: `${canonical("/blog")}#breadcrumb`,
+    }),
+    {
+      "@type": "Blog",
+      "@id": `${canonical("/blog")}#blog`,
+      name: "The My Custom Beats blog",
+      url: canonical("/blog"),
+      publisher: ref(ENTITY.organization),
+      inLanguage: "en-GB",
+      blogPost: posts.map((p) => ({
+        "@type": "BlogPosting",
+        "@id": `${canonical(`/blog/${p.slug}`)}#article`,
+        headline: p.title,
+        url: canonical(`/blog/${p.slug}`),
+        datePublished: p.publishedAt,
+      })),
+    },
+    breadcrumbEntity("/blog", [{ name: "Blog", path: "/blog" }]),
+  ]);

@@ -47,6 +47,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/bootstrap.php';
 require_once __DIR__ . '/../lib/attribution.php';
+require_once __DIR__ . '/../lib/operations.php';
 
 require_method('POST');
 require_same_origin();
@@ -85,6 +86,10 @@ if ($contact !== 'EMAIL' && ($phone === null || $phone === '')) {
 /* ------------------------------------------------------------------ */
 
 $occasion = $v->optional('occasion', 160);
+
+// What they would like MCB to create, in their own words. Optional: the story
+// can carry it, and a customer who does not know yet should not be stopped.
+$createRequest = operations_text($body['createRequest'] ?? null, 1000);
 
 /**
  * When it is needed. Optional, and "not fixed yet" is a real answer.
@@ -246,7 +251,7 @@ $reference = null;
 
 try {
     $reference = db_transaction(function (PDO $pdo) use (
-        $name, $email, $phone, $contact, $occasion, $neededBy, $region,
+        $name, $email, $phone, $contact, $occasion, $createRequest, $neededBy, $region,
         $budgetMode, $budgetMinor, $budgetCurrency, $story,
         $attribution, $ipHash
     ): string {
@@ -278,14 +283,14 @@ try {
                 $insert = $pdo->prepare(
                     'INSERT INTO concierge_enquiries (
                         reference, customer_id, name, email, phone, preferred_contact,
-                        occasion, needed_by, delivery_region,
+                        occasion, create_request, needed_by, delivery_region,
                         budget_mode, budget_amount_minor, budget_currency,
                         story, status,
                         source_type, affiliate_id, partner_id, referral_raw,
                         ip_hash
                      ) VALUES (
                         :ref, :cust, :name, :email, :phone, :contact,
-                        :occasion, :needed, :region,
+                        :occasion, :create, :needed, :region,
                         :bmode, :bminor, :bcur,
                         :story, :status,
                         :src, :aff, :ptr, :rawref,
@@ -301,6 +306,7 @@ try {
                     ':phone'    => $phone,
                     ':contact'  => $contact,
                     ':occasion' => $occasion,
+                    ':create'   => $createRequest,
                     ':needed'   => $neededBy,
                     ':region'   => $region,
                     ':bmode'    => $budgetMode,
@@ -316,6 +322,10 @@ try {
                     ':rawref'   => $attribution['referral_raw'],
                     ':iph'      => $ipHash,
                 ]);
+
+                record_operations_event($pdo, 'BESPOKE_ENQUIRY', $reference, 'BESPOKE.ENQUIRY_RECEIVED', [
+                    'budget_mode' => $budgetMode, 'deadline_given' => $neededBy !== null,
+                ], 'received');
 
                 return $reference;
             } catch (PDOException $e) {

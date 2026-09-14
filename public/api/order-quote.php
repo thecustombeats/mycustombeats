@@ -22,6 +22,9 @@ require_once __DIR__ . '/lib/bootstrap.php';
 require_method('POST');
 require_same_origin();
 
+// Practical abuse limit per source; a customer checking their order never approaches it.
+enforce_scoped_rate_limit('order-quote', 60, 600);
+
 $body = read_json_body(16384);
 
 $pricing = price_order_lines($body['lines'] ?? null);

@@ -66,7 +66,7 @@ if ($since !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $since)) {
 $sql = 'SELECT
             e.id, e.reference, e.status,
             e.name, e.email, e.phone, e.preferred_contact,
-            e.occasion, e.needed_by, e.delivery_region,
+            e.occasion, e.create_request, e.needed_by, e.delivery_region,
             e.budget_mode, e.budget_amount_minor, e.budget_currency,
             e.story, e.internal_notes,
             e.source_type, e.referral_raw,
@@ -134,6 +134,7 @@ $enquiries = array_map(static function (array $r): array {
             'preferred_contact' => $r['preferred_contact'],
         ],
         'occasion'          => $r['occasion'],
+        'create_request'    => $r['create_request'],
         'needed_by'         => $r['needed_by'],
         'delivery_region'   => $r['delivery_region'],
         'budget'            => $budget,

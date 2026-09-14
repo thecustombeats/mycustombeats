@@ -142,6 +142,22 @@ return [
     'operations' => [
         'order_paid_webhook_url'    => '',
         'order_paid_webhook_secret' => '',   // 32+ random bytes, shared with the receiver
+
+        // ---- After payment (Sprint 5; see docs/OPERATIONS-RUNBOOK.md) ----
+        // Lifetimes of the private customer links. They are HMACs under
+        // token_secret, which must be 32+ random characters.
+        'status_link_ttl_days'   => 180,
+        'approval_link_ttl_days' => 30,
+
+        // Days after delivery (or a digital approval) before the follow-up
+        // is due. 0: due straight away.
+        'follow_up_delay_days' => 0,
+
+        // Queue thresholds for made-to-order work. 0 = not flagged. No figure
+        // is approved yet, so none is assumed. (The Moment's 1-hour target
+        // comes from the catalogue.)
+        'overdue_after_days'  => 0,
+        'delivery_delay_days' => 0,
     ],
 
     // ---- Reviews ------------------------------------------------------

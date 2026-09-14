@@ -46,6 +46,50 @@ function enforce_rate_limit(string $table, string $column, string $ipHash, int $
 }
 
 /**
+ * Fixed-window rate limit for endpoints that otherwise write nothing.
+ *
+ * Reading a progress page or answering an approval link leaves no row to
+ * count, so each attempt is recorded in `rate_limit_hits` first and then
+ * counted. `$scope` is a literal from calling code. Rows older than a day are
+ * pruned occasionally; they exist only to be counted.
+ */
+function enforce_scoped_rate_limit(string $scope, int $max, int $windowSeconds): void
+{
+    $ipHash = hash_ip(client_ip());
+    $pdo    = db();
+
+    try {
+        $pdo->prepare('INSERT INTO rate_limit_hits (scope, ip_hash, created_at) VALUES (:s, :h, UTC_TIMESTAMP())')
+            ->execute([':s' => $scope, ':h' => $ipHash]);
+
+        if (random_int(1, 100) === 1) {
+            $pdo->exec('DELETE FROM rate_limit_hits WHERE created_at < (UTC_TIMESTAMP() - INTERVAL 1 DAY)');
+        }
+
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*) FROM rate_limit_hits
+              WHERE scope = :s AND ip_hash = :h
+                AND created_at > (UTC_TIMESTAMP() - INTERVAL :secs SECOND)'
+        );
+        $stmt->bindValue(':s', $scope);
+        $stmt->bindValue(':h', $ipHash);
+        $stmt->bindValue(':secs', $windowSeconds, PDO::PARAM_INT);
+        $stmt->execute();
+        $count = (int) $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        // A database without the Sprint 5 migration must not take checkout
+        // down with it. Preflight reports the missing table.
+        error_log('MCB: rate limit unavailable for ' . $scope . ': ' . $e->getMessage());
+        return;
+    }
+
+    if ($count > $max) {
+        header('Retry-After: ' . $windowSeconds);
+        json_error(429, 'rate_limited', 'Too many requests. Please try again shortly.');
+    }
+}
+
+/**
  * Issues an affiliate dashboard token.
  *
  * Format: <affiliate_id>.<expiry>.<hmac>

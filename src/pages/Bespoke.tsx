@@ -475,6 +475,22 @@ const Bespoke = () => {
                   </div>
                 </div>
 
+                {/* ---- What to create --------------------------------- */}
+                <div>
+                  <label className={labelClass} htmlFor={fieldId("createRequest")}>
+                    What would you like us to create? <span className="font-normal text-espresso/75">(optional)</span>
+                  </label>
+                  <textarea
+                    id={fieldId("createRequest")}
+                    className={inputClass}
+                    rows={3}
+                    maxLength={1000}
+                    value={enquiry.createRequest}
+                    onChange={(e) => update("createRequest", e.target.value)}
+                    placeholder="A song, a framed lyric print, a surprise at the party — or say you'd like ideas."
+                  />
+                </div>
+
                 {/* ---- The occasion ----------------------------------- */}
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div>

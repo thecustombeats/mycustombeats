@@ -46,6 +46,10 @@ require_once __DIR__ . '/lib/bootstrap.php';
 
 require_method('GET');
 
+// The thank-you page polls a few times while the webhook lands; this only stops
+// someone walking session ids.
+enforce_scoped_rate_limit('order-reference', 120, 600);
+
 $sessionId = trim((string) ($_GET['session_id'] ?? ''));
 
 // Shape-checked before it reaches the database. Stripe session ids are

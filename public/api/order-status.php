@@ -19,6 +19,9 @@ require_once __DIR__ . '/lib/bootstrap.php';
 require_method('POST');
 require_same_origin();
 
+// Practical abuse limit per source; a customer checking their order never approaches it.
+enforce_scoped_rate_limit('order-status', 120, 600);
+
 $body = read_json_body(4096);
 $order = find_order_by_token(db(), $body['orderId'] ?? null, $body['checkoutToken'] ?? null);
 if ($order === null) {

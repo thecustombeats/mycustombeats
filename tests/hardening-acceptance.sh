@@ -341,10 +341,12 @@ tc "75. Resend behaviour is unchanged — the closure sends no mail" \
 tc "76. the review URL is still configuration and still empty" \
   "$(grep -A3 "'reviews'" public/api/config.example.php | grep -q "'url' => ''" && echo 1 || echo 0)"
 
-tc "77. the eight earlier migrations are untouched; Sprint 4's additive migration follows" \
-  "$([ "$(ls db/migrations/*.sql | wc -l | tr -d ' ')" = "9" ] \
+tc "77. earlier migrations are untouched; Sprint 4 and Sprint 5 additive migrations follow" \
+  "$([ "$(ls db/migrations/*.sql | wc -l | tr -d ' ')" = "10" ] \
      && [ -f db/migrations/2026-09-14-canonical-catalogue.sql ] && [ -f db/migrations/2026-09-14-sprint4-order-persistence.sql ] \
-     && git diff --quiet 056f783d -- db/migrations/2026-08-31-mcb-reference.sql db/migrations/2026-09-09-*.sql db/migrations/2026-09-14-canonical-catalogue.sql && echo 1 || echo 0)"
+     && [ -f db/migrations/2026-09-14-sprint5-operations.sql ] \
+     && git diff --quiet 056f783d -- db/migrations/2026-08-31-mcb-reference.sql db/migrations/2026-09-09-*.sql db/migrations/2026-09-14-canonical-catalogue.sql \
+     && git diff --quiet 3ad6520c -- db/migrations/2026-09-14-sprint4-order-persistence.sql && echo 1 || echo 0)"
 
 tc "78. no Stripe secret in browser source" \
   "$(grep -rqE 'sk_(live|test)_[A-Za-z0-9]' src/ 2>/dev/null && echo 0 || echo 1)"

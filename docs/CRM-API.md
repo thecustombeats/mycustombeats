@@ -346,3 +346,28 @@ An unrecognised referral is kept in `referral_raw` for provenance but credits
 nobody — the order stays `DIRECT`.
 
 Onboarding a partner is one row in `partners`. No code or schema change.
+
+---
+
+## Operations after payment (Sprint 5)
+
+Full runbook: `docs/OPERATIONS-RUNBOOK.md`. All CRM endpoints need `Authorization: Bearer <crm_api_key>`.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/crm/operations?view=queue` | Derived action and exception queue |
+| `GET /api/crm/operations?q=…` | Find by MCB reference, email, order number, `LIVE-`/`FP-` reference |
+| `GET /api/crm/operations?order=41` | State, next action, available actions, revisions, fulfilment, tracking, requests, notes, emails, active links (no tokens), timeline |
+| `GET /api/crm/operations?enquiry=LIVE-…` / `?view=live-enquiries` | MCB LIVE and Bespoke enquiries |
+| `POST /api/crm/operations` | `ACKNOWLEDGE` a queue item; `ENQUIRY_STATUS` |
+| `POST /api/crm/order-action` | Staff actions (state-checked, audited, idempotent emails) |
+| `GET /api/crm/automation-events` | Automation-ready events, two cursors |
+
+Public (same-origin, rate-limited, token in body):
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/order-progress` `{token}` | Customer progress page |
+| `POST /api/order-approval` `{token, action}` | View / approve / request changes |
+| `POST /api/order-support` `{token, kind, item?, priorityReplacement?, description}` | Report a problem or ask a question |
+| `POST /api/live/enquiry` | MCB LIVE enquiry → `LIVE-YYYY-XXXXXX` |

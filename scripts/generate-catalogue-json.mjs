@@ -4,6 +4,7 @@
  *   public/api/data/catalogue.json   from src/data/catalogue/
  *   public/api/data/legal.json       from src/data/legal/
  *   public/api/data/personalisation.json  limits, occasions, styles, countries
+ *   public/api/data/operations.json  post-payment states, revisions, templates
  *
  * The TypeScript catalogue is the only place a price is defined. PHP reads
  * this projection of it at request time and never holds a second price table.
@@ -29,6 +30,7 @@ const TARGETS = {
   catalogue: join(root, "public/api/data/catalogue.json"),
   legal: join(root, "public/api/data/legal.json"),
   personalisation: join(root, "public/api/data/personalisation.json"),
+  operations: join(root, "public/api/data/operations.json"),
 };
 
 const fail = (message) => {
@@ -54,6 +56,7 @@ try {
       join(root, "src/data/occasions.ts"),
       join(root, "src/data/musicStyles.ts"),
       join(root, "src/data/countries.ts"),
+      join(root, "src/data/operations.ts"),
       "--outDir", tmp,
       "--rootDir", join(root, "src/data"),
       "--module", "esnext",
@@ -92,6 +95,7 @@ const rules = await import(pathToFileURL(join(tmp, "personalisationRules.js")).h
 const occasions = await import(pathToFileURL(join(tmp, "occasions.js")).href);
 const musicStyles = await import(pathToFileURL(join(tmp, "musicStyles.js")).href);
 const countries = await import(pathToFileURL(join(tmp, "countries.js")).href);
+const operations = await import(pathToFileURL(join(tmp, "operations.js")).href);
 rmSync(tmp, { recursive: true, force: true });
 
 const { PRODUCTS, ORDER_LIMITS, PRIORITY_REPLACEMENT_SKU, validateCatalogue } = catalogue;
@@ -232,10 +236,42 @@ const personalisationOut = {
   countries: Object.fromEntries(countries.COUNTRIES.map((country) => [country.code, country.name])),
 };
 
+/* ------------------------------------------------------------------ */
+/* operations.json                                                     */
+/* ------------------------------------------------------------------ */
+
+for (const id of Object.keys(operations.INCLUDED_REVISIONS)) {
+  if (!products[id] || !products[id].revisions) fail(`included revisions for ${id} have no approved catalogue wording`);
+}
+for (const id of Object.keys(operations.CREATIVE_TARGET_HOURS)) {
+  if (!products[id] || !products[id].turnaround) fail(`creative target for ${id} has no approved turnaround`);
+}
+
+const operationsOut = {
+  _generated: "Do not edit. Generated from src/data/operations.ts by scripts/generate-catalogue-json.mjs",
+  states: operations.OPERATIONAL_STATES.map((s) => ({ state: s.state, workflows: [...s.workflows], next_action: s.nextAction })),
+  included_revisions: Object.fromEntries(
+    Object.entries(operations.INCLUDED_REVISIONS).map(([id, r]) => [id, { count: r.count, per: r.per }])
+  ),
+  customer_stages: Object.fromEntries(
+    Object.entries(operations.CUSTOMER_STAGES).map(([w, stages]) => [w, stages.map((s) => ({ id: s.id, states: [...s.states] }))])
+  ),
+  creative_target_hours: { ...operations.CREATIVE_TARGET_HOURS },
+  priority_replacement_claim_window_days: operations.PRIORITY_REPLACEMENT_CLAIM_WINDOW_DAYS,
+  lifecycle_templates: Object.fromEntries(
+    operations.LIFECYCLE_TEMPLATES.map((t) => [t.type, { trigger: t.trigger, auto_send: t.autoSend, workflows: [...t.workflows] }])
+  ),
+  automation_events: [...operations.AUTOMATION_EVENTS],
+  queue_kinds: Object.fromEntries(
+    Object.entries(operations.QUEUE_KINDS).map(([k, v]) => [k, { label: v.label, priority: v.priority }])
+  ),
+};
+
 const outputs = [
   [TARGETS.catalogue, JSON.stringify(catalogueOut, null, 2) + "\n"],
   [TARGETS.legal, JSON.stringify(legalOut, null, 2) + "\n"],
   [TARGETS.personalisation, JSON.stringify(personalisationOut, null, 2) + "\n"],
+  [TARGETS.operations, JSON.stringify(operationsOut, null, 2) + "\n"],
 ];
 
 if (checkOnly) {
@@ -243,7 +279,7 @@ if (checkOnly) {
   if (stale.length > 0) {
     fail(`generated data is out of date: ${stale.map(([p]) => p.replace(root + "/", "")).join(", ")}. Run npm run generate:catalogue.`);
   }
-  console.log("catalogue.json, legal.json and personalisation.json match the TypeScript sources.");
+  console.log("catalogue.json, legal.json, personalisation.json and operations.json match the TypeScript sources.");
 } else {
   for (const [path, text] of outputs) {
     mkdirSync(dirname(path), { recursive: true });
@@ -255,4 +291,5 @@ if (checkOnly) {
   );
   console.log(`legal.json generated: terms ${legal.TERMS_VERSION}`);
   console.log(`personalisation.json generated: ${countryCodes.length} countries, ${styleLabels.length} styles`);
+  console.log(`operations.json generated: ${operationsOut.states.length} states, ${operationsOut.automation_events.length} automation events`);
 }

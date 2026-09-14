@@ -226,6 +226,8 @@ export const PRIVACY_SECTIONS: readonly PrivacySection[] = [
     body: [
       "When you order: your name, email address, a phone number if you give one, a delivery address for anything physical, and the story and details you send us so we can create your work. If you upload photographs or artwork, those too.",
       "When you enquire about a Bespoke commission: your contact details, the occasion, what you would like to spend, and what you tell us about the person it is for.",
+      "When you enquire about MCB LIVE: your contact details, the kind of event, its date and location, the performer and length of performance you are interested in, an approximate budget if you give one, and anything else you tell us about the event.",
+      "After you order: if you ask for changes to your music, or report a problem or ask a question from your private order page, what you write to us.",
       "When you simply visit: the pages you look at, and technical information your browser sends, including your IP address.",
     ],
   },
@@ -248,7 +250,8 @@ export const PRIVACY_SECTIONS: readonly PrivacySection[] = [
     body: [
       "Alongside the order itself we record which version of our terms you accepted and when, so that both of us can establish later what was agreed. That record includes a one-way scrambled form of your IP address and your browser's description of itself.",
       "We use the same scrambled form of an IP address to stop the site being flooded with automated submissions. It cannot be turned back into an address.",
-      "We also record where your commission has got to, and when we sent you an email about it.",
+      "We also record where your commission has got to, when we sent you an email about it, and — for a physical order — the carrier and tracking details we entered when it was sent.",
+      "The links we send you to follow your order and to approve your music are private. We do not store the links themselves — our server can only recreate one with a secret key kept outside the database — and we can switch a link off at any time.",
     ],
   },
   {

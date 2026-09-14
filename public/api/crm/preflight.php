@@ -98,8 +98,26 @@ try {
     $add('sprint4_migration_applied', 'FAIL', 'The database could not be checked.');
 }
 
+try {
+    $tables = db()->query(
+        "SELECT COUNT(*) FROM information_schema.tables
+          WHERE table_schema = DATABASE()
+            AND table_name IN ('order_access_tokens','order_change_requests','order_service_requests','order_staff_notes',
+                               'operations_acknowledgements','live_enquiries','operations_events','rate_limit_hits')"
+    )->fetchColumn();
+    $add('sprint5_migration_applied', (int) $tables === 8 ? 'PASS' : 'FAIL',
+        'db/migrations/2026-09-14-sprint5-operations.sql must be applied (after a backup).');
+} catch (PDOException $e) {
+    error_log('MCB preflight: database check failed: ' . $e->getMessage());
+    $add('sprint5_migration_applied', 'FAIL', 'The database could not be checked.');
+}
+
+// Customer approval and progress links are HMACs under token_secret.
+$add('customer_links_secret', strlen((string) mcb_setting('token_secret', '')) >= 32 ? 'PASS' : 'FAIL',
+    'token_secret must be at least 32 random characters: customer approval and order links depend on it.');
+
 // ---- Generated data ------------------------------------------------------------
-foreach (['catalogue.json', 'legal.json', 'personalisation.json'] as $file) {
+foreach (['catalogue.json', 'legal.json', 'personalisation.json', 'operations.json'] as $file) {
     $add('data_' . basename($file, '.json'), is_readable(__DIR__ . '/../data/' . $file) ? 'PASS' : 'FAIL', "api/data/{$file} must be deployed with the build.");
 }
 

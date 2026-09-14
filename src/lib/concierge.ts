@@ -169,6 +169,8 @@ export interface ConciergeEnquiry {
   phone: string;
   preferredContact: ContactMethod;
   occasion: string;
+  /** What they would like MCB to create, in their own words. Optional. */
+  createRequest: string;
   /** ISO `YYYY-MM-DD`, or empty. Empty is a real answer: "not fixed yet". */
   neededBy: string;
   /** A country or city. Never a full delivery address — see the endpoint. */
@@ -192,6 +194,7 @@ export const EMPTY_ENQUIRY: ConciergeEnquiry = {
   phone: "",
   preferredContact: "EMAIL",
   occasion: "",
+  createRequest: "",
   neededBy: "",
   deliveryRegion: "",
   // Nothing is preselected. A default here would put an answer in the
@@ -303,6 +306,7 @@ const enquiryPayload = (
   phone: enquiry.phone.trim(),
   preferredContact: enquiry.preferredContact,
   occasion: enquiry.occasion.trim(),
+  ...(enquiry.createRequest.trim() ? { createRequest: enquiry.createRequest.trim() } : {}),
   neededBy: enquiry.neededBy,
   deliveryRegion: enquiry.deliveryRegion.trim(),
   // Validation has already refused a null budget, so this is a real mode.
@@ -335,6 +339,7 @@ const FIELD_ALIASES: Record<string, keyof EnquiryErrors> = {
   email: "email",
   phone: "phone",
   occasion: "occasion",
+  createRequest: "createRequest",
   neededBy: "neededBy",
   deliveryRegion: "deliveryRegion",
   budgetAmount: "budgetAmount",
@@ -368,11 +373,13 @@ export const submitEnquiry = async (
   if (!response.ok) {
     const body = (payload ?? {}) as {
       message?: string;
+      fields?: Record<string, string>;
       errors?: Record<string, string>;
     };
 
+    // The server's validator reports `fields`; `errors` is kept for safety.
     const fields: EnquiryErrors = {};
-    for (const [field, message] of Object.entries(body.errors ?? {})) {
+    for (const [field, message] of Object.entries(body.fields ?? body.errors ?? {})) {
       const mapped = FIELD_ALIASES[field];
       if (mapped) fields[mapped] = message;
     }

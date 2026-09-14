@@ -51,15 +51,16 @@ Retention and deletion of photos are **not yet decided** (see the privacy item i
 | `resend.api_url`, `resend.test_mode_send_to_customer` | absent | `resend_test_overrides_off` |
 | `app.site_origin` | `https://www.mycustombeats.com` | `site_origin_https` |
 | `app.debug` | `false` | `debug_off` |
-| `token_secret` | 32+ random characters | `token_secret_strong` |
+| `token_secret` | 32+ random characters (customer approval and order links are HMACs under it; changing it invalidates every link already sent) | `token_secret_strong`, `customer_links_secret` |
+| `operations.*` | see `docs/OPERATIONS-RUNBOOK.md` §10; defaults are safe | — |
 
 ## 3. Database
 
-Back up, then apply `db/migrations/2026-09-14-sprint4-order-persistence.sql` (and any earlier migration not yet applied). Check: `sprint4_migration_applied`.
+Back up, then apply `db/migrations/2026-09-14-sprint4-order-persistence.sql` and `db/migrations/2026-09-14-sprint5-operations.sql` (and any earlier migration not yet applied), in date order. Checks: `sprint4_migration_applied`, `sprint5_migration_applied`.
 
 ## 4. Deployed files
 
-- Deploy a fresh `npm run build` of the approved commit. `api/data/catalogue.json`, `legal.json` and `personalisation.json` must be present (`data_*` checks).
+- Deploy a fresh `npm run build` of the approved commit. `api/data/catalogue.json`, `legal.json`, `personalisation.json` and `operations.json` must be present (`data_*` checks).
 - `api/stripe/webhook-test.php` must not exist (`legacy_webhook_copy_absent`); it was removed from the repository in Sprint 4.2.
 
 ## 5. Stripe Dashboard (manual)

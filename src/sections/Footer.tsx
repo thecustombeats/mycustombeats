@@ -30,6 +30,7 @@ const GROUPS: readonly { title: string; links: readonly FooterLink[] }[] = [
       { to: "/cruise", label: "Cruise memories" },
       { to: "/occasions", label: "Occasions" },
       { to: "/priority-replacement", label: "Priority Replacement" },
+      { to: "/blog", label: "Blog" },
     ],
   },
   {
