@@ -459,6 +459,7 @@ tc "→ metadata carries machine ids only, no story or contact" "$(sent_field me
 tc "A8. the cruise companion never reaches Stripe" "$(last_params | grep -qi 'husband' && echo 0 || echo 1)"
 tc "23. → the order is still PENDING after session creation" "$([ "$(q "SELECT status FROM orders WHERE id=$MULTI_OID")" = "PENDING" ] && echo 1 || echo 0)"
 tc "C2. Stripe is NOT asked to collect a second shipping address" "$(last_params | grep -q 'shipping_address_collection' && echo 0 || echo 1)"
+tc "C3. Stripe Adaptive Pricing is OFF: the customer pays the saved GBP amount, never a converted currency" "$(last_params | python3 -c 'import json,sys;p=json.loads(sys.stdin.read())["params"];print(1 if p.get("adaptive_pricing",{}).get("enabled")=="false" else 0)')"
 tc "C3.  → and no country allowlist can block an international customer" "$(last_params | grep -q 'allowed_countries' && echo 0 || echo 1)"
 tc "C4. MCB's own delivery address is still collected and stored" "$(grep -q 'INSERT INTO delivery_addresses' public/api/order.php && echo 1 || echo 0)"
 tc "C5. automatic tax remains off, so amount_total equals the saved total" "$(last_params | grep -q 'automatic_tax' && echo 0 || echo 1)"

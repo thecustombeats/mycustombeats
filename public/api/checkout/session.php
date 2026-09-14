@@ -250,6 +250,15 @@ $lineItems = array_map(static fn (array $line): array => [
 
 $params = [
     'mode'                => 'payment',
+    /**
+     * GBP ONLY. Stripe's Adaptive Pricing otherwise offers the customer their
+     * local currency (a visitor in India is shown rupees first), and a session
+     * paid in another currency reports that currency and amount — which the
+     * webhook rightly refuses to treat as payment of a GBP order, leaving it
+     * under review. The site says payment is taken in GBP; this makes it so.
+     * Found in the Stripe TEST-mode rehearsal, not by the stub.
+     */
+    'adaptive_pricing'    => ['enabled' => false],
     // {CHECKOUT_SESSION_ID} is substituted by Stripe; /thank-you needs it.
     'success_url'         => $origin . '/thank-you?session_id={CHECKOUT_SESSION_ID}',
     // Back to the order's Review step, which offers to resume payment for the

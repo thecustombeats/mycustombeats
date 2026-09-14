@@ -193,6 +193,7 @@ GSID=$(jget id)
 tc "  → a Stripe session id and https URL come back" "$(echo "$GSID" | grep -qE '^cs_test_' && jget url | grep -q '^https://' && echo 1 || echo 0)"
 PARAMS=$(last_params)
 tc "  → Stripe was sent one GBP line of 1500 and no delivery" "$(echo "$PARAMS" | python3 -c 'import json,sys;p=json.loads(sys.stdin.read())["params"];li=p["line_items"];print(1 if len(li)==1 and li[0]["price_data"]["unit_amount"]=="1500" and li[0]["price_data"]["currency"]=="gbp" and "shipping_options" not in p else 0)')"
+tc "  → Adaptive Pricing off: Stripe may not offer another currency" "$(echo "$PARAMS" | python3 -c 'import json,sys;p=json.loads(sys.stdin.read())["params"];print(1 if p.get("adaptive_pricing",{}).get("enabled")=="false" else 0)')"
 tc "  → metadata holds operational identifiers ONLY" "$(echo "$PARAMS" | python3 -c 'import json,sys;p=json.loads(sys.stdin.read())["params"];print(1 if set(p["metadata"])=={"mcb_order_id","mcb_basket_hash","mcb_checkout"} else 0)')"
 tc "  → no story, recipient or address anywhere in what Stripe was sent" "$(echo "$PARAMS" | grep -qiE 'Sinatra|captain|Motown|Dad|Harbour|Southampton' && echo 0 || echo 1)"
 tc "  → success URL uses {CHECKOUT_SESSION_ID}; cancel returns to Review, no order data" "$(echo "$PARAMS" | python3 -c 'import json,sys;p=json.loads(sys.stdin.read())["params"];print(1 if p["success_url"].endswith("/thank-you?session_id={CHECKOUT_SESSION_ID}") and p["cancel_url"]=="http://localhost:8080/create?step=review&checkout=cancelled" else 0)')"
