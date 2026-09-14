@@ -18,17 +18,18 @@ tc() { # tc "name" condition_result
   if [ "$ok" = "1" ]; then printf "  PASS  %-58s\n" "$name"; PASS=$((PASS+1));
   else printf "  FAIL  %-58s\n" "$name"; FAIL=$((FAIL+1)); FAILED+=("$name"); fi
 }
-# ---- Sprint 8: orders now require consent evidence ---------------------
+# ---- Orders require consent evidence ------------------------------------
 #
 # `POST /api/order` refuses an order that does not carry the acknowledgements
 # it requires. Every assertion below that creates an order in order to test
-# something else — attribution, references, baskets, webhooks — would otherwise
-# fail on a consent field it was never written to exercise.
+# something else — attribution, references, webhooks — would otherwise fail on
+# a consent field it was never written to exercise.
 #
 # So `post order` splices a full consent block into any body that does not
 # already carry one. `post_raw` sends exactly what it is given, for the tests
 # that ARE about consent.
 CONSENT_BLOCK='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2026-09-09.4","cruiseCompanions":"My husband David"'
+ADDR='"shippingName":"Test Recipient","shippingAddress":"1 Test St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom"'
 
 with_consent() {
   case "$1" in
@@ -38,7 +39,23 @@ with_consent() {
   esac
 }
 
-post_raw() { curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$2"; }
+# ---- Canonical catalogue ----------------------------------------------
+#
+# Every expected amount is READ from the generated server catalogue, never
+# typed, so a fixture cannot pin a price. checkout-acceptance.sh separately
+# asserts that the catalogue carries the authorised numbers.
+CATALOGUE=public/api/data/catalogue.json
+price() { python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["skus"][sys.argv[2]]["price_minor"])' "$CATALOGUE" "$1"; }
+dec()   { python3 -c 'import sys;m=int(sys.argv[1]);print("%d.%02d"%(m//100,m%100))' "$1"; }
+# Every order POST needs an Idempotency-Key. A fresh random one per call
+# unless the test sets IDEM itself.
+idem()  { echo "test-$(openssl rand -hex 16)"; }
+line()  { printf '"lines":[{"sku":"%s","quantity":%s}]' "$1" "${2:-1}"; }
+
+post_raw() {
+  local key="${IDEM:-$(idem)}"
+  curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -H "Idempotency-Key: $key" -d "$2"
+}
 post() {
   local ep="$1" data="$2"
   [ "$ep" = "order" ] && data="$(with_consent "$data")"
@@ -50,59 +67,66 @@ q() { docker exec mcb-db mariadb -umcb -ptestpass -N -B -e "$1" mcb_crm 2>/dev/n
 
 # ---- The order endpoint is rate limited -------------------------------
 #
-# `POST /api/order` gained a limit of ten orders an hour per source in the
-# final release hardening — it was the only unauthenticated write surface in
-# the API without one. It counts rows in `order_consents`, keyed on the salted
-# IP hash, because that table already carries the hash and gets exactly one row
-# per successful order.
-#
-# These suites place far more than ten orders from a single address, so the
-# attribution is released before each one — the same device already used for
-# the concierge limiter. The rows themselves are untouched; only their
-# rate-limit attribution is, and no assertion anywhere reads that column.
-#
-# That the limiter still fires is proved deliberately, once, in
-# tests/hardening-acceptance.sh.
-# What Stripe would report for this order: its stored total in pence. Derived
-# from the order rather than typed, so a fixture never pins a catalogue price.
-order_minor() { q "SELECT CAST(ROUND((o.amount_gbp + COALESCE((SELECT SUM(i.line_gbp) FROM order_items i WHERE i.order_id=o.id),0))*100) AS UNSIGNED) FROM orders o WHERE o.id=$1"; }
+# Ten orders an hour per source, counted on `order_consents.ip_hash`. These
+# suites place far more than ten orders from one address, so the attribution
+# is released before each one. That the limiter still fires is proved
+# deliberately, once, in tests/hardening-acceptance.sh.
 release_order_limit() { q "UPDATE order_consents SET ip_hash = NULL" >/dev/null 2>&1; }
+# What Stripe would report for this order: the server's saved total in pence.
+order_minor() { q "SELECT total_minor FROM orders WHERE id=$1"; }
+# A realistic paid Checkout Session event. $1 event id, $2 session id, $3 order id.
+paid_event() {
+  printf '{"id":"%s","type":"checkout.session.completed","data":{"object":{"id":"%s","client_reference_id":"%s","payment_intent":"pi_%s","payment_status":"paid","amount_total":%s,"currency":"gbp"}}}' \
+    "$1" "$2" "$3" "$2" "$(order_minor "$3")"
+}
+
+MOMENT=$(price moment)
 
 echo "================ ORDER API ================"
 
 # --- digital order, no address required
-S=$(post order '{"firstName":"Ada","lastName":"Lovelace","email":"ada@example.com","whatsapp":"+447000000001","package":"moment","format":"mp3","story":"A song for my father."}')
-t "digital order (Moment+MP3) accepted" 201 "$S"
+S=$(post order '{"firstName":"Ada","lastName":"Lovelace","email":"ada@example.com","whatsapp":"+447000000001",'"$(line moment)"',"story":"A song for my father."}')
+t "digital order (Moment) accepted" 201 "$S"
 OID=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "  → fulfilment_type derived DIGITAL server-side" "$([ "$(body | grep -c '"fulfilment_type":"DIGITAL"')" = "1" ] && echo 1 || echo 0)"
 tc "  → source_type derived DIRECT" "$([ "$(body | grep -c '"source_type":"DIRECT"')" = "1" ] && echo 1 || echo 0)"
 tc "  → order persisted as PENDING" "$([ "$(q "SELECT status FROM orders WHERE id=$OID")" = "PENDING" ] && echo 1 || echo 0)"
 tc "  → no delivery address row created" "$([ "$(q "SELECT COUNT(*) FROM delivery_addresses WHERE order_id=$OID")" = "0" ] && echo 1 || echo 0)"
-tc "  → amount taken from server package data (10.00)" "$([ "$(q "SELECT amount_gbp FROM orders WHERE id=$OID")" = "10.00" ] && echo 1 || echo 0)"
+tc "  → total_minor taken from the catalogue ($MOMENT)" "$([ "$(q "SELECT total_minor FROM orders WHERE id=$OID")" = "$MOMENT" ] && echo 1 || echo 0)"
+tc "  → amount_gbp is the same total as a decimal" "$([ "$(q "SELECT amount_gbp FROM orders WHERE id=$OID")" = "$(dec $MOMENT)" ] && echo 1 || echo 0)"
+tc "  → no USD figure recorded, no format" "$([ "$(q "SELECT CONCAT(IFNULL(amount_usd,'NULL'),'|',IFNULL(format,'NULL')) FROM orders WHERE id=$OID")" = "NULL|NULL" ] && echo 1 || echo 0)"
+tc "  → response carries the priced line and total" "$(body | grep -q "\"total_minor\":$MOMENT" && body | grep -q "\"sku\":\"moment\",\"quantity\":1,\"unit_minor\":$MOMENT" && echo 1 || echo 0)"
+tc "  → a 64-hex checkout token is issued, stored only as a hash" "$(TOK=$(body | sed -n 's/.*"checkout_token":"\([a-f0-9]*\)".*/\1/p'); [ ${#TOK} = 64 ] && [ "$(q "SELECT checkout_token_hash = SHA2('$TOK',256) FROM orders WHERE id=$OID")" = "1" ] && echo 1 || echo 0)"
+tc "  → the song experience is itself an order_items line" "$([ "$(q "SELECT CONCAT(item_id,'|',product_id,'|',category,'|',fulfilment,'|',unit_minor) FROM order_items WHERE order_id=$OID")" = "moment|moment|SONG_EXPERIENCE|DIGITAL|$MOMENT" ] && echo 1 || echo 0)"
 
 # --- physical order without address
-S=$(post order '{"firstName":"Grace","lastName":"Hopper","email":"grace@example.com","whatsapp":"+447000000002","package":"journey","format":"vinyl","story":"Our trip."}')
+S=$(post order '{"firstName":"Grace","lastName":"Hopper","email":"grace@example.com","whatsapp":"+447000000002",'"$(line journey-6)"',"story":"Our trip."}')
 t "physical order REJECTED without address" 422 "$S"
 tc "  → names the missing address fields" "$([ "$(body | grep -c 'shippingAddress')" -ge 1 ] && echo 1 || echo 0)"
 
 # --- physical order with complete address
-S=$(post order '{"firstName":"Grace","lastName":"Hopper","email":"grace@example.com","whatsapp":"+447000000002","package":"journey","format":"vinyl","shippingName":"Grace Hopper","shippingAddress":"1 Navy Yard","shippingAddress2":"Flat 2","shippingCity":"London","shippingState":"Greater London","shippingPostcode":"SW1A 1AA","shippingCountry":"United Kingdom","story":"Our trip."}')
+S=$(post order '{"firstName":"Grace","lastName":"Hopper","email":"grace@example.com","whatsapp":"+447000000002",'"$(line journey-6)"',"shippingName":"Grace Hopper","shippingAddress":"1 Navy Yard","shippingAddress2":"Flat 2","shippingCity":"London","shippingState":"Greater London","shippingPostcode":"SW1A 1AA","shippingCountry":"United Kingdom","story":"Our trip."}')
 t "physical order accepted WITH address" 201 "$S"
 OID2=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "  → fulfilment_type derived PHYSICAL" "$([ "$(q "SELECT fulfilment_type FROM orders WHERE id=$OID2")" = "PHYSICAL" ] && echo 1 || echo 0)"
 tc "  → delivery address stored" "$([ "$(q "SELECT COUNT(*) FROM delivery_addresses WHERE order_id=$OID2")" = "1" ] && echo 1 || echo 0)"
 tc "  → address_line_2 + state captured" "$([ "$(q "SELECT CONCAT(address_line_2,'|',state_region) FROM delivery_addresses WHERE order_id=$OID2")" = "Flat 2|Greater London" ] && echo 1 || echo 0)"
+tc "  → orders.package is the song experience's product id" "$([ "$(q "SELECT package FROM orders WHERE id=$OID2")" = "journey" ] && echo 1 || echo 0)"
 
-# --- invalid combinations
-t "invalid package rejected" 422 "$(post order '{"firstName":"A","lastName":"B","email":"x@example.com","package":"platinum","format":"mp3"}')"
-t "invalid format rejected" 422 "$(post order '{"firstName":"A","lastName":"B","email":"x@example.com","package":"keepsake","format":"betamax"}')"
-t "invalid package/format combo rejected (Journey+MP3)" 422 "$(post order '{"firstName":"A","lastName":"B","email":"x@example.com","package":"journey","format":"mp3"}')"
-t "invalid combo rejected (Moment+Vinyl)" 422 "$(post order '{"firstName":"A","lastName":"B","email":"x@example.com","package":"moment","format":"vinyl"}')"
-t "missing required customer fields rejected" 422 "$(post order '{"package":"moment","format":"mp3"}')"
-t "invalid email rejected" 422 "$(post order '{"firstName":"A","lastName":"B","email":"not-an-email","package":"moment","format":"mp3"}')"
+# --- invalid requests
+t "unknown SKU rejected" 422 "$(post order '{"firstName":"A","lastName":"B","email":"x@example.com",'"$(line platinum)"'}')"
+tc "  → as unknown_sku" "$(body | grep -q '"error":"unknown_sku"' && echo 1 || echo 0)"
+t "legacy package/format body (no lines) rejected" 422 "$(post order '{"firstName":"A","lastName":"B","email":"x@example.com","package":"moment","format":"mp3"}')"
+tc "  → as invalid_lines, never silently priced" "$(body | grep -q '"error":"invalid_lines"' && echo 1 || echo 0)"
+t "empty lines rejected" 422 "$(post order '{"firstName":"A","lastName":"B","email":"x@example.com","lines":[]}')"
+t "lines as an object, not a list, rejected" 422 "$(post order '{"firstName":"A","lastName":"B","email":"x@example.com","lines":{"sku":"moment","quantity":1}}')"
+t "missing required customer fields rejected" 422 "$(post order '{'"$(line moment)"'}')"
+t "invalid email rejected" 422 "$(post order '{"firstName":"A","lastName":"B","email":"not-an-email",'"$(line moment)"'}')"
+t "missing Idempotency-Key rejected" 400 "$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$(with_consent '{"firstName":"A","lastName":"B","email":"nokey@example.com",'"$(line moment)"'}')")"
+tc "  → as idempotency_key_required" "$(body | grep -q '"error":"idempotency_key_required"' && echo 1 || echo 0)"
 
 # --- customer deduplication
-S=$(post order '{"firstName":"Ada","lastName":"Lovelace","email":"ada@example.com","whatsapp":"+447000000001","package":"keepsake","format":"cd","shippingName":"Ada L","shippingAddress":"2 Analytical St","shippingCity":"London","shippingPostcode":"E1 6AN","shippingCountry":"UK","story":"Second order."}')
+S=$(post order '{"firstName":"Ada","lastName":"Lovelace","email":"ada@example.com","whatsapp":"+447000000001",'"$(line keepsake-10-picture-disc)"',"shippingName":"Ada L","shippingAddress":"2 Analytical St","shippingCity":"London","shippingPostcode":"E1 6AN","shippingCountry":"UK","story":"Second order."}')
 t "same customer can place a second order" 201 "$S"
 tc "  → customer deduplicated on email (1 row)" "$([ "$(q "SELECT COUNT(*) FROM customers WHERE email='ada@example.com'")" = "1" ] && echo 1 || echo 0)"
 tc "  → that customer now has 2 orders" "$([ "$(q "SELECT COUNT(*) FROM orders o JOIN customers c ON c.id=o.customer_id WHERE c.email='ada@example.com'")" = "2" ] && echo 1 || echo 0)"
@@ -134,25 +158,25 @@ tc "  → no click row created for unknown ref" "$([ "$(q "SELECT COUNT(*) FROM 
 echo ""
 echo "================ ATTRIBUTION ================"
 
-S=$(post order '{"firstName":"Finn","lastName":"Storm","email":"finn@example.com","whatsapp":"+447000000003","package":"moment","format":"mp3","referral":"rey123","story":"Referred order."}')
+S=$(post order '{"firstName":"Finn","lastName":"Storm","email":"finn@example.com","whatsapp":"+447000000003",'"$(line moment)"',"referral":"rey123","story":"Referred order."}')
 t "order with referral accepted" 201 "$S"
 OID3=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "  → source_type resolved to AFFILIATE server-side" "$([ "$(q "SELECT source_type FROM orders WHERE id=$OID3")" = "AFFILIATE" ] && echo 1 || echo 0)"
 tc "  → affiliate_id resolved from username" "$([ "$(q "SELECT a.username FROM orders o JOIN affiliates a ON a.id=o.affiliate_id WHERE o.id=$OID3")" = "rey123" ] && echo 1 || echo 0)"
 tc "  → referral_raw retained for audit" "$([ "$(q "SELECT referral_raw FROM orders WHERE id=$OID3")" = "rey123" ] && echo 1 || echo 0)"
 
-# --- browser cannot force attribution
+# --- browser cannot force attribution, status or amount
 AID=$(q "SELECT id FROM affiliates WHERE username='rey123'")
-S=$(post order "{\"firstName\":\"Mal\",\"lastName\":\"Actor\",\"email\":\"mal@example.com\",\"package\":\"moment\",\"format\":\"mp3\",\"affiliate_id\":$AID,\"partner_id\":1,\"source_type\":\"AFFILIATE\",\"status\":\"PAID\",\"amount_gbp\":0.01}")
+S=$(post order "{\"firstName\":\"Mal\",\"lastName\":\"Actor\",\"email\":\"mal@example.com\",\"lines\":[{\"sku\":\"moment\",\"quantity\":1,\"unit_minor\":1,\"price_minor\":1}],\"affiliate_id\":$AID,\"partner_id\":1,\"source_type\":\"AFFILIATE\",\"status\":\"PAID\",\"amount_gbp\":0.01,\"total_minor\":1}")
 t "browser-supplied attribution fields accepted but ignored" 201 "$S"
 OID4=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "  → affiliate_id NOT set from browser input" "$([ "$(q "SELECT IFNULL(affiliate_id,'null') FROM orders WHERE id=$OID4")" = "null" ] && echo 1 || echo 0)"
 tc "  → source_type forced to DIRECT" "$([ "$(q "SELECT source_type FROM orders WHERE id=$OID4")" = "DIRECT" ] && echo 1 || echo 0)"
 tc "  → status forced to PENDING (not browser's PAID)" "$([ "$(q "SELECT status FROM orders WHERE id=$OID4")" = "PENDING" ] && echo 1 || echo 0)"
-tc "  → amount from server data, not browser's 0.01" "$([ "$(q "SELECT amount_gbp FROM orders WHERE id=$OID4")" = "10.00" ] && echo 1 || echo 0)"
+tc "  → total from the catalogue, not the browser's 1p" "$([ "$(q "SELECT total_minor FROM orders WHERE id=$OID4")" = "$MOMENT" ] && [ "$(q "SELECT amount_gbp FROM orders WHERE id=$OID4")" = "$(dec $MOMENT)" ] && echo 1 || echo 0)"
 
 # --- unknown referral
-S=$(post order '{"firstName":"Poe","lastName":"D","email":"poe@example.com","package":"moment","format":"mp3","referral":"ghostaffiliate"}')
+S=$(post order '{"firstName":"Poe","lastName":"D","email":"poe@example.com",'"$(line moment)"',"referral":"ghostaffiliate"}')
 OID5=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "unknown referral → DIRECT, not credited" "$([ "$(q "SELECT source_type FROM orders WHERE id=$OID5")" = "DIRECT" ] && echo 1 || echo 0)"
 tc "  → but referral_raw kept for provenance" "$([ "$(q "SELECT referral_raw FROM orders WHERE id=$OID5")" = "ghostaffiliate" ] && echo 1 || echo 0)"
@@ -161,7 +185,7 @@ echo ""
 echo "================ PARTNER ================"
 tc "partners table seeded EMPTY (no fake companies)" "$([ "$(q "SELECT COUNT(*) FROM partners")" = "0" ] && echo 1 || echo 0)"
 q "INSERT INTO partners (slug,name,active) VALUES ('ritz-carlton-yacht-collection','Ritz-Carlton Yacht Collection',1)" >/dev/null
-S=$(post order '{"firstName":"Guest","lastName":"Aboard","email":"guest@example.com","package":"keepsake","format":"mp3","partner":"ritz-carlton-yacht-collection","story":"Cruise memory."}')
+S=$(post order '{"firstName":"Guest","lastName":"Aboard","email":"guest@example.com",'"$(line moment)"',"partner":"ritz-carlton-yacht-collection","story":"Cruise memory."}')
 t "partner-attributed order accepted" 201 "$S"
 OID6=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "  → source_type PARTNER" "$([ "$(q "SELECT source_type FROM orders WHERE id=$OID6")" = "PARTNER" ] && echo 1 || echo 0)"
@@ -197,7 +221,7 @@ t "bad signature rejected" 400 "$(curl -s -o /dev/null -w '%{http_code}' -X POST
 
 SECRET=whsec_test_secret_for_local_verification
 sign() { local ts=$(date +%s); local p="$1"; local sig=$(printf '%s.%s' "$ts" "$p" | openssl dgst -sha256 -hmac "$SECRET" -hex | sed 's/.*= *//'); echo "t=$ts,v1=$sig"; }
-PAY="{\"id\":\"evt_test_001\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_test_001\",\"client_reference_id\":\"$OID3\",\"payment_intent\":\"pi_test_001\",\"amount_total\":$(order_minor $OID3),\"currency\":\"gbp\"}}}"
+PAY="{\"id\":\"evt_test_001\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_test_001\",\"client_reference_id\":\"$OID3\",\"payment_intent\":\"pi_test_001\",\"payment_status\":\"paid\",\"amount_total\":$(order_minor $OID3),\"currency\":\"gbp\"}}}"
 SALES_BEFORE=$(q "SELECT sales FROM affiliates WHERE username='rey123'")
 CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$PAY")" -H 'Content-Type: application/json' -d "$PAY")
 t "correctly signed webhook accepted" 200 "$CODE"
@@ -232,8 +256,8 @@ tc "  → replayed event did NOT reissue or change it" "$([ "$(q "SELECT mcb_ref
 tc "  → replay did NOT consume a sequence number" "$([ "$(q "SELECT last_value FROM reference_sequence WHERE year=$YEAR")" = "1" ] && echo 1 || echo 0)"
 
 # A second, DIFFERENT payment. Proves the series counts paid orders, not rows:
-# OID2 is a higher order id but takes the next reference in sequence.
-PAY2="{\"id\":\"evt_test_002\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_test_002\",\"client_reference_id\":\"$OID2\",\"payment_intent\":\"pi_test_002\",\"amount_total\":$(order_minor $OID2),\"currency\":\"gbp\"}}}"
+# OID2 is a lower order id but takes the next reference in sequence.
+PAY2="{\"id\":\"evt_test_002\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_test_002\",\"client_reference_id\":\"$OID2\",\"payment_intent\":\"pi_test_002\",\"payment_status\":\"paid\",\"amount_total\":$(order_minor $OID2),\"currency\":\"gbp\"}}}"
 CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$PAY2")" -H 'Content-Type: application/json' -d "$PAY2")
 t "a second payment is accepted" 200 "$CODE"
 REF2=$(q "SELECT mcb_reference FROM orders WHERE id=$OID2")
@@ -249,7 +273,9 @@ echo "---------------- customer lookup ----------------"
 CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' "$BASE/order-reference?session_id=cs_test_001")
 t "customer can retrieve their reference by session id" 200 "$CODE"
 tc "  → returns the reference issued to that session" "$([ "$(body | grep -c "$REF3")" = "1" ] && echo 1 || echo 0)"
-tc "  → leaks NO customer data with it" "$([ "$(body | grep -ci 'email\|name\|address\|story\|amount\|payment_intent')" = "0" ] && echo 1 || echo 0)"
+# `purchase` carries product names and integer amounts for analytics; what
+# must never appear is anything identifying the customer or the payment.
+tc "  → leaks NO customer data with it" "$([ "$(body | grep -ci 'email\|finn\|storm\|address\|story\|payment_intent\|pi_test')" = "0" ] && echo 1 || echo 0)"
 
 CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' "$BASE/order-reference?session_id=cs_test_does_not_exist")
 t "unknown session answers 200 with no reference (webhook race)" 200 "$CODE"
@@ -275,8 +301,9 @@ KEY="test_crm_key_not_real_000000000000000000000"
 SEQ_BEFORE=$(q "SELECT last_value FROM reference_sequence WHERE year=$YEAR")
 
 # THE SCENARIO: /api/order failed, so checkout carried no client_reference_id.
-# The customer paid anyway. Money exists; no order claims it.
-ORPHAN="{\"id\":\"evt_orphan_1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_orphan_001\",\"payment_intent\":\"pi_orphan_001\",\"amount_total\":4900,\"currency\":\"gbp\",\"customer_details\":{\"email\":\"orphan@example.com\",\"name\":\"Orphan Buyer\",\"phone\":\"+447000000009\"}}}}"
+# The customer paid anyway. Money exists; no order claims it. 4900 is money
+# Stripe reports, not a catalogue price — it only proves minor-unit conversion.
+ORPHAN="{\"id\":\"evt_orphan_1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_orphan_001\",\"payment_intent\":\"pi_orphan_001\",\"payment_status\":\"paid\",\"amount_total\":4900,\"currency\":\"gbp\",\"customer_details\":{\"email\":\"orphan@example.com\",\"name\":\"Orphan Buyer\",\"phone\":\"+447000000009\"}}}}"
 CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$ORPHAN")" -H 'Content-Type: application/json' -d "$ORPHAN")
 t "unclaimed payment acknowledged to Stripe" 200 "$CODE"
 tc "  → reported unmatched" "$([ "$(body | grep -c '"matched":false')" = "1" ] && echo 1 || echo 0)"
@@ -289,12 +316,12 @@ tc "  → NO order was invented for it" "$([ "$(q "SELECT COUNT(*) FROM orders W
 tc "  → NO reference was issued to a payment with no order" "$([ "$(q "SELECT last_value FROM reference_sequence WHERE year=$YEAR")" = "$SEQ_BEFORE" ] && echo 1 || echo 0)"
 
 # Stripe retries what it thinks failed. The alarm must not queue twice.
-ORPHAN2="{\"id\":\"evt_orphan_2\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_orphan_001\",\"payment_intent\":\"pi_orphan_001\",\"amount_total\":4900,\"currency\":\"gbp\",\"customer_details\":{\"email\":\"orphan@example.com\",\"name\":\"Orphan Buyer\"}}}}"
+ORPHAN2="{\"id\":\"evt_orphan_2\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_orphan_001\",\"payment_intent\":\"pi_orphan_001\",\"payment_status\":\"paid\",\"amount_total\":4900,\"currency\":\"gbp\",\"customer_details\":{\"email\":\"orphan@example.com\",\"name\":\"Orphan Buyer\"}}}}"
 curl -s -o /dev/null -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$ORPHAN2")" -H 'Content-Type: application/json' -d "$ORPHAN2"
 tc "redelivered orphan does NOT duplicate the alarm" "$([ "$(q "SELECT COUNT(*) FROM unreconciled_payments WHERE stripe_session_id='cs_orphan_001'")" = "1" ] && echo 1 || echo 0)"
 
 # A client_reference_id naming an order that does not exist.
-GHOST="{\"id\":\"evt_ghost_1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_ghost_001\",\"client_reference_id\":\"999999\",\"payment_intent\":\"pi_ghost_001\",\"amount_total\":1000,\"currency\":\"gbp\",\"customer_details\":{\"email\":\"ghost@example.com\"}}}}"
+GHOST="{\"id\":\"evt_ghost_1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_ghost_001\",\"client_reference_id\":\"999999\",\"payment_intent\":\"pi_ghost_001\",\"payment_status\":\"paid\",\"amount_total\":1000,\"currency\":\"gbp\",\"customer_details\":{\"email\":\"ghost@example.com\"}}}}"
 curl -s -o /dev/null -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$GHOST")" -H 'Content-Type: application/json' -d "$GHOST"
 tc "payment naming a NON-EXISTENT order is filed too" "$([ "$(q "SELECT reason FROM unreconciled_payments WHERE stripe_session_id='cs_ghost_001'")" = "ORDER_NOT_FOUND" ] && echo 1 || echo 0)"
 
@@ -309,7 +336,7 @@ tc "  → carries the buyer's email so they can be found" "$([ "$(body | grep -c
 echo ""
 echo "---------------- closing the loop ----------------"
 # Staff recreate the order the customer actually placed, then attach the money.
-S=$(post order '{"firstName":"Orphan","lastName":"Buyer","email":"orphan@example.com","package":"keepsake","format":"vinyl","shippingName":"Orphan Buyer","shippingAddress":"9 Recovery Rd","shippingCity":"London","shippingPostcode":"N1 1AA","shippingCountry":"UK","story":"Recovered by hand."}')
+S=$(post order '{"firstName":"Orphan","lastName":"Buyer","email":"orphan@example.com",'"$(line keepsake-12-picture-disc)"',"shippingName":"Orphan Buyer","shippingAddress":"9 Recovery Rd","shippingCity":"London","shippingPostcode":"N1 1AA","shippingCountry":"UK","story":"Recovered by hand."}')
 ROID=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 t "staff recreate the order through the normal endpoint" 201 "$S"
 tc "  → it starts PENDING with no reference" "$([ "$(q "SELECT CONCAT(status,'|',IFNULL(mcb_reference,'NULL')) FROM orders WHERE id=$ROID")" = "PENDING|NULL" ] && echo 1 || echo 0)"
@@ -354,11 +381,11 @@ make_mode ok
 sink_reset
 
 # A brand-new paid order. The email must go out once, AFTER the commit.
-S=$(post order '{"firstName":"Nadia","lastName":"Okonkwo","email":"nadia@example.com","package":"moment","format":"mp3","story":"For my sister."}')
+S=$(post order '{"firstName":"Nadia","lastName":"Okonkwo","email":"nadia@example.com",'"$(line moment)"',"story":"For my sister."}')
 NOID=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "new order starts un-notified" "$([ "$(q "SELECT IFNULL(customer_notified_at,'NULL') FROM orders WHERE id=$NOID")" = "NULL" ] && echo 1 || echo 0)"
 
-NPAY="{\"id\":\"evt_notify_1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_notify_001\",\"client_reference_id\":\"$NOID\",\"payment_intent\":\"pi_notify_001\",\"amount_total\":$(order_minor $NOID),\"currency\":\"gbp\"}}}"
+NPAY="{\"id\":\"evt_notify_1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_notify_001\",\"client_reference_id\":\"$NOID\",\"payment_intent\":\"pi_notify_001\",\"payment_status\":\"paid\",\"amount_total\":$(order_minor $NOID),\"currency\":\"gbp\"}}}"
 CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$NPAY")" -H 'Content-Type: application/json' -d "$NPAY")
 t "payment accepted" 200 "$CODE"
 tc "  → webhook reports the email was sent" "$([ "$(body | grep -c '\"customer_email\":\"notified\"')" = "1" ] && echo 1 || echo 0)"
@@ -367,9 +394,10 @@ NREF=$(q "SELECT mcb_reference FROM orders WHERE id=$NOID")
 tc "  → email carries the MCB reference ($NREF)" "$([ "$(sink | grep -c "$NREF")" -ge 1 ] && echo 1 || echo 0)"
 tc "  → addressed to the correct customer" "$([ "$(sink | grep -c 'nadia@example.com')" -ge 1 ] && echo 1 || echo 0)"
 tc "  → greets the customer by name" "$([ "$(sink | grep -c 'Hi Nadia Okonkwo')" -ge 1 ] && echo 1 || echo 0)"
-tc "  → shows the package by its DISPLAY name, not its id" "$([ "$(sink | grep -c 'Package: <strong>Moment\|Package: Moment')" -ge 1 ] && echo 1 || echo 0)"
-tc "  → shows the format by its DISPLAY name" "$([ "$(sink | grep -c 'MP3')" -ge 1 ] && echo 1 || echo 0)"
-tc "  → shows the amount server-formatted (£10.00)" "$([ "$(sink | grep -c '£10.00')" -ge 1 ] && echo 1 || echo 0)"
+tc "  → shows the order by its DISPLAY name, not its SKU" "$([ "$(sink | grep -c 'Your order: <strong>Moment</strong>\|Your order: Moment')" -ge 1 ] && echo 1 || echo 0)"
+tc "  → no legacy Format line for a catalogue order" "$([ "$(sink | grep -c 'Format:')" = "0" ] && echo 1 || echo 0)"
+NDISPLAY="£$(dec "$(order_minor $NOID)")"
+tc "  → shows the amount server-formatted from total_minor ($NDISPLAY)" "$([ "$(sink | grep -cF "$NDISPLAY")" -ge 1 ] && echo 1 || echo 0)"
 tc "  → states the correspondence instruction" "$([ "$(sink | grep -c 'keep this reference for all future correspondence')" -ge 1 ] && echo 1 || echo 0)"
 tc "  → includes What happens next" "$([ "$(sink | grep -c 'What happens next')" -ge 1 ] && echo 1 || echo 0)"
 tc "  → includes the MCB sign-off" "$([ "$(sink | grep -c 'The My Custom Beats Team')" -ge 1 ] && echo 1 || echo 0)"
@@ -390,10 +418,11 @@ tc "  → order recorded as notified" "$([ "$(q "SELECT customer_notified_at IS 
 curl -s -o /dev/null -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$NPAY")" -H 'Content-Type: application/json' -d "$NPAY"
 tc "REPLAYED event sends NO second email" "$([ "$(sink_count)" = "1" ] && echo 1 || echo 0)"
 
-# A different event id for the same, already-paid order.
-NPAY2="{\"id\":\"evt_notify_2\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_notify_001\",\"client_reference_id\":\"$NOID\",\"payment_intent\":\"pi_notify_001\",\"amount_total\":$(order_minor $NOID),\"currency\":\"gbp\"}}}"
+# A different event id for the same, already-paid order and the SAME session.
+NPAY2="{\"id\":\"evt_notify_2\",\"type\":\"checkout.session.async_payment_succeeded\",\"data\":{\"object\":{\"id\":\"cs_notify_001\",\"client_reference_id\":\"$NOID\",\"payment_intent\":\"pi_notify_001\",\"payment_status\":\"paid\",\"amount_total\":$(order_minor $NOID),\"currency\":\"gbp\"}}}"
 CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$NPAY2")" -H 'Content-Type: application/json' -d "$NPAY2")
 t "a second event for an already-paid order is accepted" 200 "$CODE"
+tc "  → reported already_paid (same session, not new money)" "$(body | grep -q '"outcome":"already_paid"' && echo 1 || echo 0)"
 tc "  → still only ONE email" "$([ "$(sink_count)" = "1" ] && echo 1 || echo 0)"
 tc "  → and the reference did not change" "$([ "$(q "SELECT mcb_reference FROM orders WHERE id=$NOID")" = "$NREF" ] && echo 1 || echo 0)"
 
@@ -405,9 +434,9 @@ resend_failure_case() {
   release_order_limit   # $1 = stub mode, $2 = human label, $3 = email suffix
   local mode="$1" label="$2" sfx="$3"
   make_mode "$mode"; sink_reset
-  post order "{\"firstName\":\"Case\",\"lastName\":\"$sfx\",\"email\":\"case-$sfx@example.com\",\"package\":\"moment\",\"format\":\"mp3\"}" > /dev/null
+  post order "{\"firstName\":\"Case\",\"lastName\":\"$sfx\",\"email\":\"case-$sfx@example.com\",$(line moment)}" > /dev/null
   local oid; oid=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
-  local pay="{\"id\":\"evt_$sfx\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_$sfx\",\"client_reference_id\":\"$oid\",\"payment_intent\":\"pi_$sfx\",\"amount_total\":$(order_minor $oid),\"currency\":\"gbp\"}}}"
+  local pay; pay=$(paid_event "evt_$sfx" "cs_$sfx" "$oid")
   local code; code=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$pay")" -H 'Content-Type: application/json' -d "$pay")
   t "$label: payment webhook still returns 200" 200 "$code"
   tc "  → order is PAID despite the email failing" "$([ "$(q "SELECT status FROM orders WHERE id=$oid")" = "PAID" ] && echo 1 || echo 0)"
@@ -430,9 +459,9 @@ echo ""
 echo "---------------- Resend outage ----------------"
 make_mode http_fail
 sink_reset
-S=$(post order '{"firstName":"Ivan","lastName":"Petrov","email":"ivan@example.com","package":"moment","format":"mp3"}')
+S=$(post order '{"firstName":"Ivan","lastName":"Petrov","email":"ivan@example.com",'"$(line moment)"'}')
 FOID=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
-FPAY="{\"id\":\"evt_notify_fail\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_notify_fail\",\"client_reference_id\":\"$FOID\",\"payment_intent\":\"pi_notify_fail\",\"amount_total\":$(order_minor $FOID),\"currency\":\"gbp\"}}}"
+FPAY=$(paid_event evt_notify_fail cs_notify_fail "$FOID")
 CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$FPAY")" -H 'Content-Type: application/json' -d "$FPAY")
 t "email outage does NOT fail the payment webhook" 200 "$CODE"
 tc "  → Stripe is not asked to retry" "$([ "$(body | grep -c '\"received\":true')" = "1" ] && echo 1 || echo 0)"
@@ -442,8 +471,7 @@ tc "  → outcome reported as delivery_failed" "$([ "$(body | grep -c 'delivery_
 tc "  → claim RELEASED, so the customer still shows as owed an email" "$([ "$(q "SELECT IFNULL(customer_notified_at,'NULL') FROM orders WHERE id=$FOID")" = "NULL" ] && echo 1 || echo 0)"
 
 # Recovery: Resend comes back and Stripe's replay (same event id) delivers
-# the outstanding email. This is the only route to an order that was paid
-# before the email existed, or whose email failed during an outage.
+# the outstanding email.
 make_mode ok
 sink_reset
 curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$FPAY")" -H 'Content-Type: application/json' -d "$FPAY" > /dev/null
@@ -455,38 +483,44 @@ tc "  → a further Resend does NOT email again" "$([ "$(sink_count)" = "1" ] &&
 CODE=$(curl -s -o /tmp/r.json -w '%{http_code}' "$BASE/crm/orders?status=PAID" -H "Authorization: Bearer $KEY")
 tc "CRM exposes notification state, so staff can spot who is owed one" "$([ "$(body | grep -c 'customer_notified_at')" -ge 1 ] && echo 1 || echo 0)"
 # The failure-mode cases above deliberately leave their orders PAID but
-# un-notified — that IS the behaviour under test. So the invariant is not
-# "everything is notified", it is "the only orders still owed an email are
-# the ones whose delivery we deliberately broke".
+# un-notified — that IS the behaviour under test.
 tc "  → the ONLY orders still owed an email are the deliberate failures" "$([ "$(q "SELECT COUNT(*) FROM orders o JOIN customers c ON c.id=o.customer_id WHERE o.status='PAID' AND o.customer_notified_at IS NULL AND c.email NOT LIKE 'case-%'")" = "0" ] && echo 1 || echo 0)"
 tc "  → and every one of those IS visible to staff as outstanding" "$([ "$(q "SELECT COUNT(*) FROM orders WHERE status='PAID' AND customer_notified_at IS NULL")" = "4" ] && echo 1 || echo 0)"
 
 echo ""
-echo "================ PAYMENT LINK AMOUNT FLOOR ================"
-# A Payment Link's client_reference_id is a URL parameter. Paying a cheaper
-# link against a dearer order must never mark that order PAID.
+echo "================ PAYMENT AMOUNT MUST BE EXACT (no checkout snapshot) ================"
+# A payment arriving with no MCB checkout snapshot (e.g. a Payment Link, whose
+# client_reference_id is a URL parameter) is matched against the order's saved
+# total_minor. Anything but that exact amount in GBP is refused and filed.
 make_mode ok
 release_order_limit
-S=$(post order '{"firstName":"Under","lastName":"Payer","email":"underpay@example.com","package":"keepsake","format":"mp3","story":"Floor test."}')
+S=$(post order '{"firstName":"Under","lastName":"Payer","email":"underpay@example.com",'"$(line keepsake-7-picture-disc)"','"$ADDR"',"story":"Floor test."}')
 UOID=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 UMINOR=$(order_minor $UOID)
 tc "an order exists to pay against (total ${UMINOR}p)" "$([ -n "$UOID" ] && [ "${UMINOR:-0}" -gt 1 ] && echo 1 || echo 0)"
 link_pay() { # $1 = suffix, $2 = amount/currency JSON fragment (may be empty)
-  local w="{\"id\":\"evt_floor_$1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_floor_$1\",\"client_reference_id\":\"$UOID\",\"payment_intent\":\"pi_floor_$1\"$2}}}"
+  local w="{\"id\":\"evt_floor_$1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_floor_$1\",\"client_reference_id\":\"$UOID\",\"payment_intent\":\"pi_floor_$1\",\"payment_status\":\"paid\"$2}}}"
   curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Stripe-Signature: $(sign "$w")" -H 'Content-Type: application/json' -d "$w"
 }
-t "underpaid link payment acknowledged to Stripe" 200 "$(link_pay under ",\"amount_total\":$((UMINOR-1)),\"currency\":\"gbp\"")"
+t "underpaid payment acknowledged to Stripe" 200 "$(link_pay under ",\"amount_total\":$((UMINOR-1)),\"currency\":\"gbp\"")"
 tc "  → reported as amount_mismatch" "$([ "$(body | grep -c 'amount_mismatch')" = "1" ] && echo 1 || echo 0)"
 tc "  → order NOT marked PAID" "$([ "$(q "SELECT status FROM orders WHERE id=$UOID")" = "PENDING" ] && echo 1 || echo 0)"
 tc "  → no MCB reference issued" "$([ "$(q "SELECT IFNULL(mcb_reference,'NULL') FROM orders WHERE id=$UOID")" = "NULL" ] && echo 1 || echo 0)"
 tc "  → money filed for a human as AMOUNT_MISMATCH" "$([ "$(q "SELECT reason FROM unreconciled_payments WHERE stripe_session_id='cs_floor_under'")" = "AMOUNT_MISMATCH" ] && echo 1 || echo 0)"
-t "link payment with no amount acknowledged" 200 "$(link_pay noamt ",\"currency\":\"gbp\"")"
+t "payment with no amount acknowledged" 200 "$(link_pay noamt ",\"currency\":\"gbp\"")"
 tc "  → order still NOT PAID" "$([ "$(q "SELECT status FROM orders WHERE id=$UOID")" = "PENDING" ] && echo 1 || echo 0)"
 tc "  → filed as AMOUNT_MISMATCH" "$([ "$(q "SELECT reason FROM unreconciled_payments WHERE stripe_session_id='cs_floor_noamt'")" = "AMOUNT_MISMATCH" ] && echo 1 || echo 0)"
 t "full amount in the wrong currency acknowledged" 200 "$(link_pay usd ",\"amount_total\":$UMINOR,\"currency\":\"usd\"")"
 tc "  → order still NOT PAID" "$([ "$(q "SELECT status FROM orders WHERE id=$UOID")" = "PENDING" ] && echo 1 || echo 0)"
 tc "  → filed as CURRENCY_MISMATCH" "$([ "$(q "SELECT reason FROM unreconciled_payments WHERE stripe_session_id='cs_floor_usd'")" = "CURRENCY_MISMATCH" ] && echo 1 || echo 0)"
-t "link payment above the order total accepted" 200 "$(link_pay over ",\"amount_total\":$((UMINOR+100)),\"currency\":\"gbp\"")"
+# Previously an overpayment marked the order PAID. The rule is now EXACT:
+# more money than the order is also money a human must look at.
+t "overpaid payment acknowledged" 200 "$(link_pay over ",\"amount_total\":$((UMINOR+100)),\"currency\":\"gbp\"")"
+tc "  → order still NOT PAID" "$([ "$(q "SELECT status FROM orders WHERE id=$UOID")" = "PENDING" ] && echo 1 || echo 0)"
+tc "  → filed as AMOUNT_MISMATCH" "$([ "$(q "SELECT reason FROM unreconciled_payments WHERE stripe_session_id='cs_floor_over'")" = "AMOUNT_MISMATCH" ] && echo 1 || echo 0)"
+t "a string amount_total is not coerced" 200 "$(link_pay stramt ",\"amount_total\":\"$UMINOR\",\"currency\":\"gbp\"")"
+tc "  → filed as AMOUNT_MISMATCH" "$([ "$(q "SELECT reason FROM unreconciled_payments WHERE stripe_session_id='cs_floor_stramt'")" = "AMOUNT_MISMATCH" ] && echo 1 || echo 0)"
+t "the exact amount in GBP is accepted" 200 "$(link_pay exact ",\"amount_total\":$UMINOR,\"currency\":\"gbp\"")"
 tc "  → order PAID" "$([ "$(q "SELECT status FROM orders WHERE id=$UOID")" = "PAID" ] && echo 1 || echo 0)"
 tc "  → MCB reference issued" "$([ -n "$(q "SELECT mcb_reference FROM orders WHERE id=$UOID")" ] && echo 1 || echo 0)"
 
@@ -495,10 +529,11 @@ echo "================ SECURITY ================"
 t "config.php denied over HTTP" 403 "$(curl -s -o /tmp/r.json -w '%{http_code}' http://localhost:8080/api/config.php)"
 tc "  -> no credentials in the response body" "$([ "$(body | grep -c 'testpass\|test_token_secret')" = "0" ] && echo 1 || echo 0)"
 t "lib/ denied over HTTP" 403 "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/lib/db.php)"
-t "data/ denied over HTTP" 403 "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/data/packages.json)"
+t "data/catalogue.json denied over HTTP" 403 "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/data/catalogue.json)"
+t "lib/catalogue.php denied over HTTP" 403 "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/lib/catalogue.php)"
 t "clean URL routing works (/api/order)" 405 "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/order)"
 t "GET on a POST-only endpoint rejected" 405 "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/order")"
-t "cross-origin write rejected" 403 "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/order" -H 'Origin: https://evil.example.com' -H 'Content-Type: application/json' -d '{}')"
+t "cross-origin write rejected" 403 "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/order" -H 'Origin: https://evil.example.com' -H 'Content-Type: application/json' -H "Idempotency-Key: $(idem)" -d '{}')"
 t "malformed JSON rejected" 400 "$(post order 'not json at all')"
 
 # SQL injection attempts — payloads built in files to avoid shell quoting issues
@@ -508,16 +543,18 @@ import json
 # refused at validation and the injection payload never gets near a query,
 # which would make the test pass for the wrong reason.
 json.dump({"firstName":"Robert'); DROP TABLE orders;--","lastName":"Tables",
-           "email":"bobby@example.com","package":"moment","format":"mp3",
+           "email":"bobby@example.com","lines":[{"sku":"moment","quantity":1}],
            "consents":{"TERMS":True,"SERVICE_START":True,"DIGITAL_CONTENT":True},
            "termsVersion":"2026-09-09.4","cruiseCompanions":"My husband David"},
           open("/tmp/inj1.json","w"))
 json.dump({"ref":"rey123' OR 1=1--"}, open("/tmp/inj2.json","w"))
 PYEOF
-S=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" --data @/tmp/inj1.json)
+release_order_limit
+S=$(curl -s -o /tmp/r.json -w '%{http_code}' -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -H "Idempotency-Key: $(idem)" --data @/tmp/inj1.json)
 t "SQL injection attempt handled safely" 201 "$S"
 tc "  -> orders table still exists" "$([ "$(q "SELECT COUNT(*) FROM orders")" -ge 1 ] && echo 1 || echo 0)"
 tc "  -> payload stored literally, not executed" "$([ "$(q "SELECT COUNT(*) FROM customers WHERE email='bobby@example.com'")" = "1" ] && echo 1 || echo 0)"
+t "SQL injection in the SKU is refused as an unknown SKU" 422 "$(post order '{"firstName":"S","lastName":"Q","email":"sku-inj@example.com","lines":[{"sku":"moment'"'"' OR 1=1--","quantity":1}]}')"
 S=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/affiliate/click" -H "Content-Type: application/json" -H "Origin: $ORIGIN" --data @/tmp/inj2.json)
 tc "injection in ref sanitised" "$([ "$S" = "204" ] && echo 1 || echo 0)"
 

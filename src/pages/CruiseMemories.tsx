@@ -2,29 +2,39 @@ import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { Ship, PenLine, Music, Package as PackageIcon } from "lucide-react";
 import {
-  MOMENT,
-  JOURNEY,
-  KEEPSAKE,
-  type AnyFixedPricePackage,
-} from "../data/packages";
-
-/**
- * The three experiences shown against a voyage.
- *
- * Typed as priced packages rather than inferred, so the Full Package cannot be
- * added to this comparison by anyone later: it has no price to put in the
- * column, and a concierge commission is not chosen from a three-up grid.
- */
-const CRUISE_COMPARISON: readonly AnyFixedPricePackage[] = [
+  BESPOKE,
   JOURNEY,
   KEEPSAKE,
   MOMENT,
-];
+  formatMoney,
+  hasPublicPrice,
+  lowestPrice,
+  publicProducts,
+  songExperiences,
+} from "../data/catalogue";
 import Price from "../components/Price";
-import { stockedFamilies } from "../data/catalogue";
 import { SAMPLE_SONGS } from "../data/sampleSongs";
 import CruiseMarquee from "../components/CruiseMarquee";
-import { cruisePageStructuredData } from "../lib/seo";
+import { CRUISE_DESCRIPTION, cruisePageStructuredData } from "../lib/seo";
+
+/**
+ * The experiences shown against a voyage, read from the canonical catalogue.
+ *
+ * Filtered to products with a published price, so Bespoke (individually
+ * quoted) is never put in a price column; it is linked separately below.
+ */
+const CRUISE_COMPARISON = [JOURNEY, KEEPSAKE, MOMENT].filter(hasPublicPrice);
+
+/** The number of experiences a customer can compare on the homepage. */
+const EXPERIENCE_COUNT = songExperiences().length;
+
+/** Physical products to take home: Keepsake, Journey, decor and players. */
+const TAKE_HOME = publicProducts().filter(
+  (product) =>
+    ((product.category === "SONG_EXPERIENCE" && product.variants.some((v) => v.fulfilment === "PHYSICAL")) ||
+      product.category === "PERSONALISED_DECOR" ||
+      product.category === "PLAYER")
+);
 
 /**
  * The cruise guest funnel.
@@ -32,8 +42,8 @@ import { cruisePageStructuredData } from "../lib/seo";
  * A guest journey, not a partnership pitch — the enterprise proposition is a
  * separate audience with a separate page.
  *
- * EVERYTHING HERE IS ALREADY TRUE. Prices, song counts and delivery promises
- * are read from `data/packages`; the keepsakes come from the catalogue; the
+ * EVERYTHING HERE IS ALREADY TRUE. Prices, song counts, timing and the
+ * take-home products are read from the canonical catalogue; the
  * two songs named below are real recordings the homepage plays. No cruise
  * line is named as a partner, nothing is claimed about buying on board, and
  * no operational promise is made that MCB has not already made elsewhere on
@@ -57,12 +67,12 @@ const journeySteps = [
   {
     icon: Music,
     title: "We compose and produce",
-    body: `Written, recorded and produced by professional musicians. ${MOMENT.name} comes back ${MOMENT.delivery.toLowerCase()}; the larger experiences are ${JOURNEY.delivery.toLowerCase()}.`,
+    body: `Written, recorded and produced by professional musicians. ${MOMENT.name}: ${(MOMENT.turnaround?.label ?? "").toLowerCase()}. ${KEEPSAKE.name} and ${JOURNEY.name}: ${(JOURNEY.turnaround?.label ?? "").toLowerCase()}.`,
   },
   {
     icon: PackageIcon,
     title: "Receive your memory",
-    body: "Delivered digitally, or pressed to vinyl or CD and posted to you. Where you choose something physical, we ask for a delivery address at checkout.",
+    body: `${MOMENT.name} is delivered digitally; ${KEEPSAKE.name} is pressed to a personalised picture disc and ${JOURNEY.name} to standard vinyl, and posted to you. Where you choose something physical, we ask for a delivery address at checkout.`,
   },
 ];
 
@@ -70,7 +80,6 @@ const CruiseMemories = () => {
   const voyageSamples = SAMPLE_SONGS.filter((s) =>
     VOYAGE_SAMPLE_IDS.includes(s.id)
   );
-  const keepsakes = stockedFamilies();
 
   return (
     <>
@@ -78,7 +87,7 @@ const CruiseMemories = () => {
         <title>Cruise & Voyage Songs — Turn Your Trip Into Music | My Custom Beats</title>
         <meta
           name="description"
-          content="Turn a cruise or voyage into a personalised song written from your own story. Delivered digitally or pressed to vinyl or CD."
+          content={CRUISE_DESCRIPTION}
         />
         <script type="application/ld+json">
           {JSON.stringify(cruisePageStructuredData())}
@@ -163,32 +172,65 @@ const CruiseMemories = () => {
             </div>
 
             <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
-              {CRUISE_COMPARISON.map((pkg) => (
-                <div
-                  key={pkg.id}
-                  className="rounded-2xl border border-espresso/10 bg-ivory p-7 flex flex-col"
-                >
-                  <h3 className="font-serif text-2xl text-espresso mb-1">{pkg.name}</h3>
-                  <p className="text-[11px] tracking-[0.14em] uppercase text-espresso/45 mb-4 leading-[1.5] min-h-[3.4em]">
-                    {pkg.positioning}
-                  </p>
-                  <div className="mb-4">
-                    <Price gbp={pkg.price.gbp} prefix={pkg.price.prefix} size="lg" />
+              {CRUISE_COMPARISON.map((product) => {
+                const low = lowestPrice(product);
+                return (
+                  <div
+                    key={product.id}
+                    className="rounded-2xl border border-espresso/10 bg-ivory p-7 flex flex-col"
+                  >
+                    <h3 className="font-serif text-2xl text-espresso mb-1">{product.name}</h3>
+                    <p className="text-[11px] tracking-[0.14em] uppercase text-espresso/45 mb-4 leading-[1.5] min-h-[3.4em]">
+                      {product.positioning}
+                    </p>
+                    {low && (
+                      <div className="mb-4">
+                        <Price
+                          gbp={low.minor / 100}
+                          prefix={product.commercialModel === "VARIANT_FIXED" ? "From" : undefined}
+                          size="lg"
+                        />
+                      </div>
+                    )}
+                    <p className="text-sm text-espresso/65 leading-relaxed mb-5">
+                      {product.shortDescription}
+                    </p>
+                    {product.variants.length > 1 && (
+                      <ul className="list-none p-0 m-0 mb-5 space-y-1.5 text-sm">
+                        {product.variants.map((variant) => (
+                          <li key={variant.sku} className="flex justify-between gap-3">
+                            <span className="text-espresso/75">{variant.label}</span>
+                            <span className="text-espresso shrink-0">{formatMoney(variant.price)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {product.disclosures.map((disclosure) => (
+                      <p key={disclosure} className="text-xs font-medium text-espresso/70 mb-3">
+                        {disclosure}
+                      </p>
+                    ))}
+                    <p className="mt-auto font-mono text-[10px] tracking-[0.12em] uppercase text-espresso/45 pt-4 border-t border-espresso/10">
+                      {product.turnaround?.label}
+                    </p>
+                    {product.route && (
+                      <Link to={product.route} className="mt-4 text-sm text-gold-deep hover:underline">
+                        {`About ${product.name}`}
+                      </Link>
+                    )}
                   </div>
-                  <p className="text-sm text-espresso/65 leading-relaxed mb-5 flex-1">
-                    {pkg.description}
-                  </p>
-                  <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-espresso/45 pt-4 border-t border-espresso/10">
-                    {pkg.delivery}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <p className="text-center text-sm text-espresso/55 mt-10">
               <a href="/#packages" className="text-gold-deep hover:underline">
-                Compare all five experiences
+                {`Compare all ${EXPERIENCE_COUNT} experiences`}
               </a>
+              {" · "}
+              <Link to="/bespoke" className="text-gold-deep hover:underline">
+                {`${BESPOKE.name} — ${BESPOKE.disclosures.join(" ").toLowerCase()}`}
+              </Link>
             </p>
           </div>
         </section>
@@ -220,7 +262,7 @@ const CruiseMemories = () => {
           </div>
         </section>
 
-        {/* KEEPSAKES — catalogue truth, no prices */}
+        {/* TAKE HOME — catalogue truth, names only */}
         <section className="py-20 md:py-24 px-[7vw] bg-white">
           <div className="max-w-5xl mx-auto text-center">
             <p className="label-uppercase text-gold-deep mb-4">Take it home</p>
@@ -231,17 +273,17 @@ const CruiseMemories = () => {
               Your song can stay digital, or become something you can hold.
             </p>
             <ul className="flex flex-wrap justify-center gap-3 list-none p-0 m-0 mb-10">
-              {keepsakes.map((family) => (
+              {TAKE_HOME.map((product) => (
                 <li
-                  key={family.id}
+                  key={product.id}
                   className="px-4 py-2 rounded-full border border-espresso/15 text-sm text-espresso/75"
                 >
-                  {family.name}
+                  {product.name}
                 </li>
               ))}
             </ul>
             <Link to="/products" className="text-gold-deep hover:underline text-sm">
-              See the keepsakes
+              See all products
             </Link>
           </div>
         </section>

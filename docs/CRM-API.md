@@ -20,49 +20,53 @@ Creates the authoritative order record. Called at form submission, **before**
 Stripe, so an abandoned checkout still leaves MCB holding the customer, brief,
 attribution and delivery address.
 
+Header `Idempotency-Key: <16–128 chars of A-Z a-z 0-9 _ ->` is required.
+
 ```json
 {
   "firstName": "Ada", "lastName": "Lovelace",
   "email": "ada@example.com", "whatsapp": "+447700900000",
-  "package": "keepsake", "format": "vinyl",
+  "lines": [
+    { "sku": "keepsake-7-picture-disc", "quantity": 2 },
+    { "sku": "priority-replacement", "quantity": 2 }
+  ],
   "shippingName": "Ada Lovelace", "shippingAddress": "1 Analytical Street",
   "shippingAddress2": "Flat 2", "shippingCity": "London",
   "shippingState": "Greater London", "shippingPostcode": "E1 6AN",
   "shippingCountry": "United Kingdom",
   "mood": "Romantic", "genre": "Acoustic",
   "personalTouches": "Names and the date",
-  "story": "How we met…", "artworkUrl": "https://…",
+  "cruiseCompanions": "My husband", "story": "How we met…", "artworkUrl": "https://…",
+  "consents": { "TERMS": true, "SERVICE_START": true },
+  "termsVersion": "2026-09-09.4",
   "referral": "rey123", "partner": ""
 }
 ```
 
-`201` → `{ "order_id": 42, "fulfilment_type": "PHYSICAL", "source_type": "AFFILIATE" }`
+`201` → `{ "order_id": 42, "checkout_token": "<64 hex>", "fulfilment_type": "PHYSICAL", "source_type": "AFFILIATE", "total_minor": 23798, "currency": "GBP", "lines": [ … ] }`
 
-`order_id` becomes Stripe's `client_reference_id`.
+The same key with the same body returns `200` with the same `order_id`, `"replayed": true` and a fresh `checkout_token`. The same key with a different body is `409 idempotency_conflict`.
+
+`checkout_token` is returned once and stored only as a hash. `POST /api/checkout/session` requires `{ orderId, checkoutToken }` and builds the Stripe session from the saved order lines.
 
 ### Server-owned — sending these changes nothing
 
-`fulfilment_type` · `source_type` · `affiliate_id` · `partner_id` ·
-`amount_gbp` · `amount_usd` · `status`
+Every price and total · `fulfilment_type` · `source_type` · `affiliate_id` · `partner_id` · `status`
 
 A browser can report the referral string it saw. It cannot name an affiliate,
 claim a partner, set a price or mark an order paid. Verified by test.
 
 ### Rules enforced here
 
-| Package | Formats | Address |
-|---|---|---|
-| moment | mp3 | not required |
-| keepsake | vinyl, cd, mp3 | required for vinyl/cd |
-| journey | vinyl, cd | required |
-| heirloom | vinyl, cd | required |
-| bespoke | — | not required |
+Read from `api/data/catalogue.json`, generated from `src/data/catalogue/`.
 
-Read from `api/data/packages.json`, generated from `src/data/packages.ts`.
+- `lines` is 1–20 entries of `{ sku, quantity }`; quantity is an integer 1–50 (a technical request limit, not a commercial maximum); no SKU twice.
+- Only SKUs sold online are accepted. Bespoke and MCB LIVE are quoted and are not orderable.
+- At least one song experience (Moment, a Keepsake or a Journey).
+- `priority-replacement` quantity may not exceed the number of Keepsakes in the order.
+- A delivery address is required when any line is physical.
 
-`422` — validation failed, unknown package/format, unsold combination, or a
-physical order missing address fields. `403` — cross-origin. `503` — not
-configured.
+`422` — validation failed or a line rule broken (`unknown_sku`, `invalid_quantity`, `duplicate_sku`, `no_song_experience`, `priority_replacement_ineligible`). `400` — missing Idempotency-Key. `403` — cross-origin. `503` — not configured.
 
 ---
 

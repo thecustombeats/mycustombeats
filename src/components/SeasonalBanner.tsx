@@ -1,12 +1,14 @@
-import { activeSeasonalEditions, editionPackage } from "../data/seasonal";
-import { isFixedPrice } from "../data/packages";
+import { Link } from "react-router-dom";
+import { activeSeasonalEditions, editionProduct } from "../data/seasonal";
+import { hasPublicPrice, lowestPrice } from "../data/catalogue";
 import Price from "./Price";
 
 /**
  * Seasonal editions, presented only when the business has switched one on.
  *
- * Sprint 01 built the data — an edition stores a package id and inherits its
- * price, so "Christmas Moment" cannot drift from Moment's approved £10 / $14.
+ * Sprint 01 built the data — an edition stores a catalogue product id and
+ * inherits its price, so "Christmas Moment" cannot drift from Moment's
+ * catalogue price.
  * This is the other half: the thing that renders one. Launching a campaign is
  * now `active: true` on the edition and nothing else.
  *
@@ -31,16 +33,18 @@ const SeasonalBanner = () => {
 
         <ul className="grid gap-6 md:grid-cols-2 list-none p-0 m-0">
           {editions.map((edition) => {
-            const pkg = editionPackage(edition);
+            const product = editionProduct(edition);
             /**
-             * A seasonal edition inherits its package's price, so an edition
-             * pointing at a concierge commission has no price to inherit. It
+             * A seasonal edition inherits its product's price, so an edition
+             * pointing at a quoted commission has no price to inherit. It
              * is skipped rather than rendered without one: this banner's whole
              * shape is a price and a buy button, and a concierge commission
              * belongs on its own page with its own sequence, not in a
              * campaign strip.
              */
-            if (!pkg || !isFixedPrice(pkg)) return null;
+            if (!product || !hasPublicPrice(product)) return null;
+            const low = lowestPrice(product);
+            if (!low) return null;
 
             return (
               <li
@@ -57,25 +61,30 @@ const SeasonalBanner = () => {
                   <p className="text-sm text-ivory/70 leading-relaxed">
                     {edition.description}
                   </p>
+                  {product.turnaround && (
+                    <p className="mt-2 font-mono text-[10px] tracking-[0.14em] uppercase text-ivory/50">
+                      {product.turnaround.label}
+                    </p>
+                  )}
                 </div>
 
                 <div className="shrink-0 text-left sm:text-right">
-                  {/* Inherited from the package. Never restated by the edition. */}
+                  {/* Inherited from the catalogue. Never restated by the edition. */}
                   <div className="mb-4">
                     <Price
-                      gbp={pkg.price.gbp}
-                      prefix={pkg.price.prefix}
+                      gbp={low.minor / 100}
+                      prefix={product.commercialModel === "VARIANT_FIXED" ? "From" : undefined}
                       size="lg"
                       tone="light"
                     />
                   </div>
-                  <a
-                    href="#order"
+                  <Link
+                    to={`/?product=${encodeURIComponent(product.id)}#order`}
                     className="inline-flex px-6 py-3 rounded-full bg-gold text-ink
                                text-[11px] tracking-[0.2em] uppercase transition-colors duration-300 hover:bg-gold-light"
                   >
-                    {pkg.cta}
-                  </a>
+                    {product.cta}
+                  </Link>
                 </div>
               </li>
             );

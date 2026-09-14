@@ -1,60 +1,179 @@
-
 import { Helmet } from "react-helmet-async";
-import { stockedFamilies, relatedFamilies } from "../data/catalogue";
-import CatalogueFamily from "../components/CatalogueFamily";
+import { Link } from "react-router-dom";
+import { Check } from "lucide-react";
+import {
+  PRIORITY_REPLACEMENT,
+  formatMoney,
+  priceSummary,
+  publicProducts,
+  type Category,
+  type Product,
+} from "../data/catalogue";
+import KeepsakeMark from "../components/KeepsakeMark";
 import { PRODUCTS_DESCRIPTION, productsPageStructuredData } from "../lib/seo";
 
 /**
- * Families with an approved product, in catalogue order.
+ * /products — every public, active product in the canonical catalogue,
+ * grouped by category. Names, descriptions, prices, sizes, song counts and
+ * disclosures are all read from `data/catalogue`; nothing commercial is
+ * written in this file.
  *
- * Every family now has one: Frames gained the Vinyl Frame, and the four
- * playback families — Digital Players, the Portable Record Player Suitcase,
- * the Mobile-phone Gramophone and the Vintage Collection — each gained their
- * first priced product, so all eleven render a full block of their own.
+ * Products without a public page or checkout of their own (education, stored
+ * value) are excluded by the catalogue flags, not by id.
  */
-const FAMILIES = stockedFamilies();
+const GROUPS: readonly { category: Category; title: string; intro: string }[] = [
+  {
+    category: "SONG_EXPERIENCE",
+    title: "Song experiences",
+    intro: "Every order begins with a personalised song made from your story.",
+  },
+  {
+    category: "COMMISSION",
+    title: "Individually curated",
+    intro: "For something shaped entirely around one person.",
+  },
+  {
+    category: "PERSONALISED_DECOR",
+    title: "Personalised decor",
+    intro: "Pieces made to display, designed from your photograph, song or lyrics.",
+  },
+  {
+    category: "PLAYER",
+    title: "Players",
+    intro: "Ways to play the records you keep.",
+  },
+  {
+    category: "LIVE_PERFORMANCE",
+    title: "Live",
+    intro: "For selected events.",
+  },
+];
 
-/**
- * Approved families with nothing catalogued yet, discovered through the
- * relationship map rather than listed here, so this cannot drift out of step
- * with the catalogue.
- *
- * EMPTY TODAY, and deliberately kept. Every family is stocked, so the section
- * below renders nothing — but the moment a future family is declared ahead of
- * its first product, it reappears here by itself. Deleting the mechanism
- * because the list happens to be empty would mean rebuilding it then.
- */
-const AWAITED_FAMILIES = FAMILIES.flatMap((family) =>
-  relatedFamilies(family.id).filter((related) => related.products.length === 0)
-).filter(
-  (family, index, all) =>
-    all.findIndex((candidate) => candidate.id === family.id) === index
-);
+const PUBLIC = publicProducts();
 
+const productsIn = (category: Category) =>
+  PUBLIC.filter((product) => product.category === category);
+
+const songsLabel = (count: number | null) =>
+  count === null ? null : count === 1 ? "1 song" : `${count} songs`;
+
+const orderHref = (product: Product) =>
+  product.route ?? `/?product=${encodeURIComponent(product.id)}#order`;
+
+const ProductBlock = ({ product, reverse }: { product: Product; reverse: boolean }) => {
+  const listsVariants = product.variants.length > 1;
+  const single = product.variants.length === 1 ? product.variants[0] : null;
+  const dimensions = single?.dimensions;
+
+  return (
+    <article className="grid md:grid-cols-2 gap-10 lg:gap-12 items-center">
+      <div
+        className={`rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition duration-500 ${
+          product.image ? "aspect-[3/2]" : "h-[280px] sm:h-[360px]"
+        } ${reverse ? "md:order-2" : ""}`}
+      >
+        {product.image ? (
+          <img
+            src={product.image}
+            alt={product.imageAlt ?? product.name}
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-contain"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-ivory border border-espresso/10 rounded-2xl p-10">
+            <KeepsakeMark name={product.name} />
+          </div>
+        )}
+      </div>
+
+      <div className={`min-w-0 ${reverse ? "md:order-1" : ""}`}>
+        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-gold-deep mb-3">
+          {product.positioning}
+        </p>
+        <h3 className="text-3xl md:text-4xl font-light mb-4">{product.name}</h3>
+        <p className="text-black/60 mb-6 leading-relaxed">{product.shortDescription}</p>
+
+        {listsVariants && (
+          <ul className="space-y-3 list-none p-0 m-0">
+            {product.variants.map((variant) => (
+              <li
+                key={variant.sku}
+                className="flex items-baseline justify-between gap-4 border-b border-black/5 pb-3"
+              >
+                <span className="min-w-0">
+                  <span className="block text-sm text-black">{variant.label}</span>
+                  {songsLabel(variant.songCount) && (
+                    <span className="block text-xs text-black/50">
+                      {songsLabel(variant.songCount)}
+                    </span>
+                  )}
+                </span>
+                <span className="text-sm text-black shrink-0">{formatMoney(variant.price)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {single && single.features.length > 0 && (
+          <ul className="space-y-2 list-none p-0 m-0">
+            {single.features.map((feature) => (
+              <li key={feature} className="flex gap-2.5 text-sm text-black/70">
+                <Check size={15} className="text-gold-deep mt-0.5 shrink-0" aria-hidden="true" />
+                {feature}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {dimensions && (
+          <p className="mt-4 text-sm text-black/60">
+            {`${dimensions.approximate ? "Approx. " : ""}${dimensions.widthInches} × ${dimensions.heightInches} inches`}
+          </p>
+        )}
+
+        {product.disclosures.length > 0 && (
+          <ul className="mt-5 space-y-1.5 list-none p-0 m-0">
+            {product.disclosures.map((disclosure) => (
+              <li key={disclosure} className="text-sm font-medium text-black/75 leading-relaxed">
+                {disclosure}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-7 space-y-1">
+          <p className="text-xl font-light text-black">{priceSummary(product)}</p>
+          {product.turnaround && (
+            <p className="font-mono text-xs text-black/50">{product.turnaround.label}</p>
+          )}
+        </div>
+
+        <Link
+          to={orderHref(product)}
+          className="mt-6 inline-flex items-center rounded-full bg-gold px-7 py-3 text-espresso font-medium transition hover:scale-[1.02]"
+        >
+          {product.route ? `Explore ${product.name}` : product.cta}
+        </Link>
+      </div>
+    </article>
+  );
+};
 
 const Products = () => {
-  
   return (
     <>
       <Helmet>
-        <title>Music Keepsakes — Vinyl, Frames, Players & Cards | My Custom Beats</title>
-        {/* The SAME sentence the CollectionPage node states. It was written
-            out twice and both copies went stale together, still advertising
-            7-inch and 10-inch records long after both were withdrawn. */}
+        <title>Personalised Songs, Decor & Players | My Custom Beats</title>
         <meta name="description" content={PRODUCTS_DESCRIPTION} />
-        <meta property="og:title" content="Music Keepsakes | My Custom Beats" />
-        <meta
-          property="og:description"
-          content="Vinyl, CD, framed lyric artwork, engraved plaques, vinyl frames, gift pop-up cards, the Music Box Experience and the players to hear them on — your song, made physical."
-        />
+        <meta property="og:title" content="Products | My Custom Beats" />
+        <meta property="og:description" content={PRODUCTS_DESCRIPTION} />
         <script type="application/ld+json">
           {JSON.stringify(productsPageStructuredData())}
         </script>
       </Helmet>
 
       <div className="bg-[#FBF9F6] text-black">
-        
-
         {/* PRODUCT HERO — MATCHED STYLE */}
 <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
 
@@ -96,70 +215,42 @@ const Products = () => {
 </section>
 
 
-        {/* PRODUCTS — every family rendered from catalogue data. */}
-        <section className="px-6 max-w-6xl mx-auto py-20 space-y-20 md:space-y-24">
-          {FAMILIES.map((family, index) => (
-            <CatalogueFamily
-              key={family.id}
-              family={family}
-              reverse={index % 2 === 1}
-            />
-          ))}
+        {/* PRODUCTS — every public product, grouped, from catalogue data. */}
+        <section className="px-6 max-w-6xl mx-auto py-20 space-y-24">
+          {GROUPS.map((group) => {
+            const products = productsIn(group.category);
+            if (products.length === 0) return null;
+            return (
+              <div key={group.category}>
+                <div className="mb-12 max-w-2xl">
+                  <h2 className="text-3xl md:text-4xl font-light mb-3">{group.title}</h2>
+                  <p className="text-black/60 leading-relaxed">{group.intro}</p>
+                </div>
+                <div className="space-y-20 md:space-y-24">
+                  {products.map((product, index) => (
+                    <ProductBlock key={product.id} product={product} reverse={index % 2 === 1} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
 
-          {/* Approved product lines with no catalogue yet. Named, because
-              they are a real part of the ecosystem, but given no price,
-              photograph or specification that has not been supplied. */}
-          {AWAITED_FAMILIES.length > 0 && (
-            <div className="border-t border-black/10 pt-14">
-              <h2 className="text-2xl md:text-3xl font-light mb-3">
-                Also part of the collection
-              </h2>
-              <p className="text-black/60 mb-10 max-w-2xl leading-relaxed">
-                Ways to play what you make. Each is produced individually —
-                talk to us about what you have in mind.
+          {/* Protection — a service, not a product to display. */}
+          {PRIORITY_REPLACEMENT.active && PRIORITY_REPLACEMENT.public && (
+            <div className="border-t border-black/10 pt-14 max-w-3xl">
+              <h2 className="text-2xl md:text-3xl font-light mb-3">{PRIORITY_REPLACEMENT.name}</h2>
+              <p className="text-black/60 mb-4 leading-relaxed">{PRIORITY_REPLACEMENT.positioning}</p>
+              <p className="text-sm text-black/70 mb-6">
+                {`${priceSummary(PRIORITY_REPLACEMENT)} · ${PRIORITY_REPLACEMENT.variants[0]?.label ?? ""}`}
               </p>
-
-              {/*
-                Each card is the artwork alone. These images carry their own
-                title and description inside them, matching the catalogue copy
-                exactly, so repeating the words underneath would print them
-                twice. The heading stays in the markup for structure and
-                screen readers, visually hidden.
-
-                object-contain, not cover: the titles are printed near the
-                bottom edge of the artwork and a crop could clip them.
-              */}
-              <ul className="grid sm:grid-cols-2 gap-6 lg:gap-8 list-none p-0 m-0">
-                {AWAITED_FAMILIES.map((family) => (
-                  <li key={family.id}>
-                    <article className="h-full rounded-2xl border border-black/10 bg-white overflow-hidden">
-                      <h3 className="sr-only">{family.name}</h3>
-                      {family.image ? (
-                        <img
-                          src={family.image}
-                          alt={family.alt ?? family.name}
-                          loading="lazy"
-                          decoding="async"
-                          className="w-full h-auto block"
-                        />
-                      ) : (
-                        <div className="p-6">
-                          <p className="text-lg font-light mb-2">{family.name}</p>
-                          <p className="text-sm text-black/60 leading-relaxed">
-                            {family.description}
-                          </p>
-                        </div>
-                      )}
-                      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-black/45 px-6 py-4 border-t border-black/5">
-                        Enquire for availability
-                      </p>
-                    </article>
-                  </li>
-                ))}
-              </ul>
+              <Link
+                to="/priority-replacement"
+                className="text-sm text-gold-deep underline underline-offset-4 hover:text-espresso"
+              >
+                How Priority Replacement works
+              </Link>
             </div>
           )}
-
         </section>
 
 
@@ -182,14 +273,14 @@ const Products = () => {
     <div>
       <h3 className="text-xl mb-2">2. Choose Your Keepsake</h3>
       <p className="text-black/60">
-        Select how you want your song to live — vinyl, artwork or more.
+        Select how you want your song to live — a record, a frame or more.
       </p>
     </div>
 
     <div>
       <h3 className="text-xl mb-2">3. We Craft & Deliver</h3>
       <p className="text-black/60">
-        Your piece is handcrafted and delivered as a timeless memory.
+        Your piece is made to order and delivered as a timeless memory.
       </p>
     
     </div>
@@ -251,8 +342,8 @@ const Products = () => {
   </h2>
 
   <p className="text-black/60 leading-relaxed">
-    Every piece is individually designed, produced, and finished by hand —
-    ensuring your story is preserved with the care it deserves.
+    Every piece is personalised and made to order for you — so your story is
+    preserved with the care it deserves.
   </p>
 </section>
 
@@ -267,16 +358,17 @@ const Products = () => {
             Start with your song. We’ll bring it to life.
           </p>
 
-          <a
-  href = "/#contact"
+          <Link
+  to="/#order"
   className="inline-flex items-center gap-3 px-8 py-3 bg-gold text-espresso rounded-full font-medium 
   transition-all duration-300 hover:bg-espresso hover:text-ivory hover:scale-105 shadow-md hover:shadow-xl"
 >
-  Request Custom Quote
-</a>
+  Begin your order
+</Link>
 
-<p className="mt-3 text-sm text-black/60 italic">
-  Pricing depends on design, materials & customization
+<p className="mt-3 text-sm text-black/60">
+  Planning something individually curated?{" "}
+  <Link to="/bespoke" className="underline underline-offset-4">Request a Bespoke quote</Link>
 </p>
         </section>
       </div>

@@ -1,419 +1,152 @@
 /**
- * MCB PRODUCT CATALOGUE — TYPE MODEL
- * ----------------------------------
- * `data/packages.ts` owns the five experiences MCB sells and where each one
- * checks out. This module owns everything a memory can *become*: the records,
- * frames, boxes, cards and players that surround those experiences.
+ * MCB CANONICAL CATALOGUE — types.
  *
- * The two are deliberately separate. A package has an approved price and a
- * Stripe Payment Link; a physical product, today, has neither. Modelling them
- * as one thing would force us either to invent prices or to weaken the type
- * that currently guarantees every sellable package/format pair has somewhere
- * to check out.
- *
- * THREE RULES THIS FILE ENFORCES
- * -----------------------------
- * 1. A price is either APPROVED (a real number, from the business) or TBD.
- *    There is no third state, and TBD carries no number to accidentally
- *    render — see `ProductPrice`.
- * 2. Whether a product physically carries the song is stated, never assumed.
- *    A vinyl record inside a frame is not automatically a playable copy
- *    of the customer's song — see `SongInclusion`.
- * 3. Song capacity is a property of the physical format, so the set of valid
- *    pressings for an album is derived from capacity rather than hand-listed
- *    per package — see `catalogue/vinyl.ts`.
+ * Product → Variant → Money. Every price MCB publishes or charges is a
+ * `Money` on a `Variant`, in integer pence. See `products.ts` for the data and
+ * `validate.ts` for the rules the build enforces.
  */
 
-import type { PackageId } from "../packages";
+import type { DeliveryBasis } from "../legal/delivery";
 
-/* ------------------------------------------------------------------ */
-/* Money                                                               */
-/* ------------------------------------------------------------------ */
+/** GBP is the only commercial currency. Other currencies are display estimates. */
+export type Currency = "GBP";
 
-/**
- * A catalogue price.
- *
- * GBP ONLY, DELIBERATELY.
- * -----------------------
- * GBP is MCB's canonical commercial currency: it is what Stripe charges and
- * what the business approves. The previous shape carried a `usd` field beside
- * every `gbp` one, which meant approving a price meant inventing a second
- * number — and a hard-coded USD figure is a stale exchange rate the moment it
- * is written. Local-currency presentation is a rendering concern for a later
- * sprint, driven by a live rate at display time; it is not a second column in
- * the catalogue. There is therefore nowhere here to put a USD, EUR, INR, AUD
- * or CAD amount, which is the point.
- *
- * TWO STATES, AND NO THIRD.
- * -------------------------
- * `FIXED_GBP` carries an amount the business has approved. `TBD` is not "£0"
- * and not "price unknown, guess something" — it is a positive statement that
- * no customer-facing figure has been approved, and it deliberately has no
- * numeric field, so there is nothing for a component to read and render by
- * mistake. A price is one or the other; there is no partially-priced state to
- * represent, and no optional number that could be silently absent.
- */
-export type ProductPrice =
-  | { status: "FIXED_GBP"; gbp: number }
-  | { status: "TBD" };
-
-export const TBD: ProductPrice = { status: "TBD" };
-
-/**
- * An approved GBP price.
- *
- * The only way to construct a priced product, so every price in the catalogue
- * is written in one recognisable form and grep finds all of them.
- */
-export const gbp = (amount: number): ProductPrice => ({
-  status: "FIXED_GBP",
-  gbp: amount,
-});
-
-export const isPriced = (
-  price: ProductPrice
-): price is Extract<ProductPrice, { status: "FIXED_GBP" }> =>
-  price.status === "FIXED_GBP";
-
-/**
- * Renders a catalogue price in GBP, or `null` when none is approved.
- *
- * Callers must handle `null` with their own copy rather than being handed a
- * placeholder like "—" that reads as a price of nothing.
- *
- * Grouped with `en-GB` separators so £1,000 reads as a price rather than as a
- * part number.
- */
-export const formatProductPrice = (price: ProductPrice): string | null =>
-  isPriced(price) ? `£${price.gbp.toLocaleString("en-GB")}` : null;
-
-/* ------------------------------------------------------------------ */
-/* Availability and fulfilment                                         */
-/* ------------------------------------------------------------------ */
-
-export type Availability =
-  /** Held or produced to a known process; orderable now. */
-  | "AVAILABLE"
-  /** Produced individually against a brief; quoted per commission. */
-  | "MADE_TO_ORDER"
-  /** Approved as a product line, not yet released for sale. */
-  | "COMING_SOON";
-
-export type Fulfilment = "DIGITAL" | "PHYSICAL";
-
-/**
- * Lead time is OPTIONAL and omitted wherever the business has not stated one.
- * An absent lead time renders as nothing at all; it never falls back to a
- * plausible-sounding default.
- */
-export interface LeadTime {
-  /** Customer-facing phrase, e.g. "Delivered within 15 working days". */
-  label: string;
-  /** Machine-readable equivalent for structured data, where meaningful. */
-  workingDays?: number;
+/** An amount in integer minor units (pence). 1500 = £15.00. */
+export interface Money {
+  readonly currency: Currency;
+  readonly minor: number;
 }
 
-/* ------------------------------------------------------------------ */
-/* Song inclusion and capacity                                         */
-/* ------------------------------------------------------------------ */
+/**
+ * How a product is bought.
+ *
+ * FIXED          one variant, one published price
+ * VARIANT_FIXED  two or more variants, each with its own published price
+ * QUOTED         no public price; scoped and quoted individually
+ * STORED_VALUE   a balance bought and spent later (gift voucher / account credit)
+ */
+export type CommercialModel = "FIXED" | "VARIANT_FIXED" | "QUOTED" | "STORED_VALUE";
+
+export type Category =
+  /** A personalised song product — the thing an order is built around. */
+  | "SONG_EXPERIENCE"
+  | "COMMISSION"
+  | "LIVE_PERFORMANCE"
+  | "PERSONALISED_DECOR"
+  | "PLAYER"
+  | "PROTECTION"
+  | "EDUCATION"
+  | "GIFT";
 
 /**
- * Whether this product physically carries the customer's song.
+ * How a variant reaches the customer.
  *
- * `CONFIGURABLE` exists because pairing a record with a frame or a box does
- * not, by itself, mean the record is a playable pressing of the song — a
- * display piece is a legitimate and different product. The business has not
- * approved a blanket rule either way, so combinations resolve to
- * `CONFIGURABLE` and are settled during configuration, not guessed here.
+ * UNCONFIRMED is allowed only on products that cannot be ordered online; the
+ * validator refuses it anywhere a server could be asked to fulfil it.
  */
-export type SongInclusion = "CARRIES_SONG" | "KEEPSAKE_ONLY" | "CONFIGURABLE";
+export type Fulfilment = "DIGITAL" | "PHYSICAL" | "SERVICE" | "UNCONFIRMED";
 
-/**
- * How many songs one unit of a physical format holds.
- *
- * `max` is the fitting constraint used to derive valid pressings. `min` is
- * presentational only — a 12-inch is described as holding "5–6 songs", but a
- * four-song album still presses onto one perfectly well.
- */
-export interface SongCapacity {
-  min: number;
-  max: number;
+export type SchemaType = "Product" | "ProductGroup" | "Service";
+
+export type VinylSize = 7 | 10 | 12;
+export type VinylShape = "ROUND" | "HEART";
+
+export interface VinylSpec {
+  /** True for a picture disc. Journey's standard records are `false`. */
+  readonly pictureDisc: boolean;
+  readonly sizeInches: VinylSize;
+  readonly shape: VinylShape;
+  /** Number of records. The 12-song Journey is a double album. */
+  readonly discCount: 1 | 2;
+  readonly gatefold: boolean;
 }
 
-/** "1 song", "2 songs", "5–6 songs". */
-export const capacityLabel = ({ min, max }: SongCapacity): string =>
-  min === max
-    ? `${max} ${max === 1 ? "song" : "songs"}`
-    : `${min}–${max} songs`;
-
-/* ------------------------------------------------------------------ */
-/* Occasions                                                           */
-/* ------------------------------------------------------------------ */
-
-/**
- * Occasions drive two separate things: Gift Pop-Up Card designs, and seasonal
- * editions of the core experiences. They share one vocabulary so a Christmas
- * card and a Christmas Moment cannot end up filed under different spellings
- * of the same word.
- *
- * Adding an occasion means adding one entry to `OCCASIONS` and, if it needs a
- * card, one entry to the card catalogue. Nothing else in the system changes.
- */
-export type OccasionId =
-  | "anniversary"
-  | "birthday"
-  | "wedding"
-  | "mothers-day"
-  | "christmas"
-  | "easter"
-  | "thank-you"
-  | "congratulations"
-  | "valentines-day"
-  | "cruise"
-  | "new-year"
-  | "fourth-of-july";
-
-export interface Occasion {
-  id: OccasionId;
-  /** Title case, for chips, selectors and headings. */
-  label: string;
-  /**
-   * The same occasion inside a sentence.
-   *
-   * A label is not a phrase: "A pop-up card for Cruise / Voyage" and "for
-   * Thank You" read like form fields, while "for a cruise or voyage" and
-   * "for saying thank you" read like English. Generated copy uses this, so
-   * adding an occasion means writing its phrase once, here.
-   */
-  prose: string;
-  /**
-   * True when the occasion falls in a fixed part of the calendar and can
-   * therefore anchor a seasonal campaign. "Thank you" is an occasion but not
-   * a season; Christmas is both.
-   */
-  seasonal: boolean;
+export interface Dimensions {
+  readonly widthInches: number;
+  readonly heightInches: number;
+  /** True where the size is an approximate public description. */
+  readonly approximate: boolean;
 }
 
-export const OCCASIONS: Readonly<Record<OccasionId, Occasion>> = {
-  anniversary: {
-    id: "anniversary",
-    label: "Anniversary",
-    prose: "an anniversary",
-    seasonal: false,
-  },
-  birthday: {
-    id: "birthday",
-    label: "Birthday",
-    prose: "a birthday",
-    seasonal: false,
-  },
-  wedding: {
-    id: "wedding",
-    label: "Wedding",
-    prose: "a wedding",
-    seasonal: false,
-  },
-  "mothers-day": {
-    id: "mothers-day",
-    label: "Mother's Day",
-    prose: "Mother's Day",
-    seasonal: true,
-  },
-  christmas: {
-    id: "christmas",
-    label: "Christmas",
-    prose: "Christmas",
-    seasonal: true,
-  },
-  easter: { id: "easter", label: "Easter", prose: "Easter", seasonal: true },
-  "thank-you": {
-    id: "thank-you",
-    label: "Thank You",
-    prose: "saying thank you",
-    seasonal: false,
-  },
-  congratulations: {
-    id: "congratulations",
-    label: "Congratulations",
-    prose: "saying congratulations",
-    seasonal: false,
-  },
-  "valentines-day": {
-    id: "valentines-day",
-    label: "Valentine's Day",
-    prose: "Valentine's Day",
-    seasonal: true,
-  },
-  cruise: {
-    id: "cruise",
-    label: "Cruise / Voyage",
-    prose: "a cruise or voyage",
-    seasonal: false,
-  },
-  "new-year": {
-    id: "new-year",
-    label: "New Year",
-    prose: "New Year",
-    seasonal: true,
-  },
-  "fourth-of-july": {
-    id: "fourth-of-july",
-    label: "Fourth of July",
-    prose: "the Fourth of July",
-    seasonal: true,
-  },
-};
+export interface Variant {
+  /** Globally unique. Stored on every order line and sent to analytics. */
+  readonly sku: string;
+  /** Full customer-facing name, e.g. "12-inch Picture Disc Keepsake". */
+  readonly name: string;
+  /** Name within its product, e.g. "12-inch Picture Disc". */
+  readonly label: string;
+  readonly price: Money;
+  readonly songCount: number | null;
+  readonly fulfilment: Fulfilment;
+  /** `null` when the variant contains no record. */
+  readonly vinyl: VinylSpec | null;
+  readonly artworkIncluded: boolean;
+  readonly masteringIncluded: boolean;
+  readonly dimensions: Dimensions | null;
+  /** What this variant includes, as approved customer-facing lines. */
+  readonly features: readonly string[];
+  /** Whether MCB Priority Replacement™ may be added for this variant. */
+  readonly priorityReplacementEligible: boolean;
+}
 
-/* ------------------------------------------------------------------ */
-/* Families and products                                               */
-/* ------------------------------------------------------------------ */
-
-/**
- * `memory-box` was removed when the Luxury Memory Box was retired, and
- * `music-box` added for the separate Music Box Experience. Removing the id
- * rather than leaving it unused is what makes the retirement complete: every
- * map keyed exhaustively over this union — the relationship map especially —
- * became a compile error until the retired family was taken out of it.
- */
-export type ProductFamilyId =
-  | "vinyl"
-  | "cd"
+export type ProductId =
+  | "moment"
+  | "keepsake"
+  | "journey"
+  | "bespoke"
+  | "mcb-live"
+  | "personalised-music-plaque"
   | "lyrics-frame"
-  | "frame"
-  | "music-box"
-  | "gift-pop-up-card"
-  | "plaque"
-  | "digital-player"
-  | "portable-gramophone"
-  | "phone-gramophone"
-  | "vintage-collection";
+  | "vintage-smartphone-gramophone"
+  | "antique-brass-gramophone"
+  | "portable-suitcase-record-player"
+  | "priority-replacement"
+  | "cruise-ship-dj-bible"
+  | "gift-voucher";
 
-/* ------------------------------------------------------------------ */
-/* Option dimensions                                                   */
-/* ------------------------------------------------------------------ */
-
-/**
- * A choice a customer makes about a product, separate from which product it is.
- *
- * This is the extension point for vinyl colour. Colour is NOT offered at
- * launch and no placeholder variants exist — but because size is a product and
- * colour would be an option, adding it later means appending one
- * `ProductOption` to the vinyl products. It does not multiply the catalogue,
- * it does not touch the pressing rules, and it does not change any type that
- * the checkout or cart depends on.
- *
- * Sleeve artwork is modelled the same way, which is what keeps custom artwork
- * a first-class presentation choice rather than a sentence in a description.
- */
-export interface ProductOptionValue {
-  id: string;
-  label: string;
-  /**
-   * Priced separately, where a price has been approved. Absent means the value
-   * carries no separate charge decision yet — it is NOT a claim of "free".
-   */
-  price?: ProductPrice;
-  /** False keeps an approved-but-unreleased value out of the UI. */
-  available: boolean;
+export interface StoredValueRules {
+  readonly currency: Currency;
+  readonly minimumMinor: number;
+  readonly partialRedemption: boolean;
+  readonly remainingBalance: boolean;
+  readonly reloadable: boolean;
+  readonly giftPurchase: boolean;
+  readonly referenceDigits: number;
+  readonly cashRedemption: boolean;
 }
 
-export interface ProductOption {
-  id: string;
-  /** Customer-facing question, e.g. "Sleeve". */
-  label: string;
-  values: readonly ProductOptionValue[];
-}
-
-/** Option values a customer can actually pick today. */
-export const availableOptionValues = (
-  option: ProductOption
-): readonly ProductOptionValue[] =>
-  option.values.filter((value) => value.available);
-
-/** Options with at least one selectable value. */
-export const selectableOptions = (
-  product: Pick<CatalogueProduct, "options">
-): readonly ProductOption[] =>
-  (product.options ?? []).filter(
-    (option) => availableOptionValues(option).length > 0
-  );
-
-export interface CatalogueProduct {
-  id: string;
-  familyId: ProductFamilyId;
-  name: string;
-  description: string;
-  /** Public path to a photograph. Omitted where no approved image exists. */
-  image?: string;
-  /** Overrides the default alt text (the name) where more detail helps. */
-  alt?: string;
-  price: ProductPrice;
-  availability: Availability;
-  leadTime?: LeadTime;
-  fulfilment: Fulfilment;
-  songInclusion: SongInclusion;
-  /** Present only on formats that physically hold audio. */
-  songCapacity?: SongCapacity;
-  /** Set on occasion-led variants such as Gift Pop-Up Card designs. */
-  occasion?: OccasionId;
-  /**
-   * Dimensions, materials and the like — ONLY where supplied by the business.
-   * An empty or absent list means "not specified", never "none".
-   */
-  specs?: readonly { label: string; value: string }[];
-  /**
-   * Experiences this product can be configured against. Absent means the
-   * business has stated no restriction, not that it works with everything.
-   */
-  compatiblePackages?: readonly PackageId[];
-  /** Enhancements this product can be combined with, by product id. */
-  compatibleProducts?: readonly string[];
-  /**
-   * Choices within this product — sleeve, and in future colour. Absent means
-   * the product has nothing to configure.
-   */
-  options?: readonly ProductOption[];
-}
-
-/**
- * A product family groups variants that differ by size, occasion or finish.
- *
- * A family may legitimately have NO products yet: Digital Players are an
- * approved part of the vinyl ecosystem, but no model, price or photograph has
- * been supplied. The family exists so the relationship can be expressed and
- * so adding the first product later is a data edit, not an architecture
- * change. UI must handle an empty family by describing it, not by inventing
- * a product to fill the space.
- */
-export interface ProductFamily {
-  id: ProductFamilyId;
-  name: string;
-  /** One line describing the family. Used wherever a family is shown alone. */
-  description: string;
-  /** Representative image for the family, where one exists. */
-  image?: string;
-  alt?: string;
-  /**
-   * How the image should fill its container.
-   *
-   * `cover` crops to fill and suits landscape photographs. `contain` shows
-   * the whole image and is required where the artwork carries text — the
-   * collection images have their titles printed inside them, and a crop that
-   * clipped a title would be worse than letterboxing. Defaults to `cover`.
-   */
-  imageFit?: "cover" | "contain";
-  /**
-   * The shape of the well the image sits in.
-   *
-   * Only meaningful alongside `contain`, which letterboxes rather than crops:
-   * a well the wrong shape leaves the artwork stranded in empty space. The
-   * Gift Pop-Up Card photograph is near-square (755x792) and fills a
-   * `square` well; the playback-collection artwork is
-   * landscape (~3:2) and fills a `landscape` one. Defaults to `square`, which
-   * is what the two original `contain` families already used.
-   */
-  imageAspect?: "square" | "landscape";
-  /** True where the family is also selectable as a delivery format. */
-  isCheckoutFormat: boolean;
-  products: readonly CatalogueProduct[];
+export interface Product {
+  readonly id: ProductId;
+  readonly slug: string;
+  readonly name: string;
+  /** The approved one-line proposition. */
+  readonly positioning: string;
+  readonly shortDescription: string;
+  readonly commercialModel: CommercialModel;
+  readonly category: Category;
+  /** Commercially available now. */
+  readonly active: boolean;
+  /** May be presented on the public website. */
+  readonly public: boolean;
+  /** May be placed through MCB's own order and checkout path. */
+  readonly onlineCheckout: boolean;
+  readonly requiresPersonalisation: boolean;
+  /** Canonical public path, or null when the product has no page of its own. */
+  readonly route: string | null;
+  /** The customer-facing timing line, or null when none is approved. */
+  readonly turnaround: { readonly basis: DeliveryBasis; readonly label: string } | null;
+  readonly revisions: string | null;
+  readonly schemaType: SchemaType;
+  /** The variant property a ProductGroup varies by, for structured data. */
+  readonly variesBy: "size" | "songCount" | "level" | null;
+  readonly analyticsCategory: string;
+  /** Public image path, or null until an approved image is assigned. */
+  readonly image: string | null;
+  readonly imageAlt: string | null;
+  /** Statements that must accompany the product wherever it is sold. */
+  readonly disclosures: readonly string[];
+  readonly cta: string;
+  /** Empty for QUOTED and STORED_VALUE. */
+  readonly variants: readonly Variant[];
+  readonly storedValue: StoredValueRules | null;
 }

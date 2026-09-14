@@ -3,6 +3,12 @@ import CurrencySelector from "../components/CurrencySelector";
 import CruiseMarquee from "../components/CruiseMarquee";
 import { Link } from "react-router-dom";
 import { trackWhatsAppClick, trackEvent } from "../lib/analytics";
+import { BESPOKE, songExperiences } from "../data/catalogue";
+
+/** Product pages that exist, read from the catalogue's canonical routes. */
+const PRODUCT_LINKS = [...songExperiences(), BESPOKE].flatMap((product) =>
+  product.route ? [{ to: product.route, label: product.name }] : []
+);
 
 const Footer = () => {
 
@@ -38,6 +44,9 @@ const Footer = () => {
 
         {/* ===== NAVIGATION (SIMPLE ROW) ===== */}
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-ivory/70 mb-8">
+          {PRODUCT_LINKS.map((link) => (
+            <Link key={link.to} to={link.to} className="hover:text-gold transition">{link.label}</Link>
+          ))}
           <Link to="/mcb-live" className="hover:text-gold transition">MCB LIVE</Link>
           <Link to="/priority-replacement" className="hover:text-gold transition">Priority Replacement</Link>
           <Link to="/products" className="hover:text-gold transition">Products</Link>

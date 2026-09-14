@@ -53,7 +53,7 @@ export default function Occasions() {
             We turn your most meaningful memories into bespoke songs — crafted to be felt, remembered, and treasured forever.
           </p>
           <a
-  href="/#order-form"
+  href="/#order"
   className="inline-flex items-center gap-3 px-10 py-4 bg-gold text-espresso rounded-full font-medium 
   transition-all duration-300 hover:bg-espresso hover:text-ivory hover:scale-105 shadow-md hover:shadow-xl"
 >
@@ -115,7 +115,7 @@ export default function Occasions() {
 </p>
 
                   <a
-  href="/#order-form"
+  href="/#order"
   className="inline-flex items-center gap-3 px-10 py-4 bg-gold text-espresso rounded-full font-medium 
   transition-all duration-300 hover:bg-espresso hover:text-ivory hover:scale-105 shadow-md hover:shadow-xl"
 >
@@ -152,30 +152,19 @@ export default function Occasions() {
           </div>
         </section>
 
-        {/* SOCIAL PROOF */}
-        <section className="max-w-5xl mx-auto px-6 py-24 text-center border-t border-black/10">
-          <h2 className="text-4xl font-light mb-12">What Our Clients Say</h2>
-          <div className="space-y-8 text-black/70">
-            <p>"I’ve never seen my wife cry like that — this was beyond a gift."</p>
-            <p>"The most meaningful thing I’ve ever given."</p>
-            <p>"It captured everything I couldn’t say."</p>
-          </div>
-        </section>
-
         {/* FINAL CTA */}
         <section className="text-center py-32 px-6 border-t border-black/10">
           <h2 className="text-4xl font-light mb-6">Your Story Deserves More Than a Gift</h2>
           <p className="text-black/60 max-w-xl mx-auto mb-10">Let’s turn it into something unforgettable.</p>
           
           <a
-  href="/#order-form"
+  href="/#order"
   className="inline-flex items-center gap-3 px-10 py-4 bg-gold text-espresso rounded-full font-medium 
   transition-all duration-300 hover:bg-espresso hover:text-ivory hover:scale-105 shadow-md hover:shadow-xl"
 >
   Start My Song →
 </a>
 
-          <p className="text-black/50 text-sm mt-6">Limited slots available each month.</p>
         </section>
 
       </div>

@@ -14,7 +14,7 @@
  * three hand-written copies of a rule is how a business ends up unable to say
  * what its own policy is.
  *
- * Package entitlements are still DERIVED from `data/packages.ts` rather than
+ * Product entitlements are still DERIVED from the canonical catalogue rather than
  * typed out, so the contract and the product card cannot disagree about how
  * many refinements a customer has.
  *
@@ -37,7 +37,8 @@
  * Those constants still exist and are still used elsewhere — deleting them
  * would be editing the Founder's decision into other pages, which it is not.
  */
-import { PACKAGES, isConcierge, type AnyPackage } from "../packages";
+import { PRODUCTS } from "../catalogue/products";
+import type { Product } from "../catalogue/types";
 
 /* ------------------------------------------------------------------ */
 /* Package entitlements, read from the commercial source of truth      */
@@ -50,20 +51,24 @@ export interface RevisionEntitlement {
 }
 
 /**
- * What each experience actually includes, read from `packages.ts`.
+ * What each experience actually includes, read from the catalogue.
  *
- * Derived rather than restated, so a repricing or a change of entitlement
- * updates the terms with no edit here — and so nobody can change a package
- * card without the contract following.
+ * Derived rather than restated, so a change of entitlement updates the terms
+ * with no edit here — and so nobody can change a product without the
+ * contract following. Only products that state a revision entitlement appear.
  */
 export const revisionEntitlements = (
-  packages: readonly AnyPackage[] = PACKAGES
+  products: readonly Product[] = PRODUCTS
 ): readonly RevisionEntitlement[] =>
-  packages.map((pkg) => ({
-    packageName: pkg.name,
-    entitlement: pkg.revisions,
-    concierge: isConcierge(pkg),
-  }));
+  products.flatMap((product) =>
+    product.active && product.public && product.revisions !== null
+      ? [{
+          packageName: product.name,
+          entitlement: product.revisions,
+          concierge: product.commercialModel === "QUOTED",
+        }]
+      : []
+  );
 
 /* ------------------------------------------------------------------ */
 /* Clauses                                                             */

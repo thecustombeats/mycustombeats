@@ -73,7 +73,7 @@ export const LEGAL_REVIEW_REQUIRED: readonly ReviewItem[] = [
     positionTaken:
       "Customer receives a personal-use licence; MCB retains underlying rights; commercial use is excluded from standard experiences and available by separate agreement. Customer keeps ownership of material they supply and grants a fulfilment-purpose licence only.",
     question:
-      "Is 'personal use' defined adequately, and does the Full Package's proposal-based rights position need standard-form wording rather than being left entirely to each proposal?",
+      "Is 'personal use' defined adequately, and does Bespoke's proposal-based rights position need standard-form wording rather than being left entirely to each proposal?",
     severity: "IMPORTANT",
   },
   {

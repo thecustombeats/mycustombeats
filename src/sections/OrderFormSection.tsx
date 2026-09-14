@@ -1,22 +1,29 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Upload, Info, Check } from 'lucide-react';
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
-  PACKAGES,
-  FORMATS,
-  KEEPSAKE,
-  MOMENT,
-  getPackage,
-  getCheckoutTarget,
-  isConcierge,
-  isFixedPrice,
-  isFormatAllowed,
-  requiresShippingAddress,
-  formatPrice,
-  type FormatId,
-} from "../data/packages";
+  MAX_UNITS_PER_LINE,
+  MULTI_UNIT_PRODUCT_IDS,
+  EMPTY_SELECTION,
+  chooseProduct,
+  orderAddOns,
+  previewSelection,
+  priorityReplacementLimit,
+  selectionLines,
+  type AddOnSelection,
+  type OrderSelection,
+} from "../lib/orderSelection";
+import {
+  BESPOKE,
+  PRIORITY_REPLACEMENT,
+  formatMoney,
+  getProduct,
+  getVariant,
+  priceSummary,
+  songExperiences,
+} from "../data/catalogue";
 import {
   REFERRAL_STORAGE_KEY,
   readStoredReferral,
@@ -31,48 +38,26 @@ import {
   PRIVACY_POLICY_VERSION,
   type ConsentId,
 } from "../data/legal";
-import { buildMemory } from "../lib/memory";
 import YourMemorySummary from "../components/YourMemorySummary";
 import MusicStyleSelector from "../components/MusicStyleSelector";
 import UpgradeInvitation from "../components/UpgradeInvitation";
 import { isUpgradeEligible, type UpgradeDecision } from "../lib/upgrade";
 import CompleteYourMemory from "../components/CompleteYourMemory";
 import {
-  offersFor,
-  priceBasket,
-  revalidate,
-  toCheckoutItems,
-  type BasketItem,
-} from "../lib/completeMemory";
-import {
   MAX_STYLE_LABEL_LENGTH,
   OTHER_STYLE_VALUE,
 } from "../data/musicStyles";
 import { revealOnScroll } from "../lib/scrollReveal";
-import { trackEvent } from "../lib/analytics";
+import { trackAddToCart, trackBeginCheckout, trackEvent, trackSelectItem } from "../lib/analytics";
 import {
   CHECKOUT_SESSIONS_ENABLED,
   createCheckoutSession,
 } from "../lib/checkoutSession";
 
-/** Stable empty array, so clearing the notice cannot re-trigger an effect. */
-const NO_REMOVALS: readonly string[] = [];
-
-/**
- * The experiences this form can actually take an order for.
- *
- * This grid used to render every package, which meant the Full Package sat
- * among them as a button with a name and a blank price — selectable, and
- * leading to a submit that has no amount to charge. It is not ordered here;
- * it is arranged through a consultation, and it has its own page for that.
- *
- * Filtered on the commercial model, so this stays correct without anyone
- * remembering to exclude an id.
- */
-const ORDERABLE_PACKAGES = PACKAGES.filter(isFixedPrice);
-
-/** Named in this form only to point at where it is actually arranged. */
-const CONCIERGE_PACKAGE = PACKAGES.find(isConcierge);
+/** The song experiences this form takes orders for, from the catalogue. */
+const ORDERABLE_PRODUCTS = songExperiences().filter((product) => product.onlineCheckout);
+const MOMENT_ID = "moment";
+const KEEPSAKE_ID = "keepsake";
 
 const moodsList = [
   'Romantic','Adventurous','Relaxed','Upbeat','Celebration',
@@ -162,34 +147,15 @@ const FieldError = ({
   ) : null;
 
 /**
- * Order-capture endpoints. These are ANCILLARY: they record the order for
- * fulfilment and automation. They must never gate the customer's payment.
+ * NO BROWSER AUTOMATION WEBHOOKS.
  *
- * THIS FIRES BEFORE PAYMENT, AND MUST NOT EMAIL THE CUSTOMER.
- *
- * It runs at form submission, so at this point the customer has not paid,
- * the order is PENDING, and no MCB reference exists — the reference is
- * issued by the Stripe webhook when the money is confirmed. A scenario that
- * emails from here therefore cannot include the reference, and also mails
- * everyone who abandons checkout.
- *
- * The customer's confirmation email is now sent server-side, after payment,
- * by the Stripe webhook (see api/lib/notify.php). The payload below carries
- * `stage: "SUBMITTED"` so the receiving scenario can route on it and keep
- * its non-email work — logging, operations, fulfilment prep — while leaving
- * customer correspondence to the post-payment trigger.
- *
- * The local bridge is a developer convenience only. It is compiled out of
- * production builds so a machine-local service can never sit in front of
- * a customer's checkout.
+ * This form used to POST every submission — contact details, address and
+ * story — straight to a Make.com webhook whose URL shipped in the public
+ * bundle, before anyone had paid. That integration now runs server-side,
+ * after payment, with no personal data (see api/lib/ops.php). The browser
+ * talks only to MCB's own API.
  */
-const MAKE_WEBHOOK_URL =
-  "https://hook.eu1.make.com/yrw2uhttk8p3kpjxsy5pks3wgwjpc7ru";
-const DEV_BRIDGE_URL = "http://localhost:18888/webhook/order";
-
-/** Abandon an ancillary request rather than leave the customer waiting. */
-const WEBHOOK_TIMEOUT_MS = 8000;
-const CRM_TIMEOUT_MS = 6000;
+const ORDER_TIMEOUT_MS = 15000;
 
 /**
  * Largest artwork the form accepts — the same limit the upload row advertises.
@@ -202,58 +168,33 @@ const CRM_TIMEOUT_MS = 6000;
  */
 const MAX_ARTWORK_BYTES = 10 * 1024 * 1024;
 
-const ancillaryWebhookUrls = (): string[] =>
-  import.meta.env.DEV ? [DEV_BRIDGE_URL, MAKE_WEBHOOK_URL] : [MAKE_WEBHOOK_URL];
-
 /**
- * Posts order data to one ancillary endpoint. Always resolves — never throws,
- * never rejects — so no caller can be blocked by an outage here.
- */
-const postOrderData = async (url: string, data: FormData): Promise<boolean> => {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      body: data,
-      signal: controller.signal,
-    });
-    return response.ok;
-  } catch {
-    // Swallowed deliberately: order capture is best-effort, checkout is not.
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
-};
-
-/**
- * Records the order in MCB's own CRM and returns its id.
+ * Saves the order with MCB and returns what checkout needs.
  *
- * Best-effort by design, exactly like the fulfilment webhooks: a CRM outage
- * must never stop someone paying. If the endpoint is not deployed yet, or
- * fails, this returns null and checkout still proceeds — but Stripe is then
- * sent no `client_reference_id` at all, rather than a substitute.
- *
- * The browser sends what it observed. The server decides what it means:
- * fulfilment type, attribution, amount and status are all derived there, and
- * nothing posted from here can nominate an affiliate or mark an order paid.
+ * The request carries SKUs and quantities, never a price: the server prices
+ * the order itself. The Idempotency-Key makes a retry — a double click, or a
+ * response lost to a timeout — return the original order rather than create a
+ * second one.
  */
-const recordOrderInCrm = async (payload: Record<string, unknown>): Promise<number | null> => {
+const saveOrder = async (
+  payload: Record<string, unknown>,
+  idempotencyKey: string
+): Promise<{ orderId: number; checkoutToken: string } | null> => {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), CRM_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), ORDER_TIMEOUT_MS);
 
   try {
     const response = await fetch("/api/order", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
     if (!response.ok) return null;
     const data = await response.json();
-    return typeof data?.order_id === "number" ? data.order_id : null;
+    return typeof data?.order_id === "number" && typeof data?.checkout_token === "string"
+      ? { orderId: data.order_id, checkoutToken: data.checkout_token }
+      : null;
   } catch {
     return null;
   } finally {
@@ -261,15 +202,10 @@ const recordOrderInCrm = async (payload: Record<string, unknown>): Promise<numbe
   }
 };
 
-/**
- * Packages with a single format have nothing to choose, so it is selected for
- * the customer. Packages with several start empty and must be chosen.
- */
-const defaultFormatFor = (packageId: string): string => {
-  const pkg = getPackage(packageId);
-  if (!pkg) return "";
-  return pkg.formats.length === 1 ? pkg.formats[0] : "";
-};
+const newIdempotencyKey = (): string =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 
 const contactMethods = ['Email', 'WhatsApp', 'Phone'];
 type FormDataType = {
@@ -278,10 +214,7 @@ type FormDataType = {
   email: string;
   whatsapp: string;
   preferredContact: string;
-  package: string;
-  /** One of the selected package's allowed formats. */
-  format: string;
-  /** Collected only when the chosen format is physical. */
+  /** Collected only when something in the order is posted. */
   shippingName: string;
   shippingAddress: string;
   shippingCity: string;
@@ -329,7 +262,7 @@ type FormDataType = {
  * message lands on the control it belongs to.
  */
 type FormErrors = Partial<
-  Record<Exclude<keyof FormDataType, "consents"> | ConsentId, string>
+  Record<Exclude<keyof FormDataType, "consents"> | ConsentId | "product" | "sku", string>
 >;
 
 interface OrderFormSectionProps {
@@ -381,8 +314,6 @@ const OrderFormSection = ({ selectedPackage }: OrderFormSectionProps) => {
   email: '',
   whatsapp: '',
   preferredContact: '',
-  package: '',
-  format: '',
   shippingName: '',
   shippingAddress: '',
   shippingCity: '',
@@ -403,22 +334,35 @@ const OrderFormSection = ({ selectedPackage }: OrderFormSectionProps) => {
 
 
 /**
- * Whether this order's deliverable is supplied digitally.
+ * WHAT IS BEING ORDERED — catalogue SKUs and integer quantities only.
  *
- * DERIVED FROM THE FORMAT, not hard-coded per package. An MP3 Keepsake needs
- * the digital-content acknowledgement and a vinyl one does not, and that
- * follows from what the customer chose rather than from anyone remembering to
- * list Moment. `order.php` derives the same answer from the same generated
- * format data, so the browser cannot decide it needs fewer consents than it
- * does.
- *
- * A package with no format chosen yet is treated as not-yet-digital: the
- * acknowledgement appears when the choice makes it relevant, rather than
- * asking the customer about digital files before they have said they want any.
+ * Every figure the customer sees (lines, total, whether anything is posted,
+ * whether digital content is supplied) is derived from this by the catalogue,
+ * using the rules the server applies again when the order is saved.
  */
-const hasDigitalDelivery =
-  formData.format in FORMATS &&
-  !FORMATS[formData.format as FormatId].isPhysical;
+const [selection, setSelection] = useState<OrderSelection>(EMPTY_SELECTION);
+const preview = previewSelection(selection);
+const activeProduct = getProduct(selection.productId);
+const activeVariant = selection.sku ? getVariant(selection.sku)?.variant : undefined;
+const priorityLimit = priorityReplacementLimit(selection);
+
+/**
+ * Whether this order supplies digital content, which decides whether the
+ * digital-content acknowledgement is required. Derived from the lines, as
+ * `order.php` derives it, so the browser cannot ask for fewer consents than
+ * the server requires.
+ */
+const hasDigitalDelivery = preview.ok && preview.lines.some((line) => line.fulfilment === "DIGITAL");
+const needsShipping = preview.ok && preview.requiresShipping;
+
+/**
+ * One Idempotency-Key per distinct order attempt. A retry of the same order
+ * reuses it, so the server returns the order it already saved; changing
+ * anything in the order starts a new attempt.
+ */
+const attemptRef = useRef<{ key: string; signature: string } | null>(null);
+/** The uploaded artwork for a given file, so a retry does not upload again. */
+const artworkRef = useRef<{ file: File; url: string | null } | null>(null);
 
 const [errors, setErrors] = useState<FormErrors>({});
 const [isSubmitting, setIsSubmitting] = useState(false);
@@ -426,43 +370,32 @@ const [isSubmitting, setIsSubmitting] = useState(false);
 const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
-  if (selectedPackage) {
-    setFormData((prev) => ({
-      ...prev,
-      package: selectedPackage,
-      // A format from a previous package may not be sold with this one.
-      format: defaultFormatFor(selectedPackage),
-    }));
+  if (selectedPackage && getProduct(selectedPackage)) {
+    setSelection((prev) => chooseProduct(prev, selectedPackage));
   }
 }, [selectedPackage]);
 
-// The package currently being ordered, and everything derived from it.
-const activePackage = getPackage(formData.package);
-const availableFormats = activePackage?.formats ?? [];
-const offersFormatChoice = availableFormats.length > 1;
+/**
+ * A product page links here as /?product=<id>&sku=<sku>#order. Only ids the
+ * catalogue sells online are honoured; anything else is ignored.
+ */
+const [searchParams] = useSearchParams();
+const linkedProduct = searchParams.get("product");
+const linkedSku = searchParams.get("sku");
+useEffect(() => {
+  const product = linkedProduct ? getProduct(linkedProduct) : undefined;
+  if (product && product.onlineCheckout && product.category === "SONG_EXPERIENCE") {
+    setSelection((prev) => chooseProduct(prev, product.id, linkedSku ?? undefined));
+  }
+}, [linkedProduct, linkedSku]);
 
 /**
  * THE MOMENT → KEEPSAKE UPGRADE.
  *
- * `formData.package` stays the ONE canonical package. This is the only extra
- * state, and it holds a UI decision rather than a second package truth: it
- * decides whether the invitation is shown, never what anything costs. Every
- * figure — the total, the format rules, the shipping requirement, the
- * checkout target, the CRM payload — is still derived from
- * `formData.package`, exactly as it was before this existed.
+ * `selection` stays the one record of what is being ordered. This holds only
+ * the UI decision about whether the invitation is shown, never a price.
  */
 const [upgradeDecision, setUpgradeDecision] = useState<UpgradeDecision>(null);
-
-/**
- * COMPLETE YOUR MEMORY — the enhancement basket.
- *
- * Ids and integer quantities ONLY. There is no price in this state and no
- * way to put one there: names and amounts are resolved from the catalogue
- * for display, and the server prices the same ids again for the charge.
- */
-const [basket, setBasket] = useState<readonly BasketItem[]>([]);
-/** Names dropped by the last revalidation, so the customer can be told. */
-const [basketRemoved, setBasketRemoved] = useState<readonly string[]>([]);
 
 /**
  * The invitation waits until the customer has actually said something.
@@ -489,120 +422,27 @@ const briefReady =
 const upgradeShownRef = useRef(false);
 useEffect(() => {
   if (upgradeShownRef.current) return;
-  if (!briefReady || !isUpgradeEligible(formData.package)) return;
+  if (!briefReady || !isUpgradeEligible(selection.productId)) return;
   if (upgradeDecision !== null) return;
 
   upgradeShownRef.current = true;
   trackEvent("moment_keepsake_upgrade_shown", {
-    from_package: MOMENT.id,
-    to_package: KEEPSAKE.id,
+    from_package: MOMENT_ID,
+    to_package: KEEPSAKE_ID,
   });
-}, [briefReady, formData.package, upgradeDecision]);
+}, [briefReady, selection.productId, upgradeDecision]);
+
+/** Add-ons offered alongside a song experience, from the catalogue. */
+const availableOffers = orderAddOns();
 
 /**
- * Re-check the basket whenever the package or format changes.
- *
- * A customer can choose a vinyl Keepsake, add a second record, then change
- * their mind and pick MP3 — at which point the additional copy is a copy of
- * a record that does not exist. Charging for it silently would be the worst
- * outcome; dropping it silently is only slightly better. It is dropped AND
- * reported, and `CompleteYourMemory` announces what went.
- *
- * Still-eligible selections are preserved: changing format is not a reason to
- * make someone rebuild their basket.
- */
-useEffect(() => {
-  if (basket.length === 0) {
-    // NO_REMOVALS rather than a fresh []: a new array every run would change
-    // identity, re-render, and run this again forever.
-    setBasketRemoved(NO_REMOVALS);
-    return;
-  }
-
-  const result = revalidate(formData.package, formData.format || null, basket);
-  if (result.removed.length === 0) return;
-
-  /**
-   * `basket` is in the dependency list on purpose, and this does not loop:
-   * the corrected basket contains only eligible items, so the very next run
-   * finds nothing to remove and returns before setting anything.
-   */
-  setBasket(result.items);
-  setBasketRemoved(result.removed);
-}, [formData.package, formData.format, basket]);
-/**
- * SHIPPING IS A PROPERTY OF THE WHOLE BASKET, NOT JUST THE PACKAGE.
- *
- * A digital Moment with a framed lyric print in it still has to be posted.
- * Asking only the package would have been correct until the moment
- * enhancements existed, and silently wrong afterwards — the customer would
- * have reached Stripe with nowhere for MCB to send the frame.
- */
-const basketPreview = activePackage
-  ? priceBasket(activePackage, formData.format || null, basket)
-  : null;
-
-const needsShipping = activePackage
-  ? requiresShippingAddress(activePackage, formData.format) ||
-    (basketPreview?.requiresShipping ?? false)
-  : false;
-
-/**
- * What may be offered against the CURRENT package and format.
- *
- * ─────────────────────────────────────────────────────────────────────────
- * GATED ON THE CHECKOUT FLAG, AND THIS IS RELEASE-CRITICAL
- * ─────────────────────────────────────────────────────────────────────────
- * Enhancements can only be PAID FOR through a server-created Checkout
- * Session, because a fixed Payment Link charges one fixed amount. While
- * `CHECKOUT_SESSIONS_ENABLED` is false there is no payment path for a basket
- * — and `mayFallBackToPaymentLink` correctly refuses to send an enhanced
- * basket to the Keepsake link, which is what stops MCB shipping £449 of goods
- * against a £79 payment.
- *
- * But refusing at the last step is not the same as not offering. Without this
- * gate a customer could choose a £200 frame, a £50 card and two extra
- * records, fill in the whole form, press submit, and be told to "try again in
- * a moment" — with an order row already written and no way to pay for it.
- * They would have been shown a shop that cannot take their money.
- *
- * So the stage does not appear at all until the payment path behind it is
- * live. Turning the flag on turns the shop on; the two cannot drift apart,
- * because they are the same switch.
- */
-const availableOffers =
-  activePackage && CHECKOUT_SESSIONS_ENABLED
-    ? offersFor(activePackage.id, formData.format || null)
-    : [];
-
-/**
- * Complete Your Memory comes AFTER the package and format are settled, and
- * after a Moment customer has answered the upgrade invitation.
- *
- * Eligibility depends on the final commercial state: a Keepsake on MP3 has no
- * record, so there is nothing to make an additional copy of. Asking earlier
- * would mean asking about the wrong order.
+ * Complete Your Memory comes after the song experience is settled and a
+ * Moment customer has answered the upgrade invitation.
  */
 const upgradeAnswered =
-  !isUpgradeEligible(formData.package) || upgradeDecision !== null;
+  !isUpgradeEligible(selection.productId) || upgradeDecision !== null;
 const showCompleteMemory =
-  briefReady &&
-  upgradeAnswered &&
-  Boolean(activePackage) &&
-  (availableFormats.length === 0 || formData.format !== "");
-
-/**
- * YOUR MEMORY, resolved from the current selection.
- *
- * The panel below renders this rather than reading formData itself, so what
- * the customer is shown and what the memory model computes cannot disagree.
- * No enhancements are passed: none can be charged through a fixed Payment
- * Link, so none is offered here. See lib/memory.ts for why.
- */
-const memory = buildMemory({
-  packageId: formData.package || null,
-  formatId: formData.format || null,
-});
+  briefReady && upgradeAnswered && Boolean(activeVariant);
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -655,41 +495,21 @@ const memory = buildMemory({
   };
 
   /**
-   * ACCEPTING THE UPGRADE.
-   *
-   * Writes ONE value — the package — and lets everything else re-derive:
-   * the total, the format options, the shipping requirement, the checkout
-   * target and the CRM payload all read `formData.package` already. There is
-   * no arithmetic here and no second package kept underneath.
-   *
-   * The format is reset rather than guessed. Keepsake sells vinyl, CD and
-   * MP3; carrying over Moment's MP3 would quietly keep a customer digital
-   * after they asked for something to hold, and picking a physical format for
-   * them would commit them to a delivery address they never agreed to.
-   * `defaultFormatFor` leaves it empty, so they choose — and the existing
-   * validator already refuses to submit without one.
+   * ACCEPTING THE UPGRADE. The product becomes Keepsake and the customer
+   * chooses which one; nothing is chosen for them.
    */
   const acceptUpgrade = () => {
-    setFormData((prev) => ({
-      ...prev,
-      package: KEEPSAKE.id,
-      format: defaultFormatFor(KEEPSAKE.id),
-    }));
+    setSelection((prev) => chooseProduct(prev, KEEPSAKE_ID, ""));
     setUpgradeDecision("accepted");
     trackEvent("moment_keepsake_upgrade_accepted", {
-      from_package: MOMENT.id,
-      to_package: KEEPSAKE.id,
+      from_package: MOMENT_ID,
+      to_package: KEEPSAKE_ID,
     });
 
-    /**
-     * The upgrade introduces a required field the customer has already
-     * scrolled past, so focus goes to it rather than leaving them to
-     * discover it at submit. Deferred a frame so the selector has rendered
-     * Keepsake's options first.
-     */
+    // Focus the choice the customer now has to make.
     window.setTimeout(() => {
       const target = document.querySelector<HTMLElement>(
-        '[data-field="format"] input, [data-field="format"] button'
+        '[data-field="sku"] input, [data-field="sku"] button'
       );
       target?.scrollIntoView({ behavior: "smooth", block: "center" });
       target?.focus();
@@ -697,29 +517,16 @@ const memory = buildMemory({
   };
 
   const declineUpgrade = () => {
-    // Nothing changes but the decision. The customer keeps Moment, keeps its
-    // price, and is asked for no physical-format or delivery details.
     setUpgradeDecision("declined");
     trackEvent("moment_keepsake_upgrade_declined", {
-      from_package: MOMENT.id,
-      to_package: KEEPSAKE.id,
+      from_package: MOMENT_ID,
+      to_package: KEEPSAKE_ID,
     });
   };
 
-  /**
-   * Back to Moment, before payment.
-   *
-   * One click up must not be a commitment. The creative brief is untouched —
-   * story, mood, musical style, personal touches and contact details all stay
-   * exactly as written; only the package and its format rules revert, so the
-   * shipping fields stop governing validation.
-   */
+  /** Back to Moment, before payment. The creative brief is untouched. */
   const revertUpgrade = () => {
-    setFormData((prev) => ({
-      ...prev,
-      package: MOMENT.id,
-      format: defaultFormatFor(MOMENT.id),
-    }));
+    setSelection((prev) => chooseProduct(prev, MOMENT_ID));
     setUpgradeDecision("declined");
   };
 
@@ -739,6 +546,7 @@ const memory = buildMemory({
       item_id: id,
       ...(typeof quantity === "number" ? { quantity } : {}),
     });
+    if (event === "selected") trackAddToCart(id, quantity ?? 1);
   };
 
   const handleMoodToggle = (mood: string) => {
@@ -812,23 +620,16 @@ const validateForm = (): FormErrors => {
   if (!formData.preferredContact)
     newErrors.preferredContact = "Select contact method";
 
- if (!formData.package) {
-  newErrors.package = "Please select a package";
-}
-
-  // Format must be one this package actually sells — never trust the value
-  // alone, since it survives a package change until reset.
-  const pkg = getPackage(formData.package);
-  if (pkg && pkg.formats.length > 0) {
-    if (!formData.format) {
-      newErrors.format = "Please choose how you'd like to receive your music";
-    } else if (!isFormatAllowed(pkg, formData.format)) {
-      newErrors.format = `${pkg.name} isn't available in that format`;
-    }
+  if (!activeProduct) {
+    newErrors.product = "Please choose an experience";
+  } else if (!activeVariant) {
+    newErrors.sku = `Please choose which ${activeProduct.name} you would like`;
+  } else if (!preview.ok) {
+    newErrors.sku = "That combination can't be ordered. Please check your choices.";
   }
 
-  // Physical formats have to go somewhere.
-  if (pkg && requiresShippingAddress(pkg, formData.format)) {
+  // Anything posted has to go somewhere.
+  if (needsShipping) {
     if (!formData.shippingName.trim())
       newErrors.shippingName = "Recipient name is required";
     if (!formData.shippingAddress.trim())
@@ -999,328 +800,105 @@ const setConsent = (id: ConsentId, value: boolean) => {
     return; // 🚨 BLOCKS STRIPE
   }
 
+  /**
+   * NO ORDER WITHOUT A WAY TO PAY.
+   *
+   * Server-created Checkout Sessions are the only payment path, and they stay
+   * switched off until Bella and Lewis approve going live. Saving an order the
+   * customer cannot pay for would leave them believing they had bought
+   * something, so nothing is submitted while checkout is closed.
+   */
+  if (!CHECKOUT_SESSIONS_ENABLED) {
+    setSubmitError(
+      "Online checkout is not open yet. Nothing has been submitted or charged — please contact us and we'll help you with your order personally."
+    );
+    return;
+  }
+
+  const lines = selectionLines(selection);
+  if (!preview.ok || lines.length === 0) {
+    setSubmitError("Please check your choices — that combination can't be ordered online.");
+    return;
+  }
+
   setIsSubmitting(true);
 
-  const selectedPackage = formData.package;
-
-  // Commercial values come from the central package data — never a local copy.
-  const orderedPackage = getPackage(selectedPackage);
-
-  if (!orderedPackage) {
-    setSubmitError(
-      "We couldn't identify that package. Please reselect your experience and try again."
-    );
-    setIsSubmitting(false);
-    return;
+  // Upload the artwork once per file, so a retry sends the same URL and
+  // therefore the same order.
+  let artworkUrl: string | null = null;
+  if (formData.artwork) {
+    if (artworkRef.current?.file === formData.artwork) {
+      artworkUrl = artworkRef.current.url;
+    } else {
+      const uploadResult = await uploadArtwork(formData.artwork);
+      artworkUrl = uploadResult?.secure_url || null;
+      artworkRef.current = { file: formData.artwork, url: artworkUrl };
+    }
   }
 
-  /**
-   * A CONCIERGE COMMISSION CANNOT BE SUBMITTED AS AN ORDER.
-   *
-   * This form creates a paid order: it posts a price to fulfilment and sends
-   * the customer to a Payment Link. The Full Package has no price to post and
-   * no link to send them to, and submitting one here would produce an order
-   * row for an amount nobody agreed.
-   *
-   * The Full Package is not selectable in this form, so this should be
-   * unreachable through the UI. It is checked anyway because "unreachable
-   * through the UI" is a statement about today's markup, not about the
-   * request that arrives — and `api/order.php` refuses the same thing
-   * independently, which is the actual enforcement.
-   */
-  if (isConcierge(orderedPackage) || !orderedPackage.price) {
-    setSubmitError(
-      `${orderedPackage.name} is arranged personally with you rather than ordered online. Please start a private consultation and we'll take it from there.`
-    );
-    setIsSubmitting(false);
-    return;
-  }
-
-  const finalPrice = orderedPackage.price.gbp;
-
-  let artworkUpload = null;
-
-if (formData.artwork) {
-  const uploadResult = await uploadArtwork(formData.artwork);
-  artworkUpload = uploadResult?.secure_url || null;
-}
-
-  // ZAPIER 
-  const zapierData = new FormData();
-
-  zapierData.append("referral", ref);
-  zapierData.append("firstName", formData.firstName);
-  zapierData.append("lastName", formData.lastName);
-  zapierData.append("email", formData.email);
-  zapierData.append("whatsapp", formData.whatsapp);
-  zapierData.append("preferredContact", formData.preferredContact);
-  zapierData.append("package", selectedPackage);
-  zapierData.append("packageName", orderedPackage.name);
-  zapierData.append("price", String(finalPrice));
-  zapierData.append("priceGBP", String(orderedPackage.price.gbp));
-  zapierData.append("priceUSD", String(orderedPackage.price.usd));
-  zapierData.append("delivery", orderedPackage.delivery);
-
-  // Format must survive through to fulfilment — it determines what gets made.
-  const orderedFormat = formData.format;
-  zapierData.append("format", orderedFormat);
-  zapierData.append(
-    "formatName",
-    orderedFormat ? FORMATS[orderedFormat as FormatId].name : ""
-  );
-
-  /**
-   * The vinyl pressing, derived from the package's song count.
-   *
-   * Fulfilment cannot press a record without knowing which record: a four-song
-   * Journey is 2 × 10-inch or 1 × 12-inch, and a six-song Heirloom is a single
-   * 12-inch. The customer is not asked to choose — the business has not
-   * approved a customer-facing pressing choice — so the recommended
-   * configuration is derived and passed to operations. Empty for non-vinyl.
-   *
-   * Ancillary only. Nothing here reaches Stripe or affects what is charged.
-   */
-  zapierData.append("vinylPressing", memory.pressing?.label ?? "");
-
-  const shipping = requiresShippingAddress(orderedPackage, orderedFormat);
-  zapierData.append("requiresShipping", String(shipping));
-
-  if (shipping) {
-    zapierData.append("shippingName", formData.shippingName);
-    zapierData.append("shippingAddress", formData.shippingAddress);
-    zapierData.append("shippingCity", formData.shippingCity);
-    zapierData.append("shippingPostcode", formData.shippingPostcode);
-    zapierData.append("shippingCountry", formData.shippingCountry);
-  }
-  zapierData.append(
-    "mood",
-    formData.otherMood
-      ? formData.moods.join(", ") + ", " + formData.otherMood
-      : formData.moods.join(", ")
-  );
-  zapierData.append(
-    "genre",
-    formData.genre === "Other"
-      ? formData.otherGenre
-      : formData.genre
-  );
-  zapierData.append("personalTouches", formData.personalTouches);
-  zapierData.append("cruiseCompanions", formData.cruiseCompanions);
-  zapierData.append("story", formData.story);
-  zapierData.append("artworkUrl", artworkUpload || "");
-  // Each consent reported by name rather than as one "agreeTerms" boolean,
-  // so fulfilment automation can see which of the three were given.
-  for (const consent of CONSENTS) {
-    zapierData.append(`consent_${consent.id}`, String(formData.consents[consent.id]));
-  }
-  zapierData.append("termsVersion", TERMS_VERSION);
-
-  // ---------------------------------------------------------------
-  // PAYMENT PATH FIRST.
-  // Resolve the checkout destination before contacting any ancillary
-  // service, so a webhook/automation outage can never be mistaken for
-  // — or turn into — a payment failure.
-  // ---------------------------------------------------------------
-  const checkout = getCheckoutTarget(orderedPackage, orderedFormat);
-
-  if (!checkout?.url) {
-    // Either an unsold combination, or a Payment Link that has not been
-    // created yet. Refuse the sale rather than strand the customer on a
-    // dead checkout page.
-    setSubmitError(
-      `${orderedPackage.name}${
-        orderedFormat ? ` on ${FORMATS[orderedFormat as FormatId].name}` : ""
-      } can't be checked out online just yet. Please contact us and we'll complete your order personally — your details are safe and nothing has been charged.`
-    );
-    setIsSubmitting(false);
-    return;
-  }
-
-  const stripeUrl = checkout.url;
-
-  // MCB's own record first, so the order id can identify this purchase to
-  // Stripe. Fail closed if the authoritative order cannot be recorded.
-  const crmOrderId = await recordOrderInCrm({
+  const payload = {
     firstName: formData.firstName,
     lastName: formData.lastName,
     email: formData.email,
     whatsapp: formData.whatsapp,
-    package: selectedPackage,
-    format: orderedFormat,
-    shippingName: formData.shippingName,
-    shippingAddress: formData.shippingAddress,
-    shippingCity: formData.shippingCity,
-    shippingPostcode: formData.shippingPostcode,
-    shippingCountry: formData.shippingCountry,
+    // SKUs and integer quantities. The server prices them; no amount is sent.
+    lines,
+    ...(needsShipping
+      ? {
+          shippingName: formData.shippingName,
+          shippingAddress: formData.shippingAddress,
+          shippingCity: formData.shippingCity,
+          shippingPostcode: formData.shippingPostcode,
+          shippingCountry: formData.shippingCountry,
+        }
+      : {}),
     mood: formData.otherMood
       ? [...formData.moods, formData.otherMood].join(", ")
       : formData.moods.join(", "),
     genre: formData.genre === "Other" ? formData.otherGenre : formData.genre,
     personalTouches: formData.personalTouches,
-    /**
-     * Sent to MCB's own record so it reaches production and the CRM.
-     *
-     * NOT sent to analytics and NOT put in Stripe metadata: it is a
-     * sentence about the customer's family, it plays no part in taking a
-     * payment, and Stripe metadata is visible in a dashboard that has no
-     * business holding it.
-     */
+    // Sent to MCB's own record only: never to analytics or Stripe.
     cruiseCompanions: formData.cruiseCompanions,
     story: formData.story,
-    artworkUrl: artworkUpload || "",
+    artworkUrl: artworkUrl || "",
     referral: ref,
     partner: getPartner(),
-    /**
-     * The basket, as ids and integer quantities.
-     *
-     * MCB needs to know what was actually ordered — Stripe line items are a
-     * payment record, not a fulfilment one, and an order that only Stripe
-     * understands cannot be made. The server prices these ids itself from the
-     * generated catalogue; nothing here states an amount.
-     */
-    enhancements: toCheckoutItems(basket),
-    /**
-     * THE CONSENT RECORD, SENT TO MCB'S OWN SERVER.
-     *
-     * Previously the consent boolean went only to the fulfilment webhook, so
-     * MCB's own database held no evidence that anybody had agreed to anything
-     * — and `POST /api/order` accepted an order that asserted no consent at
-     * all. The server now requires these and stores them with timestamps and
-     * the document versions in force.
-     *
-     * The VERSIONS are sent because a policy read years later is not evidence
-     * of what this customer accepted today. The server records them verbatim
-     * rather than looking up the current ones, so an order stays readable
-     * against the words that were actually on the page.
-     */
-    /**
-     * The public share code, where there is one.
-     *
-     * The affiliate `referral` and `partner` fields above are untouched and
-     * still resolve exactly as they did — an order introduced by an affiliate
-     * keeps its affiliate credit whether or not a customer share also touched
-     * the journey. This is recorded alongside as influence, not instead.
-     */
+    // A customer share code is recorded as influence, alongside any affiliate.
     ...(getCustomerReferral() ? { customerReferral: getCustomerReferral() } : {}),
+    // The consent record and the document versions in force, verified and
+    // stored by the server.
     consents: formData.consents,
     termsVersion: TERMS_VERSION,
     refundPolicyVersion: REFUND_POLICY_VERSION,
     privacyPolicyVersion: PRIVACY_POLICY_VERSION,
-  });
+  };
 
-  if (crmOrderId === null) {
-    setSubmitError("We couldn't save your order. Your details are still here and nothing has been charged. Please try again before continuing to payment.");
+  const signature = JSON.stringify(payload);
+  if (attemptRef.current?.signature !== signature) {
+    attemptRef.current = { key: newIdempotencyKey(), signature };
+  }
+
+  const saved = await saveOrder(payload, attemptRef.current.key);
+
+  if (saved === null) {
+    setSubmitError("We couldn't save your order. Your details are still here and nothing has been charged. Please try again.");
     setIsSubmitting(false);
     return;
   }
 
-  if (crmOrderId !== null) {
-    zapierData.append("mcbOrderId", String(crmOrderId));
-  }
+  // Catalogue ids, names and prices only. Revenue is reported later, from
+  // the server's confirmed order, on the thank-you page.
+  trackBeginCheckout(lines);
 
-  // Marks this as the PRE-payment capture. The post-payment notification
-  // sends `event: "order.paid"` and carries the MCB reference; nothing sent
-  // from the browser ever does, because at this moment it does not exist.
-  /**
-   * Basket summary for fulfilment automation. ADDITIVE — every existing field
-   * is untouched, so nothing downstream that reads this payload can break.
-   *
-   * Ids, quantities and the server-approved unit amounts read from the
-   * catalogue, plus a name so an operator can read it without a lookup. No
-   * local-currency figure: the sale is GBP and a converted number here would
-   * be a second, wrong answer to what was sold.
-   */
-  if (basketPreview && basketPreview.lines.length > 0) {
-    zapierData.append(
-      "enhancements",
-      JSON.stringify(
-        basketPreview.lines.map((line) => ({
-          id: line.id,
-          name: line.name,
-          quantity: line.quantity,
-          unit_gbp: line.unitGbp,
-          line_gbp: line.lineGbp,
-        }))
-      )
-    );
-    zapierData.append("basketTotalGBP", String(basketPreview.totalGbp));
-  }
-
-  zapierData.append("stage", "SUBMITTED");
-  zapierData.append("paymentConfirmed", "false");
-
-  // Ancillary order capture. Every attempt is isolated: a rejection here
-  // is recorded and ignored, never propagated to the customer.
-  await Promise.allSettled(
-    ancillaryWebhookUrls().map((url) => postOrderData(url, zapierData))
-  );
-
-  // STRIPE
-
-  // Carried to the thank-you page for conversion tracking and confirmation.
-  localStorage.setItem("last_order_package", formData.package);
-  localStorage.setItem("last_order_format", orderedFormat);
-
-  // The order id is the join between customer, order, attribution, format,
-  // delivery and payment, so Stripe carries it when the CRM recorded one.
-  //
-  // When the CRM did not, the parameter is OMITTED rather than filled with a
-  // substitute. It previously fell back to the referral string, which is read
-  // from localStorage and so is chosen by the visitor: a numeric one casts to
-  // a real order id in the webhook, letting a genuine payment mark someone
-  // else's order PAID and credit that order's affiliate. Sending nothing
-  // leaves the webhook with no match, which it already handles.
-  const finalUrl =
-    crmOrderId !== null
-      ? `${stripeUrl}?client_reference_id=${encodeURIComponent(String(crmOrderId))}`
-      : stripeUrl;
-
-  /**
-   * Server-created Checkout Session, if it is switched on.
-   *
-   * DORMANT: the flag is off, so this returns immediately without a network
-   * call and `finalUrl` — the existing Payment Link — is what the customer
-   * gets. The live payment path is unchanged.
-   */
-  const session = await createCheckoutSession({
-    packageId: selectedPackage,
-    formatId: orderedFormat,
-    orderId: crmOrderId,
-    /**
-     * The basket now genuinely populates this, which is what turns on the
-     * Sprint 4 fallback guard: a checkout carrying enhancements may never be
-     * sent to a fixed Payment Link, because that link would charge the
-     * package price for a larger order and report success.
-     */
-    items: toCheckoutItems(basket),
-  });
+  const session = await createCheckoutSession(saved);
 
   if (session.ok) {
     window.location.href = session.url;
     return;
   }
 
-  /**
-   * THE FALLBACK GUARD.
-   *
-   * A fixed Payment Link charges one fixed amount. Falling back to one is
-   * safe only while the basket is exactly what that link sells — the base
-   * package. For anything more, sending the customer there would take the
-   * package price for a larger order and report success: MCB would ship
-   * £449 of goods against a £79 payment, and the order, the reference and
-   * the confirmation email would all look perfectly healthy.
-   *
-   * `mayFallBackToPaymentLink` decides by basket shape, not by error type,
-   * and this branch honours it. Today it is always true; it is written now
-   * so the basket sprint cannot forget it.
-   */
-  if (session.fallbackAllowed) {
-    window.location.href = finalUrl;
-    return;
-  }
-
   setSubmitError(
-    "We couldn't start checkout just now. Your details are saved and nothing has been charged — please try again in a moment, or contact us and we'll complete your order personally."
+    "We couldn't start checkout just now. Your order is saved and nothing has been charged — please try again in a moment, or contact us and we'll complete it personally."
   );
   setIsSubmitting(false);
 };
@@ -1507,148 +1085,181 @@ if (formData.artwork) {
 </div>
  
 
-  {/* Step 2 — Package Selection */}
+  {/* Step 2 — What you would like */}
 <h3 className="label-uppercase text-gold-deep">
-  Step 2 — Package Selection
+  Step 2 — Choose Your Experience
 </h3>
 
 <div
-  data-field="package"
-  className={`package-card ${
-    errors.package ? "border-red-500 border-2 p-3 rounded-xl" : ""
-  }`}
+  data-field="product"
+  className={errors.product ? "border-red-500 border-2 p-3 rounded-xl" : ""}
 >
   <div className="flex flex-wrap gap-3">
-    {ORDERABLE_PACKAGES.map((pkg) => (
+    {ORDERABLE_PRODUCTS.map((product) => (
       <button
-        key={pkg.id}
+        key={product.id}
         type="button"
-        aria-pressed={formData.package === pkg.id}
+        aria-pressed={selection.productId === product.id}
         onClick={() => {
-          setFormData((prev) => ({
-            ...prev,
-            package: pkg.id,
-            // Reset the format: the previous choice may not be sold here.
-            format: defaultFormatFor(pkg.id),
-          }));
-          /**
-           * Choosing a package HERE overrides any earlier upgrade decision,
-           * so the invitation state is cleared rather than left contradicting
-           * the selection. Without this a customer who declined, then picked
-           * Moment again from this grid, would never be offered the upgrade a
-           * second time — and one who accepted, then chose Journey, would
-           * still be marked as having upgraded to Keepsake.
-           */
-          setUpgradeDecision(isUpgradeEligible(pkg.id) ? null : "declined");
+          setSelection((prev) => chooseProduct(prev, product.id));
+          if (errors.product) setErrors((prev) => ({ ...prev, product: undefined }));
+          // Choosing here overrides any earlier upgrade decision.
+          setUpgradeDecision(isUpgradeEligible(product.id) ? null : "declined");
         }}
         className={`px-5 py-3 rounded-xl transition-all text-left ${
-          formData.package === pkg.id
+          selection.productId === product.id
             ? "bg-gold text-ink"
             : "bg-ivory border border-espresso/10 text-espresso/70 hover:border-gold"
         }`}
       >
-        <div className="font-medium">{pkg.name}</div>
-        <div className="text-sm opacity-70">
-          {formatPrice(pkg)}
-        </div>
+        <div className="font-medium">{product.name}</div>
+        <div className="text-sm opacity-70">{priceSummary(product)}</div>
       </button>
     ))}
   </div>
 
-  {/*
-    The Full Package is absent from the buttons above, so it is named here
-    instead. Leaving it out silently would read as MCB having quietly dropped
-    it — a customer who came from the packages section looking for it would
-    conclude it was gone, rather than that it is arranged a different way.
-  */}
-  {CONCIERGE_PACKAGE && (
-    <p className="text-sm text-espresso/55 leading-relaxed mt-4">
-      Looking for {CONCIERGE_PACKAGE.name}?{" "}
-      <Link
-        to="/full-package"
-        className="text-gold-deep underline underline-offset-4 hover:text-espresso focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep rounded-sm"
-      >
-        It is arranged personally with you
-      </Link>
-      , rather than ordered here.
-    </p>
-  )}
+  {/* Quoted work is arranged personally, so it is named here rather than offered. */}
+  <p className="text-sm text-espresso/55 leading-relaxed mt-4">
+    Looking for {BESPOKE.name}?{" "}
+    <Link
+      to={BESPOKE.route ?? "/bespoke"}
+      className="text-gold-deep underline underline-offset-4 hover:text-espresso focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep rounded-sm"
+    >
+      It is individually quoted
+    </Link>
+    , rather than ordered here.
+  </p>
 </div>
 
-{errors.package && (
-  <p className="text-red-500 text-sm mt-2">
-    {errors.package}
-  </p>
-)}
+<FieldError name="product" message={errors.product} className="text-red-500 text-sm mt-2" />
 
-{/* ---- Format: only where there is genuinely a choice to make ---- */}
-{activePackage && availableFormats.length > 0 && (
+{/* ---- Which variant: only where there is a genuine choice ---- */}
+{activeProduct && activeProduct.variants.length > 1 && (
   <div className="order-form-field space-y-4 pt-2">
     <div>
-      <h3 className="label-uppercase text-gold-deep">
-        {offersFormatChoice ? "How would you like to receive it?" : "How it arrives"}
-      </h3>
-      {offersFormatChoice && (
-        <p className="text-sm text-espresso/60 mt-2">
-          Every format costs the same — choose whichever you'd rather hold.
-        </p>
-      )}
+      <h3 className="label-uppercase text-gold-deep">Which {activeProduct.name}?</h3>
+      {activeProduct.disclosures.map((disclosure) => (
+        <p key={disclosure} className="text-sm text-espresso/70 mt-2">{disclosure}</p>
+      ))}
     </div>
 
-    {offersFormatChoice ? (
-      <div data-field="format">
-        <RadioGroup
-          value={formData.format}
-          onValueChange={(value) => handleChange("format", value)}
-          aria-label={`Format for ${activePackage.name}`}
-          className={`grid gap-3 ${
-            availableFormats.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3"
-          } ${errors.format ? "p-3 rounded-xl border border-red-500" : ""}`}
-        >
-          {availableFormats.map((formatId) => {
-            const format = FORMATS[formatId];
-            const isSelected = formData.format === formatId;
-            return (
-              <label
-                key={formatId}
-                htmlFor={`format-${formatId}`}
-                className={`flex gap-3 items-start cursor-pointer rounded-xl border p-4 transition-all ${
-                  isSelected
-                    ? "border-gold bg-gold/5"
-                    : "border-espresso/10 bg-ivory hover:border-gold/50"
-                }`}
-              >
-                <RadioGroupItem
-                  value={formatId}
-                  id={`format-${formatId}`}
-                  className="mt-1 border-espresso/30 text-gold"
-                />
-                <span className="flex flex-col gap-1">
-                  <span className="font-medium text-espresso text-sm">
-                    {format.name}
-                  </span>
-                  <span className="text-xs text-espresso/60 leading-relaxed">
-                    {format.summary}
-                  </span>
+    <div data-field="sku">
+      <RadioGroup
+        value={selection.sku}
+        onValueChange={(sku) => {
+          setSelection((prev) => chooseProduct(prev, activeProduct.id, sku));
+          trackSelectItem(sku, "Order form");
+          if (errors.sku) setErrors((prev) => ({ ...prev, sku: undefined }));
+        }}
+        aria-label={`Choose your ${activeProduct.name}`}
+        className={`grid gap-3 sm:grid-cols-2 ${errors.sku ? "p-3 rounded-xl border border-red-500" : ""}`}
+      >
+        {activeProduct.variants.map((variant) => {
+          const isSelected = selection.sku === variant.sku;
+          const itemId = `variant-${variant.sku}`;
+          return (
+            <label
+              key={variant.sku}
+              htmlFor={itemId}
+              className={`flex gap-3 items-start cursor-pointer rounded-xl border p-4 transition-all ${
+                isSelected ? "border-gold bg-gold/5" : "border-espresso/10 bg-ivory hover:border-gold/50"
+              }`}
+            >
+              <RadioGroupItem value={variant.sku} id={itemId} className="mt-1 border-espresso/30 text-gold" />
+              <span className="flex flex-col gap-1">
+                <span className="font-medium text-espresso text-sm">
+                  {variant.label} — {formatMoney(variant.price)}
                 </span>
-              </label>
-            );
-          })}
-        </RadioGroup>
+                <span className="text-xs text-espresso/60 leading-relaxed">
+                  {variant.features.slice(0, 3).join(" · ")}
+                </span>
+              </span>
+            </label>
+          );
+        })}
+      </RadioGroup>
+      <FieldError name="sku" message={errors.sku} className="text-red-500 text-sm mt-2" />
+    </div>
+  </div>
+)}
 
-        {errors.format && (
-          <p className="text-red-500 text-sm mt-2">{errors.format}</p>
-        )}
+{/* ---- How many: a Keepsake for every memory, with no MCB maximum ---- */}
+{activeProduct && activeVariant && MULTI_UNIT_PRODUCT_IDS.has(activeProduct.id) && (
+  <div className="order-form-field space-y-3 pt-2">
+    <label htmlFor={fieldId("quantity")} className="label-uppercase text-gold-deep block">
+      How many?
+    </label>
+    <p className="text-sm text-espresso/60">
+      Choose one for each memory or each day of your journey. Tell us about each one in your story.
+    </p>
+    <input
+      id={fieldId("quantity")}
+      type="number"
+      inputMode="numeric"
+      min={1}
+      max={MAX_UNITS_PER_LINE}
+      value={selection.quantity}
+      onChange={(e) => {
+        const next = Math.min(Math.max(Math.trunc(Number(e.target.value) || 1), 1), MAX_UNITS_PER_LINE);
+        setSelection((prev) => ({
+          ...prev,
+          quantity: next,
+          priorityReplacementQuantity: Math.min(prev.priorityReplacementQuantity, next),
+        }));
+      }}
+      className="w-28 px-4 py-3 border rounded-xl border-espresso/10"
+    />
+  </div>
+)}
+
+{/* ---- MCB Priority Replacement: optional, never preselected ---- */}
+{priorityLimit > 0 && (
+  <div className="order-form-field rounded-2xl border border-espresso/12 bg-white p-4 space-y-3" data-field="priorityReplacement">
+    <label htmlFor={fieldId("priorityReplacement")} className="flex items-start gap-3 cursor-pointer">
+      <input
+        id={fieldId("priorityReplacement")}
+        type="checkbox"
+        checked={selection.priorityReplacementQuantity > 0}
+        onChange={(e) =>
+          setSelection((prev) => ({ ...prev, priorityReplacementQuantity: e.target.checked ? 1 : 0 }))
+        }
+        className="mt-1 h-5 w-5"
+      />
+      <span className="text-sm text-espresso">
+        Add {PRIORITY_REPLACEMENT.name} — {formatMoney(PRIORITY_REPLACEMENT.variants[0].price)} per Keepsake
+        <span className="block text-xs text-espresso/65 mt-1 leading-relaxed">{PRIORITY_REPLACEMENT.shortDescription}</span>
+        {PRIORITY_REPLACEMENT.disclosures.map((disclosure) => (
+          <span key={disclosure} className="block text-xs text-espresso/65 mt-1 leading-relaxed">{disclosure}</span>
+        ))}
+        <Link to="/priority-replacement" target="_blank" className="block text-xs text-gold-deep underline underline-offset-4 mt-1">
+          How it works
+        </Link>
+      </span>
+    </label>
+    {selection.priorityReplacementQuantity > 0 && priorityLimit > 1 && (
+      <div className="flex items-center gap-3 pl-8">
+        <label htmlFor={fieldId("priorityReplacementQuantity")} className="text-sm text-espresso/70">
+          For how many of your {priorityLimit} Keepsakes?
+        </label>
+        <input
+          id={fieldId("priorityReplacementQuantity")}
+          type="number"
+          inputMode="numeric"
+          min={1}
+          max={priorityLimit}
+          value={selection.priorityReplacementQuantity}
+          onChange={(e) => {
+            const next = Math.min(Math.max(Math.trunc(Number(e.target.value) || 1), 1), priorityLimit);
+            setSelection((prev) => ({ ...prev, priorityReplacementQuantity: next }));
+          }}
+          className="w-24 px-3 py-2 border rounded-xl border-espresso/10"
+        />
       </div>
-    ) : (
-      <p className="text-sm text-espresso/70 bg-ivory border border-espresso/10 rounded-xl px-4 py-3">
-        {FORMATS[availableFormats[0]].name} — {FORMATS[availableFormats[0]].summary}
-      </p>
     )}
   </div>
 )}
 
-{/* ---- Delivery address: physical formats only ---- */}
+{/* ---- Delivery address: anything posted ---- */}
 {needsShipping && (
   <div className="order-form-field space-y-4 pt-2">
     <div>
@@ -2010,7 +1621,7 @@ if (formData.artwork) {
               It shows only for Moment, and only once the brief is ready.
             */}
             <UpgradeInvitation
-              currentPackage={formData.package}
+              currentPackage={selection.productId}
               decision={upgradeDecision}
               onAccept={acceptUpgrade}
               onDecline={declineUpgrade}
@@ -2029,14 +1640,8 @@ if (formData.artwork) {
             {showCompleteMemory && (
               <CompleteYourMemory
                 offers={availableOffers}
-                items={basket}
-                onChange={(next) => {
-                  setBasket(next);
-                  // The notice belongs to the change that caused it; a new
-                  // selection means the customer has moved on from it.
-                  if (basketRemoved.length > 0) setBasketRemoved([]);
-                }}
-                removedNotice={basketRemoved}
+                items={selection.addOns}
+                onChange={(addOns: readonly AddOnSelection[]) => setSelection((prev) => ({ ...prev, addOns }))}
                 onEvent={handleBasketEvent}
               />
             )}
@@ -2198,8 +1803,7 @@ if (formData.artwork) {
               about to be charged, and there is no reason to put any animation
               between that number and the customer. It renders immediately.
             */}
-            <YourMemorySummary
-                basket={basketPreview} memory={memory} />
+            <YourMemorySummary productId={selection.productId} preview={preview} />
 
             {submitError && (
               <p
@@ -2217,13 +1821,12 @@ if (formData.artwork) {
             >
               {isSubmitting ? (
                 <>Taking you to secure checkout...</>
-              ) : (
+              ) : CHECKOUT_SESSIONS_ENABLED ? (
                 <>Continue to Checkout</>
+              ) : (
+                <>Online checkout opens soon</>
               )}
             </button>
-<p className="text-sm text-black/50 mt-2">
-  Limited production slots each week
-</p>
 
             <p className="order-heading text-sm text-center text-espresso/50">
               <Info size={14} className="inline mr-1" />

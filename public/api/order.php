@@ -2,30 +2,34 @@
 /**
  * POST /api/order — create the authoritative MCB order record.
  *
- * Called when the customer submits the order form, BEFORE Stripe. That
- * ordering is deliberate: if the record were only written on payment, an
- * abandoned checkout would lose the customer, the brief, the attribution and
- * the delivery address, and there would be nothing for the Stripe webhook to
- * join back to.
+ * Called when the customer submits the order form, BEFORE Stripe, so an
+ * abandoned checkout still leaves the customer, brief, attribution and
+ * delivery address on record for the payment to join back to.
  *
- * SERVER-OWNED FIELDS
- * The browser may say which package and format it wants, and may report the
- * referral string it saw. It may NOT decide:
- *   fulfilment_type   derived from the package/format rules
- *   source_type       derived from whether attribution resolves
- *   affiliate_id      resolved here from the referral username
- *   partner_id        resolved here from the partner slug
- *   amount            read from the authoritative package data
- *   status            always PENDING; only Stripe moves it to PAID
+ * REQUEST
+ *   Header  Idempotency-Key: <16–128 chars of A-Z a-z 0-9 _ ->   (required)
+ *   Body    { lines: [{ sku, quantity }], customer, consent, brief, address… }
  *
- * Returns { order_id } — which becomes Stripe's client_reference_id and the
- * join between customer, order, attribution, fulfilment and payment.
+ * SERVER-OWNED FIELDS — never read from the request:
+ *   every price and total   priced here from the generated catalogue
+ *   fulfilment_type         derived from the lines
+ *   source_type, affiliate  resolved from the referral string
+ *   status                  always PENDING; only Stripe moves it to PAID
+ *
+ * RESPONSE 201 (or 200 for an idempotent replay)
+ *   { order_id, checkout_token, fulfilment_type, source_type,
+ *     total_minor, currency, lines }
+ *
+ * `checkout_token` is stored only as a hash. Checkout for this order requires
+ * it, so a sequential order id is not enough to open a payment page for
+ * someone else's order. It is an HMAC of the order id and the idempotency key
+ * under the server's `token_secret`, so a retry of the same request receives
+ * the same token without the token itself ever being stored.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/bootstrap.php';
-require_once __DIR__ . '/lib/basket.php';
 require_once __DIR__ . '/lib/attribution.php';
 require_once __DIR__ . '/lib/legal.php';
 require_once __DIR__ . '/lib/referral.php';
@@ -33,40 +37,97 @@ require_once __DIR__ . '/lib/referral.php';
 require_method('POST');
 require_same_origin();
 
+/* ---------------------------------------------------------------------- */
+/* Idempotency                                                             */
+/* ---------------------------------------------------------------------- */
+
+$idempotencyKey = (string) ($_SERVER['HTTP_IDEMPOTENCY_KEY'] ?? '');
+if (!preg_match('/^[A-Za-z0-9_-]{16,128}$/', $idempotencyKey)) {
+    json_error(400, 'idempotency_key_required', 'This request could not be processed. Please reload the page and try again.');
+}
+$idempotencyHash = hash('sha256', $idempotencyKey);
+
+$tokenSecret = (string) mcb_setting('token_secret', '');
+if (strlen($tokenSecret) < 32) {
+    error_log('MCB CRM: token_secret is missing or too short; refusing orders.');
+    json_error(503, 'service_unavailable', 'The service is temporarily unavailable.');
+}
+
+/** The checkout token for an order created with this idempotency key. */
+$checkoutTokenFor = static fn (int $orderId): string =>
+    hash_hmac('sha256', "mcb-checkout:{$orderId}:{$idempotencyHash}", $tokenSecret);
+
+$body = read_json_body();
+
+/** A stable fingerprint of the request: the same body always hashes the same. */
+$canonicalise = static function (mixed $value) use (&$canonicalise): mixed {
+    if (!is_array($value)) {
+        return $value;
+    }
+    if (!array_is_list($value)) {
+        ksort($value);
+    }
+    return array_map($canonicalise, $value);
+};
+$requestHash = hash('sha256', json_encode($canonicalise($body), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
 /**
- * Ten orders an hour from one source.
+ * Answers a request whose key has been seen before.
  *
- * This endpoint was the only write surface in the API with no limit at all,
- * while every sibling had one — concierge enquiries 5/hour, checkout sessions
- * 20/hour, referral checks 60/hour, affiliate clicks 30/hour. It is
- * unauthenticated and it inserts into `customers`, `orders`, `order_consents`,
- * `order_production` and, for a physical order, `delivery_addresses`. A script
- * could fill all five.
- *
- * WHAT IS COUNTED, AND WHY IT IS `order_consents`
- * The limiter counts rows already written, keyed on a salted IP hash — see
- * `enforce_rate_limit`. `orders` carries no `ip_hash` column, and adding one
- * is a schema change. `order_consents` already carries the hash, and it gets
- * exactly one row per SUCCESSFUL order, written inside the same transaction.
- * So the thing being counted is completed orders from this source, which is
- * precisely the row flooding worth preventing. A request that fails validation
- * writes nothing and therefore costs a would-be flooder nothing here — but it
- * also creates nothing, so there is nothing to flood.
- *
- * WHY TEN
- * One order is the normal case; several is a believable one — somebody buying
- * keepsakes for a family, or a group aboard one ship sharing an address. Ten
- * leaves that comfortably alone. The refusal is a 429 with `Retry-After`, so
- * the honest edge case is delayed rather than turned away.
- *
- * `order_consents` has no `(ip_hash, created_at)` index, unlike the sibling
- * tables, so this COUNT scans. At one row per order that is immaterial, and
- * the index cannot be added without a migration.
+ * The same key with the same body is a retry — a double click, or a response
+ * lost in transit — and gets the original order back, with the same checkout
+ * token while it is still PENDING. The same key with a different body is a
+ * client error and is refused rather than silently answered with the wrong
+ * order.
+ */
+$replay = static function () use ($idempotencyHash, $requestHash, $checkoutTokenFor): void {
+    $stmt = db()->prepare(
+        'SELECT id, status, request_hash, fulfilment_type, source_type, total_minor, currency
+           FROM orders WHERE idempotency_key_hash = :h LIMIT 1'
+    );
+    $stmt->execute([':h' => $idempotencyHash]);
+    $order = $stmt->fetch();
+    if ($order === false) {
+        return;
+    }
+    if (!hash_equals((string) $order['request_hash'], $requestHash)) {
+        json_error(409, 'idempotency_conflict', 'This request conflicts with an earlier one. Please reload the page and try again.');
+    }
+
+    $token = $order['status'] === 'PENDING' ? $checkoutTokenFor((int) $order['id']) : null;
+
+    $items = db()->prepare(
+        'SELECT item_id AS sku, quantity, unit_minor, line_minor FROM order_items WHERE order_id = :id ORDER BY id'
+    );
+    $items->execute([':id' => (int) $order['id']]);
+
+    json_response(200, [
+        'order_id'        => (int) $order['id'],
+        'checkout_token'  => $token,
+        'fulfilment_type' => $order['fulfilment_type'],
+        'source_type'     => $order['source_type'],
+        'total_minor'     => (int) $order['total_minor'],
+        'currency'        => $order['currency'],
+        'lines'           => array_map(static fn (array $l): array => [
+            'sku'        => $l['sku'],
+            'quantity'   => (int) $l['quantity'],
+            'unit_minor' => (int) $l['unit_minor'],
+            'line_minor' => (int) $l['line_minor'],
+        ], $items->fetchAll()),
+        'replayed'        => true,
+    ]);
+};
+
+// A retry is answered before the rate limit: it creates nothing.
+$replay();
+
+/**
+ * Ten orders an hour from one source, counted on `order_consents`, which
+ * gets exactly one row per successful order. See `enforce_rate_limit`.
  */
 enforce_rate_limit('order_consents', 'ip_hash', hash_ip(client_ip()), 10, 3600);
 
-$body = read_json_body();
-$v    = new Validator($body);
+$v = new Validator($body);
 
 // ---- Customer ---------------------------------------------------------
 $firstName = $v->required('firstName', 'First name', 80);
@@ -74,179 +135,57 @@ $lastName  = $v->required('lastName', 'Last name', 80);
 $email     = $v->email('email');
 $phone     = $v->optional('whatsapp', 40);
 
-// ---- Commercial selection --------------------------------------------
-$package = $v->oneOf('package', valid_package_ids(), 'Package');
-
-$formatRaw = $v->str('format', 16);
-$format    = $formatRaw === '' ? null : $formatRaw;
-
+// ---- What is being ordered, priced by the server ---------------------
 /**
- * ---- A CONCIERGE COMMISSION IS NOT AN ORDER -------------------------
- *
- * This endpoint creates a row in `orders`: a package, a format, an amount and
- * a fulfilment route, which the CRM lists as work to produce and the webhook
- * reconciles a payment against. The Full Package has none of those settled at
- * the point of enquiry — that is what the consultation is for — so accepting
- * one here would write an order for an amount nobody agreed and put it in the
- * production queue.
- *
- * Enquiries have their own endpoint, `concierge/enquiry.php`, and their own
- * table. They are never labelled PAID or PENDING PAYMENT, because no payment
- * has been discussed.
- *
- * Refused as a validation failure on `package` rather than a 500: the request
- * is well-formed, it is simply asking this endpoint for something it does not
- * do, and the customer needs to be told where to go instead.
+ * Quoted work (Bespoke, MCB LIVE) and anything not sold online is not in the
+ * orderable catalogue, so it is refused here as an unknown SKU. Enquiries have
+ * their own endpoint and table.
  */
-if ($package !== '' && package_is_concierge($package)) {
-    $v->fail(
-        'package',
-        'That experience is arranged personally with you rather than ordered online.'
-    );
+$pricing = price_order_lines($body['lines'] ?? null);
+if (!$pricing->ok) {
+    json_error(422, (string) $pricing->errorCode, (string) $pricing->errorMessage);
 }
 
-// The combination must be one MCB actually sells. Checked before anything
-// is written, and independently of whatever the browser believed.
-if ($package !== '' && !package_allows_format($package, $format)) {
-    $v->fail('format', 'That format is not available for this experience.');
-}
-
-$fulfilment = $package === '' ? null : derive_fulfilment_type($package, $format);
-if ($package !== '' && $fulfilment === null) {
-    $v->fail('format', 'That format is not available for this experience.');
-}
+$fulfilment         = $pricing->fulfilmentType();
+$hasDigitalDelivery = $pricing->hasDigitalDelivery();
+$totalMinor         = $pricing->totalMinor;
 
 /**
  * ---- Consent, required and verified by the server -------------------
  *
- * Previously this endpoint asked for nothing. The checkout page had a
- * checkbox, but the boolean went to the fulfilment webhook and never here, so
- * MCB's own database held no evidence of consent and a request that never
- * touched the form could create an order regardless.
- *
- * The required set is DERIVED FROM THE ORDER, not taken from the request. A
- * body that omits `consents` entirely, or that reports fewer consents than
- * this order needs, is refused — the browser does not get to decide which
- * legal acknowledgements apply to what it is buying.
+ * The required set is DERIVED FROM THE ORDER, not taken from the request.
  */
 $consentsRaw = $body['consents'] ?? null;
-$consentGiven = static function (string $id) use ($consentsRaw): bool {
-    // Strictly true. "true", 1 and "on" are all refused rather than coerced:
-    // a consent is either an affirmative act or it is not, and a value that
-    // needs interpreting is not evidence of one.
-    return is_array($consentsRaw) && ($consentsRaw[$id] ?? null) === true;
-};
-
-$hasDigitalDelivery = false;
-$missingConsents    = [];
-
-if ($package !== '' && $fulfilment !== null) {
-    $hasDigitalDelivery = order_has_digital_delivery($package, $format);
-
-    foreach (required_consents($hasDigitalDelivery) as $consentId) {
-        if (!$consentGiven($consentId)) {
-            $missingConsents[] = $consentId;
-        }
+$missingConsents = [];
+foreach (required_consents($hasDigitalDelivery) as $consentId) {
+    // Strictly true: "true", 1 and "on" are refused rather than coerced.
+    if (!is_array($consentsRaw) || ($consentsRaw[$consentId] ?? null) !== true) {
+        $missingConsents[] = $consentId;
     }
-
-    if ($missingConsents !== []) {
-        $v->fail(
-            'consents',
-            'Please confirm the required acknowledgements before placing your order.'
-        );
-    }
+}
+if ($missingConsents !== []) {
+    $v->fail('consents', 'Please confirm the required acknowledgements before placing your order.');
 }
 
 /**
- * The document versions the customer accepted.
- *
- * Stored AS CLAIMED, but only if MCB actually published them. A version this
- * build does not recognise is refused rather than written: an order recorded
- * against terms that never existed is a fabricated contractual reference, and
- * worse than no reference because it looks like one.
+ * The document versions the customer accepted: stored as claimed, but only if
+ * MCB actually published them.
  */
 $termsVersion   = trim((string) ($body['termsVersion'] ?? ''));
 $refundVersion  = trim((string) ($body['refundPolicyVersion'] ?? ''));
 $privacyVersion = trim((string) ($body['privacyPolicyVersion'] ?? ''));
 
-if ($package !== '' && $missingConsents === []) {
+if ($missingConsents === []) {
     if ($termsVersion === '' || !legal_version_is_known($termsVersion)) {
         $v->fail('termsVersion', 'We could not confirm which version of our terms you accepted. Please reload the page and try again.');
     }
-    // The other two are recorded but not gated on: they are not separately
-    // versioned documents in practice today, and refusing an order because a
-    // secondary version string was absent would fail a customer over
-    // bookkeeping. Defaulted to the terms version so the row is never blank.
     if ($refundVersion === '')  { $refundVersion  = $termsVersion; }
     if ($privacyVersion === '') { $privacyVersion = $termsVersion; }
 }
 
-/**
- * ---- The Complete Your Memory basket -------------------------------
- *
- * Ids and integer quantities. Priced HERE, by the same `price_basket` the
- * checkout endpoint uses, from the same generated catalogue — so the
- * fulfilment record and the eventual charge cannot disagree about what was
- * sold or what it cost.
- *
- * Nothing in the request states an amount, and there is no field through
- * which one could: a body carrying `price`, `line_gbp` or `total` is parsed
- * and never read.
- *
- * An invalid basket is a validation failure, not a silently dropped line.
- * Recording an order that quietly omits what someone chose would be worse
- * than refusing it.
- *
- * Priced BEFORE the address rules below, because what is in the basket
- * decides whether an address is needed at all.
- */
-$itemsRaw = $body['enhancements'] ?? [];
-if (!is_array($itemsRaw)) {
-    $v->fail('enhancements', 'That basket could not be read.');
-    $itemsRaw = [];
-}
-if (count($itemsRaw) > 20) {
-    $v->fail('enhancements', 'That basket has too many items.');
-    $itemsRaw = [];
-}
-
-$basketLines = [];
-$basketTotalMinor = 0;
-$basketNeedsAddress = false;
-
-if ($package !== '' && $fulfilment !== null && !$v->hasErrors()) {
-    $basket = price_basket($package, $format, $itemsRaw);
-    if (!$basket->ok) {
-        json_error(422, (string) $basket->errorCode, (string) $basket->errorMessage);
-    }
-    // The first line is the package itself; the rest are what the customer
-    // added. Only the additions are stored — the package already has its own
-    // columns on the order.
-    $basketLines      = array_slice($basket->lines, 1);
-    $basketTotalMinor = $basket->totalMinor;
-
-    /**
-     * A physical addition makes an otherwise-digital order shippable.
-     *
-     * A digital Moment with a framed lyric print still has to be posted, so
-     * the address requirement is derived from the WHOLE basket rather than
-     * the package alone — and derived here, on the server, so a browser that
-     * skipped the address cannot get past it.
-     */
-    foreach ($basketLines as $line) {
-        $item = catalogue_item($line['id']);
-        if ($item !== null && ($item['fulfilment'] ?? '') === 'PHYSICAL') {
-            $basketNeedsAddress = true;
-        }
-    }
-}
-
-// ---- Delivery address, required for physical fulfilment OR a physical
-//      addition to an otherwise digital order --------------------------
-$needsAddress = ($fulfilment === 'PHYSICAL') || $basketNeedsAddress;
+// ---- Delivery address, required when anything must be posted ----------
 $address = null;
-
-if ($needsAddress) {
+if ($fulfilment === 'PHYSICAL') {
     $address = [
         'recipient_name' => $v->required('shippingName', 'Recipient name', 160),
         'address_line_1' => $v->required('shippingAddress', 'Address', 255),
@@ -255,177 +194,45 @@ if ($needsAddress) {
         'state_region'   => $v->optional('shippingState', 120),
         'postal_code'    => $v->required('shippingPostcode', 'Postcode or ZIP', 32),
         'country'        => $v->required('shippingCountry', 'Country', 120),
-        // No separate delivery phone is collected by the form today, so the
-        // contact number doubles as the courier contact.
+        // The contact number doubles as the courier contact.
         'phone'          => $phone,
     ];
 }
 
 // ---- Creative brief ---------------------------------------------------
-//
-// NOTE: this block appears twice in this file, the second assignment
-// overwriting the first. It is pre-existing and harmless — both are
-// identical — but both are kept in step deliberately, because editing one
-// and not the other would produce a silent behaviour change.
 $brief = [
-    'mood'      => $v->optional('mood', 255),
-    'genre'     => $v->optional('genre', 120),
-    'touches'   => $v->optional('personalTouches', 2000),
-    'story'     => $v->optional('story', 60000),
-    'artwork'   => $v->optional('artworkUrl', 512),
-    /**
-     * REQUIRED, and validated here rather than only in the browser.
-     *
-     * The column is nullable because orders placed before the question
-     * existed have no answer, and NULL correctly reads as "not asked".
-     * The requirement belongs on new submissions, which is what this is —
-     * so a request that never went near the form cannot skip it either.
-     *
-     * 255 to match the column exactly, so a customer's own words are
-     * never silently truncated to make them fit.
-     */
-    'cruise'    => $v->required('cruiseCompanions', 'Who you are cruising with', 255),
+    'mood'    => $v->optional('mood', 255),
+    'genre'   => $v->optional('genre', 120),
+    'touches' => $v->optional('personalTouches', 2000),
+    'story'   => $v->optional('story', 60000),
+    'artwork' => $v->optional('artworkUrl', 512),
+    // Required on new submissions; 255 matches the column exactly.
+    'cruise'  => $v->required('cruiseCompanions', 'Who you are cruising with', 255),
 ];
-
-// ---- Creative brief ---------------------------------------------------
-//
-// NOTE: this block appears twice in this file, the second assignment
-// overwriting the first. It is pre-existing and harmless — both are
-// identical — but both are kept in step deliberately, because editing one
-// and not the other would produce a silent behaviour change.
-$brief = [
-    'mood'      => $v->optional('mood', 255),
-    'genre'     => $v->optional('genre', 120),
-    'touches'   => $v->optional('personalTouches', 2000),
-    'story'     => $v->optional('story', 60000),
-    'artwork'   => $v->optional('artworkUrl', 512),
-    /**
-     * REQUIRED, and validated here rather than only in the browser.
-     *
-     * The column is nullable because orders placed before the question
-     * existed have no answer, and NULL correctly reads as "not asked".
-     * The requirement belongs on new submissions, which is what this is —
-     * so a request that never went near the form cannot skip it either.
-     *
-     * 255 to match the column exactly, so a customer's own words are
-     * never silently truncated to make them fit.
-     */
-    'cruise'    => $v->required('cruiseCompanions', 'Who you are cruising with', 255),
-];
-
-/**
- * ---- The Complete Your Memory basket -------------------------------
- *
- * Ids and integer quantities. Priced HERE, by the same `price_basket` the
- * checkout endpoint uses, from the same generated catalogue — so the
- * fulfilment record and the eventual charge cannot disagree about what was
- * sold or what it cost.
- *
- * Nothing in the request states an amount, and there is no field through
- * which one could: a body carrying `price`, `line_gbp` or `total` is parsed
- * and never read.
- *
- * An invalid basket is a validation failure, not a silently dropped line.
- * Recording an order that quietly omits what someone chose would be worse
- * than refusing it.
- */
-$itemsRaw = $body['enhancements'] ?? [];
-if (!is_array($itemsRaw)) {
-    $v->fail('enhancements', 'That basket could not be read.');
-    $itemsRaw = [];
-}
-if (count($itemsRaw) > 20) {
-    $v->fail('enhancements', 'That basket has too many items.');
-    $itemsRaw = [];
-}
 
 $v->stopIfInvalid();
 
-$basketLines = [];
-$basketTotalMinor = 0;
-
-if ($package !== '') {
-    $basket = price_basket($package, $format, $itemsRaw);
-    if (!$basket->ok) {
-        json_error(422, (string) $basket->errorCode, (string) $basket->errorMessage);
-    }
-    // The first line is the package itself; the rest are what the customer
-    // added. Only the additions are stored here — the package already has
-    // its own columns on the order.
-    $basketLines = array_slice($basket->lines, 1);
-    $basketTotalMinor = $basket->totalMinor;
-}
-
-/**
- * A physical addition makes an otherwise-digital order shippable.
- *
- * A digital Moment with a framed lyric print still has to be posted, so the
- * address requirement is re-derived from the WHOLE basket rather than the
- * package alone — and re-derived here, on the server, so a browser that
- * skipped the address cannot get past it.
- */
-foreach ($basketLines as $line) {
-    $item = catalogue_item($line['id']);
-    if ($item !== null && ($item['fulfilment'] ?? '') === 'PHYSICAL') {
-        $needsAddressForBasket = true;
-    }
-}
-
 // ---- Attribution, resolved server-side --------------------------------
-// Shared with the concierge enquiry endpoint, so an affiliate or partner is
-// credited identically whichever form the customer filled in. See
-// lib/attribution.php.
 $attribution = resolve_attribution(
     (string) ($body['referral'] ?? ''),
     (string) ($body['partner'] ?? '')
 );
 
-/**
- * ---- The customer referral, resolved separately -----------------------
- *
- * A DIFFERENT THING FROM THE ATTRIBUTION ABOVE, and deliberately resolved
- * apart from it. `resolve_attribution` decides who gets commercial credit —
- * an affiliate or a partner — and that answer is unchanged by anything here.
- *
- * A customer share is not commercial. If both are present, the affiliate
- * keeps `source_type = AFFILIATE` and is credited exactly as before, and the
- * share is recorded in `customer_referral_conversions` as influence. One
- * sale, one commission, and no information discarded.
- *
- * The browser sends only the public code it found in the URL. Who that code
- * belongs to is resolved here, from the database — there is no field through
- * which a request can name a referring customer.
- */
+// A customer share is influence, recorded separately from commercial credit.
 $referralCode = trim((string) ($body['customerReferral'] ?? ''));
-$referral     = $referralCode === ''
-    ? null
-    : resolve_referral_code(db(), $referralCode);
-
-$sourceType     = $attribution['source_type'];
-$affiliateId    = $attribution['affiliate_id'];
-$partnerId      = $attribution['partner_id'];
-$referralStored = $attribution['referral_raw'];
-
-// ---- Authoritative amounts -------------------------------------------
-$price = package_price($package);
+$referral     = $referralCode === '' ? null : resolve_referral_code(db(), $referralCode);
 
 // ---- Write ------------------------------------------------------------
-// Customer upsert, order insert and address insert are one transaction: a
-// half-written order with no address would be unfulfillable and invisible.
+// Customer, order, consent, production, referral, address and every line
+// commit together or not at all.
 try {
     $orderId = db_transaction(function (PDO $pdo) use (
         $firstName, $lastName, $email, $phone,
-        $package, $format, $fulfilment, $price,
-        $sourceType, $affiliateId, $partnerId, $referralStored,
-        $brief, $address, $basketLines,
-        $termsVersion, $refundVersion, $privacyVersion, $hasDigitalDelivery,
-        $referral
+        $pricing, $fulfilment, $totalMinor, $attribution,
+        $brief, $address, $termsVersion, $refundVersion, $privacyVersion,
+        $hasDigitalDelivery, $referral, $checkoutTokenFor, $idempotencyHash, $requestHash
     ): int {
-        $fullName = trim($firstName . ' ' . $lastName);
-
-        // Upsert on the UNIQUE email. first_source_* is written once and then
-        // preserved — it answers "how did MCB first meet this person?", which
-        // a later direct order must not overwrite.
+        // Upsert on the UNIQUE email. first_source_* is written once.
         $stmt = $pdo->prepare(
             'INSERT INTO customers (name, email, phone, first_source_type, first_affiliate_id, first_partner_id)
              VALUES (:name, :email, :phone, :src, :aff, :par)
@@ -435,42 +242,45 @@ try {
                 id    = LAST_INSERT_ID(id)'
         );
         $stmt->execute([
-            ':name'  => $fullName,
+            ':name'  => trim($firstName . ' ' . $lastName),
             ':email' => $email,
             ':phone' => $phone,
-            ':src'   => $sourceType,
-            ':aff'   => $affiliateId,
-            ':par'   => $partnerId,
+            ':src'   => $attribution['source_type'],
+            ':aff'   => $attribution['affiliate_id'],
+            ':par'   => $attribution['partner_id'],
         ]);
         $customerId = (int) $pdo->lastInsertId();
 
         $stmt = $pdo->prepare(
             'INSERT INTO orders (
                 customer_id, package, format, fulfilment_type,
-                amount_gbp, amount_usd, currency, status,
+                amount_gbp, amount_usd, currency, total_minor,
+                checkout_token_hash, idempotency_key_hash, request_hash, status,
                 source_type, affiliate_id, partner_id, referral_raw,
                 brief_mood, brief_genre, brief_personal_touches, brief_story,
                 brief_cruise_companions, artwork_url
              ) VALUES (
-                :cid, :pkg, :fmt, :ful,
-                :gbp, :usd, :cur, :status,
+                :cid, :pkg, NULL, :ful,
+                :gbp, NULL, :cur, :total,
+                NULL, :idem, :req, :status,
                 :src, :aff, :par, :ref,
                 :mood, :genre, :touches, :story, :cruise, :artwork
              )'
         );
         $stmt->execute([
             ':cid'     => $customerId,
-            ':pkg'     => $package,
-            ':fmt'     => $format,
+            ':pkg'     => $pricing->primaryProductId(),
             ':ful'     => $fulfilment,
-            ':gbp'     => $price['gbp'],
-            ':usd'     => $price['usd'],
+            ':gbp'     => minor_to_decimal($totalMinor),
             ':cur'     => 'GBP',
+            ':total'   => $totalMinor,
+            ':idem'    => $idempotencyHash,
+            ':req'     => $requestHash,
             ':status'  => 'PENDING',
-            ':src'     => $sourceType,
-            ':aff'     => $affiliateId,
-            ':par'     => $partnerId,
-            ':ref'     => $referralStored,
+            ':src'     => $attribution['source_type'],
+            ':aff'     => $attribution['affiliate_id'],
+            ':par'     => $attribution['partner_id'],
+            ':ref'     => $attribution['referral_raw'],
             ':mood'    => $brief['mood'],
             ':genre'   => $brief['genre'],
             ':touches' => $brief['touches'],
@@ -480,18 +290,12 @@ try {
         ]);
         $orderId = (int) $pdo->lastInsertId();
 
-        /**
-         * THE CONSENT RECORD — written in the SAME transaction as the order.
-         *
-         * An order that existed without its consent row would be an order
-         * MCB could not evidence the customer had agreed to, and it would
-         * look complete. Both rows commit or neither does.
-         *
-         * `digital_content_ack` is NULL, not 0, when the order never needed
-         * it: a vinyl customer was not asked, and 0 would misread as asked
-         * and declined. The CHECK constraint enforces the same distinction.
-         */
-        $stmt = $pdo->prepare(
+        $pdo->prepare('UPDATE orders SET checkout_token_hash = :t WHERE id = :id')
+            ->execute([':t' => hash('sha256', $checkoutTokenFor($orderId)), ':id' => $orderId]);
+
+        // The consent record, in the same transaction as the order.
+        // `digital_content_ack` is NULL, not 0, when the order never needed it.
+        $pdo->prepare(
             'INSERT INTO order_consents (
                 order_id, terms_version, refund_policy_version, privacy_policy_version,
                 terms_accepted_at,
@@ -505,8 +309,7 @@ try {
                 :dcr, :dca, :dcat,
                 :iph, :ua
              )'
-        );
-        $stmt->execute([
+        )->execute([
             ':oid'  => $orderId,
             ':tv'   => $termsVersion,
             ':rv'   => $refundVersion,
@@ -519,53 +322,28 @@ try {
             ':ua'   => mb_substr((string) (client_user_agent() ?? ''), 0, 255) ?: null,
         ]);
 
-        /**
-         * THE PRODUCTION RECORD, opened at CREATIVE.
-         *
-         * Not APPROVED and not locked. This is the row that makes it possible
-         * to answer "does this customer still have refinements?" without
-         * inferring it from whether they paid — **PAID IS NOT
-         * PRODUCTION_LOCKED**, and a customer whose card cleared moments ago
-         * has every refinement their package includes.
-         *
-         * Approval is recorded later, through the CRM, when the customer
-         * actually approves work that by definition does not exist yet.
-         */
-        $stmt = $pdo->prepare(
+        // The production record, opened at CREATIVE. PAID is not PRODUCTION_LOCKED.
+        $pdo->prepare(
             'INSERT INTO order_production (order_id, stage, terms_version)
              VALUES (:oid, :stage, :tv)'
-        );
-        $stmt->execute([
+        )->execute([
             ':oid'   => $orderId,
             ':stage' => initial_production_stage(),
             ':tv'    => $termsVersion,
         ]);
 
-        /**
-         * The customer referral, if this order arrived through one.
-         *
-         * Written inside the order transaction so an order and its
-         * acquisition story commit together. `record_referral_attribution`
-         * marks it ATTRIBUTED, never CONFIRMED — only the Stripe webhook
-         * knows a payment happened, and a pending order is not a successful
-         * referral.
-         *
-         * Self-referral is checked here, where both identities are known: the
-         * buyer's customer row was just resolved from their email, and the
-         * referrer's is on the referral record.
-         */
+        // ATTRIBUTED, never CONFIRMED: only the webhook knows a payment happened.
         if ($referral !== null) {
             record_referral_attribution($pdo, $referral, $orderId, $customerId);
         }
 
         if ($address !== null) {
-            $stmt = $pdo->prepare(
+            $pdo->prepare(
                 'INSERT INTO delivery_addresses (
                     order_id, recipient_name, address_line_1, address_line_2,
                     city, state_region, postal_code, country, phone
                  ) VALUES (:oid, :rn, :a1, :a2, :city, :state, :zip, :country, :phone)'
-            );
-            $stmt->execute([
+            )->execute([
                 ':oid'     => $orderId,
                 ':rn'      => $address['recipient_name'],
                 ':a1'      => $address['address_line_1'],
@@ -578,55 +356,52 @@ try {
             ]);
         }
 
-        /**
-         * The fulfilment record for Complete Your Memory.
-         *
-         * Written in the SAME transaction as the order. An order that
-         * existed without its items would be unfulfillable and, worse,
-         * would look complete — the customer's frame or extra record would
-         * simply never be made.
-         *
-         * Amounts are the server's, priced from the generated catalogue
-         * moments ago. Nothing here came from the browser.
-         */
-        if ($basketLines !== []) {
-            $stmt = $pdo->prepare(
-                'INSERT INTO order_items
-                    (order_id, item_id, item_name, quantity, unit_gbp, line_gbp)
-                 VALUES (:oid, :iid, :name, :qty, :unit, :line)'
-            );
-            foreach ($basketLines as $line) {
-                $stmt->execute([
-                    ':oid'  => $orderId,
-                    ':iid'  => $line['id'],
-                    ':name' => $line['name'],
-                    ':qty'  => $line['quantity'],
-                    ':unit' => number_format($line['unit_minor'] / 100, 2, '.', ''),
-                    ':line' => number_format($line['line_minor'] / 100, 2, '.', ''),
-                ]);
-            }
+        // Every line, priced by the server moments ago. Checkout is built
+        // from exactly these rows.
+        $stmt = $pdo->prepare(
+            'INSERT INTO order_items
+                (order_id, item_id, product_id, item_name, category, fulfilment,
+                 quantity, unit_gbp, line_gbp, unit_minor, line_minor)
+             VALUES (:oid, :sku, :pid, :name, :cat, :ful, :qty, :unit, :line, :um, :lm)'
+        );
+        foreach ($pricing->lines as $line) {
+            $stmt->execute([
+                ':oid'  => $orderId,
+                ':sku'  => $line['sku'],
+                ':pid'  => $line['product_id'],
+                ':name' => $line['name'],
+                ':cat'  => $line['category'],
+                ':ful'  => $line['fulfilment'],
+                ':qty'  => $line['quantity'],
+                ':unit' => minor_to_decimal($line['unit_minor']),
+                ':line' => minor_to_decimal($line['line_minor']),
+                ':um'   => $line['unit_minor'],
+                ':lm'   => $line['line_minor'],
+            ]);
         }
 
         return $orderId;
     });
 } catch (PDOException $e) {
+    if (is_duplicate_error($e)) {
+        // A concurrent request with the same Idempotency-Key committed first.
+        $replay();
+    }
     error_log('MCB CRM order insert failed: ' . $e->getMessage());
     json_error(500, 'order_failed', 'We could not record your order. Please try again.');
 }
 
-// Minimal response. The caller needs the id to hand to Stripe and the derived
-// fulfilment to confirm what it showed the customer — nothing else.
-/**
- * Minimal response. The caller needs the id to hand to Stripe and the derived
- * fulfilment to confirm what it showed the customer.
- *
- * `basket_total_gbp` is the SERVER's total, returned so the browser can check
- * its own preview against it. It is information, not authority — the charge
- * is built from this same server calculation either way.
- */
 json_response(201, [
-    'order_id'         => $orderId,
-    'fulfilment_type'  => $fulfilment,
-    'source_type'      => $sourceType,
-    'basket_total_gbp' => number_format($basketTotalMinor / 100, 2, '.', ''),
+    'order_id'        => $orderId,
+    'checkout_token'  => $checkoutTokenFor($orderId),
+    'fulfilment_type' => $fulfilment,
+    'source_type'     => $attribution['source_type'],
+    'total_minor'     => $totalMinor,
+    'currency'        => 'GBP',
+    'lines'           => array_map(static fn (array $l): array => [
+        'sku'        => $l['sku'],
+        'quantity'   => $l['quantity'],
+        'unit_minor' => $l['unit_minor'],
+        'line_minor' => $l['line_minor'],
+    ], $pricing->lines),
 ]);

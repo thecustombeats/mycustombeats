@@ -25,10 +25,12 @@ tc() { local name="$1" ok="$2"
 
 CONSENT='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2026-09-09.4","cruiseCompanions":"My husband David"'
 
-# What Stripe would report for this order: its stored total in pence. Derived
-# from the order rather than typed, so a fixture never pins a catalogue price.
-order_minor() { q "SELECT CAST(ROUND((o.amount_gbp + COALESCE((SELECT SUM(i.line_gbp) FROM order_items i WHERE i.order_id=o.id),0))*100) AS UNSIGNED) FROM orders o WHERE o.id=$1"; }
-post_raw() { curl -s -o /tmp/hd.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$2"; }
+# What Stripe would report for this order: the server's saved total in pence.
+order_minor() { q "SELECT total_minor FROM orders WHERE id=$1"; }
+# Every order POST carries an Idempotency-Key: a fresh random one unless IDEM is set.
+idem() { echo "test-$(openssl rand -hex 16)"; }
+MOMENT_LINE='"lines":[{"sku":"moment","quantity":1}]'
+post_raw() { curl -s -o /tmp/hd.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -H "Idempotency-Key: ${IDEM:-$(idem)}" -d "$2"; }
 get()  { curl -s -o /tmp/hd.json -w '%{http_code}' "$BASE/$1"; }
 body() { cat /tmp/hd.json; }
 q() { docker exec mcb-db mariadb -umcb -ptestpass -N -B -e "$1" mcb_crm 2>/dev/null; }
@@ -70,14 +72,8 @@ tc "4. 'Payment confirmed' is rendered inside a VERIFIED guard and nowhere else"
 tc "5. the false-success sentence is gone from the source" \
   "$(prose $TY | grep -q 'Your payment is complete and' && echo 0 || echo 1)"
 
-# The chunks index.html actually references — a stale file left in dist/assets
-# by an earlier build is not shipped and must not answer for what is.
-LIVE_CHUNKS=$(grep -oE '/assets/[A-Za-z0-9._-]+\.(js|css)' dist/index.html | sed 's|^/|dist/|' | sort -u)
-ENTRY=$(printf '%s\n' $LIVE_CHUNKS | grep -E 'index-.*\.js$' | head -1)
-
-tc "6. the false-success sentence is gone from the shipped entry chunk" \
-  "$(grep -q 'Your payment is complete and nothing is outstanding' "$ENTRY" && echo 0 || echo 1)"
-
+# 6 and 9 used to read the built entry chunk in dist/. dist/ is no longer
+# tracked or rebuilt by the suites, so the same facts are asserted on source.
 ROWS=$(grep -c '<DetailRow' $TY)
 AMOUNT_ROW=$(grep -cE '<DetailRow label="[^"]*[Aa]mount' $TY)
 tc "7. no amount row is rendered, and the one remaining row is the payment status" \
@@ -87,15 +83,14 @@ tc "7. no amount row is rendered, and the one remaining row is the payment statu
 tc "8. the amountPaid derivation is gone" \
   "$(grep -q 'amountPaid' $TY && echo 0 || echo 1)"
 
-tc "9. no amount is claimed anywhere in the shipped entry chunk" \
-  "$(grep -q 'Amount paid' "$ENTRY" && echo 0 || echo 1)"
+tc "9. no 'Amount paid' is rendered by the page (comments aside)" \
+  "$(grep -qE '>[[:space:]]*Amount paid|label="Amount paid' $TY && echo 0 || echo 1)"
 
 tc "10. the page never reads last_order_format" \
   "$(prose $TY | grep -q 'last_order_format' && echo 0 || echo 1)"
 
-tc "11. last_order_package survives for analytics only, and is never rendered" \
-  "$([ "$(prose $TY | grep -c 'last_order_package')" = "1" ] \
-     && grep -q 'const analyticsPackage = getPackage(readLocal("last_order_package")' $TY && echo 1 || echo 0)"
+tc "11. the analytics purchase comes from the server, not browser storage" \
+  "$(grep -q 'setPurchase(parsePurchase(data.purchase' $TY && ! prose $TY | grep -q 'last_order_package' && echo 1 || echo 0)"
 
 tc "12. no package name, format or delivery line is rendered from the browser" \
   "$(grep -qE 'orderedPackage|orderedFormat|formatName' $TY && echo 0 || echo 1)"
@@ -103,8 +98,8 @@ tc "12. no package name, format or delivery line is rendered from the browser" \
 tc "13. FORMATS is no longer imported — nothing maps a stored format to a name" \
   "$(grep -q 'FORMATS' $TY && echo 0 || echo 1)"
 
-tc "14. the analytics purchase event fires only for a VERIFIED payment" \
-  "$(grep -A2 'useEffect(() => {' $TY | grep -q 'verification !== "VERIFIED"' && echo 1 || echo 0)"
+tc "14. the analytics purchase event fires only for a VERIFIED, PAID, server-confirmed purchase" \
+  "$(grep -q 'if (verification !== "VERIFIED" || orderStatus !== "PAID" || !sessionId || !purchase) return;' $TY && echo 1 || echo 0)"
 
 tc "15. the payment row, where shown, is the server's own status" \
   "$(grep -B2 'DetailRow label="Payment"' $TY | grep -q 'orderStatus === "PAID"' && echo 1 || echo 0)"
@@ -145,8 +140,8 @@ tc "24.   → and carries NO reference, so VERIFIED is unreachable" \
   "$(body | grep -q '"reference":null' && echo 1 || echo 0)"
 tc "25.   → and carries no status" \
   "$(body | grep -q '"status":null' && echo 1 || echo 0)"
-tc "26.   → and no amount, package or format is disclosed at all" \
-  "$(body | grep -qiE '"amount|"package|"format|"gbp' && echo 0 || echo 1)"
+tc "26.   → and no purchase, amount, package or format is disclosed at all" \
+  "$(body | grep -q '"purchase":null' && ! body | grep -qiE '"amount|"package|"format|"gbp|value_minor' && echo 1 || echo 0)"
 
 S=$(get "order-reference?session_id=not_a_session")
 t  "27. a malformed session id is refused outright" 400 "$S"
@@ -154,12 +149,12 @@ tc "28.   → with the code the page uses to stop retrying" \
   "$(body | grep -q '"error":"invalid_session"' && echo 1 || echo 0)"
 
 # ---- and the VERIFIED path must still be reachable for a real payment ----
-OID=$(post order "{$CONSENT,\"firstName\":\"Hard\",\"lastName\":\"Ening\",\"email\":\"hd-verified@example.com\",\"package\":\"moment\",\"format\":\"mp3\",\"story\":\"A song for the closure test.\"}" >/dev/null; body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
+OID=$(post order "{$CONSENT,$MOMENT_LINE,\"firstName\":\"Hard\",\"lastName\":\"Ening\",\"email\":\"hd-verified@example.com\",\"story\":\"A song for the closure test.\"}" >/dev/null; body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "29. an order is created for the verified-path check" "$([ -n "$OID" ] && echo 1 || echo 0)"
 
 SID="cs_live_hardening$OID"
 q "UPDATE orders SET stripe_session_id='$SID' WHERE id=$OID" >/dev/null
-W="{\"id\":\"evt_hd_$OID\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"$SID\",\"client_reference_id\":\"$OID\",\"payment_intent\":\"pi_hd_$OID\",\"amount_total\":$(order_minor $OID),\"currency\":\"gbp\"}}}"
+W="{\"id\":\"evt_hd_$OID\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"$SID\",\"client_reference_id\":\"$OID\",\"payment_intent\":\"pi_hd_$OID\",\"payment_status\":\"paid\",\"amount_total\":$(order_minor $OID),\"currency\":\"gbp\"}}}"
 SW=$(curl -s -o /tmp/hd.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Content-Type: application/json" -H "Stripe-Signature: $(sign "$W")" -d "$W")
 t  "30. the signed webhook is accepted" 200 "$SW"
 tc "31.   → the order is PAID on MCB's own record" \
@@ -173,13 +168,14 @@ tc "34.   → and reports the status as PAID" \
   "$(body | grep -q '"status":"PAID"' && echo 1 || echo 0)"
 tc "35.   → so VERIFIED is reachable by a real payment and only by one" \
   "$(body | grep -q '"reference":null' && echo 0 || echo 1)"
-tc "36.   → and even a paid order discloses no amount to the browser" \
-  "$(body | grep -qiE '"amount|"gbp' && echo 0 || echo 1)"
+PAID_VALUE="\"value_minor\":$(order_minor $OID),"
+tc "36.   → a paid order discloses only the server-confirmed integer purchase" \
+  "$(body | grep -qF "$PAID_VALUE" && ! body | grep -qE '"amount|"gbp|amount_gbp|hd-verified|Ening|"email"' && echo 1 || echo 0)"
 
 echo ""
-echo "================ 2. FULL PACKAGE — THE PAGE HAS A TITLE ================"
+echo "================ 2. BESPOKE (formerly The Full Package) — THE PAGE HAS A TITLE ================"
 
-FP=src/pages/FullPackage.tsx
+FP=src/pages/Bespoke.tsx
 
 tc "37. the title is a SINGLE string child, not an interpolated array" \
   "$(grep -q '<title>{`${name} | A Private Concierge Commission | My Custom Beats`}</title>' $FP && echo 1 || echo 0)"
@@ -187,34 +183,34 @@ tc "37. the title is a SINGLE string child, not an interpolated array" \
 tc "38. the old multi-child form is gone" \
   "$(grep -q '<title>{name} |' $FP && echo 0 || echo 1)"
 
-tc "39. the package name still comes from the commercial data" \
-  "$(grep -q 'const name = CONCIERGE_PACKAGE?.name ?? "The Full Package"' $FP && echo 1 || echo 0)"
+tc "39. the product name comes from the canonical catalogue" \
+  "$(grep -q 'const name = BESPOKE.name;' $FP && grep -q 'import { BESPOKE } from "../data/catalogue"' $FP && echo 1 || echo 0)"
 
-tc "40. the composed title ships in the built chunk" \
-  "$(grep -rq 'A Private Concierge Commission | My Custom Beats' dist/assets/ 2>/dev/null && echo 1 || echo 0)"
+tc "40. the retired FullPackage page is gone" \
+  "$([ ! -e src/pages/FullPackage.tsx ] && echo 1 || echo 0)"
 
-tc "41. the title fix introduced no price" \
-  "$(prose $FP | grep -q '799' && echo 0 || echo 1)"
+tc "41. the page introduces no price" \
+  "$(prose $FP | grep -qE '£[0-9]|799' && echo 0 || echo 1)"
 
-tc "42. the page is still a concierge commission, not a priced product" \
-  "$(grep -q 'commercialModel: "CONCIERGE"' src/data/packages.ts && echo 1 || echo 0)"
+tc "42. Bespoke is still a quoted commission, not a priced product" \
+  "$(awk '/^export const BESPOKE: Product = \{/,/^};/' src/data/catalogue/products.ts | grep -q 'commercialModel: "QUOTED"' && echo 1 || echo 0)"
 
 tc "43. no Offer is emitted for it" \
-  "$(grep -q 'if (!pkg.price) return null;' src/data/packages.ts && echo 1 || echo 0)"
+  "$(grep -q 'case "QUOTED":' src/lib/seo.ts && echo 1 || echo 0)"
 
 echo ""
 echo "================ 3. SITEMAP — THE CONCIERGE PAGE IS DISCOVERABLE ================"
 
 SM=public/sitemap.xml
 
-tc "44. /full-package is in the sitemap" \
-  "$(grep -q '<loc>https://www.mycustombeats.com/full-package</loc>' $SM && echo 1 || echo 0)"
+tc "44. /bespoke is in the sitemap" \
+  "$(grep -q '<loc>https://www.mycustombeats.com/bespoke</loc>' $SM && echo 1 || echo 0)"
 
 tc "45.   → exactly once" \
-  "$([ "$(grep -c '<loc>https://www.mycustombeats.com/full-package</loc>' $SM)" = "1" ] && echo 1 || echo 0)"
+  "$([ "$(grep -c '<loc>https://www.mycustombeats.com/bespoke</loc>' $SM)" = "1" ] && echo 1 || echo 0)"
 
 tc "46. it is a real route, not a URL that would 404 client-side" \
-  "$(grep -q 'path="/full-package"' src/App.tsx && echo 1 || echo 0)"
+  "$(grep -q 'path="/bespoke"' src/App.tsx && echo 1 || echo 0)"
 
 tc "47. its canonical host matches every other entry" \
   "$([ "$(grep -c '<loc>https://www.mycustombeats.com/' $SM)" = "$(grep -c '<loc>' $SM)" ] && echo 1 || echo 0)"
@@ -227,18 +223,19 @@ tc "48. every sitemap location is unique" \
 XMLOK=$(python3 -c 'import xml.dom.minidom,sys; xml.dom.minidom.parse(sys.argv[1]); print(1)' $SM 2>/dev/null || echo 0)
 tc "49. the sitemap is still well-formed XML" "$XMLOK"
 
-tc "50. no retired Bespoke URL was introduced" \
-  "$(grep -qi 'bespoke' $SM && echo 0 || echo 1)"
+tc "50. the retired /full-package address is not listed (it redirects)" \
+  "$(grep -q '<loc>[^<]*full-package' $SM && echo 0 || echo 1)"
+
+tc "50b.  → the server answers it with a permanent redirect to /bespoke" \
+  "$(grep -qE '^[[:space:]]*RewriteRule \^full-package/\?\$ /bespoke \[R=301,L\]' public/.htaccess && echo 1 || echo 0)"
+# The HTTP behaviour of that redirect is NOT exercised here: the test Apache
+# mounts public/api only, so public/.htaccess is never served by it.
 
 tc "51. customer-specific pages are still excluded" \
   "$(grep -q 'thank-you' $SM && echo 0 || echo 1)"
 
 tc "52. robots.txt still disallows them" \
   "$(grep -q 'Disallow: /thank-you' public/robots.txt && echo 1 || echo 0)"
-
-DIST_FP=$(grep -c 'mycustombeats.com/full-package' dist/sitemap.xml)
-tc "53. the deployable copy carries the same entry" \
-  "$([ "$DIST_FP" = "1" ] && echo 1 || echo 0)"
 
 echo ""
 echo "================ 4. ORDER ENDPOINT — RATE LIMITED ================"
@@ -251,25 +248,30 @@ LIMIT_DEFS=$(grep -rl 'function enforce_rate_limit' public/api/ | wc -l | tr -d 
 tc "55. there is still exactly one limiter implementation in the codebase" \
   "$([ "$LIMIT_DEFS" = "1" ] && echo 1 || echo 0)"
 
-LIMIT_LINE=$(grep -n 'enforce_rate_limit' public/api/order.php | tail -1 | cut -d: -f1)
-BODY_LINE=$(grep -n 'read_json_body' public/api/order.php | head -1 | cut -d: -f1)
-tc "56. the limit is checked before any request data is read" \
-  "$([ "$LIMIT_LINE" -lt "$BODY_LINE" ] && echo 1 || echo 0)"
+# The body is now read before the limiter, deliberately: an idempotent retry
+# must be recognised (by hashing the body) and answered before it is counted.
+REPLAY_LINE=$(grep -n '^\$replay();' public/api/order.php | head -1 | cut -d: -f1)
+LIMIT_LINE=$(grep -n "^enforce_rate_limit('order_consents'" public/api/order.php | head -1 | cut -d: -f1)
+VALIDATE_LINE=$(grep -n 'new Validator(\$body)' public/api/order.php | head -1 | cut -d: -f1)
+tc "56. the limit is checked after the idempotent replay and before any validation or write" \
+  "$([ -n "$REPLAY_LINE" ] && [ -n "$VALIDATE_LINE" ] && [ "$REPLAY_LINE" -lt "$LIMIT_LINE" ] && [ "$LIMIT_LINE" -lt "$VALIDATE_LINE" ] && echo 1 || echo 0)"
 
-MIGRATIONS=$(ls db/migrations/ | wc -l | tr -d ' ')
-tc "57. no migration was needed to support it — order_consents already had the hash" \
-  "$([ "$MIGRATIONS" = "7" ] && grep -q 'ip_hash' db/schema.sql && echo 1 || echo 0)"
+tc "57. order_consents still carries the hash the limiter counts" \
+  "$(grep -q 'ip_hash' db/schema.sql && echo 1 || echo 0)"
 
 # ---- the limiter actually fires -------------------------------------------
 # `post_raw` deliberately does NOT release the attribution, so this burst is
 # counted the way a real flood would be.
-BURST_BODY="{$CONSENT,\"firstName\":\"Burst\",\"lastName\":\"Test\",\"email\":\"hd-retry@example.com\",\"package\":\"moment\",\"format\":\"mp3\",\"story\":\"Retry header check for the limiter.\"}"
-GENUINE_BODY="{$CONSENT,\"firstName\":\"Genuine\",\"lastName\":\"Customer\",\"email\":\"hd-genuine@example.com\",\"package\":\"moment\",\"format\":\"mp3\",\"story\":\"An ordinary order after the burst.\"}"
+BURST_BODY="{$CONSENT,$MOMENT_LINE,\"firstName\":\"Burst\",\"lastName\":\"Test\",\"email\":\"hd-retry@example.com\",\"story\":\"Retry header check for the limiter.\"}"
+GENUINE_BODY="{$CONSENT,$MOMENT_LINE,\"firstName\":\"Genuine\",\"lastName\":\"Customer\",\"email\":\"hd-genuine@example.com\",\"story\":\"An ordinary order after the burst.\"}"
 
 release_order_limit
 LAST=""; ACCEPTED=0
+FIRST_KEY=$(idem)
+FIRST_BODY="{$CONSENT,$MOMENT_LINE,\"firstName\":\"Burst\",\"lastName\":\"Test\",\"email\":\"hd-burst1@example.com\",\"story\":\"Flood attempt number 1 for the limiter.\"}"
 for i in $(seq 1 14); do
-  CODE=$(post_raw order "{$CONSENT,\"firstName\":\"Burst\",\"lastName\":\"Test\",\"email\":\"hd-burst$i@example.com\",\"package\":\"moment\",\"format\":\"mp3\",\"story\":\"Flood attempt number $i for the limiter.\"}")
+  if [ "$i" = "1" ]; then CODE=$(IDEM=$FIRST_KEY post_raw order "$FIRST_BODY"); else
+  CODE=$(post_raw order "{$CONSENT,$MOMENT_LINE,\"firstName\":\"Burst\",\"lastName\":\"Test\",\"email\":\"hd-burst$i@example.com\",\"story\":\"Flood attempt number $i for the limiter.\"}"); fi
   LAST="$CODE"
   [ "$CODE" = "201" ] && ACCEPTED=$((ACCEPTED+1))
   [ "$CODE" = "429" ] && break
@@ -282,12 +284,18 @@ tc "60.   → with the shared, non-specific rate-limit body" \
 tc "61.   → and no infrastructure detail in the message" \
   "$(body | grep -qiE 'order_consents|ip_hash|mariadb|localhost|column|table' && echo 0 || echo 1)"
 
-RETRY_HDR=$(curl -s -D - -o /dev/null -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$BURST_BODY" | grep -ci '^Retry-After:' | tr -d ' ')
+RETRY_HDR=$(curl -s -D - -o /dev/null -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -H "Idempotency-Key: $(idem)" -d "$BURST_BODY" | grep -ci '^Retry-After:' | tr -d ' ')
 tc "62.   → and Retry-After is advertised" "$([ "$RETRY_HDR" -ge "1" ] && echo 1 || echo 0)"
 
 FLOODED=$(q "SELECT COUNT(*) FROM customers WHERE email LIKE 'hd-burst%'")
 tc "63.   → and the refused requests wrote nothing beyond the allowance" \
   "$([ "$FLOODED" = "10" ] && echo 1 || echo 0)"
+
+REPLAY=$(IDEM=$FIRST_KEY post_raw order "$FIRST_BODY")
+tc "63b. while limited, a retry of an ACCEPTED order is still answered (200, replayed)" \
+  "$([ "$REPLAY" = "200" ] && body | grep -q '"replayed":true' && echo 1 || echo 0)"
+tc "63c.   → and it created nothing" \
+  "$([ "$(q "SELECT COUNT(*) FROM customers WHERE email LIKE 'hd-burst%'")" = "10" ] && echo 1 || echo 0)"
 
 release_order_limit
 GENUINE=$(post_raw order "$GENUINE_BODY")
@@ -297,11 +305,8 @@ tc "64. genuine traffic is unaffected once the window has moved on" \
 echo ""
 echo "================ 5. NOTHING ELSE MOVED ================"
 
-tc "65. all nine Payment Link URLs are byte-identical and still nine" \
-  "$([ "$(cat src/data/packages.ts src/data/legacy/retiredBespoke.ts | grep -c 'https://buy.stripe.com/')" = "9" ] && echo 1 || echo 0)"
-
-tc "66. the retired Bespoke link is still unreachable from the bundle" \
-  "$(grep -rq '5kQ8wO9vKcLR3KO3eabsc09' dist/assets/ 2>/dev/null && echo 0 || echo 1)"
+tc "65. no Stripe Payment Link survives in browser source" \
+  "$(grep -rq 'buy\.stripe\.com' src/ 2>/dev/null && echo 0 || echo 1)"
 
 tc "67. dynamic checkout is still OFF in the client" \
   "$(grep -q 'export const CHECKOUT_SESSIONS_ENABLED = false' src/lib/checkoutSession.ts && echo 1 || echo 0)"
@@ -336,12 +341,13 @@ tc "75. Resend behaviour is unchanged — the closure sends no mail" \
 tc "76. the review URL is still configuration and still empty" \
   "$(grep -A3 "'reviews'" public/api/config.example.php | grep -q "'url' => ''" && echo 1 || echo 0)"
 
-tc "77. the seven pre-existing migrations are untouched" \
-  "$([ "$(ls db/migrations/*.sql | wc -l | tr -d ' ')" = "7" ] \
-     && [ -z "$(ls db/migrations/ | grep '2026-09-10')" ] && echo 1 || echo 0)"
+tc "77. the seven pre-existing migrations are untouched; one additive migration follows" \
+  "$([ "$(ls db/migrations/*.sql | wc -l | tr -d ' ')" = "8" ] \
+     && [ -f db/migrations/2026-09-14-canonical-catalogue.sql ] \
+     && git diff --quiet HEAD -- db/migrations/2026-08-31-mcb-reference.sql db/migrations/2026-09-09-*.sql && echo 1 || echo 0)"
 
-tc "78. no Stripe secret in the built bundle" \
-  "$(grep -rq 'sk_live_\|sk_test_' dist/assets/ 2>/dev/null && echo 0 || echo 1)"
+tc "78. no Stripe secret in browser source" \
+  "$(grep -rqE 'sk_(live|test)_[A-Za-z0-9]' src/ 2>/dev/null && echo 0 || echo 1)"
 
 tc "79. the cruise-companion field is still required server-side" \
   "$([ "$(grep -c "required('cruiseCompanions'" public/api/order.php)" -ge "1" ] && echo 1 || echo 0)"

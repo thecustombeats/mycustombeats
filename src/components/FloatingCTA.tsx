@@ -25,7 +25,7 @@ const FloatingCTA = () => {
 
   if (location.pathname === "/products") {
     message =
-      "Hi I am interested in your keepsake products (Vinyl/Artwork/etc). Can you share pricing?";
+      "Hi I am interested in your personalised products. Could you help me choose?";
   }
 
   if (location.pathname === "/occasions") {

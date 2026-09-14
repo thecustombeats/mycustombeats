@@ -49,22 +49,6 @@ const AboutSection = () => {
         }
       );
 
-      gsap.fromTo(
-        '.video-embed',
-        { y: 40, opacity: 0 },
-        {
-          y: 0,
-          opacity: 1,
-          duration: 0.35,
-          stagger: 0.08,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: '.videos-grid',
-            start: 'top 85%',
-            toggleActions: 'play none none reverse',
-          },
-        }
-      );
     }, section);
 
     
@@ -79,7 +63,7 @@ const AboutSection = () => {
   <title>Our Story — The People Behind My Custom Beats</title>
   <meta
     name="description"
-    content="Meet the founders and the global collective of professional musicians who turn your memories into personalised songs and keepsakes."
+    content="Meet the founders of My Custom Beats and the musicians who turn your memories into personalised songs and keepsakes."
   />
   {/* The About page is where the organisation is actually described, so it
       is where the AboutPage + Organization graph belongs. */}
@@ -99,7 +83,7 @@ const AboutSection = () => {
           Crafted by Real Musicians
         </h3>
         <p className="text-espresso/70 max-w-xl mx-auto leading-relaxed">
-          Each Custom Beat is crafted by our founders alongside a curated global collective of 200+ professional musicians.
+          Each Custom Beat is crafted under the direction of our founders, working with the musicians they choose for your story.
         </p>
         <div className="w-16 h-px bg-gold mx-auto mt-8" />
       </div>
@@ -131,16 +115,12 @@ const AboutSection = () => {
     Founder & Executive Producer
   </p>
 
-<div className="inline-block text-xs uppercase tracking-wider text-gold mb-3">
-  BBC Radio Featured Artist
-</div>
-
   <p className="text-espresso/70 text-sm leading-relaxed mb-4">
     Rinaldi is the driving force behind the musical excellence of My Custom Beats, bringing over a decade of international experience as a DJ, producer, and songwriter.
   </p>
 
   <p className="text-espresso/70 text-sm leading-relaxed mb-4">
-    Having performed across global stages, luxury cruise lines, and private events, his work has been featured on <span className="text-gold font-medium">BBC Radio</span> and trusted by discerning audiences worldwide.
+    He has performed on luxury cruise lines and at private events.
   </p>
 
   <p className="text-espresso/70 text-sm leading-relaxed mb-6">
@@ -224,9 +204,9 @@ const AboutSection = () => {
 
       {/* Global Collective */}
       <div className="text-center mb-20 px-[7vw]">
-        <h3 className="font-serif text-xl text-espresso mb-4">Our Global Creative Collective</h3>
+        <h3 className="font-serif text-xl text-espresso mb-4">Our Creative Collective</h3>
         <p className="text-espresso/70 max-w-3xl mx-auto leading-relaxed">
-          Behind Custom Beats are two internationally experienced artists whose combined expertise spans global stages, luxury events, and professional music production. Supporting them is a curated global collective of over 200 professional musicians — including pianists, violinists, drummers, guitarists, saxophonists, flautists, vocalists, DJs, and specialist instrumentalists.
+          Behind Custom Beats are two experienced artists whose combined expertise spans live performance, events and professional music production. They work with musicians chosen for each story — from pianists and vocalists to DJs and specialist instrumentalists.
         </p>
       </div>
 
@@ -249,48 +229,6 @@ const AboutSection = () => {
         </div>
       </div>
 
-      {/* Video Testimonials - Embedded Players */}
-      <div className="px-[7vw]">
-        <h3 className="font-serif text-xl text-espresso text-center mb-8">Video Testimonials</h3>
-        <div className="videos-grid grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          <div className="video-embed aspect-video rounded-2xl overflow-hidden shadow-luxury bg-espresso/5">
-            <iframe
-              width="100%"
-              height="100%"
-              src="https://www.youtube.com/embed/8xGQcHcmsIA?rel=0&modestbranding=1"
-              title="Testimonial 1"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              loading="lazy"
-            />
-          </div>
-          <div className="video-embed aspect-video rounded-2xl overflow-hidden shadow-luxury bg-espresso/5">
-            <iframe
-              width="100%"
-              height="100%"
-              src="https://www.youtube.com/embed/ZD6MDvLxBio?rel=0&modestbranding=1"
-              title="Testimonial 2"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              loading="lazy"
-            />
-          </div>
-          <div className="video-embed aspect-video rounded-2xl overflow-hidden shadow-luxury bg-espresso/5">
-            <iframe
-              width="100%"
-              height="100%"
-              src="https://www.youtube.com/embed/a9W2eG1vK5s?rel=0&modestbranding=1"
-              title="Testimonial 3"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              loading="lazy"
-            />
-          </div>
-        </div>
-      </div>
     </div>
     </>
   );

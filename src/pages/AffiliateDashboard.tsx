@@ -1,7 +1,16 @@
 import { useEffect, useState } from "react";
 
+/** The fields `/api/affiliate/dashboard` returns and this page reads. */
+interface AffiliateDashboardData {
+  name: string;
+  email: string;
+  referral_link: string;
+  clicks: number;
+  sales: number;
+}
+
 export default function AffiliateDashboard() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<AffiliateDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +45,7 @@ export default function AffiliateDashboard() {
           return;
         }
 
-        setData(await response.json());
+        setData((await response.json()) as AffiliateDashboardData);
       } catch {
         setError("We couldn't reach the server. Please check your connection.");
       }
@@ -116,8 +125,7 @@ export default function AffiliateDashboard() {
 
 {data.clicks === 0 && (
   <p className="mt-6 text-sm text-center italic text-espresso/70">
-    Note: You’re all set — start sharing your link to earn your first commission.  
-    Top affiliates earn £500+ per cruise.
+    Note: You’re all set — start sharing your link to earn your first commission.
   </p>
 )}
 

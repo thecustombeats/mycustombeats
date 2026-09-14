@@ -1,5 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import FloatingCTA from "./components/FloatingCTA";
 import { useLocation } from "react-router-dom";
 import Navigation from "./components/Navigation";
@@ -38,12 +38,21 @@ import AffiliateDashboard from "./pages/AffiliateDashboard";
 import { Helmet } from "react-helmet-async";
 import { Package } from "lucide-react";
 import { Link } from "react-router-dom";
-import { KEEPSAKES } from "./data/keepsakes";
+import {
+  KEEPSAKE,
+  priceSummary,
+  publicProducts,
+} from "./data/catalogue";
 import AudienceSplitSection from "./sections/AudienceSplitSection";
 import SeasonalBanner from "./components/SeasonalBanner";
-import CdDiscMark from "./components/CdDiscMark";
 import KeepsakeMark from "./components/KeepsakeMark";
-import { homepageStructuredData, canonical, shareImageFor } from "./lib/seo";
+import {
+  HOMEPAGE_DESCRIPTION,
+  HOMEPAGE_TITLE,
+  homepageStructuredData,
+  canonical,
+  shareImageFor,
+} from "./lib/seo";
 import { scrollToSection } from "./utils/scrollToSection";
 import RouteErrorBoundary from "./components/RouteErrorBoundary";
 import NotFound from "./pages/NotFound";
@@ -52,10 +61,10 @@ import NotFound from "./pages/NotFound";
 
 const AnniversarySong = lazy(() => import("./pages/AnniversarySong"));
 const CruiseMemories = lazy(() => import("./pages/CruiseMemories"));
-const FullPackage = lazy(() => import("./pages/FullPackage"));
+const Bespoke = lazy(() => import("./pages/Bespoke"));
+const ProductPage = lazy(() => import("./pages/ProductPage"));
 const SongShowcaseSection = lazy(() => import("./sections/SongShowcaseSection"));
 const HowItWorksSection = lazy(() => import("./sections/HowItWorksSection"));
-// Testimonials stay unpublished until their source evidence is verified.
 const PackagesSection = lazy(() => import("./sections/PackagesSection"));
 const OrderFormSection = lazy(() => import("./sections/OrderFormSection"));
 const ContactSection = lazy(() => import("./sections/ContactSection"));
@@ -63,6 +72,18 @@ const HospitalityCTASection = lazy(() => import("./sections/HospitalityCTASectio
 
 
 
+
+/**
+ * The homepage "make the memory physical" band, projected straight from the
+ * canonical catalogue: the picture-disc Keepsake, then personalised decor and
+ * the players. Order is catalogue order.
+ */
+const PHYSICAL_SHOWCASE = publicProducts().filter(
+  (product) =>
+    product.id === KEEPSAKE.id ||
+    product.category === "PERSONALISED_DECOR" ||
+    product.category === "PLAYER"
+);
 
 // 👇 This becomes your homepage
 function MainSite() {
@@ -149,11 +170,8 @@ function MainSite() {
       mounted last won — which is why the homepage was serving the packages
       title. Sections no longer set titles. */}
   <Helmet>
-    <title>Personalised Songs on Vinyl, CD & MP3 | My Custom Beats</title>
-    <meta
-      name="description"
-      content="Turn a memory into a personalised song, from £10. Choose vinyl, CD or MP3. Made for cruises, weddings, anniversaries and celebrations."
-    />
+    <title>{HOMEPAGE_TITLE}</title>
+    <meta name="description" content={HOMEPAGE_DESCRIPTION} />
     <script type="application/ld+json">
       {JSON.stringify(homepageStructuredData())}
     </script>
@@ -184,8 +202,8 @@ function MainSite() {
 
 
 {/* ---- Make the memory physical ----
-    Connects the music experience to the keepsake ecosystem. Rendered from
-    the shared keepsake data so it can never drift from /products. ---- */}
+    Connects the music experience to the physical products. Rendered from
+    the canonical catalogue so it can never drift from /products. ---- */}
 <section
   aria-labelledby="make-physical-heading"
   className="py-24 px-6 bg-ivory"
@@ -205,35 +223,43 @@ function MainSite() {
     </div>
 
     <ul className="grid grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 list-none m-0 p-0">
-      {KEEPSAKES.map((item) => (
+      {PHYSICAL_SHOWCASE.map((item) => (
         <li key={item.id}>
           <article className="h-full">
             <div className="overflow-hidden rounded-2xl mb-4 bg-white border border-espresso/10">
               {item.image ? (
                 <img
                   src={item.image}
-                  alt={item.alt ?? item.title}
+                  alt={item.imageAlt ?? item.name}
                   loading="lazy"
                   decoding="async"
                   className="w-full h-[240px] object-cover"
                 />
               ) : (
                 <div className="w-full h-[240px] flex items-center justify-center bg-ivory p-6">
-                  {item.id === "cd" ? (
-                    <CdDiscMark className="h-full w-auto" />
-                  ) : (
-                    <KeepsakeMark name={item.title} />
-                  )}
+                  <KeepsakeMark name={item.name} />
                 </div>
               )}
             </div>
 
             <h3 className="font-serif text-xl text-espresso mb-1">
-              {item.title}
+              {item.route ? (
+                <Link to={item.route} className="hover:text-gold-deep transition-colors">
+                  {item.name}
+                </Link>
+              ) : (
+                item.name
+              )}
             </h3>
             <p className="text-sm text-espresso/60 leading-relaxed">
-              {item.description}
+              {item.shortDescription}
             </p>
+            <p className="mt-2 text-sm text-espresso">{priceSummary(item)}</p>
+            {item.disclosures.map((disclosure) => (
+              <p key={disclosure} className="mt-1 text-xs text-espresso/50 leading-relaxed">
+                {disclosure}
+              </p>
+            ))}
           </article>
         </li>
       ))}
@@ -245,12 +271,11 @@ function MainSite() {
         className="inline-flex items-center gap-2 px-9 py-4 bg-ink text-ivory rounded-full font-medium transition-colors duration-300 hover:bg-gold hover:text-ink"
       >
         <Package className="w-5 h-5" aria-hidden="true" />
-        Explore keepsakes
+        Explore all products
       </Link>
 
       <p className="mt-4 text-sm text-espresso/50">
-        Vinyl and CD are included with your experience. Other keepsakes are
-        made to order — enquire for pricing.
+        Every personalised piece is made to order for you.
       </p>
     </div>
   </div>
@@ -340,6 +365,11 @@ function ScrollToTop() {
   return null;
 }
 
+function FullPackageRedirect() {
+  const { search, hash } = useLocation();
+  return <Navigate to={{ pathname: "/bespoke", search, hash }} replace />;
+}
+
 // 👇 This handles routing
 function App() {
   return (
@@ -407,10 +437,18 @@ function App() {
           }
         />
         <Route path="/cruise" element={<Layout><CruiseMemories /></Layout>} />
-        {/* The Full Package. Its own route rather than a section of the
-            homepage: it is an enquiry journey, not a card, and a customer
-            needs to be able to be sent a link to it. */}
-        <Route path="/full-package" element={<Layout><FullPackage /></Layout>} />
+        {/* Song experiences — one catalogue-driven page component. */}
+        <Route path="/moment" element={<Layout><ProductPage productId="moment" /></Layout>} />
+        <Route path="/keepsake" element={<Layout><ProductPage productId="keepsake" /></Layout>} />
+        <Route path="/journey" element={<Layout><ProductPage productId="journey" /></Layout>} />
+        {/* Bespoke. Its own route rather than a section of the homepage: it
+            is an enquiry journey, not a card, and a customer needs to be able
+            to be sent a link to it. */}
+        <Route path="/bespoke" element={<Layout><Bespoke /></Layout>} />
+        {/* Retired address ("The Full Package"). public/.htaccess answers it
+            with a 301; this covers client-side navigation and any host that
+            ignores that file. The query string is kept for attribution. */}
+        <Route path="/full-package" element={<FullPackageRedirect />} />
         <Route path="/about" element={<Layout><About /></Layout>} />
         <Route path="/faq" element={<Layout><FAQ /></Layout>} />
 

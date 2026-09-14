@@ -29,6 +29,16 @@
 
   RewriteRule ^index\.html$ - [L]
 
+  # Retired route. "The Full Package" is now Bespoke, and its canonical page
+  # is /bespoke. A 301 rather than a client-side redirect alone, so links
+  # already shared and any crawled URL consolidate onto the new address.
+  #
+  # mod_rewrite appends the original query string, so ?ref= and ?partner=
+  # attribution survives the hop. The trailing slash is optional. The target
+  # cannot match again, so this cannot loop. The client router also redirects
+  # /full-package, for any host that does not honour this file.
+  RewriteRule ^full-package/?$ /bespoke [R=301,L]
+
   # Build output must NEVER fall through to index.html.
   #
   # Without this, a request for a chunk that is no longer on the server

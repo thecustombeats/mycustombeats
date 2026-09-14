@@ -118,13 +118,25 @@ CREATE TABLE IF NOT EXISTS orders (
   id                     INT UNSIGNED NOT NULL AUTO_INCREMENT,
   customer_id            INT UNSIGNED NOT NULL,
 
-  package                VARCHAR(32)  NOT NULL,   -- moment | keepsake | …
-  format                 VARCHAR(16)  NULL,       -- vinyl | cd | mp3 | NULL (Bespoke)
+  -- The first song experience's product id (moment | keepsake | journey).
+  -- Every line, including this one, is in order_items.
+  package                VARCHAR(32)  NOT NULL,
+  format                 VARCHAR(16)  NULL,       -- legacy; NULL on catalogue orders
   fulfilment_type        ENUM('DIGITAL','PHYSICAL') NOT NULL,
 
-  amount_gbp             DECIMAL(10,2) NOT NULL,
-  amount_usd             DECIMAL(10,2) NOT NULL,
+  amount_gbp             DECIMAL(10,2) NOT NULL,   -- the order total, for reporting
+  amount_usd             DECIMAL(10,2) NULL,       -- legacy; not recorded on new orders
   currency               CHAR(3)       NOT NULL DEFAULT 'GBP',
+
+  -- Authoritative order total in pence, priced by the server from the
+  -- catalogue. NULL on orders placed before the canonical catalogue.
+  total_minor            INT UNSIGNED  NULL,
+  -- sha256 of the secret checkout token returned to the browser that
+  -- created the order. Checkout for this order requires the token.
+  checkout_token_hash    CHAR(64)      NULL,
+  -- sha256 of the client's Idempotency-Key, and of the request it carried.
+  idempotency_key_hash   CHAR(64)      NULL,
+  request_hash           CHAR(64)      NULL,
 
   status                 ENUM('PENDING','PAID','ABANDONED','REFUNDED')
                          NOT NULL DEFAULT 'PENDING',
@@ -181,6 +193,7 @@ CREATE TABLE IF NOT EXISTS orders (
   PRIMARY KEY (id),
   UNIQUE KEY uq_orders_stripe_session (stripe_session_id),
   UNIQUE KEY uq_orders_mcb_reference (mcb_reference),
+  UNIQUE KEY uq_orders_idempotency (idempotency_key_hash),
   KEY idx_orders_customer (customer_id),
   KEY idx_orders_affiliate (affiliate_id),
   KEY idx_orders_partner (partner_id),
@@ -305,8 +318,12 @@ CREATE TABLE IF NOT EXISTS unreconciled_payments (
   -- a signed event named a real order, but Stripe took an amount or a
   -- currency that is not what the server's snapshot expected. The order is
   -- deliberately NOT marked paid; the money is filed here for a human.
+  -- DUPLICATE_PAYMENT: a further payment for an order already PAID.
+  -- ORDER_MISMATCH: the event's order identifiers disagree with the
+  --                 checkout snapshot it names.
   reason                ENUM('NO_ORDER_REFERENCE','ORDER_NOT_FOUND',
-                             'AMOUNT_MISMATCH','CURRENCY_MISMATCH') NOT NULL,
+                             'AMOUNT_MISMATCH','CURRENCY_MISMATCH',
+                             'DUPLICATE_PAYMENT','ORDER_MISMATCH') NOT NULL,
 
   -- What Stripe collected at checkout. The only identity MCB has for this
   -- buyer when its own record is missing.
@@ -384,7 +401,7 @@ CREATE TABLE IF NOT EXISTS checkout_sessions (
   -- so a repriced basket is a new checkout rather than a shared one.
   basket_hash          CHAR(64)     NOT NULL,
 
-  package              VARCHAR(32)  NOT NULL,
+  package              VARCHAR(32)  NULL,
   format               VARCHAR(16)  NULL,
 
   -- The itemisation, as JSON. Immutable once written.
@@ -394,12 +411,15 @@ CREATE TABLE IF NOT EXISTS checkout_sessions (
   -- What the server expects Stripe to take. The webhook compares against
   -- this and nothing else.
   expected_amount_gbp  DECIMAL(10,2) NOT NULL,
+  expected_minor       INT UNSIGNED  NULL,
   currency             CHAR(3)       NOT NULL DEFAULT 'GBP',
 
   stripe_session_id    VARCHAR(255) NULL,
   stripe_session_url   TEXT         NULL,
+  stripe_expires_at    DATETIME     NULL,
+  attempt              SMALLINT UNSIGNED NOT NULL DEFAULT 0,
 
-  status               ENUM('CREATED','COMPLETED','FAILED')
+  status               ENUM('CREATED','COMPLETED','FAILED','EXPIRED')
                        NOT NULL DEFAULT 'CREATED',
 
   -- Salted hash of the creating IP, for rate limiting. Never the raw address.
@@ -446,15 +466,20 @@ CREATE TABLE IF NOT EXISTS order_items (
   -- such as 'gift-pop-up-card-anniversary'. A chosen variant is stored as
   -- ITSELF, so fulfilment reads an exact product rather than a category
   -- plus a free-text occasion.
-  item_id        VARCHAR(64)  NOT NULL,
+  item_id        VARCHAR(64)  NOT NULL,        -- the catalogue SKU
+  product_id     VARCHAR(64)  NULL,
 
   -- Name as it was at the time of sale. A snapshot for operators and for
   -- historical accuracy; the id remains the thing that identifies it.
   item_name      VARCHAR(160) NOT NULL,
+  category       VARCHAR(32)  NULL,
+  fulfilment     VARCHAR(16)  NULL,
 
   quantity       SMALLINT UNSIGNED NOT NULL,
   unit_gbp       DECIMAL(10,2) NOT NULL,
   line_gbp       DECIMAL(10,2) NOT NULL,
+  unit_minor     INT UNSIGNED NULL,           -- pence; NULL on legacy rows
+  line_minor     INT UNSIGNED NULL,
 
   created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

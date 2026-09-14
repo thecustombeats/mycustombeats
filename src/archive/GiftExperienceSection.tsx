@@ -110,7 +110,7 @@ const GiftExperienceSection = () => {
                 Order as a Gift
               </button>
               <p className="text-sm text-espresso/50 mt-6">
-             Loved by couples, travellers, and families worldwide
+             Made for couples, travellers and families
              </p>
             </div>
           </div>

@@ -89,19 +89,6 @@ function required_consents(bool $hasDigitalDelivery): array
     return $required;
 }
 
-/**
- * Whether this package/format combination delivers digitally.
- *
- * SERVER-DERIVED from the generated fulfilment data, never taken from the
- * request. If the browser could declare this it could declare `false` for an
- * MP3 order and skip the digital-content acknowledgement entirely — which is
- * the one consent whose absence has a direct legal consequence.
- */
-function order_has_digital_delivery(string $packageId, ?string $format): bool
-{
-    return derive_fulfilment_type($packageId, $format) === 'DIGITAL';
-}
-
 /** The stage a newly created order's production record starts in. */
 function initial_production_stage(): string
 {

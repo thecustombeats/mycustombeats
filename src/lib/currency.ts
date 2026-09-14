@@ -18,16 +18,14 @@
  * one. It converts numbers and formats strings.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * WHY NOT THE HARD-CODED PACKAGE USD FIGURES
+ * THERE ARE NO HARD-CODED FOREIGN PRICES
  * ─────────────────────────────────────────────────────────────────────────
- * `data/packages.ts` carries a legacy `price.usd` per package. It is NOT used
- * here, ever. Those figures are a business-approved historical amount written
- * to `orders.amount_usd` and read back by the CRM — a record, not a rate — and
- * using them for display would give MCB two different answers to "what is this
- * in dollars?": a fixed $99 and a live ~$101. One of them would always be
- * wrong, and which one a customer saw would depend on which component rendered
- * it. Display USD comes from GBP and a live rate, and from nowhere else.
+ * The catalogue holds GBP only, in integer pence. Every other currency shown
+ * on the site is GBP times a live rate, labelled approximate, and never
+ * charged: checkout is always GBP.
  */
+
+import { formatMinor } from "../data/catalogue";
 
 /* ------------------------------------------------------------------ */
 /* Supported currencies                                                */
@@ -228,7 +226,8 @@ export const formatConverted = (
  */
 export const formatGbpAmount = (amountGbp: number): string => {
   if (!Number.isFinite(amountGbp)) return "";
-  return `£${Math.round(amountGbp).toLocaleString("en-GB")}`;
+  // Pence are shown when there are any: £149.99 must never display as £150.
+  return formatMinor(Math.round(amountGbp * 100));
 };
 
 /**

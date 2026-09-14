@@ -34,7 +34,7 @@
  * replacement legal wording to paper over the gap.
  *
  * What remains is only what the Founder's own clauses say: when an order
- * locks, what happens if something arrives damaged, and that a Full Package
+ * locks, what happens if something arrives damaged, and that a Bespoke commission
  * enquiry is not a purchase. Each still names the clause it comes from.
  */
 
@@ -81,10 +81,10 @@ export const REFUND_SECTIONS: readonly RefundSection[] = [
     clause: "damaged-products",
   },
   {
-    heading: "The Full Package",
+    heading: "Bespoke",
     question: "What about a concierge commission?",
     body: [
-      "A Full Package enquiry is not a purchase, so there is nothing to cancel and nothing has been charged.",
+      "A Bespoke enquiry is not a purchase, so there is nothing to cancel and nothing has been charged.",
       "Once a proposal is agreed, that commission's own written terms are what apply.",
     ],
     clause: "cancellation",

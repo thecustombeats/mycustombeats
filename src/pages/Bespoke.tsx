@@ -1,10 +1,10 @@
 /**
- * THE FULL PACKAGE — the private concierge page.
+ * BESPOKE — the private concierge page (canonical route /bespoke).
  *
  * ─────────────────────────────────────────────────────────────────────────
  * WHAT THIS PAGE IS
  * ─────────────────────────────────────────────────────────────────────────
- * The Full Package has no price and no checkout, so this page cannot be a
+ * Bespoke has no price and no checkout, so this page cannot be a
  * product page with the price removed. What replaces the price is the
  * sequence: what happens, in what order, and exactly where payment falls in
  * it — last, and after a written agreement.
@@ -25,12 +25,15 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Check } from "lucide-react";
-import { CONCIERGE_SEQUENCE, PACKAGES, isConcierge } from "../data/packages";
+import { BESPOKE } from "../data/catalogue";
+import { productPageStructuredData } from "../lib/seo";
 import { SUPPORTED_CURRENCIES, type CurrencyCode } from "../lib/currency";
 import { useCurrency } from "../lib/useCurrency";
 import { trackEvent } from "../lib/analytics";
 import {
+  BESPOKE_MAY_INCLUDE,
   BUDGET_OPTIONS,
+  CONCIERGE_SEQUENCE,
   EMPTY_ENQUIRY,
   EnquiryError,
   OCCASION_SUGGESTIONS,
@@ -40,8 +43,6 @@ import {
   type ContactMethod,
   type EnquiryErrors,
 } from "../lib/concierge";
-
-const CONCIERGE_PACKAGE = PACKAGES.find(isConcierge);
 
 const CONTACT_METHODS: readonly { value: ContactMethod; label: string }[] = [
   { value: "EMAIL", label: "Email" },
@@ -85,7 +86,7 @@ const FieldError = ({ id, message }: { id: string; message?: string }) =>
 /* The page                                                            */
 /* ------------------------------------------------------------------ */
 
-const FullPackage = () => {
+const Bespoke = () => {
   const [enquiry, setEnquiry] = useState<ConciergeEnquiry>(EMPTY_ENQUIRY);
   const [errors, setErrors] = useState<EnquiryErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -183,7 +184,7 @@ const FullPackage = () => {
     if (reference) acknowledgementRef.current?.focus();
   }, [reference]);
 
-  const name = CONCIERGE_PACKAGE?.name ?? "The Full Package";
+  const name = BESPOKE.name;
 
   return (
     <>
@@ -198,17 +199,17 @@ const FullPackage = () => {
           while the <meta name="description"> in the same block applied
           normally, which is what isolated it to the interpolation.
 
-          Composed with a template literal so the package name still comes
-          from the commercial data rather than being typed out here.
+          Composed with a template literal so the product name still comes
+          from the canonical catalogue rather than being typed out here.
         */}
         <title>{`${name} | A Private Concierge Commission | My Custom Beats`}</title>
         <meta
           name="description"
-          content={
-            CONCIERGE_PACKAGE?.description ??
-            "A privately curated commission from My Custom Beats."
-          }
+          content={BESPOKE.shortDescription}
         />
+        <script type="application/ld+json">
+          {JSON.stringify(productPageStructuredData(BESPOKE.id))}
+        </script>
         {/*
           NO PRICE IN THE META DESCRIPTION, and no Offer emitted for this page.
           There is no figure that is true before a proposal, and a price in a
@@ -220,7 +221,7 @@ const FullPackage = () => {
       <section className="w-full bg-ink text-ivory py-20 md:py-28">
         <div className="px-[7vw] max-w-[1400px] mx-auto">
           <p className="font-mono text-[11px] tracking-[0.2em] uppercase text-gold mb-4">
-            {CONCIERGE_PACKAGE?.conciergeLabel ?? "Private Concierge"}
+            Private Concierge
           </p>
           {/*
             `text-ivory` is not decoration. The base stylesheet colours every
@@ -233,16 +234,26 @@ const FullPackage = () => {
           <h1 className="font-serif text-4xl md:text-6xl leading-tight mb-6 max-w-3xl text-ivory">
             {name}
           </h1>
-          {/* The approved copy, read from the package data so this page and
-              the card on the homepage cannot describe it differently. */}
+          {/* The approved copy, read from the catalogue so this page and
+              the band on the homepage cannot describe it differently. */}
+          <p className="font-serif text-xl md:text-2xl text-gold mb-4 max-w-2xl">
+            {BESPOKE.positioning}
+          </p>
           <p className="text-lg md:text-xl text-ivory/75 leading-relaxed max-w-2xl">
-            {CONCIERGE_PACKAGE?.description}
+            {BESPOKE.shortDescription}
           </p>
 
           <p className="mt-8 text-sm text-ivory/55 leading-relaxed max-w-2xl">
-            There is no published price, because no two are alike. Your price
-            is proposed in writing and agreed with you before anything begins.
+            {BESPOKE.disclosures.join(" ")}. There is no published price,
+            because no two are alike. Your price is proposed in writing and
+            agreed with you before anything begins.
           </p>
+          <a
+            href="#enquiry"
+            className="mt-8 inline-flex min-h-11 items-center rounded-full bg-gold px-9 py-3 text-[11px] uppercase tracking-[0.2em] text-ink transition-colors hover:bg-gold-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+          >
+            {BESPOKE.cta}
+          </a>
         </div>
       </section>
 
@@ -277,9 +288,9 @@ const FullPackage = () => {
             ))}
           </ol>
 
-          {CONCIERGE_PACKAGE && (
+          {BESPOKE_MAY_INCLUDE.length > 0 && (
             <ul className="mt-14 pt-10 border-t border-espresso/10 grid gap-x-10 gap-y-3 sm:grid-cols-2 lg:grid-cols-3 list-none p-0">
-              {CONCIERGE_PACKAGE.features.map((feature) => (
+              {BESPOKE_MAY_INCLUDE.map((feature) => (
                 <li key={feature} className="flex gap-2.5">
                   <Check
                     size={15}
@@ -731,4 +742,4 @@ const FullPackage = () => {
   );
 };
 
-export default FullPackage;
+export default Bespoke;

@@ -1,96 +1,166 @@
 /**
- * The MCB product catalogue, assembled.
+ * MCB canonical catalogue — lookups, formatting and the order preview.
  *
- * `CATALOGUE` is the display order for every physical family. Import from
- * here rather than from the individual modules unless you need a specific
- * product by name.
+ * The preview here is for display only. The server prices every order again
+ * from its generated copy of this catalogue and never accepts a total.
  */
 
-import { VINYL_FAMILY } from "./vinyl";
-import { GIFT_POP_UP_CARD_FAMILY } from "./giftCards";
-import { relatedFamilyIds } from "./relationships";
-import {
-  CD_FAMILY,
-  DIGITAL_PLAYER_FAMILY,
-  FRAME_FAMILY,
-  LYRICS_FRAME_FAMILY,
-  MUSIC_BOX_FAMILY,
-  PHONE_GRAMOPHONE_FAMILY,
-  PLAQUE_FAMILY,
-  PORTABLE_GRAMOPHONE_FAMILY,
-  VINTAGE_COLLECTION_FAMILY,
-} from "./keepsakeProducts";
-import type {
-  CatalogueProduct,
-  ProductFamily,
-  ProductFamilyId,
-} from "./types";
+import { ORDER_LIMITS, PRODUCTS } from "./products";
+import type { Money, Product, ProductId, Variant } from "./types";
 
 export * from "./types";
-export * from "./vinyl";
-export * from "./giftCards";
-export * from "./keepsakeProducts";
-export * from "./relationships";
-export * from "./commercial";
-/**
- * Enhancements are exported for the surfaces that will offer them, but they
- * are deliberately NOT folded into `CATALOGUE` or `ALL_PRODUCTS` below. An
- * additional vinyl copy is bought alongside an order, not browsed as a
- * product — see the header of `enhancements.ts` for why that separation
- * matters commercially.
- */
-export * from "./enhancements";
+export * from "./products";
+export { validateCatalogue } from "./validate";
 
-/** Every family, in the order the site presents them. */
-export const CATALOGUE: readonly ProductFamily[] = [
-  VINYL_FAMILY,
-  CD_FAMILY,
-  LYRICS_FRAME_FAMILY,
-  FRAME_FAMILY,
-  PLAQUE_FAMILY,
-  MUSIC_BOX_FAMILY,
-  GIFT_POP_UP_CARD_FAMILY,
-  DIGITAL_PLAYER_FAMILY,
-  PORTABLE_GRAMOPHONE_FAMILY,
-  PHONE_GRAMOPHONE_FAMILY,
-  VINTAGE_COLLECTION_FAMILY,
-];
+export const getProduct = (id: string): Product | undefined =>
+  PRODUCTS.find((product) => product.id === id);
 
-export const getFamily = (
-  id: ProductFamilyId
-): ProductFamily | undefined => CATALOGUE.find((family) => family.id === id);
+export interface VariantRef {
+  product: Product;
+  variant: Variant;
+}
 
-/** Families with at least one approved product. */
-export const stockedFamilies = (): readonly ProductFamily[] =>
-  CATALOGUE.filter((family) => family.products.length > 0);
-
-export const ALL_PRODUCTS: readonly CatalogueProduct[] = CATALOGUE.flatMap(
-  (family) => family.products
+const BY_SKU: ReadonlyMap<string, VariantRef> = new Map(
+  PRODUCTS.flatMap((product) => product.variants.map((variant) => [variant.sku, { product, variant }] as const))
 );
 
-export const getProduct = (id: string): CatalogueProduct | undefined =>
-  ALL_PRODUCTS.find((product) => product.id === id);
+export const getVariant = (sku: string): VariantRef | undefined => BY_SKU.get(sku);
+
+export const requireProduct = (id: ProductId): Product => {
+  const product = getProduct(id);
+  if (!product) throw new Error(`Unknown catalogue product '${id}'`);
+  return product;
+};
+
+/** Products that may be shown on the public website. */
+export const publicProducts = (): readonly Product[] =>
+  PRODUCTS.filter((product) => product.active && product.public);
+
+/** The song experiences an order is built around. */
+export const songExperiences = (): readonly Product[] =>
+  publicProducts().filter((product) => product.category === "SONG_EXPERIENCE");
+
+/** Products that may be added alongside a song experience in the order form. */
+export const addOnProducts = (): readonly Product[] =>
+  publicProducts().filter(
+    (product) =>
+      product.onlineCheckout &&
+      product.category !== "SONG_EXPERIENCE" &&
+      product.category !== "PROTECTION"
+  );
+
+export const isQuoted = (product: Pick<Product, "commercialModel">): boolean =>
+  product.commercialModel === "QUOTED";
+
+export const hasPublicPrice = (product: Product): boolean =>
+  (product.commercialModel === "FIXED" || product.commercialModel === "VARIANT_FIXED") &&
+  product.variants.length > 0;
+
+/* ------------------------------------------------------------------ */
+/* Money                                                               */
+/* ------------------------------------------------------------------ */
+
+/** "£15", "£149.99", "£1,000". Whole pounds drop their pence. */
+export const formatMinor = (minor: number): string => {
+  const pounds = Math.trunc(minor / 100);
+  const pence = minor % 100;
+  const whole = pounds.toLocaleString("en-GB");
+  return pence === 0 ? `£${whole}` : `£${whole}.${String(pence).padStart(2, "0")}`;
+};
+
+export const formatMoney = (money: Money): string => formatMinor(money.minor);
+
+/** Pounds as a JSON-LD decimal string, e.g. "149.99". Exact, never float-derived. */
+export const minorToDecimal = (minor: number): string =>
+  `${Math.trunc(minor / 100)}.${String(minor % 100).padStart(2, "0")}`;
+
+/** Lowest variant price, for products presented as a family. */
+export const lowestPrice = (product: Product): Money | null =>
+  product.variants.length === 0
+    ? null
+    : product.variants.reduce((low, v) => (v.price.minor < low.minor ? v.price : low), product.variants[0].price);
 
 /**
- * Resolves a family's declared relations to the families themselves.
- *
- * Related families are returned even when they hold no products — Digital
- * Players are a real part of the vinyl ecosystem with nothing catalogued yet,
- * and naming them is honest where inventing a product to link to would not be.
+ * How a product's price is described in one line.
+ * FIXED "£15"; VARIANT_FIXED "From £99"; QUOTED "Individually quoted".
  */
-export const relatedFamilies = (
-  familyId: ProductFamilyId
-): readonly ProductFamily[] =>
-  relatedFamilyIds(familyId).flatMap((id) => {
-    const family = getFamily(id);
-    return family ? [family] : [];
-  });
+export const priceSummary = (product: Product): string => {
+  if (product.commercialModel === "QUOTED") return "Individually quoted";
+  const low = lowestPrice(product);
+  if (!low) return "";
+  return product.commercialModel === "VARIANT_FIXED" ? `From ${formatMoney(low)}` : formatMoney(low);
+};
 
-/** Resolves a product's `compatibleProducts` ids to products. */
-export const compatibleProducts = (
-  product: CatalogueProduct
-): readonly CatalogueProduct[] =>
-  (product.compatibleProducts ?? []).flatMap((id) => {
-    const match = getProduct(id);
-    return match ? [match] : [];
-  });
+/* ------------------------------------------------------------------ */
+/* Order lines — preview                                               */
+/* ------------------------------------------------------------------ */
+
+export interface OrderLineRequest {
+  sku: string;
+  quantity: number;
+}
+
+export interface PricedLine {
+  sku: string;
+  productId: ProductId;
+  name: string;
+  quantity: number;
+  unitMinor: number;
+  lineMinor: number;
+  fulfilment: Variant["fulfilment"];
+  physical: boolean;
+}
+
+export type OrderPreview =
+  | { ok: true; lines: readonly PricedLine[]; totalMinor: number; requiresShipping: boolean }
+  | { ok: false; reason: string };
+
+export const PRIORITY_REPLACEMENT_SKU = "priority-replacement";
+
+/**
+ * Prices lines using the same rules the server enforces
+ * (`public/api/lib/catalogue.php`). Integer pence throughout.
+ */
+export const previewOrder = (requests: readonly OrderLineRequest[]): OrderPreview => {
+  if (requests.length === 0) return { ok: false, reason: "empty" };
+  if (requests.length > ORDER_LIMITS.maxLines) return { ok: false, reason: "too_many_lines" };
+
+  const seen = new Set<string>();
+  const lines: PricedLine[] = [];
+  let eligibleUnits = 0;
+  let priorityUnits = 0;
+  let hasSongExperience = false;
+
+  for (const request of requests) {
+    if (seen.has(request.sku)) return { ok: false, reason: "duplicate_sku" };
+    seen.add(request.sku);
+    const ref = getVariant(request.sku);
+    if (!ref || !ref.product.active || !ref.product.onlineCheckout) return { ok: false, reason: "unknown_sku" };
+    if (!Number.isSafeInteger(request.quantity) || request.quantity < 1 || request.quantity > ORDER_LIMITS.maxQuantityPerLine) {
+      return { ok: false, reason: "invalid_quantity" };
+    }
+    if (ref.product.category === "SONG_EXPERIENCE") hasSongExperience = true;
+    if (ref.variant.priorityReplacementEligible) eligibleUnits += request.quantity;
+    if (ref.variant.sku === PRIORITY_REPLACEMENT_SKU) priorityUnits += request.quantity;
+    lines.push({
+      sku: ref.variant.sku,
+      productId: ref.product.id,
+      name: ref.variant.name,
+      quantity: request.quantity,
+      unitMinor: ref.variant.price.minor,
+      lineMinor: ref.variant.price.minor * request.quantity,
+      fulfilment: ref.variant.fulfilment,
+      physical: ref.variant.fulfilment === "PHYSICAL",
+    });
+  }
+
+  if (!hasSongExperience) return { ok: false, reason: "no_song_experience" };
+  if (priorityUnits > eligibleUnits) return { ok: false, reason: "priority_replacement_ineligible" };
+
+  return {
+    ok: true,
+    lines,
+    totalMinor: lines.reduce((total, line) => total + line.lineMinor, 0),
+    requiresShipping: lines.some((line) => line.physical),
+  };
+};

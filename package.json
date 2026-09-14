@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/generate-packages-json.mjs && tsc -b && vite build",
+    "build": "node scripts/generate-catalogue-json.mjs && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "generate:packages": "node scripts/generate-packages-json.mjs"
+    "generate:catalogue": "node scripts/generate-catalogue-json.mjs",
+    "check:catalogue": "node scripts/generate-catalogue-json.mjs --check",
+    "test": "node scripts/generate-catalogue-json.mjs --check && node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

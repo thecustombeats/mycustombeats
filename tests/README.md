@@ -1,7 +1,8 @@
 # CRM API acceptance tests
 
-155 assertions against a live PHP + MariaDB stack. Everything runs in throwaway
-containers — no local PHP or MySQL install, nothing left behind.
+Seven suites, 981 assertions, against a live PHP + MariaDB stack. Everything
+runs in throwaway containers — no local PHP or MySQL install, nothing left
+behind. Each suite expects a FRESH database loaded from `db/schema.sql`.
 
 ## Run
 
@@ -13,10 +14,18 @@ docker run -d --name mcb-db \
 # wait for readiness, then load the real schema
 docker exec -i mcb-db mariadb -umcb -ptestpass mcb_crm < db/schema.sql
 
-# api/ needs a test config; see the header of this file's git history for the
-# exact block, or copy config.example.php and point db.host at mcb-db
-# the post-payment email needs a stand-in for api.resend.com
-cp tests/resend-stub.php public/api/_test-resend-stub.php   # removed afterwards
+# api/ needs a test config, written OUTSIDE the repo and copied in (gitignored):
+# db.host mcb-db; stripe.webhook_secret whsec_test_secret_for_local_verification;
+# crm_api_key test_crm_key_not_real_000000000000000000000;
+# stripe.checkout_sessions_enabled true, stripe.api_base
+# http://localhost/api/_test-stripe-stub.php and a random sk_test_stub_ key;
+# resend.api_url http://localhost/api/_test-resend-stub.php, a random
+# re_teststub_ key and a from address; reviews.url; app.site_origin
+# http://localhost:8080. Leave `operations` unset (the ops notice stays dormant).
+cp /path/outside/repo/config.php public/api/config.php
+# Stand-ins for api.stripe.com and api.resend.com — removed afterwards
+cp tests/stripe-stub.php public/api/_test-stripe-stub.php
+cp tests/resend-stub.php public/api/_test-resend-stub.php
 
 docker run -d --name mcb-api --link mcb-db \
   -v "$PWD/public/api":/var/www/html/api \
@@ -24,8 +33,12 @@ docker run -d --name mcb-api --link mcb-db \
   -p 8080:80 php:8.2-apache \
   sh -c "docker-php-ext-install pdo_mysql; a2enmod rewrite; apache2-foreground"
 
-bash tests/api-acceptance.sh
+for s in api checkout delivery full-package hardening legal lifecycle; do
+  # reset: DROP/CREATE mcb_crm, reload db/schema.sql, clear /tmp/*-stub.log
+  bash tests/$s-acceptance.sh
+done
 docker rm -f mcb-db mcb-api
+rm -f public/api/config.php public/api/_test-*.php
 ```
 
 Apache is used rather than PHP's built-in server on purpose: the built-in
@@ -35,21 +48,21 @@ which are part of what these tests prove.
 
 ## Coverage
 
-| Area | What is asserted |
+No suite reads `dist/`. Every expected amount is read from
+`public/api/data/catalogue.json`; only checkout-acceptance pins that file to
+the authorised price table, once. Every order POST sends a fresh
+`Idempotency-Key`; every webhook fixture is `payment_status: "paid"`, GBP, with
+`amount_total` taken from the order's saved `total_minor`.
+
+| Suite | What is asserted |
 |---|---|
-| Order API | digital accepted without address; physical rejected without one and accepted with; invalid package, format and combination rejected; amount and fulfilment derived server-side; customer deduplicated; multiple orders and differing addresses |
-| Affiliate | registration; duplicate email and username both 409 without disclosing which; token issued and only its hash stored; clicks recorded and counted; IP hashed; unknown ref a silent no-op |
-| Attribution | referral resolved server-side to AFFILIATE; partner resolved by slug; unknown referral credits nobody but is retained; **browser-supplied affiliate_id, partner_id, status and amount all ignored** |
-| Dashboard | valid token works; missing, forged, expired and id-swapped tokens rejected; an email address is not accepted as authentication |
-| CRM read | key required; brief and story never exposed; shipping filter works |
-| Stripe | unsigned and badly signed rejected; signed accepted; order marked PAID; sales incremented; **replay does not double-count**; stale timestamp rejected |
-| MCB reference | never issued to a PENDING order; issued on payment as `MCB-YYYY-NNNNNN`; **a replayed event neither reissues it nor consumes a sequence number**; the series counts paid orders, not rows; unique across all orders; one customer holds several orders with different references |
-| Post-payment email (Resend) | fired only AFTER the paid transaction commits; the email carries the MCB reference, the customer's name, the package and format by DISPLAY name, the server-formatted amount, the correspondence instruction, "what happens next" and the MCB sign-off; sent as both html and text; authenticated with a Bearer key and an Idempotency-Key derived from the reference; **the API key never appears in a webhook response or the error log**; the internal order_id is never rendered; a replay sends no second email |
-| Resend failure modes | HTTP 422 rejection, a 2xx with no message id, a 2xx with an empty body, and a provider timeout each leave the payment successful (webhook still 200), the order PAID, the reference issued, and the claim RELEASED so the email can be retried |
-| Post-payment email | fired only AFTER the paid transaction commits; payload carries the MCB reference, customer and amount; **carries no Stripe or config secret**; a webhook replay does not send a second email; a second event for an already-paid order does not either; a Make.com outage releases the claim so the customer still shows as owed their reference, and never fails the payment; an unconfigured webhook skips without consuming the claim |
-| Reconciliation | a paid session no order claims is **persisted, not just logged**; buyer identity and amount retained from Stripe; minor units converted; no order invented and no reference issued for it; webhook retry does not duplicate the alarm; a `client_reference_id` naming nothing is filed too; staff list it, attach it to the real order, and the reference is issued **through the same single path**; double reconciliation, moving a payment onto an already-paid order, unknown payment/order and malformed input all refused |
-| Reference lookup | customer retrieves their own by Stripe session id; returns the reference and nothing else; unknown session answers `reference: null` rather than erroring on the webhook race; malformed and injected session ids rejected before the query; staff retrieve the whole order by the quoted reference |
-| Security | config, lib and data denied over HTTP; cross-origin writes rejected; malformed JSON rejected; SQL injection stored literally, tables intact |
+| api | Order API on `lines` (digital/physical, address, unknown SKU, legacy package/format body refused, missing key 400, `total_minor`/token/order_items saved); affiliates; attribution with browser price/status/affiliate fields ignored; dashboard tokens; CRM read; signed webhook, replay, stale timestamp; MCB references; orphan/ghost reconciliation; Resend email (order summary, `£` from `total_minor`, no format line) and its failure modes; payment without a snapshot must be EXACT (under, over, missing, string, wrong currency all filed); security |
+| checkout | Authorised catalogue price table; every song experience priced from the catalogue; multi-line totals; browser price/total/unit_amount/currency ignored at order and session; retired/unsold SKUs (`heirloom`, `cd`, `plaque`, `bespoke`, `mcb-live`, DJ Bible…) `unknown_sku`; quantity 0/51/"2"/2.5 refused, 50 accepted; duplicate SKU; >20 lines; no song experience; Priority Replacement eligibility; address follows physical lines; order idempotency (replay, conflict, concurrent double submit); session token auth (wrong token = unknown order 404, no Stripe call, no email leak); session built from saved lines; reuse, expiry replacement, attempt counter; legacy/inconsistent orders 409; Stripe failure; webhook exact match, ORDER_MISMATCH (metadata and foreign snapshot), unpaid → async success, DUPLICATE_PAYMENT, replay; CRM `lines`/`total.minor` and no `usd`; order-reference `purchase`; ops notice dormant; session rate limit |
+| delivery | Terms versions and per-order snapshot; planning recommendation from one constant in the canonical catalogue; delivery/handling/liability clause register; Bespoke not orderable; prices only from the generated catalogue; no Payment Links or Stripe secrets in `src/` |
+| full-package | Bespoke (formerly The Full Package) and MCB LIVE are QUOTED with no SKU and cannot be ordered; no `£799`/Payment Link in source; checkout builds from the saved order whatever the request names; concierge enquiry intake, budget storage, validation, rate limit and CRM surface |
+| hardening | Thank-you page claims payment only from the server; `purchase` disclosed only for a PAID order; Bespoke page title and `/bespoke` sitemap entry (`/full-package` 301 rule asserted statically — the test Apache serves `public/api` only); order limiter ordering (replay → limit → validation), burst refused after ten, retry of an accepted order still answered while limited |
+| legal | Consent as evidence, versions, production lock, banned phrases absent from all `src/`, revision entitlements from the catalogue, Bespoke enquiry is not a purchase, cruise field, review states, register not imported |
+| lifecycle | Customer referral vs affiliate, eligibility on verified payment, attribution/confirmation, precedence, completion and review request, provider failure isolation, public code privacy, CRM customer view (gross paid equals saved totals) |
 
 ## A bug these tests caught
 

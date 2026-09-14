@@ -87,8 +87,16 @@ Build, then upload the whole of `dist/` as one set, exactly as before:
 npm run build
 ```
 
-The build regenerates `api/data/packages.json` from `src/data/packages.ts`, so
-prices and format rules on the server always match the website.
+The build regenerates `api/data/catalogue.json` from `src/data/catalogue/`, so
+prices and order rules on the server always match the website. If the
+catalogue is invalid the build fails and no catalogue file is produced.
+
+`dist/` is build output and is not kept in git. Always deploy a fresh build of
+the approved commit; never upload a copy of `dist/` from an older checkout.
+
+Before deploying the canonical-catalogue release, apply
+`db/migrations/2026-09-14-canonical-catalogue.sql` (after every earlier
+migration). Without it `/api/order` cannot record orders.
 
 ## 5. Verify
 
@@ -102,7 +110,7 @@ curl -o /dev/null -w '%{http_code}\n' https://www.mycustombeats.com/api/crm/orde
 # internals are not reachable
 curl -o /dev/null -w '%{http_code}\n' https://www.mycustombeats.com/api/config.example.php # 403
 curl -o /dev/null -w '%{http_code}\n' https://www.mycustombeats.com/api/lib/db.php      # 403
-curl -o /dev/null -w '%{http_code}\n' https://www.mycustombeats.com/api/data/packages.json  # 403
+curl -o /dev/null -w '%{http_code}\n' https://www.mycustombeats.com/api/data/catalogue.json # 403
 
 # expected to be ABSENT when configuration lives above the web root
 curl -o /dev/null -w '%{http_code}\n' https://www.mycustombeats.com/api/config.php      # 404

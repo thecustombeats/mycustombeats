@@ -28,7 +28,10 @@ OLD="2026-09-09.2"
 CRUISE='"cruiseCompanions":"My husband David"'
 CN='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"'"$NEW"'",'"$CRUISE"
 CO='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"'"$OLD"'",'"$CRUISE"
-post_raw() { curl -s -o /tmp/dl.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$2"; }
+# Every order POST carries a fresh Idempotency-Key unless the test sets IDEM.
+idem() { echo "test-$(openssl rand -hex 16)"; }
+post_raw() { curl -s -o /tmp/dl.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -H "Idempotency-Key: ${IDEM:-$(idem)}" -d "$2"; }
+MOMENT_LINE='"lines":[{"sku":"moment","quantity":1}]'
 post() {
   [ "$1" = "order" ] && release_order_limit
   post_raw "$1" "$2"
@@ -52,13 +55,13 @@ q() { docker exec mcb-db mariadb -umcb -ptestpass -N -B -e "$1" mcb_crm 2>/dev/n
 # That the limiter still fires is proved deliberately, once, in
 # tests/hardening-acceptance.sh.
 release_order_limit() { q "UPDATE order_consents SET ip_hash = NULL" >/dev/null 2>&1; }
-# What Stripe would report for this order: its stored total in pence. Derived
-# from the order rather than typed, so a fixture never pins a catalogue price.
-order_minor() { q "SELECT CAST(ROUND((o.amount_gbp + COALESCE((SELECT SUM(i.line_gbp) FROM order_items i WHERE i.order_id=o.id),0))*100) AS UNSIGNED) FROM orders o WHERE o.id=$1"; }
+# What Stripe would report for this order: the server's saved total in pence.
+# Read from the order rather than typed, so a fixture never pins a price.
+order_minor() { q "SELECT total_minor FROM orders WHERE id=$1"; }
 SECRET=whsec_test_secret_for_local_verification
 sign() { local ts=$(date +%s); local sig=$(printf '%s.%s' "$ts" "$1" | openssl dgst -sha256 -hmac "$SECRET" -hex | sed 's/.*= *//'); echo "t=$ts,v1=$sig"; }
 pay() { q "UPDATE orders SET stripe_session_id='cs_dl_$1' WHERE id=$1" >/dev/null
-  W="{\"id\":\"evt_dl_$1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_dl_$1\",\"client_reference_id\":\"$1\",\"payment_intent\":\"pi_dl_$1\",\"amount_total\":$(order_minor $1),\"currency\":\"gbp\"}}}"
+  W="{\"id\":\"evt_dl_$1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_dl_$1\",\"client_reference_id\":\"$1\",\"payment_intent\":\"pi_dl_$1\",\"payment_status\":\"paid\",\"amount_total\":$(order_minor $1),\"currency\":\"gbp\"}}}"
   curl -s -o /dev/null -X POST "$BASE/stripe/webhook" -H "Content-Type: application/json" -H "Stripe-Signature: $(sign "$W")" -d "$W"; }
 stub_reset() { docker exec mcb-api sh -c 'rm -f /tmp/resend-stub.log'; }
 mail_log() { docker exec mcb-api sh -c 'cat /tmp/resend-stub.log 2>/dev/null'; }
@@ -68,7 +71,9 @@ mail_log() { docker exec mcb-api sh -c 'cat /tmp/resend-stub.log 2>/dev/null'; }
 prose() { grep -v -E '^\s*(\*|//|/\*|#|--)' "$@"; }
 
 # The documents a customer actually reads.
-DOCS="src/data/legal/terms.ts src/data/legal/refunds.ts src/data/legal/delivery.ts src/data/legal/consent.ts src/pages/legal/Terms.tsx src/pages/legal/Refund.tsx src/pages/FAQ.tsx src/data/packages.ts"
+DOCS="src/data/legal/terms.ts src/data/legal/refunds.ts src/data/legal/delivery.ts src/data/legal/consent.ts src/pages/legal/Terms.tsx src/pages/legal/Refund.tsx src/pages/FAQ.tsx src/data/catalogue/products.ts"
+PRODUCTS=src/data/catalogue/products.ts
+CATALOGUE=public/api/data/catalogue.json
 
 echo "================ 1. VERSIONING ================"
 tc "1. the new terms version differs from the Sprint 8 version" \
@@ -94,12 +99,12 @@ tc "5b.  → and the server carries all three versions distinctly" \
      && grep -q '"refund_policy": "2026-09-09.4"' public/api/data/legal.json && echo 1 || echo 0)"
 
 t "6. a new order snapshots the new version" 201 \
-  "$(post order '{'"$CN"',"firstName":"New","lastName":"N","email":"dl-new@example.com","package":"keepsake","format":"mp3","story":"x"}')"
+  "$(post order '{'"$CN"',"firstName":"New","lastName":"N","email":"dl-new@example.com",'"$MOMENT_LINE"',"story":"x"}')"
 OID_NEW=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "7.  → recorded exactly as accepted" \
   "$([ "$(q "SELECT terms_version FROM order_consents WHERE order_id=$OID_NEW")" = "$NEW" ] && echo 1 || echo 0)"
 t "8. a stale page sending the superseded version is still accepted" 201 \
-  "$(post order '{'"$CO"',"firstName":"Old","lastName":"O","email":"dl-old@example.com","package":"keepsake","format":"mp3","story":"x"}')"
+  "$(post order '{'"$CO"',"firstName":"Old","lastName":"O","email":"dl-old@example.com",'"$MOMENT_LINE"',"story":"x"}')"
 OID_OLD=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "9.  → and records the version that customer actually saw" \
   "$([ "$(q "SELECT terms_version FROM order_consents WHERE order_id=$OID_OLD")" = "$OLD" ] && echo 1 || echo 0)"
@@ -107,7 +112,7 @@ tc "10. NO historical order is retroactively moved to the new version" \
   "$([ "$(q "SELECT terms_version FROM order_consents WHERE order_id=$OID_OLD")" = "$OLD" ] \
     && [ "$(q "SELECT COUNT(*) FROM order_consents WHERE terms_version='$OLD'")" -ge "1" ] && echo 1 || echo 0)"
 t "11. a version MCB never published is still refused" 422 \
-  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2027-01-01","firstName":"B","lastName":"B","email":"dl-bad@example.com","package":"keepsake","format":"mp3","story":"x"}')"
+  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2027-01-01",'"$CRUISE"',"firstName":"B","lastName":"B","email":"dl-bad@example.com",'"$MOMENT_LINE"',"story":"x"}')"
 
 stub_reset
 pay "$OID_NEW"; pay "$OID_OLD"
@@ -119,41 +124,42 @@ tc "13.  → read from the order's own record, not from today's page" \
 
 echo ""
 echo "================ 2. THE 15-DAY CONTRADICTION IS GONE ================"
-tc "14. no package card claims 'Delivered within 15 working days'" \
-  "$(prose src/data/packages.ts | grep -q 'Delivered within 15 working days' && echo 0 || echo 1)"
-tc "15. nor does the generated server data" \
-  "$(grep -q 'Delivered within 15 working days' public/api/data/packages.json && echo 0 || echo 1)"
-tc "16. nor the built browser bundle" \
-  "$(grep -rq 'Delivered within 15 working days' dist/assets/ 2>/dev/null && echo 0 || echo 1)"
+tc "14. no product in the canonical catalogue claims 'Delivered within 15 working days'" \
+  "$(prose $PRODUCTS | grep -q 'Delivered within 15 working days' && echo 0 || echo 1)"
+tc "15. nor does the generated server catalogue" \
+  "$(grep -q 'Delivered within 15 working days' $CATALOGUE && echo 0 || echo 1)"
+tc "16. nor any browser source (the review register excepted, which quotes it)" \
+  "$(find src -name '*.ts*' ! -name 'review.ts' ! -name '*.bak' -print0 | xargs -0 grep -hv -E '^\s*(\*|//|/\*)' | grep -q 'Delivered within 15 working days' && echo 0 || echo 1)"
 tc "17. nor the FAQ" \
   "$(prose src/pages/FAQ.tsx | grep -q 'delivered within 15 working days' && echo 0 || echo 1)"
 tc "17b. and no surface anywhere still promises a 15-day delivery" \
   "$(prose $DOCS src/pages/Partners.tsx | grep -qiE 'deliver(ed|y) within 15 working days' && echo 0 || echo 1)"
-tc "18. the three physical experiences share ONE wording, from one constant" \
-  "$([ "$(grep -c 'delivery: PLANNING_RECOMMENDATION,' src/data/packages.ts)" = "3" ] && echo 1 || echo 0)"
+tc "18. made-to-order products share ONE wording, from one constant" \
+  "$(grep -q 'import { PLANNING_RECOMMENDATION } from "../legal/delivery"' $PRODUCTS \
+     && grep -q 'const MADE_TO_ORDER = { basis: "MADE_TO_ORDER", label: PLANNING_RECOMMENDATION }' $PRODUCTS \
+     && [ "$(grep -c 'turnaround: MADE_TO_ORDER,' $PRODUCTS)" -ge "3" ] && echo 1 || echo 0)"
 tc "19.  → which says 'allow at least', not 'delivered within'" \
   "$(grep -q 'PLANNING_RECOMMENDATION =' src/data/legal/delivery.ts \
      && grep -q 'Allow at least 15 working days for personalised production and delivery' src/data/legal/delivery.ts && echo 1 || echo 0)"
-tc "20. and the generated data carries the same wording" \
-  "$(grep -q 'Allow at least 15 working days' public/api/data/packages.json && echo 1 || echo 0)"
-tc "20b. the timing line is ON the card, not behind the 'view full experience' expander" \
-  "$(grep -q '{pkg.delivery}' src/sections/PackagesSection.tsx && echo 1 || echo 0)"
-tc "20c.  → and it reaches the built bundle" \
-  "$(grep -rq 'Allow at least 15 working days' dist/assets/ 2>/dev/null && echo 1 || echo 0)"
+tc "20. and the generated catalogue carries the same wording for Keepsake and Journey" \
+  "$(python3 -c 'import json,sys;p=json.load(open(sys.argv[1]))["products"];print(1 if p["keepsake"]["turnaround"]==p["journey"]["turnaround"]=="Allow at least 15 working days for personalised production and delivery" else 0)' $CATALOGUE)"
+tc "20b. the timing line is ON the product card, read from the catalogue" \
+  "$(grep -q '{product.turnaround.label}' src/sections/PackagesSection.tsx && echo 1 || echo 0)"
 tc "21. the recommendation is a named constant, not a scattered number" \
   "$(grep -q 'RECOMMENDED_PLANNING_DAYS = 15' src/data/legal/delivery.ts && echo 1 || echo 0)"
 tc "22. the planning-recommendation clause was removed by the Founder" \
   "$(grep -q 'That is a planning recommendation, not a delivery promise' src/data/legal/terms.ts && echo 0 || echo 1)"
-tc "22b.  → and the constant still exists for the package cards to use" \
+tc "22b.  → and the constant still exists for the product cards to use" \
   "$(grep -q 'RECOMMENDED_PLANNING_DAYS = 15' src/data/legal/delivery.ts && echo 1 || echo 0)"
-tc "23. Moment's one-hour digital turnaround is untouched" \
-  "$(grep -q 'delivery: "Delivered within 1 hour"' src/data/packages.ts && echo 1 || echo 0)"
-tc "24.  → and is modelled as a different KIND of timing" \
-  "$(grep -q 'deliveryBasis: "DIGITAL_TURNAROUND"' src/data/packages.ts && echo 1 || echo 0)"
-tc "25. the three physical experiences are MADE_TO_ORDER" \
-  "$([ "$(grep -c 'deliveryBasis: "MADE_TO_ORDER"' src/data/packages.ts)" = "3" ] && echo 1 || echo 0)"
-tc "26. the Full Package's timing stays proposal-specific" \
-  "$(grep -q 'deliveryBasis: "AGREED_IN_PROPOSAL"' src/data/packages.ts && echo 1 || echo 0)"
+tc "23. Moment keeps a one-hour digital turnaround" \
+  "$(grep -qE 'turnaround: \{ basis: "DIGITAL_TURNAROUND", label: "[^"]*within 1 hour" \}' $PRODUCTS && echo 1 || echo 0)"
+tc "24.  → modelled as a different KIND of timing" \
+  "$(python3 -c 'import json,sys;print(1 if "1 hour" in json.load(open(sys.argv[1]))["products"]["moment"]["turnaround"] else 0)' $CATALOGUE)"
+tc "25. Keepsake and Journey are MADE_TO_ORDER" \
+  "$(awk '/^export const KEEPSAKE/,/^};/' $PRODUCTS | grep -q 'turnaround: MADE_TO_ORDER' \
+     && awk '/^export const JOURNEY/,/^};/' $PRODUCTS | grep -q 'turnaround: MADE_TO_ORDER' && echo 1 || echo 0)"
+tc "26. Bespoke's timing stays proposal-specific" \
+  "$(grep -q 'basis: "AGREED_IN_PROPOSAL"' $PRODUCTS && echo 1 || echo 0)"
 tc "27. the five delivery stages are distinguished, not treated as synonyms" \
   "$([ "$(grep -c 'stage: "' src/data/legal/delivery.ts)" = "5" ] && echo 1 || echo 0)"
 tc "28.  → naming which stages MCB actually controls" \
@@ -280,7 +286,7 @@ tc "77. the terms consent points at clause 7 rather than a route the Terms deny"
 tc "78. nothing is pre-ticked" \
   "$(grep -A4 'INITIAL_CONSENT_STATE' src/data/legal/consent.ts | grep -q 'true' && echo 0 || echo 1)"
 t "79. consent is still required server-side" 422 \
-  "$(post order '{"firstName":"N","lastName":"C","email":"dl-nc@example.com","package":"moment","format":"mp3","story":"x"}')"
+  "$(post order '{"firstName":"N","lastName":"C","email":"dl-nc@example.com",'"$MOMENT_LINE"',"story":"x"}')"
 
 echo ""
 echo "================ 9. THE REVIEW REGISTER ================"
@@ -311,23 +317,26 @@ tc "89. the register is still not imported by any page" \
   "$(grep -rqE 'from ["'"'"'].*legal/review' src/pages src/sections src/components 2>/dev/null && echo 0 || echo 1)"
 tc "90.  → nor re-exported from the legal barrel" \
   "$(grep -qE '^export \* from "\./review"' src/data/legal/index.ts && echo 0 || echo 1)"
-tc "91.  → so it never reaches the built bundle" \
-  "$(grep -rq 'LEGAL REVIEW REQUIRED' dist/assets/ 2>/dev/null && echo 0 || echo 1)"
+tc "91.  → nor is it imported by anything else in src/" \
+  "$(grep -rhE '^[[:space:]]*(import|export)[^;]*from[[:space:]]+["'"'"'][^"'"'"']*review["'"'"']' src --include='*.ts' --include='*.tsx' 2>/dev/null | grep -q . && echo 0 || echo 1)"
 
 echo ""
 echo "================ 10. NOTHING ELSE MOVED ================"
-tc "92. package prices unchanged" \
-  "$(for p in 'gbp: 10' 'gbp: 79' 'gbp: 199' 'gbp: 349'; do grep -q "$p," src/data/packages.ts || exit 1; done && echo 1 || echo 0)"
-tc "93. enhancement price unchanged" \
-  "$(grep -q 'unitPrice: gbp(60)' src/data/catalogue/enhancements.ts && echo 1 || echo 0)"
-tc "94. all nine Payment Link URLs unchanged" \
-  "$([ "$(cat src/data/packages.ts src/data/legacy/retiredBespoke.ts | grep -c 'https://buy.stripe.com/')" = "9" ] && echo 1 || echo 0)"
+# 92-94 used to pin the old package prices (10/79/199/349), the £60
+# enhancement and nine Stripe Payment Link URLs. That commercial model is gone;
+# what must not move now is WHERE prices come from.
+tc "92. prices come only from the canonical catalogue (generated copy is current)" \
+  "$(node scripts/generate-catalogue-json.mjs --check >/dev/null 2>&1 && echo 1 || echo 0)"
+tc "93. the order endpoint prices the request's SKUs, not a request amount" \
+  "$(grep -q "price_order_lines(\$body\['lines'\] ?? null)" public/api/order.php && echo 1 || echo 0)"
+tc "94. no Stripe Payment Link remains in browser source" \
+  "$(grep -rq 'buy\.stripe\.com' src/ 2>/dev/null && echo 0 || echo 1)"
 tc "95. dynamic checkout stays OFF in the shipped config" \
   "$(grep -A1 "'checkout_sessions_enabled'" public/api/config.example.php | grep -qi 'false' && echo 1 || echo 0)"
 tc "96. the client checkout flag stays false" \
   "$(grep -q 'export const CHECKOUT_SESSIONS_ENABLED = false' src/lib/checkoutSession.ts && echo 1 || echo 0)"
-tc "97. the Full Package still cannot be ordered" \
-  "$(post order '{'"$CN"',"firstName":"F","lastName":"P","email":"dl-fp@example.com","package":"bespoke","format":"","story":"x"}' | grep -q '^422$' && echo 1 || echo 0)"
+tc "97. Bespoke still cannot be ordered" \
+  "$(post order '{'"$CN"',"firstName":"F","lastName":"P","email":"dl-fp@example.com","lines":[{"sku":"bespoke","quantity":1}],"story":"x"}' | grep -q '^422$' && body | grep -q '"error":"unknown_sku"' && echo 1 || echo 0)"
 # The lifecycle gained SONG_READY and REVISION_REQUESTED in this amendment.
 # Every previously existing value is unchanged and still present, which is
 # what "unchanged" was guarding.
@@ -339,8 +348,8 @@ tc "99. the referral system is unchanged" \
   "$(grep -q 'REFERRAL_PARAM = "r"' src/data/referral.ts && grep -q 'MCB-R-' public/api/lib/referral.php && echo 1 || echo 0)"
 tc "100. the affiliate system is unchanged" \
   "$(grep -q 'affiliates SET sales = sales + 1' public/api/stripe/webhook.php && echo 1 || echo 0)"
-tc "101. no Stripe secret in the built bundle" \
-  "$(grep -rq 'sk_live_\|sk_test_' dist/assets/ 2>/dev/null && echo 0 || echo 1)"
+tc "101. no Stripe secret in browser source" \
+  "$(grep -rqE 'sk_(live|test)_[A-Za-z0-9]' src/ 2>/dev/null && echo 0 || echo 1)"
 tc "102. the legal modules make no Stripe call" \
   "$(prose src/data/legal/*.ts | grep -qiE 'api\.stripe\.com|fetch\(|stripe_create|sk_(live|test)_' && echo 0 || echo 1)"
 tc "103. the review URL is still configuration and still empty" \

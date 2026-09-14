@@ -1,5 +1,5 @@
 /**
- * THE FULL PACKAGE — the concierge enquiry, client side.
+ * BESPOKE — the concierge enquiry, client side.
  *
  * ─────────────────────────────────────────────────────────────────────────
  * AN ENQUIRY IS NOT AN ORDER
@@ -35,6 +35,59 @@
  */
 
 import { type CurrencyCode } from "./currency";
+
+/* ------------------------------------------------------------------ */
+/* The commission sequence                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * THE COMMERCIAL SEQUENCE for a Bespoke commission.
+ *
+ * Stated as data because it is a commercial commitment, not decoration: it is
+ * the customer's assurance that nothing is charged before a scope and a price
+ * are agreed. Payment sits last, and after agreement. Moved here from the
+ * retired `data/packages.ts`; the product itself (name, description, CTA,
+ * disclosures) is read from the canonical catalogue.
+ */
+export const CONCIERGE_SEQUENCE: readonly { title: string; detail: string }[] = [
+  {
+    title: "Your enquiry",
+    detail:
+      "Tell us who this is for, the occasion, and what you have in mind. Nothing is committed and nothing is charged.",
+  },
+  {
+    title: "A private consultation",
+    detail:
+      "We speak properly — about the recipient, the story, the moment you are creating and what you would like to spend.",
+  },
+  {
+    title: "Your proposal",
+    detail:
+      "We put forward a curation designed for this person, with everything it includes set out in writing.",
+  },
+  {
+    title: "Agreed scope and price",
+    detail:
+      "You refine it until it is right. Nothing proceeds until you have agreed both what is included and what it costs.",
+  },
+  {
+    title: "Payment arranged",
+    detail: "Only then, and on the terms agreed with you.",
+  },
+];
+
+/**
+ * What a Bespoke commission MAY include — not a fixed inclusion list, because
+ * the scope is what the consultation decides.
+ */
+export const BESPOKE_MAY_INCLUDE: readonly string[] = [
+  "A private consultation, one to one",
+  "MCB signature creations, chosen for the story",
+  "Carefully selected gifts and experiences",
+  "Presentation and packaging designed for the occasion",
+  "Scope, timeline and price agreed in writing before anything begins",
+  "A single point of contact throughout",
+];
 
 /* ------------------------------------------------------------------ */
 /* Budget                                                              */

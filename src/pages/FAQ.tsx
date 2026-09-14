@@ -8,122 +8,155 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Helmet } from "react-helmet-async";
-import { MOMENT, KEEPSAKE, JOURNEY, HEIRLOOM, FULL_PACKAGE, formatPrice } from '../data/packages';
 import { REFINEMENT_DEFINITION, RECOMMENDED_PLANNING_DAYS } from '../data/legal';
-import { VINYL_12 } from '../data/catalogue/vinyl';
 import {
-  GIFT_POP_UP_CARDS,
+  BESPOKE,
+  JOURNEY,
+  KEEPSAKE,
   LYRICS_FRAME,
-  MUSIC_BOX_EXPERIENCE,
-  PLAQUE,
-  VINYL_FRAME,
-  capacityLabel,
-  formatProductPrice,
+  MOMENT,
+  PERSONALISED_MUSIC_PLAQUE,
+  PRIORITY_REPLACEMENT,
+  PRIORITY_REPLACEMENT_CLAIM_WINDOW_DAYS,
+  STANDARD_VINYL_NOT_PICTURE_DISC,
+  formatMoney,
+  publicProducts,
+  songExperiences,
+  type Product,
+  type Variant,
 } from '../data/catalogue';
 import { faqPageStructuredData } from '../lib/seo';
 
-/**
- * The record MCB presses to, described from catalogue data.
- *
- * `songCapacity` is optional on a product because most products do not hold
- * audio, so it is read defensively rather than asserted. If it were ever
- * absent the sentence simply drops the capacity clause instead of rendering
- * "undefined" into an FAQ answer and into FAQPage structured data.
+/* ------------------------------------------------------------------ */
+/* Catalogue phrasing                                                  */
+/* ------------------------------------------------------------------ */
+/*
+ * Every price, song count, size and inclusion in the answers below is read
+ * from the canonical catalogue through these helpers. The answers are also
+ * emitted as FAQPage structured data, so a figure typed here would be a
+ * figure published to search results — none is.
  */
-const VINYL_CAPACITY = VINYL_12.songCapacity
-  ? capacityLabel(VINYL_12.songCapacity)
-  : null;
 
+const listOf = (items: readonly string[]): string =>
+  items.length <= 1
+    ? items.join('')
+    : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+
+const songs = (count: number | null) =>
+  count === null ? '' : count === 1 ? '1 song' : `${count} songs`;
+
+const songRange = (product: Product): string => {
+  const counts = product.variants.flatMap((v) => (v.songCount === null ? [] : [v.songCount]));
+  if (counts.length === 0) return '';
+  const low = Math.min(...counts);
+  const high = Math.max(...counts);
+  return low === high ? songs(low) : `${low} to ${high} songs`;
+};
+
+/** Lower-cases a sentence's first letter, leaving "MP4"-style words alone. */
+const lower = (text: string) =>
+  /^[A-Z][a-z]/.test(text) ? text.charAt(0).toLowerCase() + text.slice(1) : text;
+
+const withoutFullStop = (text: string) => text.replace(/\.$/, '');
+
+/** "12-inch Picture Disc (4 songs, £149.99)"; "6 Songs (£199)" where the label already counts. */
+const variantLine = (variant: Variant): string =>
+  variant.songCount === null || /song/i.test(variant.label)
+    ? `${variant.label} (${formatMoney(variant.price)})`
+    : `${variant.label} (${songs(variant.songCount)}, ${formatMoney(variant.price)})`;
+
+const variantList = (product: Product): string => listOf(product.variants.map(variantLine));
+
+/** A variant's approved inclusions, without the timing and refinement lines stated elsewhere. */
+const inclusions = (product: Product, variant: Variant): string =>
+  variant.features
+    .filter((f) => f !== product.turnaround?.label && f !== product.revisions)
+    .map((f, i) => (i === 0 ? f : lower(f)))
+    .join('; ');
+
+/** "double 12-inch standard vinyl in a gatefold sleeve", from the vinyl spec. */
+const recordDescription = (variant: Variant): string => {
+  const v = variant.vinyl;
+  if (!v) return '';
+  const size = `${v.sizeInches}-inch`;
+  const shape = v.shape === 'HEART' ? 'heart-shaped ' : '';
+  const kind = v.pictureDisc ? 'picture disc' : 'standard vinyl';
+  return `${v.discCount === 2 ? 'double ' : ''}${size} ${shape}${kind}${v.gatefold ? ' in a gatefold sleeve' : ''}`;
+};
+
+const turnaround = (product: Product) => product.turnaround?.label ?? '';
+
+const MOMENT_VARIANT = MOMENT.variants[0];
+const PLAQUE_VARIANT = PERSONALISED_MUSIC_PLAQUE.variants[0];
+const PRIORITY_VARIANT = PRIORITY_REPLACEMENT.variants[0];
+const PLAYERS = publicProducts().filter((p) => p.category === 'PLAYER');
+const PRICED_EXPERIENCES = songExperiences().filter((p) => p.revisions);
 
 gsap.registerPlugin(ScrollTrigger);
 
 /**
  * Visible FAQ content. The FAQPage structured data below is generated from
- * this exact array, so markup and page can never disagree — the previous
- * implementation hand-wrote a separate JSON-LD block that claimed prices and
- * delivery times the page never showed.
- *
- * Prices and delivery come from the central package data, so they cannot go
- * stale independently of the pricing cards.
+ * this exact array, so markup and page can never disagree.
  */
 const faqs: { question: string; answer: string }[] = [
   {
     question: 'What is My Custom Beats?',
-    answer:
-      'My Custom Beats turns your memories into personalised music and physical keepsakes. You share the story; professional musicians write, record and produce a song from it. The finished music can arrive as a 12-inch vinyl record, a CD or an MP3.',
+    answer: `My Custom Beats turns your memories into personalised music and physical keepsakes. You share the story; we write, record and produce a song from it. ${MOMENT.name} is delivered digitally, ${KEEPSAKE.name} puts your music on a personalised picture disc, and ${JOURNEY.name} is a personalised album on standard vinyl.`,
   },
   {
     question: 'How does a personalised song work?',
     answer:
-      'You choose an experience, tell us about the moment or person it is for, and pick a mood and genre. You do not need to write lyrics. Our producers shape your words into a song, send it to you, and refine it with the revisions included in your package.',
+      'You choose an experience, tell us about the moment or person it is for, and pick a mood and genre. You do not need to write lyrics. We shape your words into a song, send it to you, and refine it with the refinements included in your experience.',
   },
   {
     question: 'How much does a personalised song cost?',
     /**
-     * FULL_PACKAGE IS DESCRIBED HERE WITHOUT A NUMBER, DELIBERATELY.
-     *
-     * These answers are also emitted as FAQPage structured data, so a price
-     * written here is a price published to search results. The Full Package
-     * has none until a proposal is agreed, and "from £799" would anchor an
-     * unbounded curation to the retired music-only commission.
+     * BESPOKE IS DESCRIBED HERE WITHOUT A NUMBER, DELIBERATELY. It is
+     * individually quoted, and any figure here would be published to search
+     * results through the FAQPage structured data.
      */
-    answer: `Personalised songs start at ${formatPrice(MOMENT)} for ${MOMENT.name}. ${KEEPSAKE.name} is ${formatPrice(KEEPSAKE)}, ${JOURNEY.name} is ${formatPrice(JOURNEY)} and ${HEIRLOOM.name} is ${formatPrice(HEIRLOOM)}. ${FULL_PACKAGE.name} is curated individually, so it is priced in a written proposal after a private consultation rather than published as a figure. The format you choose does not change the price.`,
+    answer: `${MOMENT.name} is ${MOMENT_VARIANT ? formatMoney(MOMENT_VARIANT.price) : ''} for ${songs(MOMENT_VARIANT?.songCount ?? null)}. ${KEEPSAKE.name} comes in ${KEEPSAKE.variants.length} picture-disc options: ${variantList(KEEPSAKE)}. ${JOURNEY.name} comes as ${variantList(JOURNEY)}. ${BESPOKE.name} is individually quoted, so it is priced in a written proposal after a private consultation rather than published as a figure. Optional add-ons are priced separately.`,
   },
   {
     question: `What is ${MOMENT.name}?`,
-    answer: `${MOMENT.name} is ${formatPrice(MOMENT)} and is our fastest experience: one personalised song with customised lyrics from your story, your choice of mood, one revision, delivered as an MP3 within one hour. It suits last-minute gifts and single special moments.`,
+    answer: `${MOMENT.name} is ${MOMENT_VARIANT ? formatMoney(MOMENT_VARIANT.price) : ''}. ${MOMENT.shortDescription} It includes ${MOMENT_VARIANT ? lower(inclusions(MOMENT, MOMENT_VARIANT)) : ''}, with ${MOMENT.revisions ?? ''}. ${turnaround(MOMENT)}.`,
   },
   {
     question: `What is ${KEEPSAKE.name}?`,
-    answer: `${KEEPSAKE.name} is ${formatPrice(KEEPSAKE)} and is our most popular gift: one fully personalised song of three to four minutes, story-driven lyrics, two refinement revisions and elegant cover artwork. You choose vinyl, CD or MP3. ${KEEPSAKE.delivery}.`,
+    answer: `${KEEPSAKE.shortDescription} There are ${KEEPSAKE.variants.length} options: ${variantList(KEEPSAKE)}. Each includes personalised picture-disc artwork. There is no limit on how many you order — choose a separate ${KEEPSAKE.name} for different memories, or for different days of a journey. Refinements: ${lower(KEEPSAKE.revisions ?? '')}. ${turnaround(KEEPSAKE)}.`,
   },
   {
     question: `What is ${JOURNEY.name}?`,
-    answer: `${JOURNEY.name} is ${formatPrice(JOURNEY)} and is built for a trip or a celebration rather than a single moment: four personalised songs sharing one musical theme, arranged as a beginning, middle and finale, with two refinements per song, custom album artwork and a printable lyric booklet. You choose vinyl or CD. ${JOURNEY.delivery}.`,
+    answer: `${JOURNEY.shortDescription} ${JOURNEY.variants.map((v) => `${JOURNEY.name} — ${v.label} is ${formatMoney(v.price)}: ${lower(inclusions(JOURNEY, v))}.`).join(' ')} ${STANDARD_VINYL_NOT_PICTURE_DISC}. Refinements: ${lower(JOURNEY.revisions ?? '')}. ${turnaround(JOURNEY)}.`,
   },
   {
-    question: `What is ${HEIRLOOM.name}?`,
-    answer: `${HEIRLOOM.name} is ${formatPrice(HEIRLOOM)} and preserves a whole life story as an album: six cohesive songs with a narrative arc, a custom intro and closing theme, producer-guided creative review, premium album artwork, a multi-page lyric and story booklet and a private streaming link. You choose vinyl or CD. ${HEIRLOOM.delivery}.`,
+    question: `What is ${BESPOKE.name}?`,
+    answer: `${BESPOKE.shortDescription} It begins with an enquiry and a private consultation. We then put forward a proposal setting out exactly what is included, and nothing proceeds until you have agreed both the scope and the price. ${BESPOKE.disclosures.join(' ')} — there is no published price because no two are the same.`,
   },
   {
-    question: `What is ${FULL_PACKAGE.name}?`,
-    answer: `${FULL_PACKAGE.description} It begins with an enquiry and a private consultation. We then put forward a proposal setting out exactly what is included, and nothing proceeds until you have agreed both the scope and the price. There is no published price because no two are the same.`,
-  },
-  {
-    question: 'What is the difference between Moment, Keepsake, Journey and Heirloom?',
-    answer: `They differ in scale and in what you end up holding. ${MOMENT.name} is one song delivered digitally within the hour. ${KEEPSAKE.name} is one carefully crafted song you can have pressed to vinyl or CD. ${JOURNEY.name} is four songs written as a single connected experience. ${HEIRLOOM.name} is a six-song album telling a complete life story. ${FULL_PACKAGE.name} is different in kind rather than in size: it is curated privately around one recipient and arranged through a consultation, not chosen from this list.`,
+    question: `What is the difference between ${MOMENT.name}, ${KEEPSAKE.name}, ${JOURNEY.name} and ${BESPOKE.name}?`,
+    answer: `They differ in scale and in what you end up holding. ${MOMENT.name} is ${songs(MOMENT_VARIANT?.songCount ?? null)}, delivered digitally. ${KEEPSAKE.name} puts ${songRange(KEEPSAKE)} on a personalised picture disc. ${JOURNEY.name} is an album of ${songRange(JOURNEY)} on standard vinyl — not a picture disc. ${BESPOKE.name} is different in kind rather than in size: it is curated privately around one recipient, arranged through a consultation and individually quoted.`,
   },
   {
     question: 'Can I get my personalised song on vinyl?',
     /**
-     * The record size is READ FROM THE CATALOGUE, not written out here.
-     *
-     * This answer previously described 7-inch and 10-inch records by hand.
-     * Both sizes were withdrawn from `catalogue/vinyl.ts`, and because the
-     * sentence was prose rather than data it kept describing them — to
-     * customers, and inside this page's FAQPage structured data. Deriving the
-     * name and capacity means withdrawing or adding a size updates the answer
-     * and the schema together, with no edit here.
+     * Record sizes, shapes and disc types are READ FROM THE CATALOGUE vinyl
+     * spec, so adding or withdrawing a record updates this answer and its
+     * structured data together.
      */
-    answer: `Yes. A vinyl pressing is included at no extra cost with ${KEEPSAKE.name}, ${JOURNEY.name} and ${HEIRLOOM.name}. Every record is a ${VINYL_12.name.toLowerCase()}${VINYL_CAPACITY ? `, which holds ${VINYL_CAPACITY}` : ""} — so a one-song ${KEEPSAKE.name}, a four-song ${JOURNEY.name} and a six-song ${HEIRLOOM.name} each press to a single record. Choose vinyl when you place your order and we will ask for a delivery address.`,
+    answer: `Yes. Every ${KEEPSAKE.name} is a picture disc: ${listOf(KEEPSAKE.variants.map((v) => `${recordDescription(v)} (${songs(v.songCount)})`))}. Every ${JOURNEY.name} is standard vinyl, not a picture disc: ${listOf(JOURNEY.variants.map((v) => `${recordDescription(v)} (${songs(v.songCount)})`))}. ${MOMENT.name} is delivered digitally.`,
   },
   {
-    question: 'Can I get a CD?',
-    answer: `Yes. A CD with your custom cover artwork is included at no extra cost with ${KEEPSAKE.name}, ${JOURNEY.name} and ${HEIRLOOM.name}, as an alternative to vinyl. You select it during the order process.`,
-  },
-  {
-    question: 'Can I receive an MP3 instead of something physical?',
-    answer: `Yes. ${MOMENT.name} is delivered as an MP3, and ${KEEPSAKE.name} can be delivered as an MP3 if you would rather not wait for post. ${JOURNEY.name} and ${HEIRLOOM.name} are physical experiences and come as vinyl or CD, each with a digital delivery package included.`,
+    question: 'Can I receive my song digitally instead of something physical?',
+    answer: `Yes. ${MOMENT.name} is our digital experience: ${MOMENT_VARIANT ? lower(inclusions(MOMENT, MOMENT_VARIANT)) : ''}. ${KEEPSAKE.name} and ${JOURNEY.name} are physical records, made to order.`,
   },
   {
     question: 'How quickly can you create a song?',
     /**
-     * This said the three larger experiences "are delivered within 15 working
-     * days", which read as a commitment while the Terms called the same figure
-     * a target. Fifteen working days is how long to ALLOW, and the answer now
-     * says which parts of that MCB controls and which it does not.
+     * Fifteen working days is how long to ALLOW, and the answer says which
+     * parts of that MCB controls and which it does not.
      */
-    answer: `${MOMENT.name} is delivered within one hour — we write, produce and send it ourselves, with nothing to manufacture and no carrier involved. For ${KEEPSAKE.name}, ${JOURNEY.name} and ${HEIRLOOM.name}, allow at least ${RECOMMENDED_PLANNING_DAYS} working days: that covers writing, recording, production, your refinements and — where you have chosen vinyl or CD — manufacturing and postage. It is a planning guide rather than a guaranteed arrival date, because the carrier's leg is not ours to control.`,
+    answer: `${MOMENT.name}: ${lower(turnaround(MOMENT))} — we write, produce and send it ourselves, with nothing to manufacture and no carrier involved. For ${KEEPSAKE.name} and ${JOURNEY.name}, allow at least ${RECOMMENDED_PLANNING_DAYS} working days: that covers writing, recording, production, your refinements, manufacturing and postage. It is a planning guide rather than a guaranteed arrival date, because the carrier's leg is not ours to control.`,
   },
   {
     question: 'I need it for a specific date. Can you guarantee it?',
@@ -131,24 +164,19 @@ const faqs: { question: string; answer: string }[] = [
   },
   {
     question: 'Can you create music for a cruise or a holiday?',
-    answer: `Yes, and it is one of the most common reasons people come to us. ${JOURNEY.name} was designed for exactly this: four songs that follow the shape of a trip from departure to the final evening. Guests sailing with cruise lines around the world use it to turn a holiday into something they can play again.`,
+    answer: `Yes, and it is one of the most common reasons people come to us. ${JOURNEY.name} suits a trip well: an album of ${songRange(JOURNEY)}, with a different music style for each chapter if you wish. You can also choose a separate ${KEEPSAKE.name} for each day of the voyage.`,
   },
   {
     question: 'Can you make an album from a holiday?',
-    answer: `Yes. ${JOURNEY.name} gives you a four-song album with unified artwork and a lyric booklet. For a longer story — a milestone anniversary trip, or a journey spanning years — ${HEIRLOOM.name} gives you a six-song album with a full narrative arc.`,
+    answer: `Yes. ${JOURNEY.name} is a personalised album on standard vinyl: ${variantList(JOURNEY)}. For something larger or shaped around more than a trip, ${BESPOKE.name} is individually quoted.`,
   },
   {
-    question: 'What physical keepsakes do you offer?',
-    answer:
-      /**
-       * Every price here is read from the catalogue, so a repricing or a
-       * retirement updates this answer and its FAQPage structured data
-       * together. The Luxury Memory Box was named here until it was retired;
-       * the Music Box Experience that replaced it in this list is a different
-       * product with its own approved price, described in the approved
-       * language and WITHOUT a contents list.
-       */
-      `Beyond vinyl and CD, we make framed lyric artwork — your words set as typography and framed for the wall, ${formatProductPrice(LYRICS_FRAME.price)} — engraved crystal or wood music plaques with a scannable code to your song, ${formatProductPrice(PLAQUE.price)}, a vinyl frame that turns your record into a display piece, ${formatProductPrice(VINYL_FRAME.price)}, and gift pop-up cards that open to reveal your song, ${formatProductPrice(GIFT_POP_UP_CARDS[0].price)}, with designs for anniversaries, birthdays, weddings, Christmas and more. There is also the ${MUSIC_BOX_EXPERIENCE.name}, ${formatProductPrice(MUSIC_BOX_EXPERIENCE.price)} — an elevated gifting experience bringing together multiple personalised keepsakes in one beautifully curated presentation, shaped around the story, recipient and occasion. Everything is made to order.`,
+    question: 'What else can I add to my song?',
+    answer: `${PERSONALISED_MUSIC_PLAQUE.name}${PLAQUE_VARIANT ? `, ${formatMoney(PLAQUE_VARIANT.price)}` : ''}: ${lower(PERSONALISED_MUSIC_PLAQUE.shortDescription)} ${PERSONALISED_MUSIC_PLAQUE.disclosures.join(' ')} ${LYRICS_FRAME.name} — ${lower(withoutFullStop(LYRICS_FRAME.shortDescription))} — in ${LYRICS_FRAME.variants.length} sizes: ${variantList(LYRICS_FRAME)}. Players: ${listOf(PLAYERS.map((p) => `${p.name} (${p.variants[0] ? formatMoney(p.variants[0].price) : ''})`))}. Every personalised piece is made to order.`,
+  },
+  {
+    question: `What is ${PRIORITY_REPLACEMENT.name}?`,
+    answer: `${PRIORITY_REPLACEMENT.shortDescription} It is ${PRIORITY_VARIANT ? formatMoney(PRIORITY_VARIANT.price) : ''}, ${lower(PRIORITY_VARIANT?.label ?? '')}. ${PRIORITY_REPLACEMENT.disclosures.join(' ')} Requests must be made within ${PRIORITY_REPLACEMENT_CLAIM_WINDOW_DAYS} days of confirmed delivery.`,
   },
   {
     question: 'Do I need to write lyrics?',
@@ -157,19 +185,13 @@ const faqs: { question: string; answer: string }[] = [
   },
   {
     question: 'Can I request changes?',
-    /**
-     * Entitlements READ FROM THE PACKAGES, not restated.
-     *
-     * This answer used to hard-code "one with Moment, two with Keepsake" and
-     * would have gone stale the first time an allowance changed, leaving the
-     * FAQ contradicting both the package card and the Terms.
-     */
-    answer: `Yes — every experience includes refinements. ${MOMENT.name} includes ${MOMENT.revisions.toLowerCase()}, ${KEEPSAKE.name} ${KEEPSAKE.revisions.toLowerCase()}, and ${JOURNEY.name} and ${HEIRLOOM.name} ${JOURNEY.revisions.toLowerCase()}. ${REFINEMENT_DEFINITION} If what you would like is genuinely a different piece of work, we will tell you and quote for it rather than absorbing it or refusing it quietly.`,
+    /** Entitlements READ FROM THE CATALOGUE (`product.revisions`), not restated. */
+    answer: `Yes — every experience includes refinements. ${listOf(PRICED_EXPERIENCES.map((p) => `${p.name}: ${lower(p.revisions ?? '')}`))}. ${REFINEMENT_DEFINITION} If what you would like is genuinely a different piece of work, we will tell you and quote for it rather than absorbing it or refusing it quietly.`,
   },
   {
     question: 'When can I no longer change my order?',
     answer:
-      'Once you have approved your work and we have started anything irreversible — pressing a record, printing, engraving — your order is locked and the included refinements are closed. That is about changes of mind. If something is wrong with what we made, that is ours to put right whether the order is locked or not.',
+      'Once you have approved your work and we have started anything irreversible — pressing a record or printing — your order is locked and the included refinements are closed. That is about changes of mind. If something is wrong with what we made, that is ours to put right whether the order is locked or not.',
   },
   {
     question: 'Can I upload photos for album artwork?',
@@ -245,10 +267,10 @@ const FAQSection = () => {
 <>
 
 <Helmet>
-  <title>Personalised Song FAQs — Pricing, Vinyl, CD & Delivery | My Custom Beats</title>
+  <title>Personalised Song FAQs — Pricing, Vinyl & Delivery | My Custom Beats</title>
   <meta
     name="description"
-    content="How personalised songs work, what Moment, Keepsake, Journey and Heirloom include, whether you can get vinyl, CD or MP3, and how quickly your music arrives."
+    content={`How personalised songs work, what ${MOMENT.name}, ${KEEPSAKE.name}, ${JOURNEY.name} and ${BESPOKE.name} include, picture discs and standard vinyl, and how quickly your music arrives.`}
   />
   {/* FAQPage, breadcrumb and page identity in one graph. `mainEntity` is
       built from the same `faqs` array the accordion renders below, so the

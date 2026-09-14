@@ -61,7 +61,7 @@ if ($since !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $since)) {
 
 $sql = 'SELECT
             o.id, o.mcb_reference, o.status, o.package, o.format, o.fulfilment_type,
-            o.amount_gbp, o.amount_usd, o.currency,
+            o.amount_gbp, o.total_minor, o.currency,
             o.source_type, o.referral_raw,
             o.stripe_session_id, o.customer_notified_at, o.created_at, o.updated_at,
             c.name  AS customer_name,
@@ -98,18 +98,24 @@ if ($rows !== []) {
     $ids = array_map(static fn (array $r): int => (int) $r['id'], $rows);
     $in  = implode(',', array_fill(0, count($ids), '?'));
     $itemStmt = db()->prepare(
-        "SELECT order_id, item_id, item_name, quantity, unit_gbp, line_gbp
+        "SELECT order_id, item_id, product_id, item_name, category, fulfilment,
+                quantity, unit_gbp, line_gbp, unit_minor, line_minor
            FROM order_items WHERE order_id IN ($in) ORDER BY id ASC"
     );
     try {
         $itemStmt->execute($ids);
         foreach ($itemStmt->fetchAll() as $item) {
             $itemsByOrder[(int) $item['order_id']][] = [
-                'item_id'   => $item['item_id'],
-                'name'      => $item['item_name'],
-                'quantity'  => (int) $item['quantity'],
-                'unit_gbp'  => (float) $item['unit_gbp'],
-                'line_gbp'  => (float) $item['line_gbp'],
+                'sku'        => $item['item_id'],
+                'product_id' => $item['product_id'],
+                'name'       => $item['item_name'],
+                'category'   => $item['category'],
+                'fulfilment' => $item['fulfilment'],
+                'quantity'   => (int) $item['quantity'],
+                // Integer pence on catalogue orders; derived exactly from the
+                // DECIMAL column on legacy rows.
+                'unit_minor' => $item['unit_minor'] !== null ? (int) $item['unit_minor'] : decimal_to_minor((string) $item['unit_gbp']),
+                'line_minor' => $item['line_minor'] !== null ? (int) $item['line_minor'] : decimal_to_minor((string) $item['line_gbp']),
             ];
         }
     } catch (PDOException $e) {
@@ -130,23 +136,23 @@ $orders = array_map(static function (array $r) use ($itemsByOrder): array {
         'package'         => $r['package'],
         'format'          => $r['format'],
         'fulfilment_type' => $r['fulfilment_type'],
-        // UNCHANGED SHAPE. Existing consumers read amount.gbp / amount.usd and
-        // must keep working; the basket is added alongside, never in place of.
-        'amount'          => ['gbp' => (float) $r['amount_gbp'], 'usd' => (float) $r['amount_usd']],
         'currency'        => $r['currency'],
         /**
-         * What else this customer chose, and what it came to.
+         * Every line of the order and its total, in integer pence.
          *
-         * `basket_total_gbp` is the package plus every line — the figure an
-         * operator needs to answer "what did they order?" without adding it
-         * up by hand. An empty list means the package alone, which is exactly
-         * what every order placed before this existed was.
+         * Catalogue orders hold every line, including the song experience, and
+         * an authoritative `total_minor`. Orders from before the catalogue
+         * hold the package amount on the order and only add-ons as lines, so
+         * their total is that amount plus the lines. The legacy USD figure is
+         * no longer reported.
          */
-        'enhancements'    => $items,
-        'basket_total_gbp' => round(
-            (float) $r['amount_gbp'] + array_sum(array_column($items, 'line_gbp')),
-            2
-        ),
+        'lines'           => $items,
+        'total'           => [
+            'minor'    => $r['total_minor'] !== null
+                ? (int) $r['total_minor']
+                : (int) decimal_to_minor((string) $r['amount_gbp']) + array_sum(array_column($items, 'line_minor')),
+            'currency' => $r['currency'],
+        ],
         'attribution'     => [
             'source_type'        => $r['source_type'],
             'affiliate_username' => $r['affiliate_username'],

@@ -25,7 +25,12 @@ tc() { local name="$1" ok="$2"
   else printf "  FAIL  %-64s\n" "$name"; FAIL=$((FAIL+1)); FAILED+=("$name"); fi }
 
 CONSENT='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2026-09-09.4","cruiseCompanions":"My husband David"'
-post_raw() { curl -s -o /tmp/lc.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$2"; }
+# Every order POST carries a fresh Idempotency-Key unless the test sets IDEM.
+idem() { echo "test-$(openssl rand -hex 16)"; }
+post_raw() { curl -s -o /tmp/lc.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -H "Idempotency-Key: ${IDEM:-$(idem)}" -d "$2"; }
+MOMENT_LINE='"lines":[{"sku":"moment","quantity":1}]'
+ADDR='"shippingName":"Lc Tester","shippingAddress":"1 Test St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom"'
+
 post() {
   [ "$1" = "order" ] && release_order_limit
   post_raw "$1" "$2"
@@ -61,20 +66,20 @@ SECRET=whsec_test_secret_for_local_verification
 sign() { local ts=$(date +%s); local sig=$(printf '%s.%s' "$ts" "$1" | openssl dgst -sha256 -hmac "$SECRET" -hex | sed 's/.*= *//'); echo "t=$ts,v1=$sig"; }
 hook() { curl -s -o /tmp/wh.json -w '%{http_code}' -X POST "$BASE/stripe/webhook" -H "Content-Type: application/json" -H "Stripe-Signature: $(sign "$1")" -d "$1"; }
 
-# Places an order and returns its id.
+# Places an order for one unit of SKU $3 and returns its id. The address is
+# always supplied; a digital order simply does not store it.
 mkorder() {
   release_order_limit
-  curl -s -o /tmp/mk.json -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" \
-    -d '{'"$CONSENT"',"firstName":"'"$1"'","lastName":"T","email":"'"$2"'","package":"'"$3"'","format":"mp3","story":"A story."'"$4"'}' >/dev/null
+  curl -s -o /tmp/mk.json -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -H "Idempotency-Key: $(idem)" \
+    -d '{'"$CONSENT"',"firstName":"'"$1"'","lastName":"T","email":"'"$2"'","lines":[{"sku":"'"$3"'","quantity":1}],'"$ADDR"',"story":"A story."'"$4"'}' >/dev/null
   sed -n 's/.*"order_id":\([0-9]*\).*/\1/p' /tmp/mk.json
 }
-# What Stripe would report for this order: its stored total in pence. Derived
-# from the order rather than typed, so a fixture never pins a catalogue price.
-order_minor() { q "SELECT CAST(ROUND((o.amount_gbp + COALESCE((SELECT SUM(i.line_gbp) FROM order_items i WHERE i.order_id=o.id),0))*100) AS UNSIGNED) FROM orders o WHERE o.id=$1"; }
+# What Stripe would report for this order: the server's saved total in pence.
+order_minor() { q "SELECT total_minor FROM orders WHERE id=$1"; }
 # Marks an order paid through the real verified-webhook path.
 paynow() {
   q "UPDATE orders SET stripe_session_id='cs_test_lc_$1' WHERE id=$1" >/dev/null
-  hook "{\"id\":\"evt_lc_$1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_test_lc_$1\",\"client_reference_id\":\"$1\",\"payment_intent\":\"pi_lc_$1\",\"amount_total\":$(order_minor $1),\"currency\":\"gbp\"}}}" >/dev/null
+  hook "{\"id\":\"evt_lc_$1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"id\":\"cs_test_lc_$1\",\"client_reference_id\":\"$1\",\"payment_intent\":\"pi_lc_$1\",\"payment_status\":\"paid\",\"amount_total\":$(order_minor $1),\"currency\":\"gbp\"}}}" >/dev/null
 }
 
 prose() { grep -v -E '^\s*(\*|//|/\*|#)' "$@"; }
@@ -102,7 +107,7 @@ tc "7. affiliate attribution is still resolved by its own library" \
 
 echo ""
 echo "================ 2. ELIGIBILITY IS A VERIFIED PAYMENT ================"
-OID_A=$(mkorder "Alice" "lc-alice@example.com" keepsake "")
+OID_A=$(mkorder "Alice" "lc-alice@example.com" keepsake-7-picture-disc "")
 tc "8. an order alone mints no referral code" \
   "$([ "$(q "SELECT COUNT(*) FROM customer_referrals")" = "0" ] && echo 1 || echo 0)"
 paynow "$OID_A"
@@ -153,12 +158,12 @@ tc "26.  → and paying for it does not turn it into a conversion" \
   "$([ "$(q "SELECT status FROM customer_referral_conversions WHERE order_id=$OID_SELF")" = "SELF_REFERRAL" ] && echo 1 || echo 0)"
 
 t "27. an unknown code does not block the sale" 201 \
-  "$(post order '{'"$CONSENT"',"firstName":"Cara","lastName":"C","email":"lc-cara@example.com","package":"moment","format":"mp3","story":"x","customerReferral":"MCB-R-ZZZZZZ"}')"
+  "$(post order '{'"$CONSENT"',"firstName":"Cara","lastName":"C","email":"lc-cara@example.com",'"$MOMENT_LINE"',"story":"x","customerReferral":"MCB-R-ZZZZZZ"}')"
 OID_C=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "28.  → and records no conversion for it" \
   "$([ "$(q "SELECT COUNT(*) FROM customer_referral_conversions WHERE order_id=$OID_C")" = "0" ] && echo 1 || echo 0)"
 t "29. a malformed code is refused before any query, and the sale proceeds" 201 \
-  "$(post order '{'"$CONSENT"',"firstName":"Dan","lastName":"D","email":"lc-dan@example.com","package":"moment","format":"mp3","story":"x","customerReferral":"'"'"' OR 1=1--"}')"
+  "$(post order '{'"$CONSENT"',"firstName":"Dan","lastName":"D","email":"lc-dan@example.com",'"$MOMENT_LINE"',"story":"x","customerReferral":"'"'"' OR 1=1--"}')"
 tc "30. the browser cannot name a referring customer" \
   "$(prose public/api/order.php | grep -qE 'referrer_customer_id|referring_customer' && echo 0 || echo 1)"
 tc "31. one order has one acquisition story, enforced by the database" \
@@ -169,7 +174,7 @@ echo "================ 4. PRECEDENCE — NO DOUBLE CREDIT ================"
 post affiliate/register '{"name":"Aff Iliate","email":"lc-aff@example.com","username":"lcaff"}' >/dev/null
 AFFID=$(q "SELECT id FROM affiliates WHERE username='lcaff'")
 tc "32. an affiliate exists to test against" "$([ -n "$AFFID" ] && echo 1 || echo 0)"
-post order '{'"$CONSENT"',"firstName":"Both","lastName":"B","email":"lc-both@example.com","package":"moment","format":"mp3","story":"x","referral":"lcaff","customerReferral":"'"$CODE"'"}' >/dev/null
+post order '{'"$CONSENT"',"firstName":"Both","lastName":"B","email":"lc-both@example.com",'"$MOMENT_LINE"',"story":"x","referral":"lcaff","customerReferral":"'"$CODE"'"}' >/dev/null
 OID_BOTH=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "33. an order carrying BOTH keeps its AFFILIATE source type" \
   "$([ "$(q "SELECT source_type FROM orders WHERE id=$OID_BOTH")" = "AFFILIATE" ] && echo 1 || echo 0)"
@@ -313,6 +318,8 @@ tc "89.  → counting PAID orders only" \
   "$(body | python3 -c "import json,sys;d=json.load(sys.stdin)['customers'][0];print(1 if d['orders']['paid_count']==2 else 0)")"
 tc "90.  → and totalling gross paid GBP, named honestly" \
   "$(body | grep -q 'gross_paid_gbp' && echo 1 || echo 0)"
+tc "90b.  → equal to the saved totals of their PAID orders" \
+  "$(body | python3 -c "import json,sys;d=json.load(sys.stdin)['customers'][0];print(1 if round(d['orders']['gross_paid_gbp']*100)==int(sys.argv[1]) else 0)" "$(q "SELECT SUM(o.total_minor) FROM orders o JOIN customers c ON c.id=o.customer_id WHERE c.email='lc-alice@example.com' AND o.status='PAID'")")"
 tc "91.  → not calling it net revenue while refunds are unmodelled" \
   "$(body | grep -qi '\"net_revenue\"\|\"revenue\"' && echo 0 || echo 1)"
 tc "92.  → reporting whether they are a returning customer" \
@@ -357,24 +364,25 @@ tc "105. the share copy claims nothing on the customer's behalf" \
 
 echo ""
 echo "================ 13. NOTHING ELSE MOVED ================"
-tc "106. package prices unchanged" \
-  "$(for p in 'gbp: 10' 'gbp: 79' 'gbp: 199' 'gbp: 349'; do grep -q "$p," src/data/packages.ts || exit 1; done && echo 1 || echo 0)"
-tc "107. all nine Payment Link URLs unchanged" \
-  "$([ "$(cat src/data/packages.ts src/data/legacy/retiredBespoke.ts | grep -c 'https://buy.stripe.com/')" = "9" ] && echo 1 || echo 0)"
+# 106-107 pinned the retired package prices and nine Payment Link URLs.
+tc "106. prices come from the canonical catalogue (generated copy current)" \
+  "$(node scripts/generate-catalogue-json.mjs --check >/dev/null 2>&1 && echo 1 || echo 0)"
+tc "107. no Stripe Payment Link survives in browser source" \
+  "$(grep -rq 'buy\.stripe\.com' src/ 2>/dev/null && echo 0 || echo 1)"
 tc "108. dynamic checkout stays OFF in the shipped config" \
   "$(grep -A1 "'checkout_sessions_enabled'" public/api/config.example.php | grep -qi 'false' && echo 1 || echo 0)"
 tc "109. the client checkout flag stays false" \
   "$(grep -q 'export const CHECKOUT_SESSIONS_ENABLED = false' src/lib/checkoutSession.ts && echo 1 || echo 0)"
-tc "110. the Full Package still cannot be ordered" \
-  "$(post order '{'"$CONSENT"',"firstName":"F","lastName":"P","email":"lc-fpo@example.com","package":"bespoke","format":"","story":"x"}' | grep -q '^422$' && echo 1 || echo 0)"
+tc "110. Bespoke still cannot be ordered" \
+  "$(post order '{'"$CONSENT"',"firstName":"F","lastName":"P","email":"lc-fpo@example.com","lines":[{"sku":"bespoke","quantity":1}],"story":"x"}' | grep -q '^422$' && body | grep -q '"error":"unknown_sku"' && echo 1 || echo 0)"
 tc "111. legal consent is still required" \
-  "$(post order '{"firstName":"N","lastName":"C","email":"lc-nc@example.com","package":"moment","format":"mp3","story":"x"}' | grep -q '^422$' && echo 1 || echo 0)"
+  "$(post order '{"firstName":"N","lastName":"C","email":"lc-nc@example.com",'"$MOMENT_LINE"',"story":"x"}' | grep -q '^422$' && echo 1 || echo 0)"
 tc "112. the production lock still closes revisions on approval" \
   "$(crm "crm/production?order=$OID_A" >/dev/null; body | grep -q '"revisions_open":false' && echo 1 || echo 0)"
 tc "113. no live Stripe host is contacted by the lifecycle code" \
   "$(prose public/api/lib/referral.php public/api/lib/lifecycle.php | grep -q 'api.stripe.com' && echo 0 || echo 1)"
-tc "114. no Stripe secret in the built bundle" \
-  "$(grep -rq 'sk_live_\|sk_test_' dist/assets/ 2>/dev/null && echo 0 || echo 1)"
+tc "114. no Stripe secret in browser source" \
+  "$(grep -rqE 'sk_(live|test)_[A-Za-z0-9]' src/ 2>/dev/null && echo 0 || echo 1)"
 tc "115. the review URL is configuration, not a hard-coded Trustpilot address" \
   "$(prose public/api/lib/lifecycle.php | grep -qi 'trustpilot' && echo 0 || echo 1)"
 tc "116.  → and is absent from the shipped config template, not invented" \

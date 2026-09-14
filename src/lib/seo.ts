@@ -6,54 +6,59 @@
  * a product name can never be asserted to a crawler in a form the page itself
  * does not display.
  *
- * THE RULE THIS FILE EXISTS TO ENFORCE
- * ------------------------------------
+ * THE RULES THIS FILE EXISTS TO ENFORCE
+ * -------------------------------------
  * Schema describes what is on the page. Not what we wish were on the page.
- * Concretely, that means:
  *
- *   • Prices come from `data/packages.ts`. Catalogue products have no approved
- *     price, so they get NO `offers` — an unpriced Product is honest, an
- *     invented Offer is not.
- *   • Song counts, positioning lines and delivery promises are read from the
- *     same objects the cards render, so "Six memories. One family story."
- *     cannot become seven in the markup.
- *   • Audio and recordings describe the eight samples the homepage actually
- *     plays. No AudioObject points at a page that is not an audio file.
- *   • No SKU, GTIN, review, rating, inventory or shipping claim is emitted
- *     anywhere, because none exists.
+ *   • Every commercial fact — name, price, SKU, song count, record format,
+ *     dimensions — is read from the canonical catalogue
+ *     (`data/catalogue/products.ts`). Nothing here restates a price.
+ *
+ *   • The node TYPE follows the catalogue's commercial semantics
+ *     (`schemaType` and `commercialModel`), never the mere presence of a
+ *     number:
+ *
+ *       FIXED + Product        → Product with one Offer
+ *       FIXED + Service        → Service with one Offer
+ *       VARIANT_FIXED          → ProductGroup; each variant a Product with its
+ *                                own SKU and Offer
+ *       QUOTED                 → Service with NO offers, price or
+ *                                priceSpecification. Quoted work has no figure
+ *                                that is true before the consultation, and a
+ *                                floor or a guess published to a crawler is a
+ *                                price claim the customer never sees.
+ *       STORED_VALUE, inactive,
+ *       or non-public          → not emitted at all
+ *
+ *   • Only products the site actually shows are emitted: those with a page of
+ *     their own, and the add-ons listed on /products.
+ *
+ *   • Prices are exact decimal strings from integer pence ("149.99"), never
+ *     float arithmetic.
+ *
+ *   • No GTIN, review, aggregateRating, inventory level or shipping claim is
+ *     emitted anywhere, because none exists.
  *
  * ENTITY IDENTITY
  * ---------------
  * One business, one `@id`. The organisation is a single node that every other
  * entity references — not an `Organization` and a separate `OnlineStore`
- * describing the same company, which would ask a crawler to reconcile two
- * identities for one business.
+ * describing the same company.
  */
 
 import {
-  PACKAGES,
-  FORMATS,
-  isConcierge,
-  type AnyPackage,
-} from "../data/packages";
-import {
-  CATALOGUE,
-  capacityLabel,
-  isPriced,
-  relatedFamilyIds,
-  stockedFamilies,
-  type CatalogueProduct,
-  type ProductFamily,
+  PRODUCTS,
+  addOnProducts,
+  getProduct,
+  minorToDecimal,
+  type Product,
+  type Variant,
 } from "../data/catalogue";
-import { VINYL_SIZES } from "../data/catalogue/vinyl";
 import { SAMPLE_SONGS, sampleAudioPath } from "../data/sampleSongs";
 
 /**
- * One canonical host for the whole site.
- *
- * The sitemap previously used the apex domain while Open Graph used `www`,
- * and no page emitted a canonical tag at all. `www` is what the site actually
- * serves and what Open Graph already advertised, so it wins.
+ * One canonical host for the whole site. `www` is what the site actually
+ * serves and what Open Graph advertises.
  */
 export const SITE_URL = "https://www.mycustombeats.com";
 
@@ -67,26 +72,27 @@ export const canonical = (path = "/") =>
 /**
  * The share image for each route.
  *
- * Every page previously inherited one `og:image` from index.html, so a pin,
- * a shared link or a social card for the keepsakes page, the cruise funnel
- * or the partnerships page all showed the homepage hero. That is the single
- * thing standing between these pages and being pinnable.
+ * Only images that already exist and genuinely describe the page are listed.
+ * A route with no obviously right photograph falls back to the site default
+ * rather than being given a borrowed one — Keepsake in particular is absent,
+ * because the only record photograph on the site is a standard black vinyl,
+ * and Keepsake is a picture disc.
  *
- * Kept as a route map rather than per-page tags for the same reason the
- * canonical is: a page cannot be missed, and it cannot emit two. Only images
- * that already exist and already describe the page are listed — a route with
- * no obviously right photograph is absent and falls back to the site default
- * rather than being given a borrowed one.
- *
- * `og:title` and `og:description` are deliberately not duplicated here.
- * Crawlers fall back to the page's own <title> and meta description, which
- * every page already sets, so restating them would create a second copy to
- * drift.
+ * `og:title` and `og:description` are deliberately not duplicated here;
+ * crawlers fall back to each page's own <title> and meta description.
  */
 const SHARE_IMAGES: Readonly<Record<string, { path: string; alt: string }>> = {
   "/products": {
+    path: "/images/products/artwork.jpg",
+    alt: "Framed lyric artwork by My Custom Beats",
+  },
+  "/journey": {
     path: "/images/products/vinyl.jpg",
-    alt: "A personalised vinyl record pressed by My Custom Beats",
+    alt: "A personalised album on standard vinyl with its printed sleeve",
+  },
+  "/bespoke": {
+    path: "/images/gift-box-hands.jpg",
+    alt: "A gift box tied with a gold ribbon, held at sunset by the sea",
   },
   "/cruise": {
     path: "/images/hero-cruise.jpg",
@@ -127,22 +133,32 @@ export const shareImageFor = (path: string) => {
 
 /**
  * Fragment ids are stable across deployments and pages, so `@id` references
- * resolve to the same node wherever it is emitted. Anything referenced from
- * more than one page is defined once here.
+ * resolve to the same node wherever it is emitted.
  */
 export const ENTITY = {
   organization: `${SITE_URL}/#organization`,
   website: `${SITE_URL}/#website`,
   service: `${SITE_URL}/#service`,
-  packageList: `${SITE_URL}/#packages`,
+  experienceList: `${SITE_URL}/#packages`,
   sampleList: `${SITE_URL}/#song-samples`,
-  keepsakeList: `${canonical("/products")}#keepsakes`,
+  productList: `${canonical("/products")}#products`,
 } as const;
 
-const packageEntityId = (id: string) => `${SITE_URL}/#package-${id}`;
-const familyEntityId = (id: string) => `${canonical("/products")}#family-${id}`;
-const productEntityId = (id: string) =>
-  `${canonical("/products")}#product-${id}`;
+/** The page a product is shown on: its own route, or /products for add-ons. */
+const productPagePath = (product: Product): string => product.route ?? "/products";
+
+/**
+ * A routed product is THE subject of its page, so it is `…/keepsake#product`.
+ * Add-ons share /products, so their fragment carries the product id.
+ */
+const productEntityId = (product: Product): string =>
+  product.route
+    ? `${canonical(product.route)}#product`
+    : `${canonical("/products")}#product-${product.id}`;
+
+const variantEntityId = (product: Product, variant: Variant): string =>
+  `${canonical(productPagePath(product))}#variant-${variant.sku}`;
+
 const recordingEntityId = (id: string) => `${SITE_URL}/#song-${id}`;
 const audioEntityId = (id: string) => `${SITE_URL}/#audio-${id}`;
 const pageEntityId = (path: string) => `${canonical(path)}#webpage`;
@@ -155,33 +171,32 @@ const ref = (id: string) => ({ "@id": id });
 /* ------------------------------------------------------------------ */
 
 /**
- * Publicly displayed contact details, and only those.
- *
- * The email and WhatsApp number below are the ones the contact section shows
- * on the page. No postal address is emitted: the site states none, and a
- * guessed address is exactly the kind of unverifiable claim that makes an
- * entity untrustworthy.
+ * Publicly displayed contact details, and only those. No postal address is
+ * emitted: the site states none.
  */
 const CONTACT_EMAIL = "hello@mycustombeats.com";
 const CONTACT_PHONE = "+447340742009";
 
 /**
  * `sameAs` asserts "this URL is the same entity". Only the YouTube channel is
- * unambiguously My Custom Beats. The Instagram account linked in the footer
- * belongs to a founder as an individual, so claiming it *is* the organisation
- * would merge a person and a company into one node. It is deliberately absent.
+ * unambiguously My Custom Beats; a founder's personal Instagram is not the
+ * organisation and is deliberately absent.
  */
 const SAME_AS = ["https://www.youtube.com/@MyCustomBeats"];
 
+/**
+ * MUST STAY IDENTICAL to the static Organization JSON-LD in index.html.
+ * Format-neutral on purpose: Moment is delivered digitally, Keepsake is a
+ * picture disc, Journey is standard vinyl — "digitally or on vinyl" is true of
+ * all of them and names no retired format.
+ */
 const ORGANIZATION_DESCRIPTION =
-  "My Custom Beats turns a memory into a personalised song, written and produced to order and delivered as vinyl, CD or MP3, alongside physical keepsakes made to hold it.";
+  "My Custom Beats turns a memory into a personalised song, written and produced to order and delivered digitally or on vinyl, alongside personalised keepsakes made to hold it.";
 
 /**
- * The single business entity.
- *
- * Typed `OnlineStore` — a subtype of Organization — because MCB both is the
- * organisation and sells directly online. One node, so `provider`, `brand`,
- * `publisher` and `seller` all resolve to the same company.
+ * The single business entity. Typed `OnlineStore` — a subtype of
+ * Organization — because MCB both is the organisation and sells directly
+ * online. One node, so `provider`, `brand` and `seller` all resolve to it.
  */
 export const organizationEntity = (): Node => ({
   "@type": "OnlineStore",
@@ -219,9 +234,7 @@ export const organizationEntity = (): Node => ({
 /* ------------------------------------------------------------------ */
 
 /**
- * The one WebSite node. No `SearchAction` is declared: the site has no search,
- * and advertising a search endpoint that does not exist is a broken promise to
- * a crawler.
+ * The one WebSite node. No `SearchAction`: the site has no search.
  */
 export const websiteEntity = (): Node => ({
   "@type": "WebSite",
@@ -238,7 +251,7 @@ interface PageOptions {
   name: string;
   description: string;
   /** WebPage subtype, where the page genuinely is one. */
-  type?: "WebPage" | "CollectionPage" | "AboutPage" | "FAQPage";
+  type?: "WebPage" | "CollectionPage" | "AboutPage" | "FAQPage" | "ItemPage";
   /** The thing the page is primarily about. */
   mainEntity?: string;
   breadcrumb?: string;
@@ -258,7 +271,7 @@ export const webPageEntity = ({
   name,
   description,
   isPartOf: ref(ENTITY.website),
-  about: ref(ENTITY.organization),
+  about: ref(mainEntity ?? ENTITY.organization),
   inLanguage: "en-GB",
   ...(mainEntity ? { mainEntity: ref(mainEntity) } : {}),
   ...(breadcrumb ? { breadcrumb: ref(breadcrumb) } : {}),
@@ -283,22 +296,51 @@ export const breadcrumbStructuredData = (
 const breadcrumbEntity = (
   path: string,
   trail: { name: string; path: string }[]
-): Node => ({
-  ...breadcrumbStructuredData(trail),
-  "@context": undefined,
-  "@id": `${canonical(path)}#breadcrumb`,
-});
+): Node => {
+  // A node inside @graph carries no @context of its own.
+  const list: Node = { ...breadcrumbStructuredData(trail) };
+  delete list["@context"];
+  return { ...list, "@id": `${canonical(path)}#breadcrumb` };
+};
+
+/* ------------------------------------------------------------------ */
+/* Page copy shared with <meta> tags                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The homepage title and description, exported so the homepage <Helmet>, the
+ * static fallback in index.html and the WebPage node state the same thing.
+ * Price-free by design: the prices live on the product cards and in the
+ * product nodes, read from the catalogue.
+ */
+export const HOMEPAGE_TITLE = "Personalised Songs & Vinyl Keepsakes | My Custom Beats";
+export const HOMEPAGE_DESCRIPTION =
+  "Turn a memory into a personalised song, written from your own story and delivered digitally or on vinyl. Made for cruises, weddings, anniversaries and celebrations.";
+
+export const CRUISE_DESCRIPTION =
+  "Turn a cruise or voyage into a personalised song written from your own story. Delivered digitally or on vinyl.";
+
+const listOf = (names: readonly string[]): string =>
+  names.length <= 1
+    ? names.join("")
+    : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+
+/**
+ * The one description of the /products collection, derived from the add-ons
+ * the catalogue says may be shown and sold there. A product added to or
+ * withdrawn from the catalogue changes this sentence with it.
+ */
+export const PRODUCTS_DESCRIPTION = `Pieces to keep alongside your personalised song: ${listOf(
+  addOnProducts().map((product) => product.name)
+)}.`;
 
 /* ------------------------------------------------------------------ */
 /* Service                                                             */
 /* ------------------------------------------------------------------ */
 
 /**
- * What MCB actually does, as distinct from what it sells.
- *
- * No `areaServed`. The site states no territory, and the supplied reference
- * schema's `Place` named "Online" is not a place — it would assert a
- * geography that does not exist. Omitting it says nothing false.
+ * What MCB actually does, as distinct from what it sells. No `areaServed`:
+ * the site states no territory.
  */
 export const serviceEntity = (): Node => ({
   "@type": "Service",
@@ -306,216 +348,352 @@ export const serviceEntity = (): Node => ({
   name: "Personalised song creation",
   serviceType: "Personalised song writing, production and delivery",
   description:
-    "A song written and produced from a customer's own story, delivered digitally or pressed to vinyl or CD, with optional physical keepsakes.",
+    "A song written and produced from a customer's own story, delivered digitally or on vinyl.",
   provider: ref(ENTITY.organization),
   url: canonical("/#packages"),
-  hasOfferCatalog: ref(ENTITY.packageList),
+  hasOfferCatalog: ref(ENTITY.experienceList),
 });
 
 /* ------------------------------------------------------------------ */
-/* Packages                                                            */
+/* Catalogue → structured data                                         */
 /* ------------------------------------------------------------------ */
 
-/** Machine-readable delivery time, e.g. "Delivered within 15 working days". */
-const deliveryDays = (pkg: AnyPackage): number | null => {
-  const match = pkg.delivery.match(/(\d+)\s*(working\s*)?day/i);
-  if (match) return Number(match[1]);
-  if (/hour/i.test(pkg.delivery)) return 1;
+/**
+ * Whether a product may appear in structured data at all.
+ *
+ * Active and public, not stored value, and actually shown on the site: either
+ * it has a page of its own, or it is one of the add-ons /products lists. The
+ * Cruise Ship DJ Bible is active and public in the catalogue but has no page
+ * and cannot be ordered, so it is not described to crawlers.
+ */
+export const isEmittedProduct = (product: Product): boolean =>
+  product.active &&
+  product.public &&
+  product.commercialModel !== "STORED_VALUE" &&
+  (product.route !== null || addOnProducts().some((addOn) => addOn.id === product.id));
+
+/** Every product that structured data describes, in catalogue display order. */
+export const emittedProducts = (): readonly Product[] => PRODUCTS.filter(isEmittedProduct);
+
+/** Sentences end in one full stop, whatever the catalogue line ends in. */
+const sentence = (text: string): string => {
+  const trimmed = text.trim();
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+};
+
+/**
+ * Positioning, description and the disclosures that must accompany the
+ * product wherever it is sold — so "not a Picture Disc" and "does not play
+ * music" travel with the product into search, not just onto its page.
+ */
+const productDescription = (product: Product): string =>
+  [
+    ...new Set([product.positioning, product.shortDescription, ...product.disclosures].map(sentence)),
+  ].join(" ");
+
+/**
+ * Made-to-order products are declared `MadeToOrder`, a real ItemAvailability
+ * member that Google supports. Declaring `InStock` for a record pressed after
+ * the order is placed would imply stock that does not exist. Digital work and
+ * finished goods with no made-to-order basis are `InStock`.
+ */
+const availabilityFor = (product: Product): string =>
+  product.turnaround?.basis === "MADE_TO_ORDER"
+    ? "https://schema.org/MadeToOrder"
+    : "https://schema.org/InStock";
+
+/** One GBP Offer for one variant, at its exact catalogue price. */
+const offerFor = (product: Product, variant: Variant): Node => ({
+  "@type": "Offer",
+  price: minorToDecimal(variant.price.minor),
+  priceCurrency: variant.price.currency,
+  availability: availabilityFor(product),
+  url: canonical(productPagePath(product)),
+  seller: ref(ENTITY.organization),
+});
+
+const property = (name: string, value: string | number | boolean, unitCode?: string): Node => ({
+  "@type": "PropertyValue",
+  name,
+  value,
+  ...(unitCode ? { unitCode } : {}),
+});
+
+/** UN/CEFACT code for inch. */
+const INCH = "INH";
+
+const inches = (value: number): Node => ({
+  "@type": "QuantitativeValue",
+  value,
+  unitCode: INCH,
+});
+
+/**
+ * The truthful, variant-level facts.
+ *
+ * Every value is a field on the catalogue variant. Booleans are emitted as
+ * booleans in both directions where the distinction matters to a buyer —
+ * Journey states `Picture disc: false` explicitly, because it is the fact most
+ * likely to be assumed wrongly.
+ */
+const variantProperties = (product: Product, variant: Variant): Node[] => {
+  const props: Node[] = [];
+
+  if (variant.songCount !== null) {
+    props.push(property("Personalised songs included", variant.songCount));
+  }
+
+  if (variant.vinyl) {
+    const { vinyl } = variant;
+    props.push(
+      property("Record type", vinyl.pictureDisc ? "Picture disc" : "Standard vinyl"),
+      property("Picture disc", vinyl.pictureDisc),
+      property("Record size", vinyl.sizeInches, INCH),
+      property("Record shape", vinyl.shape === "HEART" ? "Heart" : "Round"),
+      property("Number of records", vinyl.discCount),
+      property("Gatefold sleeve", vinyl.gatefold)
+    );
+  }
+
+  if (variant.songCount !== null) {
+    // Stated only where included; the absence of a claim is not a claim.
+    if (variant.artworkIncluded) props.push(property("Personalised artwork included", true));
+    if (variant.masteringIncluded) props.push(property("Mastering included", true));
+    if (product.revisions) props.push(property("Revisions", product.revisions));
+  }
+
+  if (variant.dimensions?.approximate) {
+    props.push(
+      property(
+        "Approximate dimensions",
+        `${variant.dimensions.widthInches} × ${variant.dimensions.heightInches} inches`
+      )
+    );
+  }
+
+  return props;
+};
+
+/**
+ * Physical size, where the catalogue states an exact one. Approximate sizes
+ * are described in `additionalProperty` instead, because `width`/`height` as
+ * QuantitativeValues read as measurements.
+ */
+const variantDimensions = (variant: Variant): Node =>
+  variant.dimensions && !variant.dimensions.approximate
+    ? {
+        width: inches(variant.dimensions.widthInches),
+        height: inches(variant.dimensions.heightInches),
+      }
+    : {};
+
+/**
+ * The `size` text for a variant of a ProductGroup that varies by size.
+ *
+ * For a record it is the diameter, plus the shape where the shape is part of
+ * the size a customer chooses (the heart-shaped 10-inch disc is a different
+ * size option from the round 10-inch). For a frame it is its dimensions.
+ */
+const variantSize = (variant: Variant): string | null => {
+  if (variant.vinyl) {
+    return `${variant.vinyl.sizeInches}-inch${variant.vinyl.shape === "HEART" ? " heart-shaped" : ""}`;
+  }
+  if (variant.dimensions) {
+    return `${variant.dimensions.widthInches} × ${variant.dimensions.heightInches} inches`;
+  }
   return null;
 };
 
-/**
- * The offer for one package.
- *
- * GBP only. Both currencies are displayed on the site, but a single purchase
- * is charged in one of them, and emitting two `priceCurrency` values for the
- * same offer invites a crawler to pick one arbitrarily. Sterling leads
- * everywhere on the site, so sterling is what is declared.
- *
- * A package with a price prefix is quoted from a floor rather than at a fixed
- * figure. That is expressed as one Offer whose `priceSpecification` carries
- * `minPrice`, which is precisely what schema.org defines minPrice for: "the
- * lowest price if the price is a range".
- *
- * It is deliberately NOT an AggregateOffer. AggregateOffer means "this product
- * has several offers, and here are their bounds" — it aggregates over multiple
- * offers, which is why it carries `offerCount`. A single commission from a
- * single seller is not an aggregate of one, and the markup would describe the
- * floor as the cheapest of several competing offers that do not exist.
- *
- * RETURNS `null` FOR A CONCIERGE COMMISSION, and the caller omits `offers`
- * entirely. See `packageEntity`.
- */
-const packageOffer = (pkg: AnyPackage): Node | null => {
-  if (!pkg.price) return null;
+const imageFor = (product: Product): Node =>
+  product.image ? { image: `${SITE_URL}${product.image}` } : {};
 
-  const base = {
-    "@type": "Offer",
-    priceCurrency: "GBP",
-    availability: "https://schema.org/InStock",
-    url: canonical("/#packages"),
-    seller: ref(ENTITY.organization),
-  };
+/** The fields every product node shares. */
+const baseProductFields = (product: Product): Node => ({
+  name: product.name,
+  description: productDescription(product),
+  url: canonical(productPagePath(product)),
+  category: product.analyticsCategory,
+  ...imageFor(product),
+});
 
-  return pkg.price.prefix
-    ? {
-        ...base,
-        priceSpecification: {
-          "@type": "PriceSpecification",
-          minPrice: pkg.price.gbp,
-          priceCurrency: "GBP",
-        },
-      }
-    : { ...base, price: pkg.price.gbp };
-};
-
-/**
- * A package with a single concrete figure a customer pays.
- *
- * False both for a "from" price, which is a floor rather than a price, and for
- * a concierge commission, which has no published figure at all.
- */
-const hasFixedPrice = (pkg: AnyPackage): boolean =>
-  pkg.price !== undefined && !pkg.price.prefix;
-
-/**
- * A package as a Product.
- *
- * Product rather than Service: each is a fixed, priced, purchasable thing that
- * results in a deliverable the customer keeps. The creative work behind them is
- * modelled once, as the Service above, and every package sits in its catalogue.
- */
-/**
- * A package as a Product — or, where it has no fixed price, as a Service.
- *
- * WHY BESPOKE IS NOT A PRODUCT
- * Google's Product markup requires `offers.price` or
- * `offers.priceSpecification.price`: one concrete figure the customer pays.
- * Bespoke has none. It is quoted "From £799" because it is commissioned
- * individually and can cost more, so every way of satisfying that requirement
- * is a lie — `price: 799` states a fixed price the page contradicts, and an
- * AggregateOffer both invents a range and misdescribes a single commission as
- * several competing offers.
- *
- * A commission is not a product with a price tag; it is a service quoted per
- * job. Typing it `Service` says exactly that. It carries the same floor
- * through `priceSpecification.minPrice`, which is what schema.org defines
- * minPrice for, and it is no longer measured against a Product requirement it
- * cannot honestly meet.
- *
- * The consequence is deliberate: Bespoke forgoes Product rich-result
- * eligibility. The four fixed-price packages keep theirs, because they have a
- * real price. Accuracy over eligibility, as Sprint 02 settled.
- */
-export const packageEntity = (pkg: AnyPackage): Node => {
-  const days = deliveryDays(pkg);
-  const offer = packageOffer(pkg);
-
+/** One variant as a Product with its own SKU and Offer. */
+const variantEntity = (product: Product, variant: Variant, inGroup: boolean): Node => {
+  const props = variantProperties(product, variant);
+  const size = inGroup && product.variesBy === "size" ? variantSize(variant) : null;
   return {
-    ...(hasFixedPrice(pkg)
-      ? { "@type": "Product" }
-      : {
-          "@type": "Service",
-          provider: ref(ENTITY.organization),
-          serviceType: isConcierge(pkg)
-            ? "Private concierge gift curation and music commission"
-            : "Personalised music commission",
-        }),
-    "@id": packageEntityId(pkg.id),
-    name: `MCB ${pkg.name}`,
-    description: `${pkg.positioning} ${pkg.description}`,
+    "@type": "Product",
+    "@id": variantEntityId(product, variant),
+    sku: variant.sku,
+    name: variant.name,
+    description: [product.shortDescription, ...variant.features].map(sentence).join(" "),
+    url: canonical(productPagePath(product)),
     brand: ref(ENTITY.organization),
-    category: "Personalised music",
-    url: canonical("/#packages"),
-    /**
-     * Formats are how the package arrives, not separate products, and the song
-     * count is a characteristic of it — so both are `additionalProperty`.
-     *
-     * The song count was previously `numberOfItems`, which schema.org defines
-     * only on ItemList. A Product is not a list, so that placement was invalid
-     * even though the property name itself is real vocabulary.
-     */
-    ...((pkg.formats.length > 0 || pkg.songCount !== null) && {
-      additionalProperty: [
-        ...pkg.formats.map((format) => ({
-          "@type": "PropertyValue",
-          name: "Available format",
-          value: FORMATS[format].name,
-        })),
-        ...(pkg.songCount !== null
-          ? [
-              {
-                "@type": "PropertyValue",
-                name: "Songs included",
-                value: pkg.songCount,
-              },
-            ]
-          : []),
-      ],
-    }),
-    /**
-     * NO `offers` NODE AT ALL for a concierge commission.
-     *
-     * Not an Offer with the price omitted, and not one carrying the retired
-     * £799 as a minPrice. There is no figure that is true before the
-     * consultation has happened, so any Offer this emitted would be publishing
-     * a number MCB has not agreed with the customer — into the one place a
-     * customer never sees it and cannot correct it. `minPrice: 799` would be
-     * the worst of them: it would restate the exact anchor this sprint
-     * removed from the page, in a search result.
-     *
-     * The Service still describes what the commission is. It simply makes no
-     * price claim, which is the accurate state of the world.
-     */
-    ...(offer !== null && {
-      offers: {
-        ...offer,
-        ...(days !== null && {
-          deliveryLeadTime: {
-            "@type": "QuantitativeValue",
-            value: days,
-            unitCode: /hour/i.test(pkg.delivery) ? "HUR" : "DAY",
-          },
-        }),
-      },
-    }),
-    isRelatedTo: ref(ENTITY.service),
+    category: product.analyticsCategory,
+    ...imageFor(product),
+    ...(inGroup ? { inProductGroupWithID: product.id } : {}),
+    ...(size ? { size } : {}),
+    ...variantDimensions(variant),
+    ...(props.length > 0 ? { additionalProperty: props } : {}),
+    offers: offerFor(product, variant),
   };
 };
 
 /**
- * The visible package comparison grid, as a catalogue.
+ * `variesBy` as schema.org can honestly express it.
  *
- * `OfferCatalog` is an ItemList subtype, which lets the Service point at it
- * with `hasOfferCatalog` while it still describes the real, ordered list of
- * five cards a visitor scrolls through.
+ * Keepsake and Lyrics Frames vary by physical size → `https://schema.org/size`,
+ * and each variant carries a `size`.
+ *
+ * Journey varies by song count, and there is no schema.org property for "how
+ * many songs". Declaring `size` would be false (both are 12-inch records) and
+ * Google accepts only colour, size, age, gender, material and pattern. So
+ * `variesBy` is OMITTED, and the difference is stated truthfully on each
+ * variant in `additionalProperty` ("Personalised songs included", "Number of
+ * records", "Gatefold sleeve") and in the variant name.
  */
-export const packageListEntity = (): Node => ({
-  "@type": "OfferCatalog",
-  "@id": ENTITY.packageList,
-  name: "MCB experiences",
-  description:
-    "The five My Custom Beats experiences, from a one-hour Moment to a privately curated Full Package.",
-  url: canonical("/#packages"),
-  numberOfItems: PACKAGES.length,
-  itemListElement: PACKAGES.map((pkg, index) => ({
+const variesByFor = (product: Product): Node =>
+  product.variesBy === "size" ? { variesBy: ["https://schema.org/size"] } : {};
+
+/** `serviceType` for the catalogue categories that are sold as a Service. */
+const SERVICE_TYPE: Partial<Record<Product["category"], string>> = {
+  COMMISSION: "Personalised music commission",
+  LIVE_PERFORMANCE: "Live DJ performance",
+  PROTECTION: "Priority replacement for eligible damaged or faulty keepsakes",
+};
+
+/**
+ * One catalogue product as its structured-data node, or `null` when the
+ * product must not be described (see `isEmittedProduct`).
+ *
+ * The switch is on commercial semantics — `commercialModel` and `schemaType`
+ * — so a quoted service can never acquire an Offer by accident, and a fixed
+ * service keeps its genuine one.
+ */
+export const productEntity = (product: Product): Node | null => {
+  if (!isEmittedProduct(product)) return null;
+
+  const id = productEntityId(product);
+
+  switch (product.commercialModel) {
+    case "QUOTED":
+      /**
+       * NO `offers`, `price` or `priceSpecification` — not an Offer with the
+       * price omitted and not a floor. There is no figure that is true before
+       * the consultation has happened.
+       */
+      return {
+        "@type": "Service",
+        "@id": id,
+        ...baseProductFields(product),
+        serviceType: SERVICE_TYPE[product.category] ?? product.analyticsCategory,
+        provider: ref(ENTITY.organization),
+        brand: ref(ENTITY.organization),
+      };
+
+    case "FIXED": {
+      const variant = product.variants[0];
+      if (!variant) return null;
+      if (product.schemaType === "Service") {
+        return {
+          "@type": "Service",
+          "@id": id,
+          ...baseProductFields(product),
+          serviceType: SERVICE_TYPE[product.category] ?? product.analyticsCategory,
+          provider: ref(ENTITY.organization),
+          brand: ref(ENTITY.organization),
+          offers: offerFor(product, variant),
+        };
+      }
+      const props = variantProperties(product, variant);
+      return {
+        "@type": "Product",
+        "@id": id,
+        ...baseProductFields(product),
+        sku: variant.sku,
+        brand: ref(ENTITY.organization),
+        ...variantDimensions(variant),
+        ...(props.length > 0 ? { additionalProperty: props } : {}),
+        offers: offerFor(product, variant),
+      };
+    }
+
+    case "VARIANT_FIXED":
+      if (product.variants.length === 0) return null;
+      return {
+        "@type": "ProductGroup",
+        "@id": id,
+        ...baseProductFields(product),
+        productGroupID: product.id,
+        brand: ref(ENTITY.organization),
+        ...variesByFor(product),
+        hasVariant: product.variants.map((variant) => variantEntity(product, variant, true)),
+      };
+
+    case "STORED_VALUE":
+    default:
+      return null;
+  }
+};
+
+const productNodes = (products: readonly Product[]): Node[] =>
+  products.map(productEntity).filter((node): node is Node => node !== null);
+
+/** The experiences a visitor chooses between on the homepage. */
+const experienceProducts = (): readonly Product[] =>
+  emittedProducts().filter(
+    (product) => product.category === "SONG_EXPERIENCE" || product.category === "COMMISSION"
+  );
+
+/** The add-ons listed on /products. */
+const listedAddOns = (): readonly Product[] =>
+  emittedProducts().filter((product) => product.route === null);
+
+const itemList = (products: readonly Product[]) => ({
+  numberOfItems: products.length,
+  itemListElement: products.map((product, index) => ({
     "@type": "ListItem",
     position: index + 1,
-    item: ref(packageEntityId(pkg.id)),
+    item: ref(productEntityId(product)),
   })),
 });
+
+/**
+ * The experience cards, as a catalogue the Service points at with
+ * `hasOfferCatalog`. The count and order are the catalogue's.
+ */
+export const experienceListEntity = (): Node => {
+  const products = experienceProducts();
+  return {
+    "@type": "OfferCatalog",
+    "@id": ENTITY.experienceList,
+    name: "MCB experiences",
+    description: `The My Custom Beats experiences: ${listOf(products.map((p) => p.name))}.`,
+    url: canonical("/#packages"),
+    ...itemList(products),
+  };
+};
+
+/** The /products collection. */
+export const productListEntity = (): Node => {
+  const products = listedAddOns();
+  return {
+    "@type": "ItemList",
+    "@id": ENTITY.productList,
+    name: "MCB personalised pieces and players",
+    description: PRODUCTS_DESCRIPTION,
+    url: canonical("/products"),
+    ...itemList(products),
+  };
+};
 
 /* ------------------------------------------------------------------ */
 /* Song samples                                                        */
 /* ------------------------------------------------------------------ */
 
 /**
- * The eight samples the homepage plays.
- *
- * These are the only genuine MusicRecording entities MCB can claim: each has a
- * title, a description and a real, reachable MP3. No `byArtist`, `duration`,
- * `inAlbum` or ISRC is emitted — the site publishes none of them, and a
- * recording entity padded with invented credits is worse than a sparse one.
+ * The samples the homepage plays: genuine MusicRecordings with a real,
+ * reachable MP3. No `byArtist`, `duration`, `inAlbum` or ISRC is emitted —
+ * the site publishes none of them.
  */
 export const sampleRecordingEntities = (): Node[] =>
   SAMPLE_SONGS.flatMap((song) => [
@@ -557,220 +735,6 @@ export const sampleListEntity = (): Node => ({
 });
 
 /* ------------------------------------------------------------------ */
-/* Catalogue: keepsakes                                                */
-/* ------------------------------------------------------------------ */
-
-/**
- * How the catalogue's availability states map to schema.org's.
- *
- * `MADE_TO_ORDER` is a real `ItemAvailability` member, and it is the honest
- * one for MCB: these pieces are produced against an order, not picked off a
- * shelf. Declaring `InStock` for them would be the convenient answer and a
- * false one — a crawler would infer stock that does not exist.
- */
-const SCHEMA_AVAILABILITY: Record<CatalogueProduct["availability"], string> = {
-  AVAILABLE: "https://schema.org/InStock",
-  MADE_TO_ORDER: "https://schema.org/MadeToOrder",
-  COMING_SOON: "https://schema.org/PreOrder",
-};
-
-/**
- * A catalogue product, with an Offer only where a price is approved.
- *
- * `isPriced` is the gate. Most of the physical catalogue now carries an
- * approved GBP price and therefore emits a real Offer; the pieces that do not
- * — the vinyl record itself and the CD — emit no `offers`
- * key at all rather than an Offer with a placeholder or a zero in it.
- *
- * The Offer is GBP because GBP is what Stripe charges. No second currency is
- * emitted, since the catalogue holds no second approved figure and a
- * converted one would be this file inventing a rate.
- */
-const catalogueProductEntity = (product: CatalogueProduct): Node => ({
-  "@type": "Product",
-  "@id": productEntityId(product.id),
-  name: product.name,
-  description: product.description,
-  brand: ref(ENTITY.organization),
-  url: canonical("/products"),
-  ...(product.image ? { image: `${SITE_URL}${product.image}` } : {}),
-  ...(product.songCapacity && {
-    additionalProperty: [
-      {
-        "@type": "PropertyValue",
-        name: "Song capacity",
-        value: capacityLabel(product.songCapacity),
-      },
-    ],
-  }),
-  ...(isPriced(product.price)
-    ? {
-        offers: {
-          "@type": "Offer",
-          price: product.price.gbp,
-          priceCurrency: "GBP",
-          availability: SCHEMA_AVAILABILITY[product.availability],
-          url: canonical("/products"),
-          seller: ref(ENTITY.organization),
-        },
-      }
-    : {}),
-});
-
-/**
- * Vinyl is the one family with a true variant axis: the same record in three
- * diameters, differing by size and song capacity.
- *
- * `variesBy` is therefore `size` — NOT `material`. All three are vinyl; the
- * material is identical and it is the dimension that changes. Declaring
- * material would describe a difference that does not exist.
- */
-const vinylProductGroupEntity = (family: ProductFamily): Node => ({
-  "@type": "ProductGroup",
-  "@id": familyEntityId(family.id),
-  name: family.name,
-  description: family.description,
-  brand: ref(ENTITY.organization),
-  url: canonical("/products"),
-  ...(family.image ? { image: `${SITE_URL}${family.image}` } : {}),
-  variesBy: ["https://schema.org/size"],
-  hasVariant: VINYL_SIZES.map((product) => ({
-    ...catalogueProductEntity(product),
-    ...(product.songCapacity && {
-      size: product.name.replace(/ Vinyl$/, ""),
-    }),
-  })),
-});
-
-/**
- * A family with a single product is that product, not a group of one. A group
- * wrapper around one item asserts variation that the catalogue does not have.
- */
-const familyEntity = (family: ProductFamily): Node => {
-  if (family.id === "vinyl") return vinylProductGroupEntity(family);
-
-  /**
-   * A single-product family IS that product, so it must carry that product's
-   * Offer.
-   *
-   * Without this the family emitted a bare `Product` with a name and an image
-   * and no commercial data at all — precisely the shape Search Console
-   * reports as invalid, and precisely what this file's `familyIsPurchasable`
-   * comment set out to avoid. It went unnoticed while every physical price
-   * was TBD, because no single-product family qualified as purchasable in the
-   * first place. The moment one was priced, it would have.
-   */
-  const soleProduct = family.products.length === 1 ? family.products[0] : undefined;
-  const soleOffer = soleProduct
-    ? (catalogueProductEntity(soleProduct).offers as Node | undefined)
-    : undefined;
-
-  return {
-        /**
-         * A family that emits `hasVariant` must be a ProductGroup: schema.org
-         * defines `hasVariant` on ProductGroup alone, so a plain Product
-         * carrying variants is an invalid placement. Gift Pop-Up Cards is the
-         * one family this applies to today, with ten occasion designs.
-         */
-        "@type": family.products.length > 1 ? "ProductGroup" : "Product",
-        "@id": familyEntityId(family.id),
-        name: family.name,
-        description: family.description,
-        brand: ref(ENTITY.organization),
-        url: canonical("/products"),
-        ...(family.image ? { image: `${SITE_URL}${family.image}` } : {}),
-        ...(soleOffer ? { offers: soleOffer } : {}),
-        ...(family.products.length > 1 && {
-          hasVariant: family.products.map(catalogueProductEntity),
-        }),
-        // Declared relationships, resolved to the families they name.
-        ...(relatedFamilyIds(family.id).length > 0 && {
-          isRelatedTo: relatedFamilyIds(family.id)
-            .filter((id) =>
-              CATALOGUE.some(
-                (candidate) =>
-                  candidate.id === id && candidate.products.length > 0
-              )
-            )
-            .map((id) => ref(familyEntityId(id))),
-        }),
-      };
-};
-
-/**
- * A family that can legitimately be a Product: one with an approved price.
- *
- * Google requires a Product to carry offers, a review or an aggregateRating
- * to be eligible for its product treatment. Every catalogue Product MCB
- * emitted while nothing was priced was, correctly, reported as invalid by
- * Search Console.
- *
- * The answer was never to manufacture an Offer — it was to stop claiming
- * these were purchasable products until they were. This predicate is the
- * switch, and it has now flipped for most of the catalogue on its own: the
- * families given an approved price this sprint became Products carrying real
- * Offers without a line changing here. The vinyl and CD families remain
- * unpriced and are still described as `Thing` rather than promoted.
- */
-const familyIsPurchasable = (family: ProductFamily): boolean =>
-  family.products.some((product) => isPriced(product.price));
-
-/**
- * Product entities for families that are genuinely for sale.
- *
- * Empty today, and that is the honest state. Unpriced families are described
- * inside the ItemList below instead — see `keepsakeListEntity`.
- */
-export const keepsakeEntities = (): Node[] =>
-  stockedFamilies().filter(familyIsPurchasable).map(familyEntity);
-
-/**
- * A descriptive entry for a family MCB makes but cannot yet sell.
- *
- * `Thing` is deliberate. These are real objects with a real name, description
- * and photograph, and saying so is accurate. What would not be accurate is
- * calling them Products, because a Product is something a customer can be
- * offered, and no price for any of these has been approved. A crawler gets
- * everything true about them and no commercial claim at all.
- */
-const descriptiveFamilyEntity = (family: ProductFamily): Node => ({
-  "@type": "Thing",
-  "@id": familyEntityId(family.id),
-  name: family.name,
-  description: family.description,
-  url: canonical("/products"),
-  ...(family.image ? { image: `${SITE_URL}${family.image}` } : {}),
-});
-
-/**
- * The keepsake collection.
- *
- * Purchasable families are referenced by `@id` to their Product node.
- * Unpriced families are described inline as `Thing`, so the list still
- * documents the whole collection without a single unpriced Product node
- * remaining in the graph.
- */
-export const keepsakeListEntity = (): Node => {
-  const families = stockedFamilies();
-  return {
-    "@type": "ItemList",
-    "@id": ENTITY.keepsakeList,
-    name: "MCB memory keepsakes",
-    description:
-      "Physical pieces a personalised song can become: vinyl records, CDs, framed lyric artwork, engraved plaques, vinyl frames, gift pop-up cards, the curated Music Box Experience, and the players to hear them on.",
-    url: canonical("/products"),
-    numberOfItems: families.length,
-    itemListElement: families.map((family, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      item: familyIsPurchasable(family)
-        ? ref(familyEntityId(family.id))
-        : descriptiveFamilyEntity(family),
-    })),
-  };
-};
-
-/* ------------------------------------------------------------------ */
 /* Page graphs                                                         */
 /* ------------------------------------------------------------------ */
 
@@ -780,81 +744,92 @@ const graph = (nodes: Node[]) => ({
 });
 
 /**
- * The homepage: who MCB is, what it does, what it sells, and what its music
- * sounds like — all in one connected graph, emitted once.
+ * Organisation and website are repeated on every page graph rather than left
+ * as bare `@id` references. Same `@id`, same content, so they merge to one
+ * node — but each page stands on its own if it is the only one fetched.
+ */
+const identity = (): Node[] => [organizationEntity(), websiteEntity()];
+
+/**
+ * The homepage: who MCB is, what it does, the experiences it offers, and what
+ * its music sounds like.
  */
 export const homepageStructuredData = () =>
   graph([
-    organizationEntity(),
-    websiteEntity(),
+    ...identity(),
     webPageEntity({
       path: "/",
-      name: "Personalised Songs on Vinyl, CD & MP3 | My Custom Beats",
-      description:
-        "Turn a memory into a personalised song, from £10. Choose vinyl, CD or MP3. Made for cruises, weddings, anniversaries and celebrations.",
+      name: HOMEPAGE_TITLE,
+      description: HOMEPAGE_DESCRIPTION,
       mainEntity: ENTITY.service,
     }),
     serviceEntity(),
-    packageListEntity(),
-    ...PACKAGES.map(packageEntity),
+    experienceListEntity(),
+    ...productNodes(experienceProducts()),
     sampleListEntity(),
     ...sampleRecordingEntities(),
   ]);
 
 /**
- * The keepsake collection. A genuine CollectionPage: it lists the catalogue.
+ * The page for one routed product: /moment, /keepsake, /journey, /bespoke,
+ * /mcb-live, /priority-replacement.
  *
- * Organisation and website are repeated on every page graph rather than left
- * as bare `@id` references pointing at the homepage. Same `@id`, same content,
- * so they merge to one node — but each page then stands on its own if it is
- * the first or only page a crawler fetches.
+ * A product that must not be emitted, or has no route of its own, yields the
+ * page identity alone — never a guessed product node.
  */
-/**
- * The one description of the keepsake collection.
- *
- * Exported so `/products` renders the SAME sentence in its meta description
- * as the CollectionPage node states. The two were written out separately and
- * both went stale together, still advertising 7-inch and 10-inch records
- * months after both sizes were withdrawn from the catalogue. One string, one
- * place to correct.
- *
- * It names 12-inch alone because that is the only size `catalogue/vinyl.ts`
- * still holds, and no size is mentioned that is not sold.
- */
-export const PRODUCTS_DESCRIPTION =
-  "Turn your personalised song into something you can hold: 12-inch vinyl, CD, framed lyric artwork, engraved plaques, vinyl frames, gift pop-up cards, the curated MCB Music Box Experience, and players to hear it on.";
+export const productPageStructuredData = (productId: string) => {
+  const product = getProduct(productId);
+  if (!product || !product.route || !isEmittedProduct(product)) {
+    return graph(identity());
+  }
 
+  const path = product.route;
+  const node = productEntity(product);
+  const mainEntity = node ? productEntityId(product) : undefined;
+
+  return graph([
+    ...identity(),
+    webPageEntity({
+      path,
+      name: `${product.name} | My Custom Beats`,
+      description: product.shortDescription,
+      type: node && node["@type"] !== "Service" ? "ItemPage" : "WebPage",
+      mainEntity,
+      breadcrumb: `${canonical(path)}#breadcrumb`,
+    }),
+    breadcrumbEntity(path, [{ name: product.name, path }]),
+    ...(node ? [node] : []),
+  ]);
+};
+
+/** The /products collection: a genuine CollectionPage listing the add-ons. */
 export const productsPageStructuredData = () =>
   graph([
-    organizationEntity(),
-    websiteEntity(),
+    ...identity(),
     webPageEntity({
       path: "/products",
-      name: "Music Keepsakes | My Custom Beats",
+      name: "Personalised Pieces & Players | My Custom Beats",
       description: PRODUCTS_DESCRIPTION,
       type: "CollectionPage",
-      mainEntity: ENTITY.keepsakeList,
+      mainEntity: ENTITY.productList,
       breadcrumb: `${canonical("/products")}#breadcrumb`,
     }),
-    breadcrumbEntity("/products", [{ name: "Keepsakes", path: "/products" }]),
-    keepsakeListEntity(),
-    ...keepsakeEntities(),
+    breadcrumbEntity("/products", [{ name: "Products", path: "/products" }]),
+    productListEntity(),
+    ...productNodes(listedAddOns()),
   ]);
 
 /**
- * The cruise guest funnel. A WebPage about the service, not a collection —
- * it presents one journey, and the packages it names are already defined on
- * the homepage graph, so they are referenced rather than redefined.
+ * The cruise guest funnel. A WebPage about the service; the experiences it
+ * names are defined on their own pages and referenced from the homepage.
  */
 export const cruisePageStructuredData = () =>
   graph([
-    organizationEntity(),
-    websiteEntity(),
+    ...identity(),
     webPageEntity({
       path: "/cruise",
       name: "Cruise & Voyage Songs | My Custom Beats",
-      description:
-        "Turn a cruise or voyage into a personalised song written from your own story. Delivered digitally or pressed to vinyl or CD.",
+      description: CRUISE_DESCRIPTION,
       mainEntity: ENTITY.service,
       breadcrumb: `${canonical("/cruise")}#breadcrumb`,
     }),
@@ -865,13 +840,12 @@ export const cruisePageStructuredData = () =>
 /** The About page, which is where the organisation is actually described. */
 export const aboutPageStructuredData = () =>
   graph([
-    organizationEntity(),
-    websiteEntity(),
+    ...identity(),
     webPageEntity({
       path: "/about",
       name: "About My Custom Beats",
       description:
-        "Meet the founders and the global collective of professional musicians who turn your memories into personalised songs and keepsakes.",
+        "Meet the founders and the musicians who turn your memories into personalised songs and keepsakes.",
       type: "AboutPage",
       mainEntity: ENTITY.organization,
       breadcrumb: `${canonical("/about")}#breadcrumb`,
@@ -887,14 +861,13 @@ export const faqPageStructuredData = (
   faqs: readonly { question: string; answer: string }[]
 ) =>
   graph([
-    organizationEntity(),
-    websiteEntity(),
+    ...identity(),
     {
       ...webPageEntity({
         path: "/faq",
         name: "Frequently Asked Questions | My Custom Beats",
         description:
-          "How personalised songs work, what each experience includes, available formats and delivery times.",
+          "How personalised songs work, what each experience includes, how your music is delivered and how long it takes.",
         type: "FAQPage",
         breadcrumb: `${canonical("/faq")}#breadcrumb`,
       }),
@@ -911,9 +884,8 @@ export const faqPageStructuredData = (
  * Retained for pages that only need identity, not a full graph.
  * @deprecated Prefer a page-specific graph builder above.
  */
-export const siteStructuredData = () =>
-  graph([organizationEntity(), websiteEntity()]);
+export const siteStructuredData = () => graph(identity());
 
-/** Product + Offer for each experience, for any page that needs them alone. */
+/** The experience catalogue and its product nodes, for any page that needs them alone. */
 export const packagesStructuredData = () =>
-  graph([packageListEntity(), ...PACKAGES.map(packageEntity)]);
+  graph([experienceListEntity(), ...productNodes(experienceProducts())]);

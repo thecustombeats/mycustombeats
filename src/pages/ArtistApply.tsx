@@ -73,7 +73,7 @@ const ArtistApply = () => {
     <>
       <Helmet>
         <title>Apply as an Artist | My Custom Beats</title>
-        <meta name="description" content="Join the MCB collective of professional musicians creating personalised songs for clients worldwide." />
+        <meta name="description" content="Apply to join the musicians creating personalised songs with My Custom Beats." />
       </Helmet>
     <section className="py-24 px-[7vw] max-w-4xl mx-auto">
 

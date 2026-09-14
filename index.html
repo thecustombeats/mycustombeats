@@ -10,7 +10,10 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-XQFNJC4HND');
+      // send_page_view: false — the app sends exactly one page_view per route,
+      // including the landing page (src/lib/analytics.ts trackPageView).
+      // Leaving the default on counted every landing twice.
+      gtag('config', 'G-XQFNJC4HND', { send_page_view: false });
     </script>
 
     <!-- MVIS™ typography: Cormorant Garamond (display) + Manrope (body/UI)
@@ -44,13 +47,13 @@
 
          Tags WITHOUT the marker are route-independent and stay: they are true
          of every page, so there is nothing for a route to override. -->
-    <title>Personalised Songs on Vinyl, CD &amp; MP3 | My Custom Beats</title>
-    <meta data-static-seo name="description" content="Turn a memory into a personalised song, from £10. Choose vinyl, CD or MP3. Made for cruises, weddings, anniversaries and celebrations." />
+    <title>Personalised Songs &amp; Vinyl Keepsakes | My Custom Beats</title>
+    <meta data-static-seo name="description" content="Turn a memory into a personalised song, written from your own story and delivered digitally or on vinyl. Made for cruises, weddings, anniversaries and celebrations." />
 
     <!-- Social -->
     <meta property="og:site_name" content="My Custom Beats" />
-    <meta data-static-seo property="og:title" content="Personalised Songs on Vinyl, CD &amp; MP3 | My Custom Beats" />
-    <meta data-static-seo property="og:description" content="Turn a memory into a personalised song, from £10. Choose vinyl, CD or MP3." />
+    <meta data-static-seo property="og:title" content="Personalised Songs &amp; Vinyl Keepsakes | My Custom Beats" />
+    <meta data-static-seo property="og:description" content="Turn a memory into a personalised song, written from your own story and delivered digitally or on vinyl." />
     <meta data-static-seo property="og:image" content="https://www.mycustombeats.com/images/hero-1.jpg" />
     <meta data-static-seo property="og:url" content="https://www.mycustombeats.com/" />
     <meta property="og:type" content="website" />
@@ -77,7 +80,7 @@
           "name": "My Custom Beats",
           "alternateName": "MCB",
           "url": "https://www.mycustombeats.com",
-          "description": "My Custom Beats turns a memory into a personalised song, written and produced to order and delivered as vinyl, CD or MP3, alongside physical keepsakes made to hold it.",
+          "description": "My Custom Beats turns a memory into a personalised song, written and produced to order and delivered digitally or on vinyl, alongside personalised keepsakes made to hold it.",
           "logo": {
                 "@type": "ImageObject",
                 "@id": "https://www.mycustombeats.com/#logo",

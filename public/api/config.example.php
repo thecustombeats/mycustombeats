@@ -50,23 +50,20 @@ return [
         'webhook_secret' => '',   // whsec_…
         'secret_key'     => '',   // sk_live_… — server-side only, never shipped
 
-        // Server-created Checkout Sessions. OFF, and it stays OFF until a
-        // release decision says otherwise. While false, /api/checkout/session
-        // returns 503 and the site continues to use the Payment Links, which
-        // remain the live payment path.
+        // Server-created Checkout Sessions — the ONLY online payment path.
+        // OFF until Bella/Lewis approve going live. While false,
+        // /api/checkout/session returns 503 and the order form tells customers
+        // online checkout is not yet available.
         //
         // TURNING IT ON REQUIRES ALL OF:
         //   - 'secret_key' above, a real sk_live_… (or sk_test_… to rehearse)
-        //   - 'webhook_secret' above, so payments can be confirmed at all
+        //   - 'webhook_secret' above, subscribed to checkout.session.completed
+        //     and checkout.session.async_payment_succeeded
         //   - 'app.site_origin' below, which builds the success/cancel URLs
-        //   - db/migrations/2026-09-09-checkout-sessions.sql applied, which
-        //     adds the checkout_sessions snapshot the webhook reconciles
-        //     against — without it every dynamic payment is unverifiable
+        //   - every migration in db/migrations applied, including
+        //     2026-09-14-canonical-catalogue.sql
         //   - the client flag CHECKOUT_SESSIONS_ENABLED in
-        //     src/lib/checkoutSession.ts, which is a separate, deliberate edit
-        //
-        // Two independent switches, on purpose: a stray build cannot start
-        // charging through this route on its own.
+        //     src/lib/checkoutSession.ts, a separate, deliberate edit
         'checkout_sessions_enabled' => false,
 
         // Stripe's API base. Test override ONLY — the acceptance suite points
@@ -85,9 +82,6 @@ return [
     // here can fail a payment. Set them later and replay the Stripe event
     // (Developers -> Events -> Resend) to deliver the outstanding mail.
     //
-    // This is NOT the order-form webhook in the website bundle. That one
-    // fires at submission, before payment, and must no longer send the
-    // customer a fulfilment email.
     'resend' => [
         // Server-side only. Treat exactly like the Stripe secret: never
         // commit it, never expose it to the browser, never log it.
@@ -105,6 +99,16 @@ return [
         // https://api.resend.com/emails. The acceptance suite points this at
         // a local stub so tests never send real mail.
         // 'api_url' => '',
+    ],
+
+    // ---- Operations workflow -------------------------------------------
+    // Optional. When both are set, the Stripe webhook POSTs a signed
+    // `order.paid` notice (MCB reference, lines, total — no contact details,
+    // address or story) after each order is paid. HTTPS only. Server-side
+    // only: never put this URL in the website bundle.
+    'operations' => [
+        'order_paid_webhook_url'    => '',
+        'order_paid_webhook_secret' => '',   // 32+ random bytes, shared with the receiver
     ],
 
     // ---- Reviews ------------------------------------------------------

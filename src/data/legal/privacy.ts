@@ -59,7 +59,7 @@ export const PROCESSORS: readonly Processor[] = [
     purpose: "Takes your payment.",
     receives:
       "Your name, email address and the amount. Your card details go straight to Stripe — they never reach MCB's servers at all.",
-    evidence: "data/packages.ts (Payment Links), api/lib/stripe.php",
+    evidence: "api/checkout/session.php, api/lib/stripe.php",
     scope: "EVERY_ORDER",
   },
   {
@@ -80,10 +80,10 @@ export const PROCESSORS: readonly Processor[] = [
   },
   {
     name: "Make.com",
-    purpose: "Passes your order to MCB's production workflow.",
+    purpose: "Tells MCB's production workflow that an order has been paid.",
     receives:
-      "Your order details including your contact information and the story you wrote for us.",
-    evidence: "sections/OrderFormSection.tsx",
+      "Your MCB reference, what you ordered and the amount. Not your contact details, address or story.",
+    evidence: "api/lib/ops.php",
     scope: "EVERY_ORDER",
   },
   {
@@ -226,7 +226,7 @@ export const PRIVACY_SECTIONS: readonly PrivacySection[] = [
     heading: "What we collect",
     body: [
       "When you order: your name, email address, a phone number if you give one, a delivery address for anything physical, and the story and details you send us so we can create your work. If you upload photographs or artwork, those too.",
-      "When you enquire about a Full Package: your contact details, the occasion, what you would like to spend, and what you tell us about the person it is for.",
+      "When you enquire about a Bespoke commission: your contact details, the occasion, what you would like to spend, and what you tell us about the person it is for.",
       "When you simply visit: the pages you look at, and technical information your browser sends, including your IP address.",
     ],
   },

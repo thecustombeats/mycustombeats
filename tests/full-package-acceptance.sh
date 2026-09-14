@@ -1,18 +1,18 @@
 #!/bin/bash
-# MCB FULL PACKAGE / PRIVATE CONCIERGE — acceptance tests.
+# MCB BESPOKE (formerly "The Full Package") / PRIVATE CONCIERGE — acceptance tests.
 #
 # Runs against the same throwaway PHP + MariaDB containers as
 # api-acceptance.sh and checkout-acceptance.sh. See tests/README.md.
 #
 # NO REQUEST EVER REACHES STRIPE, and nothing here creates a payment of any
-# kind — which is most of the point. The Full Package has no price and no
-# checkout, and these assertions exist to prove that is structurally true
-# rather than merely currently true.
+# kind — which is most of the point. Bespoke is QUOTED: it has no price, no
+# SKU and no checkout, and these assertions exist to prove that is
+# structurally true rather than merely currently true.
 #
-# WHAT IS BEING PROVED, IN ONE LINE: an enquiry is not an order, £799 is gone
-# from every customer-facing surface, the retired Payment Link is still in
-# source but unreachable, and the budget the customer stated is stored exactly
-# as they stated it.
+# WHAT IS BEING PROVED, IN ONE LINE: an enquiry is not an order, Bespoke and
+# MCB LIVE cannot be ordered or priced online, no retired price or Payment Link
+# survives in source, and the budget the customer stated is stored exactly as
+# they stated it.
 
 BASE=http://localhost:8080/api
 ORIGIN=http://localhost:8080
@@ -46,7 +46,9 @@ with_consent() {
   esac
 }
 
-post_raw() { curl -s -o /tmp/fp.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$2"; }
+# Every POST carries a fresh Idempotency-Key (required by /api/order, ignored elsewhere).
+idem() { echo "test-$(openssl rand -hex 16)"; }
+post_raw() { curl -s -o /tmp/fp.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -H "Idempotency-Key: $(idem)" -d "$2"; }
 post() {
   local ep="$1" data="$2"
   [ "$ep" = "order" ] && data="$(with_consent "$data")"
@@ -82,95 +84,84 @@ CRMKEY="test_crm_key_not_real_000000000000000000000"
 # The rows themselves are untouched; only their rate-limit attribution is.
 release_limit() { q "UPDATE concierge_enquiries SET ip_hash = NULL" >/dev/null; }
 
-# The retired Bespoke Payment Link, written out here so a change to it fails
-# a test rather than passing quietly. §32: it must remain byte-identical.
-LEGACY_LINK="https://buy.stripe.com/5kQ8wO9vKcLR3KO3eabsc09"
+PRODUCTS=src/data/catalogue/products.ts
+CATALOGUE=public/api/data/catalogue.json
+# Browser source a customer can be shown: no comments, no .bak copies, and not
+# the internal legal review register (which quotes retired wording on purpose).
+customer_src() { find src -type f \( -name '*.ts' -o -name '*.tsx' \) ! -name 'review.ts' -print0 | xargs -0 grep -hv '^[[:space:]]*\*' | grep -v '^[[:space:]]*//' | grep -v '^[[:space:]]*/\*' | grep -v '{/\*'; }
+block() { awk "/^export const $1: Product = \\{/,/^};/" $PRODUCTS; }
 
 echo "================ 1. THE COMMERCIAL MODEL ================"
-tc "1. bespoke declares commercialModel CONCIERGE" \
-  "$(grep -q 'commercialModel: "CONCIERGE"' src/data/packages.ts && echo 1 || echo 0)"
-tc "2. the four sold experiences declare FIXED_PRICE" \
-  "$([ "$(grep -c 'commercialModel: \"FIXED_PRICE\",' src/data/packages.ts)" = "4" ] && echo 1 || echo 0)"
-tc "3. the Full Package is named, not called Bespoke, to customers" \
-  "$(grep -q 'name: "The Full Package"' src/data/packages.ts && echo 1 || echo 0)"
+tc "1. Bespoke declares commercialModel QUOTED" \
+  "$(block BESPOKE | grep -q 'commercialModel: "QUOTED"' && echo 1 || echo 0)"
+tc "2. the three song experiences are fixed-price and sold online" \
+  "$(python3 -c 'import json,sys;p=json.load(open(sys.argv[1]))["products"];print(1 if all(p[k]["commercial_model"] in ("FIXED","VARIANT_FIXED") and p[k]["online_checkout"] is True for k in ("moment","keepsake","journey")) else 0)' $CATALOGUE)"
+tc "3. it is named Bespoke to customers" \
+  "$(block BESPOKE | grep -q 'name: "Bespoke"' && echo 1 || echo 0)"
+tc "3b.  → and 'The Full Package' is no longer a customer-facing name" \
+  "$(customer_src | grep -q 'The Full Package' && echo 0 || echo 1)"
 tc "4. it keeps the internal id 'bespoke' for compatibility" \
-  "$(grep -A2 'export const FULL_PACKAGE' src/data/packages.ts | grep -q 'id: "bespoke"' && echo 1 || echo 0)"
-tc "5. it carries the Private Concierge label" \
-  "$(grep -q 'conciergeLabel: "Private Concierge"' src/data/packages.ts && echo 1 || echo 0)"
+  "$(block BESPOKE | grep -q 'id: "bespoke"' && echo 1 || echo 0)"
+tc "5. it is not sold online" \
+  "$(block BESPOKE | grep -q 'onlineCheckout: false' && echo 1 || echo 0)"
 tc "6. the approved concierge copy is present verbatim" \
-  "$(grep -q 'Every Full Package is individually curated. We combine MCB' src/data/packages.ts && echo 1 || echo 0)"
-tc "7. the commercial sequence ends at payment, not begins with it" \
-  "$(grep -q 'CONCIERGE_SEQUENCE' src/data/packages.ts && grep -q 'Payment arranged' src/data/packages.ts && echo 1 || echo 0)"
+  "$(block BESPOKE | grep -q 'Every Bespoke commission is individually curated. We combine MCB' && echo 1 || echo 0)"
+tc "6b. the commercial sequence ends at payment, not begins with it" \
+  "$(grep -q 'export const CONCIERGE_SEQUENCE' src/lib/concierge.ts && grep -q 'title: "Payment arranged"' src/lib/concierge.ts && echo 1 || echo 0)"
+tc "7. MCB LIVE is QUOTED too" \
+  "$(block MCB_LIVE | grep -q 'commercialModel: "QUOTED"' && block MCB_LIVE | grep -q 'onlineCheckout: false' && echo 1 || echo 0)"
 
 echo ""
-echo "================ 2. NO PRICE ANYWHERE CUSTOMER-FACING ================"
-tc "8. FULL_PACKAGE declares no live price object" \
-  "$(awk '/export const FULL_PACKAGE/,/^};/' src/data/packages.ts | grep -q '^  price:' && echo 0 || echo 1)"
-tc "9. the retired figures live in a module nothing in src/ imports" \
-  "$(grep -q 'gbp: 799' src/data/legacy/retiredBespoke.ts \
-     && [ "$(grep -rl 'legacy/retiredBespoke' src/ | wc -l | tr -d ' ')" = "1" ] && echo 1 || echo 0)"
-tc "10. generated packages.json carries commercial_model CONCIERGE" \
-  "$(grep -q '"commercial_model": "CONCIERGE"' public/api/data/packages.json && echo 1 || echo 0)"
-tc "11. generated packages.json gives bespoke a NULL price" \
-  "$(grep -A3 '"bespoke"' public/api/data/packages.json | grep -q '"price_gbp": null' && echo 1 || echo 0)"
-tc "12. the figure 799 appears nowhere in the generated server data" \
-  "$(grep -q '799' public/api/data/packages.json && echo 0 || echo 1)"
-tc "13. the built browser bundle never says 'From £799'" \
-  "$(grep -rq 'From £799' dist/assets/ 2>/dev/null && echo 0 || echo 1)"
-tc "14. and the retired Payment Link never reaches the browser bundle" \
-  "$(grep -rqF "$LEGACY_LINK" dist/assets/ 2>/dev/null && echo 0 || echo 1)"
-tc "15. formatPrice returns null rather than inventing a figure" \
-  "$(grep -q 'if (!pkg.price) return null;' src/data/packages.ts && echo 1 || echo 0)"
-tc "16. structured data emits NO offers node for a concierge package" \
-  "$(grep -q 'offer !== null && {' src/lib/seo.ts && echo 1 || echo 0)"
-tc "17. hasFixedPrice is false when there is no price at all" \
-  "$(grep -q 'pkg.price !== undefined && !pkg.price.prefix' src/lib/seo.ts && echo 1 || echo 0)"
-tc "18. the FAQ renders no price for the Full Package" \
-  "$(grep -v '^\s*\*' src/pages/FAQ.tsx | grep -q '799' && echo 0 || echo 1)"
-
-echo ""
-echo "================ 3. THE LEGACY PAYMENT LINK ================"
-tc "19. the retired Bespoke Payment Link is still in source, byte-identical" \
-  "$(grep -qF "$LEGACY_LINK" src/data/legacy/retiredBespoke.ts && echo 1 || echo 0)"
-tc "20. the Full Package declares no fallbackCheckout to be found by" \
-  "$(awk '/export const FULL_PACKAGE/,/^};/' src/data/packages.ts | grep -q '^  fallbackCheckout' && echo 0 || echo 1)"
-tc "21. all nine Payment Link URLs remain present in source" \
-  "$([ "$(cat src/data/packages.ts src/data/legacy/retiredBespoke.ts | grep -c 'https://buy.stripe.com/')" = "9" ] && echo 1 || echo 0)"
-tc "22. getCheckoutTarget refuses a concierge package before any other branch" \
-  "$(grep -q 'if (isConcierge(pkg)) return undefined;' src/data/packages.ts && echo 1 || echo 0)"
-tc "23. the eight SELLABLE links do still reach the bundle (23 is not vacuous)" \
-  "$([ "$(grep -roh 'https://buy.stripe.com/[A-Za-z0-9]*' dist/assets/ | sort -u | wc -l | tr -d ' ')" = "8" ] && echo 1 || echo 0)"
+echo "================ 2. NO PRICE ANYWHERE ================"
+tc "8. Bespoke declares no variants, so nothing can carry a price" \
+  "$(block BESPOKE | grep -q 'variants: \[\],' && ! block BESPOKE | grep -qE 'price(Minor)?:' && echo 1 || echo 0)"
+tc "10. the generated catalogue carries commercial_model QUOTED for both" \
+  "$(python3 -c 'import json,sys;p=json.load(open(sys.argv[1]))["products"];print(1 if p["bespoke"]["commercial_model"]==p["mcb-live"]["commercial_model"]=="QUOTED" and not p["bespoke"]["online_checkout"] and not p["mcb-live"]["online_checkout"] else 0)' $CATALOGUE)"
+tc "11. no SKU of any kind exists for Bespoke or MCB LIVE" \
+  "$(python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(1 if d["products"]["bespoke"]["skus"]==[] and d["products"]["mcb-live"]["skus"]==[] and not any(v["product_id"] in ("bespoke","mcb-live") for v in d["skus"].values()) else 0)' $CATALOGUE)"
+tc "12. the retired £799 figure appears nowhere in the generated server data" \
+  "$(python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(0 if any(v["price_minor"] in (79900,) for v in d["skus"].values()) or "£799" in open(sys.argv[1]).read() else 1)' $CATALOGUE)"
+tc "13. no browser source says '£799'" \
+  "$(customer_src | grep -q '£799' && echo 0 || echo 1)"
+tc "14. no Stripe Payment Link survives in browser source" \
+  "$(grep -rq 'buy\.stripe\.com' src/ 2>/dev/null && echo 0 || echo 1)"
+tc "16. structured data emits NO offers for a QUOTED product" \
+  "$(grep -q 'case "QUOTED":' src/lib/seo.ts && echo 1 || echo 0)"
+tc "18. the FAQ renders no £799" \
+  "$(grep -v '^\s*\*' src/pages/FAQ.tsx | grep -q '£799' && echo 0 || echo 1)"
 
 echo ""
 echo "================ 4. THE PAID PATHS REFUSE IT ================"
-ORD='{"firstName":"Con","lastName":"Cierge","email":"fp-order@example.com","package":"bespoke","format":"","story":"x"}'
-t "24. POST /api/order refuses the Full Package" 422 "$(post order "$ORD")"
-tc "25.  → refused on the package field, with a human explanation" \
-  "$(body | grep -q '"package":"That experience is arranged personally' && echo 1 || echo 0)"
-tc "26.  → and no order row was written for it" \
-  "$([ "$(q "SELECT COUNT(*) FROM orders WHERE package='bespoke'")" = "0" ] && echo 1 || echo 0)"
+BEFORE=$(q "SELECT COUNT(*) FROM orders")
+for SKU in bespoke mcb-live gift-voucher; do
+  ORD='{"firstName":"Con","lastName":"Cierge","email":"fp-order@example.com","lines":[{"sku":"'"$SKU"'","quantity":1}],"story":"x"}'
+  S=$(post order "$ORD")
+  tc "24. POST /api/order refuses '$SKU' as unknown_sku" "$([ "$S" = "422" ] && body | grep -q '"error":"unknown_sku"' && echo 1 || echo 0)"
+done
+S=$(post order '{"firstName":"Con","lastName":"Cierge","email":"fp-order@example.com","package":"bespoke","format":"","story":"x"}')
+tc "25. the legacy package form of the request is refused too" "$([ "$S" = "422" ] && body | grep -q '"error":"invalid_lines"' && echo 1 || echo 0)"
+tc "26.  → and no order row was written for any of them" \
+  "$([ "$(q "SELECT COUNT(*) FROM orders")" = "$BEFORE" ] && [ "$(q "SELECT COUNT(*) FROM orders WHERE package IN ('bespoke','mcb-live')")" = "0" ] && echo 1 || echo 0)"
 release_order_limit
-OIDK=$(curl -s -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" \
-  -d '{'"$CONSENT_BLOCK"',"firstName":"Con","lastName":"Trol","email":"fp-control@example.com","package":"keepsake","format":"mp3","story":"x"}' \
-  | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
-tc "27. the control order (keepsake) was accepted, so 24 is not a blanket failure" \
+curl -s -o /tmp/fpk.json -X POST "$BASE/order" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -H "Idempotency-Key: $(idem)" \
+  -d '{'"$CONSENT_BLOCK"',"firstName":"Con","lastName":"Trol","email":"fp-control@example.com","lines":[{"sku":"moment","quantity":1}],"story":"x"}' >/dev/null
+OIDK=$(sed -n 's/.*"order_id":\([0-9]*\).*/\1/p' /tmp/fpk.json)
+TOKK=$(sed -n 's/.*"checkout_token":"\([a-f0-9]*\)".*/\1/p' /tmp/fpk.json)
+tc "27. the control order (Moment) was accepted, so 24 is not a blanket failure" \
   "$([ -n "$OIDK" ] && echo 1 || echo 0)"
-t "28. POST /api/checkout/session refuses the Full Package" 422 "$(post checkout/session '{"package":"bespoke","orderId":'"$OIDK"'}')"
-tc "29.  → with the concierge code, not 'unpriced_package'" \
-  "$(body | grep -q 'concierge_package' && echo 1 || echo 0)"
-tc "30.  → and no checkout session row exists for it" \
-  "$([ "$(q "SELECT COUNT(*) FROM checkout_sessions WHERE package='bespoke'")" = "0" ] && echo 1 || echo 0)"
-tc "31. the refusal lives in price_basket, so every future basket inherits it" \
-  "$(grep -q "package_is_concierge(\$packageId)" public/api/lib/basket.php && echo 1 || echo 0)"
-tc "32. package_is_concierge fails CLOSED for an unknown id" \
-  "$(grep -A4 'function package_is_concierge' public/api/lib/packages.php | grep -q 'return true;' && echo 1 || echo 0)"
-
-echo ""
-echo "================ 5. COMPLETE YOUR MEMORY EXCLUSION ================"
-tc "33. offersFor returns nothing for a concierge package" \
-  "$(grep -q 'if (isConcierge(pkg)) return \[\];' src/lib/completeMemory.ts && echo 1 || echo 0)"
-tc "34. the exclusion is by commercial model, not by the id 'bespoke'" \
-  "$(grep -q 'packageId === "bespoke"' src/lib/completeMemory.ts && echo 0 || echo 1)"
+t "28. a checkout request naming bespoke is priced from the SAVED order, not the name" 200 \
+  "$(post checkout/session '{"orderId":'"$OIDK"',"checkoutToken":"'"$TOKK"'","package":"bespoke","lines":[{"sku":"bespoke","quantity":1}]}')"
+tc "29.  → the snapshot is the control order's own product" \
+  "$([ "$(q "SELECT package FROM checkout_sessions WHERE order_id=$OIDK")" = "moment" ] && echo 1 || echo 0)"
+tc "30.  → and no checkout session row exists for bespoke" \
+  "$([ "$(q "SELECT COUNT(*) FROM checkout_sessions WHERE package='bespoke' OR basket_lines LIKE '%bespoke%'")" = "0" ] && echo 1 || echo 0)"
+tc "31. the refusal lives in price_order_lines: only orderable SKUs are priced" \
+  "$(grep -q "(\$item\['orderable'\] ?? false) !== true" public/api/lib/catalogue.php && echo 1 || echo 0)"
+tc "32. an unknown or non-orderable SKU fails CLOSED" \
+  "$(grep -A3 "(\$item\['orderable'\] ?? false) !== true" public/api/lib/catalogue.php | grep -q "refused('unknown_sku'" && echo 1 || echo 0)"
+# The enquiry section below asserts no checkout session exists; the control
+# order's session above is removed so that stays a statement about enquiries.
+q "DELETE FROM checkout_sessions WHERE order_id=$OIDK" >/dev/null
 
 echo ""
 echo "================ 6. THE ENQUIRY IS RECORDED, NOT CHARGED ================"
@@ -309,8 +300,8 @@ tc "81. the shipped config template still keeps checkout sessions OFF" \
   "$(grep -A1 "'checkout_sessions_enabled'" public/api/config.example.php | grep -qi 'false' && echo 1 || echo 0)"
 tc "82. the client checkout flag is still false" \
   "$(grep -q 'export const CHECKOUT_SESSIONS_ENABLED = false' src/lib/checkoutSession.ts && echo 1 || echo 0)"
-tc "83. no Stripe secret in the built browser bundle" \
-  "$(grep -rq 'sk_live_\|sk_test_' dist/assets/ 2>/dev/null && echo 0 || echo 1)"
+tc "83. no Stripe secret in browser source" \
+  "$(grep -rqE 'sk_(live|test)_[A-Za-z0-9]' src/ 2>/dev/null && echo 0 || echo 1)"
 tc "84. the concierge endpoint contains no Stripe call of any kind" \
   "$(grep -v '^\s*\*' public/api/concierge/enquiry.php | grep -Eqi 'stripe|checkout|payment_intent|curl_' && echo 0 || echo 1)"
 tc "85. and the client enquiry module contains none either" \

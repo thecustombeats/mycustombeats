@@ -24,7 +24,13 @@ tc() { local name="$1" ok="$2"
   if [ "$ok" = "1" ]; then printf "  PASS  %-64s\n" "$name"; PASS=$((PASS+1));
   else printf "  FAIL  %-64s\n" "$name"; FAIL=$((FAIL+1)); FAILED+=("$name"); fi }
 
-post_raw() { curl -s -o /tmp/lg.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$2"; }
+# Every order POST carries a fresh Idempotency-Key unless the test sets IDEM.
+idem() { echo "test-$(openssl rand -hex 16)"; }
+post_raw() { curl -s -o /tmp/lg.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -H "Idempotency-Key: ${IDEM:-$(idem)}" -d "$2"; }
+# A digital order is a Moment; a physical one a 7-inch Picture Disc Keepsake.
+DIGITAL='"lines":[{"sku":"moment","quantity":1}]'
+PHYSICAL='"lines":[{"sku":"keepsake-7-picture-disc","quantity":1}]'
+PRODUCTS=src/data/catalogue/products.ts
 post() {
   [ "$1" = "order" ] && release_order_limit
   post_raw "$1" "$2"
@@ -97,19 +103,19 @@ tc "8. no clause claims power to rewrite concluded contracts" \
 echo ""
 echo "================ 2. CONSENT IS EVIDENCE ================"
 t "9. an order carrying NO consent is refused" 422 \
-  "$(post order '{"firstName":"No","lastName":"Consent","email":"lg-none@example.com","package":"keepsake","format":"mp3","story":"x","termsVersion":"'"$VER"'"}')"
+  "$(post order '{"firstName":"No","lastName":"Consent","email":"lg-none@example.com",'"$DIGITAL"',"story":"x","termsVersion":"'"$VER"'"}')"
 tc "10.  → refused on the consent field, not on something else" \
   "$(body | grep -q '"consents"' && echo 1 || echo 0)"
 t "11. a crafted request cannot skip the digital acknowledgement" 422 \
-  "$(post order '{"firstName":"Part","lastName":"Consent","email":"lg-part@example.com","package":"keepsake","format":"mp3","story":"x","consents":{"TERMS":true,"SERVICE_START":true},"termsVersion":"'"$VER"'"}')"
+  "$(post order '{"firstName":"Part","lastName":"Consent","email":"lg-part@example.com",'"$DIGITAL"',"story":"x","consents":{"TERMS":true,"SERVICE_START":true},"termsVersion":"'"$VER"'"}')"
 t "12. a truthy-but-not-true consent value is refused, not coerced" 422 \
-  "$(post order '{"firstName":"Truthy","lastName":"X","email":"lg-truthy@example.com","package":"keepsake","format":"mp3","story":"x","consents":{"TERMS":"true","SERVICE_START":1,"DIGITAL_CONTENT":"on"},"termsVersion":"'"$VER"'"}')"
+  "$(post order '{"firstName":"Truthy","lastName":"X","email":"lg-truthy@example.com",'"$DIGITAL"',"story":"x","consents":{"TERMS":"true","SERVICE_START":1,"DIGITAL_CONTENT":"on"},"termsVersion":"'"$VER"'"}')"
 t "13. a terms version MCB never published is refused" 422 \
-  "$(post order '{"firstName":"Bad","lastName":"Ver","email":"lg-ver@example.com","package":"keepsake","format":"mp3","story":"x","consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2019-01-01"}')"
+  "$(post order '{"firstName":"Bad","lastName":"Ver","email":"lg-ver@example.com",'"$DIGITAL"',"story":"x","consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2019-01-01"}')"
 tc "14.  → and named the version field" \
   "$(body | grep -q 'termsVersion' && echo 1 || echo 0)"
 t "15. a fully consented order is accepted" 201 \
-  "$(post order '{'"$FULL"',"firstName":"Good","lastName":"Order","email":"lg-ok@example.com","package":"keepsake","format":"mp3","story":"x"}')"
+  "$(post order '{'"$FULL"',"firstName":"Good","lastName":"Order","email":"lg-ok@example.com",'"$DIGITAL"',"story":"x"}')"
 OID=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "16. the accepted terms version is persisted against the order" \
   "$([ "$(q "SELECT terms_version FROM order_consents WHERE order_id=$OID")" = "$VER" ] && echo 1 || echo 0)"
@@ -125,13 +131,13 @@ tc "21. consent evidence is booleans and timestamps, not a blob of text" \
   "$(q "SHOW COLUMNS FROM order_consents" | grep -q 'terms_accepted_at' && q "SHOW COLUMNS FROM order_consents" | grep -q 'digital_content_ack' && echo 1 || echo 0)"
 
 t "22. a physical order is not asked to acknowledge digital supply" 201 \
-  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true},"termsVersion":"'"$VER"'",'"$CRUISE"',"firstName":"Vin","lastName":"Yl","email":"lg-vinyl@example.com","package":"keepsake","format":"vinyl","story":"x","shippingName":"V Y","shippingAddress":"1 St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom"}')"
+  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true},"termsVersion":"'"$VER"'",'"$CRUISE"',"firstName":"Vin","lastName":"Yl","email":"lg-vinyl@example.com",'"$PHYSICAL"',"story":"x","shippingName":"V Y","shippingAddress":"1 St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom"}')"
 OIDV=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "23.  → and its acknowledgement is NULL, not 0 (never asked ≠ declined)" \
   "$([ "$(q "SELECT IFNULL(digital_content_ack,'NULL') FROM order_consents WHERE order_id=$OIDV")" = "NULL" ] && echo 1 || echo 0)"
 # Attempted against a FRESH order id with no consent row, so the UNIQUE key
 # cannot fire first and mask the constraint being tested.
-post order '{"consents":{"TERMS":true,"SERVICE_START":true},"termsVersion":"'"$VER"'",'"$CRUISE"',"firstName":"Chk","lastName":"Row","email":"lg-chk@example.com","package":"keepsake","format":"vinyl","story":"x","shippingName":"C R","shippingAddress":"1 St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom"}' >/dev/null
+post order '{"consents":{"TERMS":true,"SERVICE_START":true},"termsVersion":"'"$VER"'",'"$CRUISE"',"firstName":"Chk","lastName":"Row","email":"lg-chk@example.com",'"$PHYSICAL"',"story":"x","shippingName":"C R","shippingAddress":"1 St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom"}' >/dev/null
 OIDC=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 q "DELETE FROM order_consents WHERE order_id=$OIDC" >/dev/null
 tc "24. the DATABASE refuses a required-but-missing digital acknowledgement" \
@@ -205,21 +211,24 @@ tc "50. the Privacy page no longer claims data is never shared" \
 tc "51.  → and names the processors it actually relies on" \
   "$([ "$(grep -c 'name: \"' src/data/legal/privacy.ts)" -ge "10" ] \
      && grep -q 'PROCESSORS' src/pages/legal/Privacy.tsx \
-     && grep -rq 'Cloudinary' dist/assets/ 2>/dev/null && echo 1 || echo 0)"
+     && grep -q 'Cloudinary' src/data/legal/privacy.ts && echo 1 || echo 0)"
 tc "51b.  → each processor entry cites the source file that proves it" \
   "$([ "$(grep -c '^    evidence: ' src/data/legal/privacy.ts)" = "$(grep -c '^    name: \"' src/data/legal/privacy.ts)" ] && echo 1 || echo 0)"
 tc "52. the liability cap at 'the amount paid' is gone" \
   "$(prose $LEGAL_PROSE | grep -qi 'liability is limited to the amount paid' && echo 0 || echo 1)"
-# The strongest form of the same assertion: not in the source, and not in the
-# JavaScript a customer's browser downloads either.
-tc "52b. and none of the banned phrases reaches the built bundle" "$(
+# The strongest form of the same assertion: every banned phrase the register
+# lists, checked against ALL browser source (comments stripped) — the source a
+# bundle is built from. The register itself is excluded; it quotes them.
+tc "52b. and none of the banned phrases appears in any browser source" "$(
   python3 - <<'PYEOF'
-import re, pathlib, sys
-src = pathlib.Path("src/data/legal/review.ts").read_text()
-phrases = re.findall(r'phrase: "([^"]+)"', src)
-bundle = "\n".join(p.read_text(errors="ignore") for p in pathlib.Path("dist/assets").glob("*.js"))
-hits = [p for p in phrases if p.lower() in bundle.lower()]
-print(0 if hits else 1)
+import re, pathlib
+phrases = re.findall(r'phrase: "([^"]+)"', pathlib.Path("src/data/legal/review.ts").read_text())
+def prose(p):
+    return "\n".join(l for l in p.read_text(errors="ignore").splitlines()
+                     if not re.match(r"\s*(\*|//|/\*|\{/\*)", l))
+text = "\n".join(prose(p) for p in pathlib.Path("src").rglob("*.ts*")
+                 if p.name != "review.ts" and not p.name.endswith(".bak"))
+print(1 if phrases and not [x for x in phrases if x.lower() in text.lower()] else 0)
 PYEOF
 )"
 
@@ -299,25 +308,25 @@ tc "71. the digital-supply consequence is stated beside its checkbox" \
 
 echo ""
 echo "================ 6. ENTITLEMENTS MATCH THE PACKAGES ================"
-tc "72. the Terms derive entitlements rather than restating them" \
-  "$(grep -q 'revisionEntitlements' src/data/legal/terms.ts && grep -q 'pkg.revisions' src/data/legal/terms.ts && echo 1 || echo 0)"
-tc "73. Moment still includes 1 revision" \
-  "$(grep -q 'revisions: "1 revision included"' src/data/packages.ts && echo 1 || echo 0)"
-tc "74. Keepsake includes 1 refinement revision (Founder revision)" \
-  "$(grep -q 'revisions: "1 refinement revision"' src/data/packages.ts && echo 1 || echo 0)"
-tc "75. Journey and Heirloom include 1 refinement per song (Founder revision)" \
-  "$([ "$(grep -c 'revisions: \"1 refinement per song\"' src/data/packages.ts)" = "2" ] && echo 1 || echo 0)"
-tc "76. the Full Package did NOT inherit 'unlimited refinements'" \
-  "$(awk '/export const FULL_PACKAGE/,/^};/' src/data/packages.ts | grep -qi 'unlimited' && echo 0 || echo 1)"
+tc "72. the Terms derive entitlements from the catalogue rather than restating them" \
+  "$(grep -q 'export const revisionEntitlements' src/data/legal/terms.ts && grep -q 'entitlement: product.revisions' src/data/legal/terms.ts && echo 1 || echo 0)"
+tc "73. Moment includes 1 revision" \
+  "$(awk '/^export const MOMENT: Product = \{/,/^};/' $PRODUCTS | grep -q 'revisions: "1 revision",' && echo 1 || echo 0)"
+tc "74. Keepsake includes 1 refinement per song" \
+  "$(awk '/^export const KEEPSAKE: Product = \{/,/^};/' $PRODUCTS | grep -q 'revisions: "1 refinement per song",' && echo 1 || echo 0)"
+tc "75. Journey includes 1 refinement per song" \
+  "$(awk '/^export const JOURNEY: Product = \{/,/^};/' $PRODUCTS | grep -q 'revisions: "1 refinement per song",' && echo 1 || echo 0)"
+tc "76. Bespoke did NOT inherit 'unlimited refinements'" \
+  "$(awk '/^export const BESPOKE: Product = \{/,/^};/' $PRODUCTS | grep -qi 'unlimited' && echo 0 || echo 1)"
 tc "77. no surface anywhere still promises unlimited refinements" \
-  "$(prose src/data/packages.ts src/pages/FAQ.tsx src/data/legal/*.ts | grep -qi 'unlimited refinement' && echo 0 || echo 1)"
-tc "78. the FAQ derives its revision answer from the packages" \
-  "$(grep -q 'MOMENT.revisions.toLowerCase()' src/pages/FAQ.tsx && echo 1 || echo 0)"
+  "$(prose $PRODUCTS src/pages/FAQ.tsx src/data/legal/*.ts | grep -qi 'unlimited refinement' && echo 0 || echo 1)"
+tc "78. the FAQ derives its revision answers from the catalogue" \
+  "$(grep -q 'MOMENT.revisions' src/pages/FAQ.tsx && grep -q 'KEEPSAKE.revisions' src/pages/FAQ.tsx && echo 1 || echo 0)"
 
 echo ""
-echo "================ 7. THE FULL PACKAGE IS NOT A PURCHASE ================"
+echo "================ 7. BESPOKE IS NOT A PURCHASE ================"
 tc "79. an enquiry is described as committing neither side" \
-  "$(grep -q 'A Full Package enquiry is not a purchase' src/data/legal/refunds.ts && echo 1 || echo 0)"
+  "$(grep -q 'A Bespoke enquiry is not a purchase' src/data/legal/refunds.ts && echo 1 || echo 0)"
 tc "80. the concierge contract is formed by the written proposal" \
   "$(grep -q "that commission's own written terms" src/data/legal/refunds.ts && echo 1 || echo 0)"
 # Counted before and after, rather than against the order count: assertion 24
@@ -330,8 +339,9 @@ tc "82.  → and created no order" \
   "$([ "$(q "SELECT COUNT(*) FROM orders o JOIN customers c ON c.id=o.customer_id WHERE c.email='lg-fp@example.com'")" = "0" ] && echo 1 || echo 0)"
 tc "83.  → and no consent row, because there is no contract to consent to" \
   "$([ "$(q "SELECT COUNT(*) FROM order_consents")" = "$CONSENTS_BEFORE" ] && echo 1 || echo 0)"
-t "84. the Full Package still cannot be ordered" 422 \
-  "$(post order '{'"$FULL"',"firstName":"F","lastName":"P","email":"lg-fpo@example.com","package":"bespoke","format":"","story":"x"}')"
+t "84. Bespoke still cannot be ordered" 422 \
+  "$(post order '{'"$FULL"',"firstName":"F","lastName":"P","email":"lg-fpo@example.com","lines":[{"sku":"bespoke","quantity":1}],"story":"x"}')"
+tc "84b.  → refused as unknown_sku" "$(body | grep -q '"error":"unknown_sku"' && echo 1 || echo 0)"
 
 echo ""
 echo "================ 8. DURABLE CONFIRMATION ================"
@@ -346,31 +356,34 @@ tc "88. and it tells the customer a later change will not affect them" \
 
 echo ""
 echo "================ 9. NOTHING ELSE MOVED ================"
-tc "89. package prices unchanged (10/79/199/349)" \
-  "$(for p in 'gbp: 10' 'gbp: 79' 'gbp: 199' 'gbp: 349'; do grep -q "$p," src/data/packages.ts || exit 1; done && echo 1 || echo 0)"
-tc "90. the Full Package still publishes no price" \
-  "$(grep -A3 '"bespoke"' public/api/data/packages.json | grep -q '"price_gbp": null' && echo 1 || echo 0)"
-tc "91. all nine Payment Link URLs unchanged" \
-  "$([ "$(cat src/data/packages.ts src/data/legal/*.ts src/data/legacy/retiredBespoke.ts | grep -c 'https://buy.stripe.com/')" = "9" ] && echo 1 || echo 0)"
+# 89-91 pinned the old package prices, Bespoke's null price in packages.json
+# and nine Payment Link URLs. That model is retired; see checkout-acceptance.sh
+# for the authorised catalogue prices.
+tc "89. prices are generated from the canonical catalogue (generated copy current)" \
+  "$(node scripts/generate-catalogue-json.mjs --check >/dev/null 2>&1 && echo 1 || echo 0)"
+tc "90. Bespoke still publishes no price: it has no SKU" \
+  "$(python3 -c 'import json;d=json.load(open("public/api/data/catalogue.json"));print(1 if d["products"]["bespoke"]["skus"]==[] else 0)')"
+tc "91. no Stripe Payment Link survives in browser or legal source" \
+  "$(grep -rq 'buy\.stripe\.com' src/ 2>/dev/null && echo 0 || echo 1)"
 tc "92. dynamic checkout stays OFF in the shipped config template" \
   "$(grep -A1 "'checkout_sessions_enabled'" public/api/config.example.php | grep -qi 'false' && echo 1 || echo 0)"
 tc "93. the client checkout flag stays false" \
   "$(grep -q 'export const CHECKOUT_SESSIONS_ENABLED = false' src/lib/checkoutSession.ts && echo 1 || echo 0)"
-tc "94. no Stripe secret in the built bundle" \
-  "$(grep -rq 'sk_live_\|sk_test_' dist/assets/ 2>/dev/null && echo 0 || echo 1)"
+tc "94. no Stripe secret in browser source" \
+  "$(grep -rqE 'sk_(live|test)_[A-Za-z0-9]' src/ 2>/dev/null && echo 0 || echo 1)"
 tc "95. the legal modules make no Stripe call" \
   "$(prose src/data/legal/*.ts public/api/lib/legal.php | grep -qiE 'api\.stripe\.com|fetch\(|curl_|stripe_create|sk_(live|test)_' && echo 0 || echo 1)"
-tc "96. optional enhancements are still opt-in with nothing preselected" \
-  "$(grep -q 'Nothing here is required and nothing is preselected' src/components/CompleteYourMemory.tsx && echo 1 || echo 0)"
+tc "96. nothing is added to an order the customer did not choose" \
+  "$([ "$(q "SELECT COUNT(*) FROM order_items WHERE order_id=$OID")" = "1" ] && [ "$(q "SELECT item_id FROM order_items WHERE order_id=$OID")" = "moment" ] && echo 1 || echo 0)"
 tc "97. the order review still shows a total before payment" \
-  "$(grep -q 'totalGbp' src/lib/completeMemory.ts && grep -q 'YourMemorySummary' src/sections/OrderFormSection.tsx && echo 1 || echo 0)"
+  "$(grep -q 'formatMinor(preview.totalMinor)' src/components/YourMemorySummary.tsx && grep -q '<YourMemorySummary' src/sections/OrderFormSection.tsx && echo 1 || echo 0)"
 tc "98. the migration is additive — it alters and drops nothing" \
   "$(grep -qiE '^\s*(ALTER|DROP|DELETE|TRUNCATE)' db/migrations/2026-09-09-legal-consent-production.sql && echo 0 || echo 1)"
 
 echo ""
 echo "================ 9b. LEGAL-PAGE SEO ================"
 tc "98b. legal pages emit no Product or Offer schema" \
-  "$(grep -rq '"@type": "Product"' dist/assets/*.js 2>/dev/null && prose src/pages/legal/*.tsx | grep -qi 'application/ld+json' && echo 0 || echo 1)"
+  "$(prose src/pages/legal/*.tsx | grep -qiE 'application/ld\+json|"Product"|"Offer"' && echo 0 || echo 1)"
 tc "98c. and add no second canonical over App.tsx's" \
   "$(grep -q 'rel="canonical"' src/pages/legal/Terms.tsx src/pages/legal/Refund.tsx src/pages/legal/Privacy.tsx && echo 0 || echo 1)"
 tc "98d. each legal page states its own title and description" \
@@ -379,11 +392,11 @@ tc "98d. each legal page states its own title and description" \
 echo ""
 echo "================ 9c. CRUISE COMPANION FIELD ================"
 t "A1. an order without the cruise field is refused" 422 \
-  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"'"$VER"'","firstName":"NoCruise","lastName":"X","email":"lg-nc2@example.com","package":"keepsake","format":"mp3","story":"x"}')"
+  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"'"$VER"'","firstName":"NoCruise","lastName":"X","email":"lg-nc2@example.com",'"$DIGITAL"',"story":"x"}')"
 tc "A2.  → named on its own field, so the customer knows which one" \
   "$(body | grep -q 'cruiseCompanions' && echo 1 || echo 0)"
 t "A3. an order with it is accepted" 201 \
-  "$(post order '{'"$FULL"',"firstName":"Cruise","lastName":"Y","email":"lg-cruise@example.com","package":"keepsake","format":"mp3","story":"x"}')"
+  "$(post order '{'"$FULL"',"firstName":"Cruise","lastName":"Y","email":"lg-cruise@example.com",'"$DIGITAL"',"story":"x"}')"
 OIDCR=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "A4.  → and persists exactly as the customer wrote it" \
   "$([ "$(q "SELECT brief_cruise_companions FROM orders WHERE id=$OIDCR")" = "My husband David" ] && echo 1 || echo 0)"
@@ -427,8 +440,8 @@ tc "101.  → and no page, section or component imports it" \
   "$(grep -rqE 'from ["'"'"'].*legal/review' src/pages src/sections src/components 2>/dev/null && echo 0 || echo 1)"
 tc "102.  → nor is it re-exported from the legal barrel" \
   "$(grep -qE '^export \* from "\./review"' src/data/legal/index.ts && echo 0 || echo 1)"
-tc "103.  → so it never reaches the built bundle" \
-  "$(grep -rq 'LEGAL REVIEW REQUIRED' dist/assets/ 2>/dev/null && echo 0 || echo 1)"
+tc "103.  → nor imported by anything else in src/" \
+  "$(grep -rhE '^[[:space:]]*(import|export)[^;]*from[[:space:]]+["'"'"'][^"'"'"']*review["'"'"']' src --include='*.ts' --include='*.tsx' 2>/dev/null | grep -q . && echo 0 || echo 1)"
 
 echo ""
 echo "=================================================="

@@ -1,103 +1,33 @@
 /**
- * Server-created Stripe Checkout Sessions.
+ * Starts checkout for an order MCB has already saved.
  *
- * DORMANT. `CHECKOUT_SESSIONS_ENABLED` is false, so nothing here runs and the
- * order form continues to use the Stripe Payment Links, which remain the live
- * payment path. The flag exists on both sides deliberately: turning this on
- * needs the client flag AND `stripe.checkout_sessions_enabled` in the server
- * config, so a stray client build cannot start charging through an untested
- * route on its own.
+ * THE ONLY ONLINE PAYMENT PATH. Payment Links are retired: they charged a
+ * fixed amount chosen in the Stripe Dashboard and were matched to orders by an
+ * editable URL parameter.
  *
- * ─────────────────────────────────────────────────────────────────────────
- * WHAT THIS SENDS, AND WHAT IT CANNOT SEND
- * ─────────────────────────────────────────────────────────────────────────
- * A selection. The package, the format, and the MCB order id if one was
- * recorded. There is no price field in `CheckoutSelection` and no way to add
- * one from a component — the type is the guarantee. The server maps the
- * selection to the approved price and builds the Stripe line item; the
- * browser never states, suggests or influences an amount.
+ * The browser sends the order id and the checkout token `/api/order` returned
+ * for it — nothing about products, quantities or amounts. The server builds
+ * the Stripe session from the saved order.
  *
- * Keepsakes are absent for the same reason they are absent server-side: no
- * physical product has an approved price, so there is nothing a basket could
- * legitimately total.
- */
-
-/**
- * Master switch for the client half. Flip only after the server flag is on
- * and sandbox testing has passed end to end.
+ * Two independent switches must both be on before anyone can pay: this flag,
+ * and `stripe.checkout_sessions_enabled` in the server config. Both stay off
+ * until Bella and Lewis approve going live.
  */
 export const CHECKOUT_SESSIONS_ENABLED = false;
 
-/** One extra basket line: an id and how many. Never a price. */
-export interface CheckoutItem {
-  id: string;
-  quantity: number;
-}
-
-export interface CheckoutSelection {
-  packageId: string;
-  /** Empty string for packages with no format choice. */
-  formatId: string;
-  /** MCB order id, when the CRM recorded one. */
-  orderId?: number | null;
-  /**
-   * Extra basket lines, by id and quantity.
-   *
-   * DORMANT — no UI populates this yet. It exists now so the fallback rule
-   * below can be written and tested before anything can reach it, rather than
-   * being remembered later by whoever builds the basket screen.
-   *
-   * Ids and integer quantities only. There is deliberately no price field:
-   * the server looks every id up in the generated catalogue and totals the
-   * basket itself.
-   */
-  items?: readonly CheckoutItem[];
+export interface SavedOrder {
+  orderId: number;
+  checkoutToken: string;
 }
 
 export type CheckoutSessionResult =
   | { ok: true; url: string; id: string }
-  /**
-   * `fallbackAllowed` answers the only question the caller actually has:
-   * may this customer be sent to the fixed Payment Link instead?
-   *
-   * It is false whenever the basket contains anything beyond the base
-   * package — see `mayFallBackToPaymentLink`.
-   */
-  | {
-      ok: false;
-      reason: "disabled" | "refused" | "unreachable";
-      fallbackAllowed: boolean;
-    };
-
-/** Only the founder-verified £10 Moment link may be used as a fallback.
- * A matching basket shape does not establish that an older link has the
- * current price. An authoritative recorded order is required for fulfilment.
- */
-export const mayFallBackToPaymentLink = (
-  selection: Pick<CheckoutSelection, "items" | "packageId" | "formatId" | "orderId">
-): boolean => selection.packageId === "moment"
-  && selection.formatId === "mp3"
-  && Number.isSafeInteger(selection.orderId)
-  && (selection.orderId ?? 0) > 0
-  && (selection.items?.length ?? 0) === 0;
+  | { ok: false; reason: "disabled" | "refused" | "unreachable" };
 
 const REQUEST_TIMEOUT_MS = 15000;
 
-/**
- * Asks the server for a Checkout Session URL.
- *
- * Never throws. A failure returns `ok: false` so the caller can keep the
- * customer on the existing payment path rather than stranding them — a
- * checkout that cannot start must not look like a checkout that failed.
- */
-export const createCheckoutSession = async (
-  selection: CheckoutSelection
-): Promise<CheckoutSessionResult> => {
-  const fallbackAllowed = mayFallBackToPaymentLink(selection);
-
-  if (!CHECKOUT_SESSIONS_ENABLED) {
-    return { ok: false, reason: "disabled", fallbackAllowed };
-  }
+export const createCheckoutSession = async (order: SavedOrder): Promise<CheckoutSessionResult> => {
+  if (!CHECKOUT_SESSIONS_ENABLED) return { ok: false, reason: "disabled" };
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -106,38 +36,17 @@ export const createCheckoutSession = async (
     const response = await fetch("/api/checkout/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // Selection only. Deliberately constructed field by field rather than
-      // spreading an object, so nothing extra can ride along.
-      body: JSON.stringify({
-        package: selection.packageId,
-        format: selection.formatId,
-        ...(typeof selection.orderId === "number"
-          ? { orderId: selection.orderId }
-          : {}),
-        // Ids and integer quantities. Rebuilt field by field so a caller
-        // cannot smuggle a price, a name or a total alongside them.
-        ...(selection.items && selection.items.length > 0
-          ? {
-              enhancements: selection.items.map((item) => ({
-                id: item.id,
-                quantity: item.quantity,
-              })),
-            }
-          : {}),
-      }),
+      body: JSON.stringify({ orderId: order.orderId, checkoutToken: order.checkoutToken }),
       signal: controller.signal,
     });
-
-    if (!response.ok) return { ok: false, reason: "refused", fallbackAllowed };
-
+    if (!response.ok) return { ok: false, reason: "refused" };
     const data = await response.json();
-    return typeof data?.url === "string" && data.url.length > 0
+    return typeof data?.url === "string" && data.url.startsWith("https://")
       ? { ok: true, url: data.url, id: String(data.id ?? "") }
-      : { ok: false, reason: "refused", fallbackAllowed };
+      : { ok: false, reason: "refused" };
   } catch {
-    return { ok: false, reason: "unreachable", fallbackAllowed };
+    return { ok: false, reason: "unreachable" };
   } finally {
     clearTimeout(timer);
   }
 };
-

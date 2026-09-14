@@ -3,8 +3,8 @@
  *
  * A seasonal edition is NOT a new product. "Christmas Moment" is the Moment
  * experience, at Moment's price, presented for Christmas. The edition
- * therefore stores a `packageId` and NEVER a price of its own: the price is
- * read back through `data/packages.ts` at render time, so a seasonal campaign
+ * therefore stores a `productId` and NEVER a price of its own: the price is
+ * read back through the canonical catalogue (`data/catalogue`) at render time, so a seasonal campaign
  * cannot drift away from the approved figure or quietly introduce a second
  * price for the same thing.
  *
@@ -17,17 +17,17 @@
  * around it. Nothing schedules, emails or promotes an edition.
  */
 
-import { getPackage, type AnyPackage, type PackageId } from "./packages";
-import { OCCASIONS, type Occasion, type OccasionId } from "./catalogue/types";
+import { getProduct, type Product, type ProductId } from "./catalogue";
+import { OCCASIONS, type Occasion, type OccasionId } from "./occasions";
 
 export interface SeasonalEdition {
   id: string;
   occasion: OccasionId;
-  /** The experience this edition presents. Its price is inherited, not set. */
-  packageId: PackageId;
+  /** The catalogue product this edition presents. Its price is inherited, not set. */
+  productId: ProductId;
   /** Customer-facing name, e.g. "Christmas Moment". */
   name: string;
-  /** Positioning for the season. Replaces the package's own line. */
+  /** Positioning for the season. Replaces the product's own line. */
   positioning: string;
   description: string;
   /** Master switch. False means the edition exists but is not presented. */
@@ -42,17 +42,17 @@ export interface SeasonalEdition {
  *
  * Held inactive: today is outside the campaign and the business has not
  * released it. The window below is what November's launch flips on, and the
- * price it will show is Moment's approved £10 / $14 — inherited, never
- * restated here.
+ * price it will show is Moment's catalogue price — inherited, never restated
+ * here.
  */
 export const CHRISTMAS_MOMENT: SeasonalEdition = {
   id: "christmas-moment-2026",
   occasion: "christmas",
-  packageId: "moment",
+  productId: "moment",
   name: "Christmas Moment",
   positioning: "A memory, made instantly — wrapped for Christmas.",
   description:
-    "A personalised song written from your story and delivered within the hour, presented as a Christmas gift.",
+    "A personalised song written from your story, presented as a Christmas gift.",
   active: false,
   availableFrom: "2026-11-01",
   availableUntil: "2026-12-26",
@@ -66,10 +66,10 @@ export const SEASONAL_EDITIONS: readonly SeasonalEdition[] = [
 /* Resolution                                                          */
 /* ------------------------------------------------------------------ */
 
-/** The edition's price and inclusions, resolved from its package. */
-export const editionPackage = (
+/** The edition's price and inclusions, resolved from its catalogue product. */
+export const editionProduct = (
   edition: SeasonalEdition
-): AnyPackage | undefined => getPackage(edition.packageId);
+): Product | undefined => getProduct(edition.productId);
 
 export const editionOccasion = (edition: SeasonalEdition): Occasion =>
   OCCASIONS[edition.occasion];
@@ -99,10 +99,10 @@ export const activeSeasonalEditions = (
     (edition) => edition.active && isInWindow(edition, date)
   );
 
-export const activeEditionsForPackage = (
-  packageId: PackageId,
+export const activeEditionsForProduct = (
+  productId: ProductId,
   date: Date = new Date()
 ): readonly SeasonalEdition[] =>
   activeSeasonalEditions(date).filter(
-    (edition) => edition.packageId === packageId
+    (edition) => edition.productId === productId
   );

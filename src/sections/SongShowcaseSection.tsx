@@ -65,7 +65,7 @@ useEffect(() => {
   const container = carouselRef.current;
   if (!container) return;
 
-  let autoScroll: any;
+  let autoScroll: ReturnType<typeof setInterval> | null = null;
 
   const startAutoScroll = () => {
     if (autoScroll) return;

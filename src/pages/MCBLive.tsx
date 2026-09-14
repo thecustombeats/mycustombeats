@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Helmet } from "react-helmet-async";
+import { MCB_LIVE } from "../data/catalogue";
+import { productPageStructuredData } from "../lib/seo";
 
 const WHATSAPP_NUMBER = "447340742009";
 
@@ -35,6 +37,9 @@ const MCBLive = () => {
     <Helmet>
       <title>MCB LIVE | DJ Rinaldi & Lady Lakh</title>
       <meta name="description" content="Request DJ Rinaldi, Lady Lakh or both for selected weddings, private events, yachts, cruises and destination celebrations worldwide, including the MCB Song Reveal Experience." />
+      <script type="application/ld+json">
+        {JSON.stringify(productPageStructuredData(MCB_LIVE.id))}
+      </script>
     </Helmet>
     <main className="bg-ivory text-espresso">
       <section className="min-h-[82vh] flex items-center justify-center px-6 bg-ink text-ivory text-center">

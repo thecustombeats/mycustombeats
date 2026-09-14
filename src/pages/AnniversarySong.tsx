@@ -16,18 +16,18 @@ const AnniversarySong = () => {
       {/* ✅ SEO */}
       <Helmet>
         <title>
-          Bespoke Anniversary Song | Luxury Personalised Song Experience
+          Personalised Anniversary Song | Luxury Personalised Song Experience
         </title>
         <meta
           name="description"
-          content="Commission a bespoke anniversary song crafted by professional musicians. A refined, deeply personal gift designed to capture your story in music."
+          content="Commission a personalised anniversary song crafted by professional musicians. A refined, deeply personal gift designed to capture your story in music."
         />
       </Helmet>
 
       {/* ✅ HERO */}
       <section className="w-full bg-ivory py-24 px-[7vw] text-center">
         <h1 className="text-4xl md:text-5xl font-serif text-espresso mb-6 leading-tight">
-          A Bespoke Anniversary Song, Composed Just for You
+          A Personalised Anniversary Song, Composed Just for You
         </h1>
 
         <p className="text-lg text-espresso/70 max-w-2xl mx-auto mb-6">
@@ -35,7 +35,7 @@ const AnniversarySong = () => {
         </p>
 
         <p className="text-sm text-espresso/60 mb-10">
-          Commissioned by discerning clients for private celebrations, luxury experiences, and meaningful occasions worldwide
+          Created for private celebrations, milestone anniversaries and the moments you want to keep
         </p>
 
         <button
@@ -122,7 +122,7 @@ const AnniversarySong = () => {
         <div className="max-w-3xl mx-auto space-y-4 text-espresso/70">
           <p>• A composition created exclusively for you</p>
           <p>• Professionally written, arranged, and produced</p>
-          <p>• Available in curated formats for keepsake and gifting</p>
+          <p>• Available digitally, on a personalised picture disc or as a vinyl album</p>
           <p>• Designed to be experienced, revisited, and remembered</p>
         </div>
       </section>

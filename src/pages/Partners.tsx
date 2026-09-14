@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { trackFormSubmit } from "../lib/analytics";
 import { Helmet } from "react-helmet-async";
+import { KEEPSAKE, MOMENT } from "../data/catalogue";
 
 // ─── Inline SVG Icons ───────────────────────────────────────────────────────
 const IconCruise = () => (
@@ -213,7 +214,7 @@ export default function PartnersPage() {
     { num: "01", title: "Guest Stories & Preferences", desc: "We gather the guest's memories, milestones, relationships, and emotional moments." },
     { num: "02", title: "Bespoke Creative Brief", desc: "Our producers shape a creative brief around the guest's story, in their own words." },
     { num: "03", title: "Artisan Production", desc: "Skilled creators bring the story to life as a beautifully crafted, original musical experience." },
-    { num: "04", title: "Delivered to Your Guest", desc: "Delivered digitally, or pressed to vinyl or CD and posted — presented however you choose to give it to your guest." },
+    { num: "04", title: "Delivered to Your Guest", desc: "Delivered digitally, or as a personalised record posted to you — presented however you choose to give it to your guest." },
   ];
 
   const experiences = [
@@ -621,7 +622,7 @@ export default function PartnersPage() {
                 "Every song written from one guest's own story",
                 "Written and produced by professional musicians",
                 "Delivered digitally, or as a keepsake posted to you",
-                "From one hour digitally, to around fifteen working days for physical keepsakes",
+                `${MOMENT.turnaround?.label ?? ""} digitally; for physical keepsakes, ${(KEEPSAKE.turnaround?.label ?? "").toLowerCase()}`,
                 "One point of contact for your team",
                 "Scoped with you before anything is agreed",
               ].map(item => (

@@ -11,15 +11,15 @@ const HeroSection = () => {
 
   // ✅ STATE
   const [showModal, setShowModal] = useState(false);
-  const [userType, setUserType] = useState<string | null>(null);
-
-  // ✅ Load saved user type
-  useEffect(() => {
-    const savedType = localStorage.getItem("userType");
-    if (savedType) {
-      setUserType(savedType);
+  // ✅ Load saved user type — read once, on first render, rather than set
+  // from an effect (which rendered twice). Storage can throw when blocked.
+  const [userType, setUserType] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem("userType");
+    } catch {
+      return null;
     }
-  }, []);
+  });
 
   // Guidance is customer-initiated; never interrupt reading with a timed dialog.
 

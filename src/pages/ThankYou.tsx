@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, Clock, HelpCircle } from "lucide-react";
-import { trackPurchase } from "../lib/analytics";
-import { getPackage } from "../data/packages";
+import { trackPurchase, type ConfirmedPurchase } from "../lib/analytics";
 import { Helmet } from "react-helmet-async";
 import ShareMcb from "../components/ShareMcb";
 
@@ -34,15 +33,14 @@ const STORED_REFERENCE_KEY = "mcb_last_reference";
  * This page told every visitor "Payment confirmed", and filled an "Order" and
  * an "Amount paid" row from `localStorage`. Production verification proved the
  * consequence: a fabricated `session_id` produced a page reading "Payment
- * confirmed · Moment — MP3 · AMOUNT PAID £10.00". Nothing had been paid.
+ * confirmed" with an order name and an amount paid. Nothing had been paid.
  *
  * Two separate faults produced that. Both are closed here.
  *
- *   1. `last_order_package` and `last_order_format` are browser values. They
- *      say what this DEVICE last built in the order form — not what anyone
- *      paid for, not that anyone paid at all. They are no longer rendered.
- *      They survive in one place only, to give the analytics event a value,
- *      and that event now fires only after the payment is verified.
+ *   1. Browser-remembered order values say what this DEVICE last built in the
+ *      order form — not what anyone paid for, not that anyone paid at all.
+ *      This page no longer reads them for anything. Even the analytics
+ *      purchase event now takes its value and lines from MCB's server.
  *
  *   2. When the reference lookup gave up, the page asserted success anyway.
  *      Every outcome now maps to one of four states, and only ONE of them may
@@ -62,13 +60,52 @@ const STORED_REFERENCE_KEY = "mcb_last_reference";
  */
 type Verification = "NO_SESSION" | "PENDING" | "VERIFIED" | "UNVERIFIED";
 
-/** localStorage throws in some privacy modes. Nothing here is essential. */
+/** Web storage throws in some privacy modes. Nothing here is essential. */
 const readLocal = (key: string): string | null => {
   try {
     return localStorage.getItem(key);
   } catch {
     return null;
   }
+};
+
+/**
+ * The confirmed purchase from `/api/order-reference`, or null.
+ *
+ * The server sends it only for a PAID order with integer line amounts (null
+ * for unpaid and legacy orders). Anything that does not have exactly that
+ * shape is treated as absent, so a malformed response reports no revenue
+ * rather than a wrong figure.
+ */
+const parsePurchase = (raw: unknown, reference: string): ConfirmedPurchase | null => {
+  if (!raw || typeof raw !== "object") return null;
+  const data = raw as Record<string, unknown>;
+  const currency = typeof data.currency === "string" ? data.currency.toUpperCase() : "";
+  if (currency !== "GBP" || !Number.isSafeInteger(data.value_minor) || !Array.isArray(data.items)) {
+    return null;
+  }
+  const items: ConfirmedPurchase["items"][number][] = [];
+  for (const entry of data.items as unknown[]) {
+    if (!entry || typeof entry !== "object") return null;
+    const line = entry as Record<string, unknown>;
+    if (
+      typeof line.sku !== "string" ||
+      typeof line.product_id !== "string" ||
+      !Number.isSafeInteger(line.quantity) ||
+      !Number.isSafeInteger(line.unit_minor)
+    ) {
+      return null;
+    }
+    items.push({
+      sku: line.sku,
+      productId: line.product_id,
+      name: typeof line.name === "string" ? line.name : line.sku,
+      category: typeof line.category === "string" ? line.category : "",
+      quantity: line.quantity as number,
+      unitMinor: line.unit_minor as number,
+    });
+  }
+  return { transactionId: reference, valueMinor: data.value_minor as number, currency: "GBP", items };
 };
 
 /**
@@ -140,15 +177,13 @@ export default function ThankYou() {
   );
 
   /**
-   * NOT AUTHORITATIVE, AND NEVER RENDERED.
-   *
-   * The one surviving use of the browser's memory of the last order built on
-   * this device: it gives the analytics purchase event a value. It cannot
-   * reach the page — no heading, no row, no delivery line reads it — and the
-   * event it feeds is gated on a verified payment below, so a fabricated
-   * session id reports no revenue at all.
+   * The server's confirmed purchase — MCB reference, integer total and saved
+   * lines — used for the analytics event alone and never rendered. Null until
+   * the server reports a PAID order with line amounts.
    */
-  const analyticsPackage = getPackage(readLocal("last_order_package") ?? "");
+  const [purchase, setPurchase] = useState<ConfirmedPurchase | null>(null);
+  /** In-memory guard, so a re-render or StrictMode re-run cannot send twice. */
+  const purchaseSent = useRef(false);
 
   // Ask MCB's own record for the reference belonging to this checkout
   // session, retrying while the payment webhook lands. Aborts on unmount so a
@@ -189,6 +224,9 @@ export default function ThankYou() {
             setReferralCode(data.referral);
           }
           if (typeof data?.reference === "string" && data.reference !== "") {
+            if (data.status === "PAID") {
+              setPurchase(parsePurchase(data.purchase, data.reference));
+            }
             setReference(data.reference);
             setLookupFinished(true);
             try {
@@ -236,30 +274,30 @@ export default function ThankYou() {
         ? "UNVERIFIED"
         : "PENDING";
 
-  // Analytics fires for a VERIFIED payment only. Previously any session id in
-  // the address bar reported a purchase, so a fabricated one corrupted
-  // revenue reporting as readily as it misled the customer.
+  // Analytics fires for a VERIFIED, PAID order with a server-confirmed
+  // purchase only, using the MCB reference as the transaction id. No browser
+  // value can reach it: an unpaid, legacy or fabricated session reports no
+  // revenue at all.
   useEffect(() => {
-    if (verification !== "VERIFIED" || !sessionId) return;
+    if (verification !== "VERIFIED" || orderStatus !== "PAID" || !sessionId || !purchase) return;
+    if (purchaseSent.current) return;
 
-    // Prevent duplicate purchase tracking per session/refresh
+    // Prevent duplicate purchase tracking per session/refresh.
     const trackedKey = `mcb_tracked_${sessionId}`;
-    if (sessionStorage.getItem(trackedKey)) return;
+    try {
+      if (sessionStorage.getItem(trackedKey)) return;
+    } catch {
+      // Storage blocked: the in-memory guard still prevents repeats here.
+    }
 
-    // No published price means no purchase value to report. A concierge
-    // commission does not reach this page — it has no checkout session — but
-    // reporting 0 or the retired £799 would corrupt revenue reporting if one
-    // ever did, and neither is what was charged.
-    if (!analyticsPackage?.price) return;
-
-    trackPurchase(
-      sessionId,
-      analyticsPackage.price.gbp,
-      "GBP",
-      analyticsPackage.name
-    );
-    sessionStorage.setItem(trackedKey, "true");
-  }, [verification, sessionId, analyticsPackage]);
+    if (!trackPurchase(purchase)) return;
+    purchaseSent.current = true;
+    try {
+      sessionStorage.setItem(trackedKey, "true");
+    } catch {
+      // Private browsing or blocked storage. Nothing here is essential.
+    }
+  }, [verification, orderStatus, sessionId, purchase]);
 
   /** The reference this visit may legitimately display, if any. */
   const shownReference = reference ?? storedReference;
@@ -269,7 +307,7 @@ export default function ThankYou() {
    <>
      <Helmet>
        <title>Order received | My Custom Beats</title>
-       <meta name="description" content="Your order is confirmed and our composers are reviewing your story." />
+       <meta name="description" content="Your My Custom Beats order status and reference." />
      </Helmet>
 
     {/* MVIS Midnight Ink, never bg-black. */}
@@ -389,9 +427,9 @@ export default function ThankYou() {
           The "Order" and "Amount paid" rows that used to sit here read
           `localStorage`, so they described whatever this device last built in
           the order form rather than anything that was bought. They are gone.
-          `/api/order-reference` deliberately returns no amount — see its
-          header — so an amount shown here could not have been verified, and
-          the customer's Stripe receipt carries the figure that was charged.
+          `/api/order-reference` now returns the confirmed purchase, but only
+          for analytics; the customer's Stripe receipt carries the figure that
+          was charged, and this page does not restate it.
         */}
         {verification === "VERIFIED" && orderStatus === "PAID" && (
           <dl className="mt-8 divide-y divide-white/20 overflow-hidden rounded-2xl border border-white/25">
@@ -433,10 +471,10 @@ export default function ThankYou() {
               <li>Your custom composition begins within 24 hours.</li>
               <li>We may reach out if we need a few more details.</li>
               {/*
-                The package-specific delivery line that used to close this list
+                The order-specific delivery line that used to close this list
                 was read from `localStorage`, which made it a delivery promise
-                about an order this page had not verified. The timeline the
-                customer chose is on their package and in their confirmation.
+                about an order this page had not verified. The timeline for
+                what the customer chose is in their confirmation.
               */}
               <li>
                 Your finished song is delivered on the timeline for the
