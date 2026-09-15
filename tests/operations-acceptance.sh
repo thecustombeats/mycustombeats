@@ -32,6 +32,7 @@ price() { python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["skus"]
 CRMKEY="test_crm_key_not_real_000000000000000000000"
 SECRET=whsec_test_secret_for_local_verification
 FIX=tests/fixtures
+. tests/automation-helpers.sh
 
 release_limits() { q "UPDATE order_consents SET ip_hash = NULL; UPDATE checkout_sessions SET ip_hash = NULL; UPDATE order_uploads SET ip_hash = NULL" >/dev/null 2>&1; }
 stub_reset() { docker exec mcb-api sh -c 'rm -f /tmp/stripe-stub.log /tmp/resend-stub.log /tmp/stripe-mode /tmp/resend-mode'; }
@@ -188,7 +189,7 @@ reset_limits
 
 # ===========================================================================
 section "0. GENERATED DATA, MIGRATION AND PREFLIGHT"
-tc "operations.json is generated and names the automation events" "$(python3 -c 'import json;d=json.load(open("public/api/data/operations.json"));print(1 if set(["ORDER.PAID","ORDER.READY_FOR_PROCESSING","QUALITY_CHECK.READY","QUALITY_CHECK.PASSED","QUALITY_CHECK.FAILED","REVEALED","FULFILMENT.READY","DISPATCHED","DELIVERED","FOLLOW_UP.DUE","MCB_LIVE.ENQUIRY_RECEIVED","BESPOKE.ENQUIRY_RECEIVED"])==set(d["automation_events"]) else 0)')"
+tc "operations.json is generated and names the automation events" "$(python3 -c 'import json;d=json.load(open("public/api/data/operations.json"));print(1 if set(["ORDER.PAID","ORDER.READY_FOR_PROCESSING","QUALITY_CHECK.READY","QUALITY_CHECK.PASSED","QUALITY_CHECK.FAILED","REVEALED","FULFILMENT.READY","DISPATCHED","DELIVERED","FOLLOW_UP.DUE","MCB_LIVE.ENQUIRY_RECEIVED","BESPOKE.ENQUIRY_RECEIVED"])<=set(d["automation_events"]) else 0)')"
 tc "no included revisions anywhere; reopen reasons exclude a customer request; the QC checklist is generated" "$(python3 -c 'import json;d=json.load(open("public/api/data/operations.json"));print(1 if "included_revisions" not in d and d["reopen_reasons"]==["MCB_CORRECTION","REPLACEMENT","OTHER"] and len(d["qc_checklist"])==13 and "APPROVAL_REQUIRED" not in d["lifecycle_templates"] else 0)')"
 tc "the Priority Replacement window comes from the catalogue (7 days)" "$([ "$(python3 -c 'import json;print(json.load(open("public/api/data/operations.json"))["priority_replacement_claim_window_days"])')" = "7" ] && echo 1 || echo 0)"
 tc "the digital customer journey never mentions making or posting" "$(python3 -c 'import json;d=json.load(open("public/api/data/operations.json"))["customer_stages"]["DIGITAL"];ids=[s["id"] for s in d];st=sum([s["states"] for s in d],[]);print(1 if "making" not in ids and "on-its-way" not in ids and not any(x.startswith(("FULFILMENT","DISPATCHED","DELIVERED")) for x in st) else 0)')"
@@ -200,11 +201,13 @@ ROOTQ s5b < db/migrations/2026-09-14-sprint5-operations.sql 2>/dev/null; M1=$?
 ROOTQ s5b < db/migrations/2026-09-14-sprint5-operations.sql 2>/dev/null; M2=$?
 ROOTQ s5b < db/migrations/2026-09-15-single-creative-authority.sql 2>/dev/null; M3=$?
 ROOTQ s5b < db/migrations/2026-09-15-single-creative-authority.sql 2>/dev/null; M4=$?
+ROOTQ s5b < db/migrations/2026-09-15-automation-foundation.sql 2>/dev/null; M5=$?
+ROOTQ s5b < db/migrations/2026-09-15-automation-foundation.sql 2>/dev/null; M6=$?
 dumpdb() { for tb in $(ROOTQ -N -e "SHOW TABLES" "$1"); do ROOTQ -N -e "SHOW CREATE TABLE \`$tb\`" "$1" | sed 's/AUTO_INCREMENT=[0-9]* //'; done; }
-tc "the Sprint 5 and Single Creative Authority migrations apply to the Sprint 4 schema, and again (idempotent)" "$([ "$M1" = 0 ] && [ "$M2" = 0 ] && [ "$M3" = 0 ] && [ "$M4" = 0 ] && echo 1 || echo 0)"
+tc "the Sprint 5, Single Creative Authority and Automation Foundation migrations apply to the Sprint 4 schema, and again (idempotent)" "$([ "$M1" = 0 ] && [ "$M2" = 0 ] && [ "$M3" = 0 ] && [ "$M4" = 0 ] && [ "$M5" = 0 ] && [ "$M6" = 0 ] && echo 1 || echo 0)"
 tc "a migrated database is identical to a fresh db/schema.sql" "$([ "$(dumpdb s5a | shasum)" = "$(dumpdb s5b | shasum)" ] && [ "$(dumpdb s5a | grep -c .)" -gt 25 ] && echo 1 || echo 0)"
 ROOTQ -e 'DROP DATABASE s5a; DROP DATABASE s5b;' 2>/dev/null
-tc "the migrations only add: no DROP TABLE, DROP COLUMN, DELETE, TRUNCATE or RENAME" "$(grep -qiE '^\s*(DROP TABLE|DELETE|TRUNCATE|RENAME)|DROP COLUMN' db/migrations/2026-09-14-sprint5-operations.sql db/migrations/2026-09-15-single-creative-authority.sql && echo 0 || echo 1)"
+tc "the migrations only add: no DROP TABLE, DROP COLUMN, DELETE, TRUNCATE or RENAME" "$(grep -qiE '^\s*(DROP TABLE|DELETE|TRUNCATE|RENAME)|DROP COLUMN' db/migrations/2026-09-14-sprint5-operations.sql db/migrations/2026-09-15-single-creative-authority.sql db/migrations/2026-09-15-automation-foundation.sql && echo 0 || echo 1)"
 crm crm/preflight >/dev/null
 pf() { python3 -c 'import json,sys;d=json.load(open("/tmp/tx.json"));print({c["id"]:c["status"] for c in d["checks"]}.get(sys.argv[1],"MISSING"))' "$1"; }
 tc "preflight reports both migrations, operations data and link secret" "$([ "$(pf sprint5_migration_applied)" = PASS ] && [ "$(pf creative_authority_migration_applied)" = PASS ] && [ "$(pf data_operations)" = PASS ] && [ "$(pf customer_links_secret)" = PASS ] && echo 1 || echo 0)"
@@ -260,8 +263,8 @@ t "  → the correction is queued as creative work" 1 "$(queue_has "ORDER:$MO:CR
 act $MO SEND_TO_QUALITY_CHECK >/dev/null
 stub_reset
 t "PASS_QUALITY_CHECK with every check and the private link" 200 "$(act $MO PASS_QUALITY_CHECK "$QC_DIGITAL"',"reveal_url":"https://listen.example.test/moment-v1"')"
-tc "  → revealed at once (follow-up due); CREATION_READY email sent; status link returned" "$([ "$(jget state)" = FOLLOW_UP.DUE ] && [ "$(jget emails.CREATION_READY)" = sent ] && jget links.status | grep -qE '^http://localhost:8080/your-order#[A-Za-z0-9_-]{43}$' && echo 1 || echo 0)"
-tc "  → evidence is MCB's quality check, not a customer approval" "$([ "$(q "SELECT CONCAT(stage,'|',qc_passed_by,'|',IF(qc_passed_at IS NULL,'no','yes'),'|',IFNULL(approved_at,'none'),'|',IFNULL(approval_channel,'none'),'|',IF(revealed_at IS NULL,'no','yes')) FROM order_production WHERE order_id=$MO")" = "QC_PASSED|Ops Tester|yes|none|none|yes" ] && echo 1 || echo 0)"
+tc "  → revealed at once and so COMPLETED (follow-up separate); CREATION_READY email sent; status link returned" "$([ "$(jget state)" = COMPLETED ] && [ "$(jget emails.CREATION_READY)" = sent ] && jget links.status | grep -qE '^http://localhost:8080/your-order#[A-Za-z0-9_-]{43}$' && echo 1 || echo 0)"
+tc "  → evidence is MCB's quality check, not a customer approval" "$([ "$(q "SELECT CONCAT(stage,'|',qc_passed_by,'|',IF(qc_passed_at IS NULL,'no','yes'),'|',IFNULL(approved_at,'none'),'|',IFNULL(approval_channel,'none'),'|',IF(revealed_at IS NULL,'no','yes')) FROM order_production WHERE order_id=$MO")" = "COMPLETED|Ops Tester|yes|none|none|yes" ] && echo 1 || echo 0)"
 t "  → no approval link was ever issued" 0 "$(q "SELECT COUNT(*) FROM order_access_tokens WHERE order_id=$MO AND purpose='APPROVAL'")"
 MAIL=$(mail_log)
 tc "  → the reveal email: 'Your MCB creation is ready', the private order-page link and the reference" "$(echo "$MAIL" | grep -q 'Your MCB creation is ready' && echo "$MAIL" | grep -qF "your-order#$S1" && echo "$MAIL" | grep -qF "$MREF" && echo 1 || echo 0)"
@@ -299,7 +302,7 @@ t "a digital order cannot report a damaged item" 422 "$(post_json order-support 
 J18B="{\"token\":\"$S1\",\"kind\":\"INCORRECT_DETAIL\",\"description\":\"You sang Nancy but my grandmother is called Nan.\"}"
 t "a Moment customer reports an incorrect detail" 201 "$(post_json order-support "$J18B")"
 tc "  → queued for staff as an incorrect-detail report" "$(crm 'crm/operations?view=queue' >/dev/null; python3 -c 'import json;d=json.load(open("/tmp/tx.json"))["items"];print(1 if any(i["kind"]=="INCORRECT_DETAIL" and "creative preference is not a revision" in i["detail"] for i in d) else 0)')"
-tc "  → and it does NOT reopen production by itself" "$([ "$(state_of $MO)" = FOLLOW_UP.DUE ] && [ "$(q "SELECT COUNT(*) FROM order_events WHERE order_id=$MO AND event_type='PRODUCTION.REOPENED'")" = 0 ] && echo 1 || echo 0)"
+tc "  → and it does NOT reopen production by itself" "$([ "$(state_of $MO)" = COMPLETED ] && [ "$(q "SELECT COUNT(*) FROM order_events WHERE order_id=$MO AND event_type='PRODUCTION.REOPENED'")" = 0 ] && echo 1 || echo 0)"
 J19="{\"token\":\"$S1\",\"kind\":\"QUESTION\",\"description\":\"Can I have the song as an MP3 as well please?\"}"
 t "a question from a Moment customer" 201 "$(post_json order-support "$J19")"
 t "  → in the queue as a customer question" 1 "$(queue_has "SERVICE:")"
@@ -311,7 +314,7 @@ J20="{\"token\":\"$S1\"}"
 tc "  → the customer's page keeps the reveal, every stage done" "$(post_json order-progress "$J20" >/dev/null; [ "$(jget stage)" = ready ] && [ "$(jget reveal.url)" = "https://listen.example.test/moment-v1" ] && python3 -c 'import json,sys;sys.exit(0 if all(s["status"]=="done" for s in json.load(open("/tmp/tx.json"))["stages"]) else 1)' && echo 1 || echo 0)"
 J21="{\"order_id\":$MO}"
 t "the review request works for the completed order (review URL from config)" 200 "$(crmpost crm/review-request "$J21")"
-tc "the Moment's audit trail tells the story in order, with no customer text and no customer approval" "$(E=$(events_of $MO); echo "$E" | grep -q 'ORDER.PAID.*ORDER.READY_FOR_PROCESSING.*CREATIVE.IN_PROGRESS.*QUALITY_CHECK.READY.*QUALITY_CHECK.FAILED.*QUALITY_CHECK.READY.*QUALITY_CHECK.PASSED.*REVEALED.*FOLLOW_UP.DUE.*FOLLOW_UP.DONE.*ORDER.COMPLETED' && ! echo "$E" | grep -q 'CUSTOMER.APPROVAL\|CUSTOMER.CHANGES' && [ "$(q "SELECT COUNT(*) FROM order_events WHERE order_id=$MO AND (detail LIKE '%lanterns%' OR detail LIKE '%@%' OR detail LIKE '%MP3%' OR detail LIKE '%Nancy%')")" = 0 ] && echo 1 || echo 0)"
+tc "the Moment's audit trail tells the story in order, with no customer text and no customer approval" "$(E=$(events_of $MO); echo "$E" | grep -q 'ORDER.PAID.*ORDER.READY_FOR_PROCESSING.*CREATIVE.IN_PROGRESS.*QUALITY_CHECK.READY.*QUALITY_CHECK.FAILED.*QUALITY_CHECK.READY.*QUALITY_CHECK.PASSED.*REVEALED.*ORDER.COMPLETED.*FOLLOW_UP.DUE.*FOLLOW_UP.DONE' && ! echo "$E" | grep -q 'CUSTOMER.APPROVAL\|CUSTOMER.CHANGES' && [ "$(q "SELECT COUNT(*) FROM order_events WHERE order_id=$MO AND (detail LIKE '%lanterns%' OR detail LIKE '%@%' OR detail LIKE '%MP3%' OR detail LIKE '%Nancy%')")" = 0 ] && echo 1 || echo 0)"
 
 # ===========================================================================
 section "4. A KEEPSAKE: QUALITY CHECK GATES FULFILMENT; NO CUSTOMER APPROVAL"
@@ -326,18 +329,21 @@ act $KO START_CREATIVE >/dev/null; act $KO SEND_TO_QUALITY_CHECK >/dev/null
 t "the Keepsake cannot be placed with a partner before the quality check" 409 "$(act $KO CONFIRM_FULFILMENT '"purchase_authorised_by":"BELLA"')"
 t "a physical quality check needs the physical items too" 422 "$(act $KO PASS_QUALITY_CHECK "$QC_DIGITAL")"
 tc "  → including photographs, artwork dimensions, production files and delivery information" "$(body | grep -q 'photographs' && body | grep -q 'delivery information' && echo 1 || echo 0)"
+t "the physical pass is refused until the production artwork is registered and checked" "409|artwork_not_ready" "$(act $KO PASS_QUALITY_CHECK "$QC_PHYSICAL")|$(jget error)"
+register_artwork $KO
 STRIPE_BEFORE=$(stub_count)
 t "PASS_QUALITY_CHECK (physical)" 200 "$(act $KO PASS_QUALITY_CHECK "$QC_PHYSICAL")"
 t "  → FULFILMENT.READY (address and personalisation present) — no approval gate" "FULFILMENT.READY" "$(jget state)"
 tc "  → no reveal and no email before the keepsake arrives" "$([ "$(q "SELECT IF(revealed_at IS NULL,'none','revealed') FROM order_production WHERE order_id=$KO")" = none ] && [ "$(mail_count)" = 0 ] && echo 1 || echo 0)"
 t "  → a FULFILMENT.READY task in the queue" 1 "$(queue_has "ORDER:$KO:FULFILMENT_READY")"
-tc "  → which says nothing is ordered automatically and Bella or Lewis authorises the purchase" "$(grep -q 'Nothing is ordered automatically' /tmp/tx.json && grep -q 'Bella or Lewis authorises the partner purchase' /tmp/tx.json && echo 1 || echo 0)"
+tc "  → which says nothing is ordered automatically and Bella or Lewis authorises the purchase" "$(grep -q 'Nothing is ordered automatically' /tmp/tx.json && grep -q 'Bella or Lewis authorises the supplier purchase' /tmp/tx.json && echo 1 || echo 0)"
 tc "  → and no request went to Stripe or anywhere else" "$([ "$(stub_count)" = "$STRIPE_BEFORE" ] && echo 1 || echo 0)"
 J23="\"carrier\":\"Royal Mail\",\"dispatched_on\":\"$TODAY\""
 t "dispatch before the physical order is confirmed is refused" 409 "$(act $KO MARK_DISPATCHED "$J23")"
-t "the partner order needs to say who authorised the purchase" 422 "$(act $KO CONFIRM_FULFILMENT '"fulfilment_reference":"PO-778"')"
-t "  → Bella or Lewis only" 422 "$(act $KO CONFIRM_FULFILMENT '"fulfilment_reference":"PO-778","purchase_authorised_by":"SOMEONE"')"
-t "CONFIRM_FULFILMENT (placed by hand, authorised by Lewis)" "FULFILMENT.CONFIRMED" "$(act $KO CONFIRM_FULFILMENT '"fulfilment_reference":"PO-778","purchase_authorised_by":"LEWIS"' >/dev/null; jget state)"
+t "the supplier order cannot be recorded before Bella or Lewis authorises the purchase" "409|founder_authorisation_required" "$(act $KO CONFIRM_FULFILMENT '"fulfilment_reference":"PO-778","purchase_authorised_by":"LEWIS"')|$(jget error)"
+t "  → saying who authorised it is not an authorisation" "FULFILMENT.READY" "$(state_of $KO)"
+t "Lewis authorises the supplier purchase with his own code" "200|FULFILMENT.AUTHORISED" "$(founder_authorise $KO LEWIS "$FOUNDER_CODE_LEWIS")|$(jget state /tmp/fa.json)"
+t "CONFIRM_FULFILMENT (placed by hand, authorised by Lewis)" "FULFILMENT.CONFIRMED" "$(act $KO CONFIRM_FULFILMENT '"fulfilment_reference":"PO-778"' >/dev/null; jget state)"
 t "  → the production lock and the authorisation are recorded" "PRODUCTION_LOCKED|yes|LEWIS" "$(q "SELECT CONCAT(stage,'|',IF(production_locked_at IS NULL,'no','yes'),'|',supplier_purchase_authorised_by) FROM order_production WHERE order_id=$KO")"
 tc "  → one one-way 'being made' email, with nothing to approve" "$([ "$(sent_count $KO IN_PRODUCTION)" = 1 ] && mail_log | grep -q 'Your keepsake is being made' && ! mail_log | grep -qiE 'approve|request changes|remake' && echo 1 || echo 0)"
 J24="\"dispatched_on\":\"$TODAY\""
@@ -368,7 +374,7 @@ tc "  → shown as acknowledged, by whom, and audited" "$(crm 'crm/operations?vi
 t "acknowledging an item that is not in the queue is refused" 404 "$(crmpost crm/operations '{"action":"ACKNOWLEDGE","item_key":"ORDER:999999:OVERDUE:0","staff":"Ops Tester"}')"
 t "delivery before dispatch date is refused" 422 "$(act $KO MARK_DELIVERED '"delivered_on":"2020-01-01"')"
 J30="\"delivered_on\":\"$TODAY\""
-t "MARK_DELIVERED (a person confirms it: the reveal)" "FOLLOW_UP.DUE" "$(act $KO MARK_DELIVERED "$J30" >/dev/null; jget state)"
+t "MARK_DELIVERED (a person confirms it: the reveal) completes the order" "COMPLETED" "$(act $KO MARK_DELIVERED "$J30" >/dev/null; jget state)"
 t "  → the delay item has gone" 0 "$(queue_has "ORDER:$KO:DELIVERY_DELAY")"
 post_json order-progress "{\"token\":\"$KS\"}" >/dev/null
 tc "  → progress shows delivered, and item-1's request-by date is 7 days after delivery" "$([ "$(jget stage)" = delivered ] && [ "$(jget items.0.priority_replacement.request_by)" = "$(date -u -v+7d +%Y-%m-%d 2>/dev/null || date -u -d '+7 days' +%Y-%m-%d)" ] && echo 1 || echo 0)"
@@ -381,7 +387,7 @@ t "Priority Replacement for the item that did not have it" 201 "$(post_json orde
 t "  → NOT_PURCHASED, still recorded for staff" "NOT_PURCHASED" "$(q "SELECT eligibility FROM order_service_requests WHERE order_id=$KO ORDER BY id DESC LIMIT 1")"
 J32B="{\"token\":\"$KS\",\"kind\":\"INCORRECT_DETAIL\",\"description\":\"The artwork uses our neighbour's photograph, not ours.\"}"
 t "an incorrect-detail report on a physical order" 201 "$(post_json order-support "$J32B")"
-tc "  → queued; production is not reopened by the report" "$(queue_has "SERVICE:" >/dev/null; [ "$(q "SELECT COUNT(*) FROM order_service_requests WHERE order_id=$KO AND kind='INCORRECT_DETAIL'")" = 1 ] && [ "$(state_of $KO)" = FOLLOW_UP.DUE ] && echo 1 || echo 0)"
+tc "  → queued; production is not reopened by the report" "$(queue_has "SERVICE:" >/dev/null; [ "$(q "SELECT COUNT(*) FROM order_service_requests WHERE order_id=$KO AND kind='INCORRECT_DETAIL'")" = 1 ] && [ "$(state_of $KO)" = COMPLETED ] && echo 1 || echo 0)"
 q "UPDATE order_production SET delivered_on = UTC_DATE() - INTERVAL 10 DAY, dispatched_on = UTC_DATE() - INTERVAL 11 DAY WHERE order_id=$KO"
 J33="{\"token\":\"$KS\",\"kind\":\"DAMAGED_OR_FAULTY\",\"item\":\"item-1\",\"priorityReplacement\":true,\"description\":\"Found another scratch today on side A.\"}"
 t "Priority Replacement after the window" "OUTSIDE_WINDOW" "$(post_json order-support "$J33" >/dev/null; q "SELECT eligibility FROM order_service_requests WHERE order_id=$KO ORDER BY id DESC LIMIT 1")"
@@ -403,7 +409,7 @@ tc "  → stored, audited without its text, never on the customer page" "$([ "$(
 t "a customer-request reopen no longer exists" 422 "$(act $KO REOPEN '"reason":"CUSTOMER_REQUEST"')"
 t "reopening after delivery for an MCB correction" 200 "$(act $KO REOPEN '"reason":"MCB_CORRECTION"')"
 tc "  → back to creation (in progress), quality check cleared, with a warning that nothing changes with a supplier" "$([ "$(jget state)" = CREATIVE.IN_PROGRESS ] && jget warning | grep -q 'does not cancel or change anything with a supplier' && [ "$(q "SELECT CONCAT(IFNULL(qc_passed_at,'none'),'|',IFNULL(supplier_purchase_authorised_by,'none'))  FROM order_production WHERE order_id=$KO")" = "none|none" ] && echo 1 || echo 0)"
-tc "  → history kept in the audit trail" "$(events_of $KO | grep -q 'QUALITY_CHECK.PASSED.*FULFILMENT.READY.*FULFILMENT.CONFIRMED.*DISPATCHED.*DELIVERY.DELAYED.*DELIVERED.*PRODUCTION.REOPENED' && echo 1 || echo 0)"
+tc "  → history kept in the audit trail" "$(events_of $KO | grep -q 'QUALITY_CHECK.PASSED.*FULFILMENT.READY.*FULFILMENT.AUTHORISED.*FULFILMENT.CONFIRMED.*DISPATCHED.*DELIVERY.DELAYED.*DELIVERED.*ORDER.COMPLETED.*PRODUCTION.REOPENED' && echo 1 || echo 0)"
 t "an invalid reopen reason is refused" 422 "$(act $MO REOPEN '"reason":"BECAUSE"')"
 
 # ===========================================================================
@@ -415,6 +421,7 @@ t "a Journey carries no revision allowance" null "$(crm "crm/operations?order=$J
 q "DELETE FROM delivery_addresses WHERE order_id=$JO"
 t "a physical order with no address is missing information" 1 "$(queue_has "ORDER:$JO:MISSING_INFORMATION:address")"
 act $JO SEND_TO_QUALITY_CHECK >/dev/null
+register_artwork $JO
 t "a passed quality check without an address holds fulfilment PENDING" "FULFILMENT.PENDING" "$(act $JO PASS_QUALITY_CHECK "$QC_PHYSICAL" >/dev/null; jget state)"
 t "  → with the reason" "DELIVERY_ADDRESS" "$(q "SELECT fulfilment_pending_reason FROM order_production WHERE order_id=$JO")"
 t "  → it cannot be marked ready until resolved" 409 "$(act $JO SET_FULFILMENT_READY)"
@@ -434,7 +441,7 @@ paid_order '{"sku":"moment","email":"ops-legacy@example.com"}'
 LG=$OID
 q "UPDATE order_production SET stage='AWAITING_APPROVAL', approval_round=1, creative_started_at=UTC_TIMESTAMP() WHERE order_id=$LG"
 t "a historical order left awaiting customer approval reads as awaiting the quality check" "QUALITY_CHECK" "$(state_of $LG)"
-t "  → and MCB's quality check completes it without the customer" "FOLLOW_UP.DUE" "$(act $LG PASS_QUALITY_CHECK "$QC_DIGITAL"',"reveal_url":"https://listen.example.test/legacy","send_email":false' >/dev/null; jget state)"
+t "  → and MCB's quality check completes it without the customer" "COMPLETED" "$(act $LG PASS_QUALITY_CHECK "$QC_DIGITAL"',"reveal_url":"https://listen.example.test/legacy","send_email":false' >/dev/null; jget state)"
 paid_order '{"sku":"moment","email":"ops-legacy2@example.com"}'
 LG2=$OID
 q "UPDATE order_production SET stage='APPROVED', approved_at=UTC_TIMESTAMP(), approval_channel='EMAIL', approval_round=1 WHERE order_id=$LG2"
@@ -454,7 +461,7 @@ t "a Moment paid 25 hours ago and not yet revealed is overdue (internal 24-hour 
 act $LO SEND_TO_QUALITY_CHECK >/dev/null
 docker exec mcb-api sh -c 'echo http_fail > /tmp/resend-mode'
 t "the reveal while email is failing" "failed" "$(act $LO PASS_QUALITY_CHECK "$QC_DIGITAL"',"reveal_url":"https://listen.example.test/late"' >/dev/null; jget emails.CREATION_READY)"
-tc "  → the state still moved and staff still have the order-page link to share" "$([ "$(jget state)" = FOLLOW_UP.DUE ] && jget links.status | grep -q '/your-order#' && echo 1 || echo 0)"
+tc "  → the state still moved and staff still have the order-page link to share" "$([ "$(jget state)" = COMPLETED ] && jget links.status | grep -q '/your-order#' && echo 1 || echo 0)"
 t "  → the failure is kept (FAILED) and audited" "FAILED|1" "$(q "SELECT status FROM customer_communications WHERE order_id=$LO AND message_type='CREATION_READY'")|$(q "SELECT COUNT(*) FROM order_events WHERE order_id=$LO AND event_type='CUSTOMER.MESSAGE.FAILED'")"
 t "  → and surfaced in the queue" 1 "$(queue_has "MESSAGE:")"
 docker exec mcb-api sh -c 'echo ok > /tmp/resend-mode'
@@ -612,7 +619,7 @@ PO=$OID
 tc "the order is paid and records both rates and the table source" "$([ "$(q "SELECT CONCAT_WS('|',status,delivery_rate_source,delivery_rate_id,delivery_minor) FROM orders WHERE id=$PO")" = "PAID|RATE_TABLE|T_UK+T_UK_PLAYER|1600" ] && echo 1 || echo 0)"
 crm "crm/operations?order=$PO" >/dev/null
 tc "  → staff see that availability and delivery must be confirmed, and the action is offered" "$([ "$(jget operations.fulfilment.review_required)" = true ] && [ "$(jget operations.fulfilment.review_confirmed)" = false ] && jget operations.available_actions | grep -q CONFIRM_FULFILMENT_REVIEW && echo 1 || echo 0)"
-act $PO START_CREATIVE >/dev/null; act $PO SEND_TO_QUALITY_CHECK >/dev/null; act $PO PASS_QUALITY_CHECK "$QC_PHYSICAL" >/dev/null
+act $PO START_CREATIVE >/dev/null; act $PO SEND_TO_QUALITY_CHECK >/dev/null; register_artwork $PO; act $PO PASS_QUALITY_CHECK "$QC_PHYSICAL" >/dev/null
 t "  → after MCB's quality check it waits, instead of becoming fulfilment-ready" "FULFILMENT.PENDING" "$(state_of $PO)"
 tc "  → the queue says what it is waiting on" "$(crm 'crm/operations?view=queue' >/dev/null; python3 -c 'import json,sys;d=json.load(open("/tmp/tx.json"))["items"];i=[x for x in d if x["key"].startswith("ORDER:%s:MISSING_INFORMATION:fulfilment" % sys.argv[1])];print(1 if i and "availability" in i[0]["detail"] else 0)' "$PO")"
 t "  → it cannot be marked ready" 409 "$(act $PO SET_FULFILMENT_READY)"
@@ -622,7 +629,8 @@ t "  → confirmed by a person" 200 "$(act $PO CONFIRM_FULFILMENT_REVIEW '"confi
 t "  → which moves it to fulfilment-ready by itself" "FULFILMENT.READY" "$(state_of $PO)"
 tc "  → recorded as an event without the note text, and the note kept internally" "$([ "$(q "SELECT COUNT(*) FROM order_events WHERE order_id=$PO AND event_type='FULFILMENT.REVIEW_CONFIRMED' AND detail NOT LIKE '%stock%'")" = 1 ] && [ "$(q "SELECT COUNT(*) FROM order_staff_notes WHERE order_id=$PO AND note LIKE 'Availability and delivery confirmed:%'")" = 1 ] && echo 1 || echo 0)"
 t "  → a second confirmation changes nothing" "unchanged" "$(act $PO CONFIRM_FULFILMENT_REVIEW '"confirmed":true,"note":"again"' >/dev/null; jget outcome)"
-t "  → the partner order is then confirmed by hand, authorised by Bella" 200 "$(act $PO CONFIRM_FULFILMENT '"fulfilment_reference":"HAND-PLACED-1","purchase_authorised_by":"BELLA"')"
+t "  → Bella authorises the purchase" 200 "$(founder_authorise $PO BELLA "$FOUNDER_CODE_BELLA")"
+t "  → the partner order is then confirmed by hand" 200 "$(act $PO CONFIRM_FULFILMENT '"fulfilment_reference":"HAND-PLACED-1"')"
 t "  → dispatched with two parcels' tracking" 200 "$(act $PO MARK_DISPATCHED "\"carrier\":\"Royal Mail\",\"tracking_reference\":\"RM1GB, DPD22\",\"dispatched_on\":\"$TODAY\",\"send_email\":true")"
 tc "  → the dispatch email explains separate parcels and the approved damage guidance" "$(mail_log | grep -q 'RM1GB, DPD22' && mail_log | grep -q 'arrive in separate parcels' && mail_log | grep -q 'recording the opening' && mail_log | grep -q 'not a condition of getting help' && echo 1 || echo 0)"
 tc "  → and never names a partner or tells the customer to contact the courier" "$(mail_log | grep -qiE 'courier service|contact the (courier|supplier)|HAND-PLACED' && echo 0 || echo 1)"

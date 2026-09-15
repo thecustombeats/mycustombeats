@@ -22,6 +22,17 @@
  * email. Nothing here orders from a supplier, refunds, charges or promises a
  * replacement: FULFILMENT.READY is a task for a person, not a purchase.
  *
+ * ─────────────────────────────────────────────────────────────────────────
+ * FINANCIAL AUTHORITY (Automation Foundation, 15 September 2026)
+ * ─────────────────────────────────────────────────────────────────────────
+ * Automation may detect, prepare, validate, queue and notify. Spending money
+ * with a supplier needs Bella OR Lewis to act explicitly:
+ * AUTHORISE_SUPPLIER_PURCHASE, on the authenticated staff page, with that
+ * founder's own authorisation code (stored only as a password hash in
+ * server configuration). A notification link opens that page; it never
+ * authorises anything. CONFIRM_FULFILMENT (the supplier order recorded as
+ * placed by hand) is refused until that authorisation exists.
+ *
  * Audit events carry identifiers, states and machine reasons only — never a
  * story, feedback, a note, an address or a contact detail.
  */
@@ -29,6 +40,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/legal.php';
+require_once __DIR__ . '/founder-notifications.php';
+require_once __DIR__ . '/artwork.php';
 
 final class OperationsException extends RuntimeException
 {
@@ -68,7 +81,7 @@ const MCB_OPERATIONS_COLUMNS = 'o.id, o.customer_id, o.status, o.fulfilment_type
         p.id AS production_id, p.stage, p.approved_at, p.approval_channel, p.approval_round,
         p.production_locked_at, p.completed_at, p.creative_started_at, p.creative_ready_at,
         p.qc_submitted_at, p.qc_passed_at, p.qc_passed_by, p.qc_checklist, p.qc_failed_count,
-        p.reveal_url, p.revealed_at, p.supplier_purchase_authorised_by,
+        p.reveal_url, p.revealed_at, p.supplier_purchase_authorised_by, p.supplier_purchase_authorised_at,
         p.fulfilment_state, p.fulfilment_pending_reason, p.fulfilment_ready_at, p.fulfilment_confirmed_at,
         p.fulfilment_reference, p.carrier, p.tracking_reference, p.tracking_url, p.dispatched_on,
         p.delivery_delayed_at, p.delivered_on, p.follow_up_due_at, p.follow_up_done_at,
@@ -161,7 +174,7 @@ function operational_state(array $row, ?int $now = null): ?string
     }
 
     return match (effective_fulfilment_state($row)) {
-        'READY'      => 'FULFILMENT.READY',
+        'READY'      => ($row['supplier_purchase_authorised_at'] ?? null) !== null ? 'FULFILMENT.AUTHORISED' : 'FULFILMENT.READY',
         'CONFIRMED'  => 'FULFILMENT.CONFIRMED',
         'DISPATCHED' => 'DISPATCHED',
         'DELIVERED'  => follow_up_is_due($row, $now) ? 'FOLLOW_UP.DUE' : 'DELIVERED',
@@ -445,6 +458,84 @@ function required_qc_items(string $workflow): array
 }
 
 /**
+ * A physical order is ready for the supplier order: records FULFILMENT.READY
+ * and asks the Founders for the purchase authorisation (once per round).
+ */
+function mark_fulfilment_ready(PDO $pdo, array $row, ?string $staff): void
+{
+    $orderId = (int) $row['id'];
+    $reopen  = (int) $row['reopen_count'];
+    $pdo->prepare(
+        "UPDATE order_production
+            SET fulfilment_state = 'READY', fulfilment_pending_reason = NULL, fulfilment_ready_at = UTC_TIMESTAMP()
+          WHERE order_id = :oid"
+    )->execute([':oid' => $orderId]);
+    record_order_event($pdo, $orderId, 'FULFILMENT.READY', $staff === null ? [] : ['by' => $staff], "fulfilment-ready:{$reopen}");
+    notify_founders_about_order($pdo, 'FULFILMENT_APPROVAL_REQUIRED', $orderId, "fulfilment-approval:{$orderId}:{$reopen}",
+        ['qc' => 'PASSED', 'supplier_order' => 'READY'], 'AUTHORISE_SUPPLIER_PURCHASE');
+}
+
+/* ------------------------------------------------------------------ */
+/* Founder authorisation                                               */
+/* ------------------------------------------------------------------ */
+
+const MCB_FOUNDERS = ['BELLA', 'LEWIS'];
+
+/** Refused authorisation attempts allowed per order in 15 minutes. */
+const MCB_FOUNDER_AUTHORISATION_ATTEMPTS = 5;
+
+/** Whether a founder has an authorisation code configured (as a password hash). */
+function founder_authorisation_configured(string $founder): bool
+{
+    $hash = (string) mcb_setting("founders.{$founder}.authorisation_hash", '');
+    return in_array($founder, MCB_FOUNDERS, true) && str_starts_with($hash, '$') && strlen($hash) >= 50;
+}
+
+/** Verifies a founder's own authorisation code. The code itself is never stored or logged. */
+function verify_founder_authorisation(string $founder, mixed $code): bool
+{
+    if (!founder_authorisation_configured($founder) || !is_string($code) || strlen($code) < 12 || strlen($code) > 200) {
+        return false;
+    }
+    return password_verify($code, (string) mcb_setting("founders.{$founder}.authorisation_hash", ''));
+}
+
+/**
+ * The checks that happen BEFORE the locked transaction for a supplier
+ * purchase authorisation, so a refused attempt is audited even though
+ * nothing else is written.
+ */
+function check_founder_authorisation_request(int $orderId, array $in, string $staff): string
+{
+    $founder = strtoupper(is_string($in['founder'] ?? null) ? $in['founder'] : '');
+    if (!in_array($founder, MCB_FOUNDERS, true)) {
+        throw new OperationsException('founder_required', 'Only Bella or Lewis can authorise a supplier purchase. Choose who is authorising.', 422);
+    }
+    if (($in['confirm'] ?? null) !== true) {
+        throw new OperationsException('authorisation_confirmation_required', 'Tick to confirm you authorise the supplier purchase for this order.', 422);
+    }
+    if (!founder_authorisation_configured($founder)) {
+        error_log("MCB operations: no authorisation code is configured for founder {$founder}; supplier purchase authorisation refused.");
+        throw new OperationsException('founder_authorisation_unavailable', 'Supplier purchase authorisation is not configured on this server.', 503);
+    }
+    $pdo = db();
+    $recent = $pdo->prepare(
+        "SELECT COUNT(*) FROM order_events
+          WHERE order_id = :oid AND event_type = 'FULFILMENT.AUTHORISATION_REFUSED'
+            AND created_at > UTC_TIMESTAMP() - INTERVAL 15 MINUTE"
+    );
+    $recent->execute([':oid' => $orderId]);
+    if ((int) $recent->fetchColumn() >= MCB_FOUNDER_AUTHORISATION_ATTEMPTS) {
+        throw new OperationsException('too_many_attempts', 'Too many refused authorisation attempts for this order. Wait 15 minutes.', 429);
+    }
+    if (!verify_founder_authorisation($founder, $in['founder_code'] ?? null)) {
+        record_order_event_safely($pdo, $orderId, 'FULFILMENT.AUTHORISATION_REFUSED', ['founder' => $founder, 'by' => $staff]);
+        throw new OperationsException('founder_authorisation_failed', 'That authorisation code is not correct for ' . ucfirst(strtolower($founder)) . '. Nothing was authorised.', 403);
+    }
+    return $founder;
+}
+
+/**
  * After a passed quality check: a physical order becomes ready for the
  * partner order (or waits on what is missing); a digital one needs nothing
  * made. Customer approval plays no part.
@@ -460,23 +551,35 @@ function after_quality_check_passed(PDO $pdo, array $row): void
     }
     $blocker = fulfilment_blocker($pdo, $row);
     if ($blocker === null) {
-        $pdo->prepare(
-            "UPDATE order_production
-                SET fulfilment_state = 'READY', fulfilment_pending_reason = NULL, fulfilment_ready_at = UTC_TIMESTAMP()
-              WHERE order_id = :oid"
-        )->execute([':oid' => $orderId]);
-        record_order_event($pdo, $orderId, 'FULFILMENT.READY', [], "fulfilment-ready:{$reopen}");
+        mark_fulfilment_ready($pdo, $row, null);
     } else {
         $pdo->prepare(
             "UPDATE order_production SET fulfilment_state = 'PENDING', fulfilment_pending_reason = :reason WHERE order_id = :oid"
         )->execute([':reason' => fulfilment_pending_column($blocker), ':oid' => $orderId]);
         record_order_event($pdo, $orderId, 'FULFILMENT.PENDING', ['reason' => $blocker]);
+        notify_founders_about_order($pdo, 'FULFILMENT_EXCEPTION', $orderId, "fulfilment-blocked:{$orderId}:{$reopen}:{$blocker}",
+            ['qc' => 'PASSED', 'supplier_order' => 'BLOCKED', 'reason' => $blocker]);
     }
 }
 
 /**
- * The digital reveal: one-way. Records it, starts the follow-up clock and
- * returns the CREATION_READY message to send after commit.
+ * Completion is independent of follow-up and review: a revealed digital order
+ * or a delivered physical order is COMPLETED at once. The follow-up and the
+ * review request run after it on their own clocks, and a follow-up email
+ * that fails does not make a fulfilled order look incomplete.
+ */
+function complete_order(PDO $pdo, array $row, string $trigger, string $staff): void
+{
+    $orderId = (int) $row['id'];
+    $reopen  = (int) $row['reopen_count'];
+    $pdo->prepare("UPDATE order_production SET stage = 'COMPLETED', completed_at = COALESCE(completed_at, UTC_TIMESTAMP()) WHERE order_id = :oid")
+        ->execute([':oid' => $orderId]);
+    record_order_event($pdo, $orderId, 'ORDER.COMPLETED', ['by' => $staff, 'trigger' => $trigger], "completed:{$reopen}");
+}
+
+/**
+ * The digital reveal: one-way. Records it, completes the order, starts the
+ * follow-up clock and returns the CREATION_READY message to send after commit.
  *
  * @return list<array{0:string,1:string}>
  */
@@ -492,6 +595,7 @@ function reveal_creation(PDO $pdo, array $row, string $staff, bool $sendEmail): 
           WHERE order_id = :oid"
     )->execute([':days' => follow_up_delay_days(), ':oid' => $orderId]);
     record_order_event($pdo, $orderId, 'REVEALED', ['by' => $staff, 'emailed' => $sendEmail], "revealed:{$reopen}");
+    complete_order($pdo, $row, 'REVEALED', $staff);
     record_order_event($pdo, $orderId, 'FOLLOW_UP.DUE', ['after_days' => follow_up_delay_days()], "follow-up-due:{$reopen}");
     return $sendEmail ? [['CREATION_READY', "reveal-{$reopen}"]] : [];
 }
@@ -502,7 +606,7 @@ function reveal_creation(PDO $pdo, array $row, string $staff, bool $sendEmail): 
 
 const MCB_STAFF_ACTIONS = [
     'START_CREATIVE', 'SEND_TO_QUALITY_CHECK', 'PASS_QUALITY_CHECK', 'FAIL_QUALITY_CHECK', 'SEND_REVEAL',
-    'SET_FULFILMENT_READY', 'CONFIRM_FULFILMENT_REVIEW', 'CONFIRM_FULFILMENT',
+    'SET_FULFILMENT_READY', 'CONFIRM_FULFILMENT_REVIEW', 'AUTHORISE_SUPPLIER_PURCHASE', 'CONFIRM_FULFILMENT',
     'MARK_DISPATCHED', 'UPDATE_TRACKING', 'MARK_DELIVERY_DELAYED', 'MARK_DELIVERED',
     'RECORD_FOLLOW_UP', 'MARK_COMPLETED', 'REOPEN', 'ISSUE_STATUS_LINK', 'REVOKE_LINKS',
     'ADD_NOTE', 'UPDATE_SERVICE_REQUEST',
@@ -525,7 +629,10 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
         throw new OperationsException('unknown_action', 'That action is not recognised.', 422);
     }
 
-    return db_transaction(function (PDO $pdo) use ($orderId, $action, $in, $staff): array {
+    // A founder's code is checked, and a refusal audited, before anything is locked.
+    $founder = $action === 'AUTHORISE_SUPPLIER_PURCHASE' ? check_founder_authorisation_request($orderId, $in, $staff) : null;
+
+    return db_transaction(function (PDO $pdo) use ($orderId, $action, $in, $staff, $founder): array {
         $row = operations_order_row($pdo, $orderId, true);
         if ($row === null) {
             throw new OperationsException('order_not_found', 'No order was found.', 404);
@@ -589,6 +696,16 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 if ($missing !== []) {
                     throw new OperationsException('qc_checklist_incomplete', 'Tick every quality check before passing it. Still to check: ' . strtolower(str_replace('_', ' ', implode(', ', $missing))) . '.', 422);
                 }
+                if ($physical) {
+                    // Production artwork must be registered and technically checked first.
+                    $blocking = artwork_blocking_rows(plan_order_artwork($pdo, $orderId));
+                    if ($blocking !== []) {
+                        throw new OperationsException('artwork_not_ready', 'Production artwork is not ready: ' . implode('; ', array_map(
+                            static fn (array $r): string => strtolower(str_replace('_', ' ', $r['template_id'] . ' ' . $r['status'])),
+                            $blocking
+                        )) . '. Register each output on the artwork panel first.');
+                    }
+                }
                 $revealUrl = null;
                 if (!$physical) {
                     $revealUrl = operations_https_url($in['reveal_url'] ?? null);
@@ -624,7 +741,10 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 }
                 $update("stage = 'CREATIVE', qc_submitted_at = NULL, qc_failed_count = qc_failed_count + 1,
                          creative_started_at = COALESCE(creative_started_at, UTC_TIMESTAMP())");
-                record_order_event($pdo, $orderId, 'QUALITY_CHECK.FAILED', ['by' => $staff, 'reason' => $reason, 'attempt' => (int) $row['qc_failed_count'] + 1]);
+                $attempt = (int) $row['qc_failed_count'] + 1;
+                record_order_event($pdo, $orderId, 'QUALITY_CHECK.FAILED', ['by' => $staff, 'reason' => $reason, 'attempt' => $attempt]);
+                notify_founders_about_order($pdo, 'QC_EXCEPTION', $orderId, "qc-failed:{$orderId}:{$reopen}:{$attempt}",
+                    ['qc' => 'FAILED', 'reason' => $reason]);
                 break;
 
             case 'SEND_REVEAL':
@@ -661,8 +781,7 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                     $update('fulfilment_pending_reason = :r', [':r' => fulfilment_pending_column($blocker)]);
                     throw new OperationsException('fulfilment_blocked', 'Still missing: ' . fulfilment_blocker_text($blocker) . '.');
                 }
-                $update("fulfilment_state = 'READY', fulfilment_pending_reason = NULL, fulfilment_ready_at = UTC_TIMESTAMP()");
-                record_order_event($pdo, $orderId, 'FULFILMENT.READY', ['by' => $staff], "fulfilment-ready:{$reopen}");
+                mark_fulfilment_ready($pdo, $row, $staff);
                 break;
 
             case 'CONFIRM_FULFILMENT_REVIEW':
@@ -688,9 +807,25 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 record_order_event($pdo, $orderId, 'FULFILMENT.REVIEW_CONFIRMED', ['by' => $staff], "fulfilment-review:{$reopen}");
                 // A quality-checked order waiting only on this moves on by itself.
                 if (in_array($stage, MCB_QC_PASSED_STAGES, true) && $fulfil === 'PENDING' && fulfilment_blocker($pdo, $row) === null) {
-                    $update("fulfilment_state = 'READY', fulfilment_pending_reason = NULL, fulfilment_ready_at = UTC_TIMESTAMP()");
-                    record_order_event($pdo, $orderId, 'FULFILMENT.READY', ['by' => $staff], "fulfilment-ready:{$reopen}");
+                    mark_fulfilment_ready($pdo, $row, $staff);
                 }
+                break;
+
+            case 'AUTHORISE_SUPPLIER_PURCHASE':
+                if (!$physical || !in_array($stage, MCB_QC_PASSED_STAGES, true) || $fulfil !== 'READY') {
+                    $refuse('A supplier purchase can be authorised only for a physical order that has passed the quality check and is ready for fulfilment.');
+                }
+                if (fulfilment_review_pending($pdo, $orderId)) {
+                    $refuse('Confirm availability, the destination and the actual delivery cost with the partner before authorising the purchase.');
+                }
+                if ($row['supplier_purchase_authorised_at'] !== null) {
+                    $result['outcome'] = 'unchanged';
+                    break;
+                }
+                $update('supplier_purchase_authorised_by = :founder, supplier_purchase_authorised_at = UTC_TIMESTAMP()', [':founder' => $founder]);
+                record_order_event($pdo, $orderId, 'FULFILMENT.AUTHORISED', [
+                    'founder' => $founder, 'by' => $staff, 'method' => 'FOUNDER_CODE', 'ip_hash' => hash_ip(client_ip()),
+                ], "fulfilment-authorised:{$reopen}");
                 break;
 
             case 'CONFIRM_FULFILMENT':
@@ -700,16 +835,15 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 if (fulfilment_review_pending($pdo, $orderId)) {
                     $refuse('Confirm availability, the destination and the actual delivery cost with the partner before placing this order.');
                 }
-                // Supplier expenditure is human-authorised: Bella or Lewis.
-                $authorisedBy = (string) ($in['purchase_authorised_by'] ?? '');
-                if (!in_array($authorisedBy, ['BELLA', 'LEWIS'], true)) {
-                    throw new OperationsException('purchase_authorisation_required', 'Say who authorised the partner purchase: BELLA or LEWIS.', 422);
+                // Supplier expenditure is authorised by Bella or Lewis, explicitly, first.
+                if ($row['supplier_purchase_authorised_at'] === null || $row['supplier_purchase_authorised_by'] === null) {
+                    throw new OperationsException('founder_authorisation_required', 'Bella or Lewis must authorise the supplier purchase first (AUTHORISE_SUPPLIER_PURCHASE).', 409);
                 }
+                $authorisedBy = (string) $row['supplier_purchase_authorised_by'];
                 $update(
                     "stage = 'PRODUCTION_LOCKED', production_locked_at = COALESCE(production_locked_at, UTC_TIMESTAMP()),
-                     fulfilment_state = 'CONFIRMED', fulfilment_confirmed_at = UTC_TIMESTAMP(), fulfilment_reference = :ref,
-                     supplier_purchase_authorised_by = :auth",
-                    [':ref' => operations_line($in['fulfilment_reference'] ?? null, 120), ':auth' => $authorisedBy]
+                     fulfilment_state = 'CONFIRMED', fulfilment_confirmed_at = UTC_TIMESTAMP(), fulfilment_reference = :ref",
+                    [':ref' => operations_line($in['fulfilment_reference'] ?? null, 120)]
                 );
                 record_order_event($pdo, $orderId, 'FULFILMENT.CONFIRMED', ['by' => $staff, 'authorised_by' => $authorisedBy], "fulfilment-confirmed:{$reopen}");
                 if (($in['send_email'] ?? true) !== false) {
@@ -760,6 +894,8 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 }
                 $update('delivery_delayed_at = UTC_TIMESTAMP()');
                 record_order_event($pdo, $orderId, 'DELIVERY.DELAYED', ['by' => $staff], "delayed:{$reopen}");
+                notify_founders_about_order($pdo, 'FULFILMENT_EXCEPTION', $orderId, "delivery-delayed:{$orderId}:{$reopen}",
+                    ['supplier_order' => 'DISPATCHED', 'reason' => 'DELIVERY_DELAYED']);
                 break;
 
             case 'MARK_DELIVERED':
@@ -776,6 +912,7 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                     [':date' => $date, ':days' => follow_up_delay_days()]
                 );
                 record_order_event($pdo, $orderId, 'DELIVERED', ['by' => $staff], "delivered:{$reopen}");
+                complete_order($pdo, $row, 'DELIVERED', $staff);
                 record_order_event($pdo, $orderId, 'FOLLOW_UP.DUE', ['after_days' => follow_up_delay_days()], "follow-up-due:{$reopen}");
                 break;
 
@@ -791,6 +928,10 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 break;
 
             case 'MARK_COMPLETED':
+                if ($stage === 'COMPLETED') {
+                    $result['outcome'] = 'unchanged';
+                    break;
+                }
                 $ok = $physical
                     ? $fulfil === 'DELIVERED'
                     : ($stage === 'QC_PASSED' && $row['revealed_at'] !== null) || ($stage === 'APPROVED' && $row['approved_at'] !== null);
@@ -817,7 +958,7 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 $update(
                     "stage = 'CREATIVE', creative_started_at = UTC_TIMESTAMP(), qc_submitted_at = NULL, qc_passed_at = NULL,
                      qc_passed_by = NULL, qc_checklist = NULL, reveal_url = NULL, revealed_at = NULL,
-                     supplier_purchase_authorised_by = NULL, fulfilment_state = NULL, fulfilment_pending_reason = NULL,
+                     supplier_purchase_authorised_by = NULL, supplier_purchase_authorised_at = NULL, fulfilment_state = NULL, fulfilment_pending_reason = NULL,
                      fulfilment_ready_at = NULL, fulfilment_confirmed_at = NULL, fulfilment_reference = NULL,
                      carrier = NULL, tracking_reference = NULL, tracking_url = NULL, dispatched_on = NULL,
                      delivery_delayed_at = NULL, delivered_on = NULL, follow_up_due_at = NULL,

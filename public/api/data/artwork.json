@@ -1,0 +1,352 @@
+{
+  "_generated": "Do not edit. INTERNAL. Generated from src/data/production/artwork.ts by scripts/generate-catalogue-json.mjs",
+  "source_min_px": 2500,
+  "preparation_standard_max_unready_photos": 1,
+  "output_mime_types": [
+    "image/png",
+    "image/jpeg",
+    "image/tiff"
+  ],
+  "templates": [
+    {
+      "id": "SLEEVE_12_FRONT",
+      "version": 1,
+      "kind": "SLEEVE_FRONT",
+      "label": "12-inch sleeve — front",
+      "status": "ACTIVE",
+      "orientation": "PORTRAIT",
+      "output_px": {
+        "width": 3756,
+        "height": 3827
+      },
+      "diameter_mm": null,
+      "bleed": {
+        "min": {
+          "mm": 3,
+          "px": 35
+        },
+        "max": {
+          "mm": 3,
+          "px": 35
+        }
+      },
+      "spine_allowance": {
+        "top": {
+          "mm": 3,
+          "px": 35
+        },
+        "bottom": {
+          "mm": 3,
+          "px": 35
+        }
+      },
+      "centre_hole_mm": null,
+      "centre_creative_exclusion": null,
+      "safe_inset_mm": null,
+      "trim_px": null,
+      "applies_to_skus": [
+        "journey-6"
+      ],
+      "supplier_route": null,
+      "qc": [
+        "OUTPUT_PRESENT",
+        "FILE_TYPE",
+        "EXACT_DIMENSIONS",
+        "ORDER_ASSOCIATION",
+        "SOURCE_ASSOCIATION",
+        "TEMPLATE_VERSION"
+      ],
+      "missing": [
+        "Safe-area inset",
+        "Trim size"
+      ],
+      "notes": [
+        "Founder-supplied production template (front).",
+        "3 mm bleed ≈ 35 px; top/bottom spine allowance 3 mm ≈ 35 px."
+      ]
+    },
+    {
+      "id": "SLEEVE_12_BACK",
+      "version": 1,
+      "kind": "SLEEVE_BACK",
+      "label": "12-inch sleeve — back",
+      "status": "ACTIVE",
+      "orientation": "SQUARE",
+      "output_px": {
+        "width": 3756,
+        "height": 3756
+      },
+      "diameter_mm": null,
+      "bleed": {
+        "min": {
+          "mm": 3,
+          "px": 35
+        },
+        "max": {
+          "mm": 3,
+          "px": 35
+        }
+      },
+      "spine_allowance": null,
+      "centre_hole_mm": null,
+      "centre_creative_exclusion": null,
+      "safe_inset_mm": null,
+      "trim_px": null,
+      "applies_to_skus": [
+        "journey-6"
+      ],
+      "supplier_route": null,
+      "qc": [
+        "OUTPUT_PRESENT",
+        "FILE_TYPE",
+        "EXACT_DIMENSIONS",
+        "ORDER_ASSOCIATION",
+        "SOURCE_ASSOCIATION",
+        "TEMPLATE_VERSION"
+      ],
+      "missing": [
+        "Safe-area inset",
+        "Trim size"
+      ],
+      "notes": [
+        "Founder-supplied production template (back).",
+        "3 mm bleed ≈ 35 px."
+      ]
+    },
+    {
+      "id": "GATEFOLD_12_DOUBLE",
+      "version": 1,
+      "kind": "GATEFOLD",
+      "label": "Double 12-inch gatefold",
+      "status": "TEMPLATE_REQUIRED",
+      "orientation": null,
+      "output_px": null,
+      "diameter_mm": null,
+      "bleed": null,
+      "spine_allowance": null,
+      "centre_hole_mm": null,
+      "centre_creative_exclusion": null,
+      "safe_inset_mm": null,
+      "trim_px": null,
+      "applies_to_skus": [
+        "journey-12"
+      ],
+      "supplier_route": null,
+      "qc": [
+        "OUTPUT_PRESENT",
+        "FILE_TYPE",
+        "ORDER_ASSOCIATION"
+      ],
+      "missing": [
+        "Manufacturer gatefold template (panels, spine, bleed, output size)"
+      ],
+      "notes": [
+        "The supplied front/back sleeve templates are single-sleeve; the gatefold dieline was not supplied and is not assumed."
+      ]
+    },
+    {
+      "id": "PICTURE_DISC_12",
+      "version": 1,
+      "kind": "PICTURE_DISC",
+      "label": "12-inch picture disc",
+      "status": "GEOMETRY_ONLY",
+      "orientation": "SQUARE",
+      "output_px": null,
+      "diameter_mm": 302,
+      "bleed": {
+        "min": {
+          "mm": 2,
+          "px": null
+        },
+        "max": {
+          "mm": 3,
+          "px": null
+        }
+      },
+      "spine_allowance": null,
+      "centre_hole_mm": 7.23,
+      "centre_creative_exclusion": {
+        "diameter_inches": 1.5,
+        "diameter_mm": 38.1
+      },
+      "safe_inset_mm": null,
+      "trim_px": null,
+      "applies_to_skus": [
+        "keepsake-12-picture-disc"
+      ],
+      "supplier_route": null,
+      "qc": [
+        "OUTPUT_PRESENT",
+        "FILE_TYPE",
+        "SQUARE_ASPECT",
+        "ORDER_ASSOCIATION",
+        "SOURCE_ASSOCIATION",
+        "TEMPLATE_VERSION"
+      ],
+      "missing": [
+        "Supplier output resolution / pixel canvas",
+        "Safe-zone inset from the outer edge"
+      ],
+      "notes": [
+        "Extend artwork/background about 2–3 mm beyond the final cut line where the template requires bleed.",
+        "Keep important content inside the safe zone and away from the outer trim edge.",
+        "Keep important text and facial features out of the central ~1.5-inch creative exclusion zone (this is not the physical centre hole)."
+      ]
+    },
+    {
+      "id": "PICTURE_DISC_10",
+      "version": 1,
+      "kind": "PICTURE_DISC",
+      "label": "10-inch picture disc",
+      "status": "GEOMETRY_ONLY",
+      "orientation": "SQUARE",
+      "output_px": null,
+      "diameter_mm": 250,
+      "bleed": {
+        "min": {
+          "mm": 2,
+          "px": null
+        },
+        "max": {
+          "mm": 3,
+          "px": null
+        }
+      },
+      "spine_allowance": null,
+      "centre_hole_mm": null,
+      "centre_creative_exclusion": {
+        "diameter_inches": 1.5,
+        "diameter_mm": 38.1
+      },
+      "safe_inset_mm": null,
+      "trim_px": null,
+      "applies_to_skus": [
+        "keepsake-10-picture-disc"
+      ],
+      "supplier_route": null,
+      "qc": [
+        "OUTPUT_PRESENT",
+        "FILE_TYPE",
+        "SQUARE_ASPECT",
+        "ORDER_ASSOCIATION",
+        "SOURCE_ASSOCIATION",
+        "TEMPLATE_VERSION"
+      ],
+      "missing": [
+        "Supplier output resolution / pixel canvas",
+        "Centre-hole diameter",
+        "Safe-zone inset from the outer edge"
+      ],
+      "notes": [
+        "Extend artwork/background about 2–3 mm beyond the final cut line where the template requires bleed.",
+        "Keep important content inside the safe zone and away from the outer trim edge.",
+        "Keep important text and facial features out of the central ~1.5-inch creative exclusion zone (this is not the physical centre hole)."
+      ]
+    },
+    {
+      "id": "PICTURE_DISC_7",
+      "version": 1,
+      "kind": "PICTURE_DISC",
+      "label": "7-inch picture disc",
+      "status": "GEOMETRY_ONLY",
+      "orientation": "SQUARE",
+      "output_px": null,
+      "diameter_mm": 174,
+      "bleed": {
+        "min": {
+          "mm": 2,
+          "px": null
+        },
+        "max": {
+          "mm": 3,
+          "px": null
+        }
+      },
+      "spine_allowance": null,
+      "centre_hole_mm": null,
+      "centre_creative_exclusion": {
+        "diameter_inches": 1.5,
+        "diameter_mm": 38.1
+      },
+      "safe_inset_mm": null,
+      "trim_px": null,
+      "applies_to_skus": [
+        "keepsake-7-picture-disc"
+      ],
+      "supplier_route": null,
+      "qc": [
+        "OUTPUT_PRESENT",
+        "FILE_TYPE",
+        "SQUARE_ASPECT",
+        "ORDER_ASSOCIATION",
+        "SOURCE_ASSOCIATION",
+        "TEMPLATE_VERSION"
+      ],
+      "missing": [
+        "Supplier output resolution / pixel canvas",
+        "Centre-hole diameter",
+        "Safe-zone inset from the outer edge"
+      ],
+      "notes": [
+        "Extend artwork/background about 2–3 mm beyond the final cut line where the template requires bleed.",
+        "Keep important content inside the safe zone and away from the outer trim edge.",
+        "Keep important text and facial features out of the central ~1.5-inch creative exclusion zone (this is not the physical centre hole)."
+      ]
+    },
+    {
+      "id": "PICTURE_DISC_HEART",
+      "version": 1,
+      "kind": "PICTURE_DISC",
+      "label": "Heart-shaped picture disc",
+      "status": "TEMPLATE_REQUIRED",
+      "orientation": null,
+      "output_px": null,
+      "diameter_mm": null,
+      "bleed": null,
+      "spine_allowance": null,
+      "centre_hole_mm": null,
+      "centre_creative_exclusion": {
+        "diameter_inches": 1.5,
+        "diameter_mm": 38.1
+      },
+      "safe_inset_mm": null,
+      "trim_px": null,
+      "applies_to_skus": [
+        "keepsake-10-heart-picture-disc"
+      ],
+      "supplier_route": null,
+      "qc": [
+        "OUTPUT_PRESENT",
+        "FILE_TYPE",
+        "ORDER_ASSOCIATION"
+      ],
+      "missing": [
+        "Manufacturer heart dieline / cut line, bleed and output size"
+      ],
+      "notes": [
+        "MANUAL / TEMPLATE REQUIRED: the heart cut line is never guessed. Staff prepare and register the artwork manually."
+      ]
+    }
+  ],
+  "components_by_sku": {
+    "journey-6": [
+      "SLEEVE_12_FRONT",
+      "SLEEVE_12_BACK"
+    ],
+    "journey-12": [
+      "GATEFOLD_12_DOUBLE"
+    ],
+    "keepsake-12-picture-disc": [
+      "PICTURE_DISC_12"
+    ],
+    "keepsake-10-picture-disc": [
+      "PICTURE_DISC_10"
+    ],
+    "keepsake-7-picture-disc": [
+      "PICTURE_DISC_7"
+    ],
+    "keepsake-10-heart-picture-disc": [
+      "PICTURE_DISC_HEART"
+    ]
+  }
+}

@@ -160,6 +160,36 @@ return [
         'delivery_delay_days' => 0,
     ],
 
+    // ---- Founder financial authority --------------------------------
+    // A supplier purchase is authorised only by Bella OR Lewis, explicitly,
+    // on the signed-in operations page, with their own authorisation code.
+    // Store ONLY the password hash of each code, never the code:
+    //   php -r 'echo password_hash(readline("Code: "), PASSWORD_DEFAULT), PHP_EOL;'
+    // Codes: 12+ characters, known only to that founder, never sent in a
+    // notification, link or chat. Empty: nobody can authorise a purchase.
+    'founders' => [
+        'BELLA' => ['authorisation_hash' => ''],
+        'LEWIS' => ['authorisation_hash' => ''],
+    ],
+
+    // ---- Founder notifications (outbox) ------------------------------
+    // MCB writes founder notifications to an outbox and never calls a
+    // provider itself. An authorised worker (a Telegram bridge, an email
+    // sender) claims and acknowledges them at /api/crm/notifications with
+    // this key, which can do nothing else. 32+ random characters. Provider
+    // credentials (a Telegram bot token, chat ids) belong to the worker,
+    // never here. See docs/AUTOMATION-FOUNDATION-20260915.md.
+    'notifications' => [
+        'worker_key' => '',
+    ],
+
+    // ---- Production artwork -------------------------------------------
+    // Largest production output staff may register (bytes). The PHP upload
+    // limits (api/.htaccess, api/.user.ini) must be at least this large.
+    'artwork' => [
+        'max_output_bytes' => 10485760,
+    ],
+
     // ---- Reviews ------------------------------------------------------
     // Where a customer is sent to say what their memory meant to them.
     //

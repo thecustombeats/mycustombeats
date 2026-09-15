@@ -33,6 +33,7 @@ const TARGETS = {
   personalisation: join(root, "public/api/data/personalisation.json"),
   operations: join(root, "public/api/data/operations.json"),
   publicCatalogue: join(root, "public/catalogue.json"),
+  artwork: join(root, "public/api/data/artwork.json"),
 };
 
 const fail = (message) => {
@@ -60,6 +61,7 @@ try {
       join(root, "src/data/countries.ts"),
       join(root, "src/data/operations.ts"),
       join(root, "src/data/imagery.ts"),
+      join(root, "src/data/production/artwork.ts"),
       "--outDir", tmp,
       "--rootDir", join(root, "src/data"),
       "--module", "esnext",
@@ -100,6 +102,7 @@ const musicStyles = await import(pathToFileURL(join(tmp, "musicStyles.js")).href
 const countries = await import(pathToFileURL(join(tmp, "countries.js")).href);
 const operations = await import(pathToFileURL(join(tmp, "operations.js")).href);
 const imagery = await import(pathToFileURL(join(tmp, "imagery.js")).href);
+const artwork = await import(pathToFileURL(join(tmp, "production/artwork.js")).href);
 rmSync(tmp, { recursive: true, force: true });
 
 const { PRODUCTS, ORDER_LIMITS, PRIORITY_REPLACEMENT_SKU, validateCatalogue } = catalogue;
@@ -257,6 +260,9 @@ const personalisationOut = {
 /* operations.json                                                     */
 /* ------------------------------------------------------------------ */
 
+for (const [name, recorded] of Object.entries(operations.EVENT_MODEL)) {
+  if (!operations.AUTOMATION_EVENTS.includes(recorded)) fail(`event model ${name} maps to ${recorded}, which is not an automation event`);
+}
 for (const id of Object.keys(operations.CREATIVE_TARGET_HOURS)) {
   if (!products[id] || products[id].category !== "SONG_EXPERIENCE") fail(`creative target for ${id} is not a song experience`);
 }
@@ -276,6 +282,9 @@ const operationsOut = {
     operations.LIFECYCLE_TEMPLATES.map((t) => [t.type, { trigger: t.trigger, auto_send: t.autoSend, workflows: [...t.workflows] }])
   ),
   automation_events: [...operations.AUTOMATION_EVENTS],
+  event_model: { ...operations.EVENT_MODEL },
+  founder_notifications: operations.FOUNDER_NOTIFICATIONS.map((n) => ({ type: n.type, title: n.title, required_action: n.requiredAction })),
+  financial_authorisers: [...operations.FINANCIAL_AUTHORISERS],
   queue_kinds: Object.fromEntries(
     Object.entries(operations.QUEUE_KINDS).map(([k, v]) => [k, { label: v.label, priority: v.priority }])
   ),
@@ -410,12 +419,38 @@ const publicCatalogueOut = {
   ...publicCatalogueBody,
 };
 
+/* ------------------------------------------------------------------ */
+/* artwork.json — INTERNAL production artwork templates (server only)  */
+/* ------------------------------------------------------------------ */
+
+for (const t of artwork.ARTWORK_TEMPLATES) {
+  for (const sku of t.appliesToSkus) if (!skus[sku]) fail(`artwork template ${t.id} names unknown SKU ${sku}`);
+  if (t.status === "ACTIVE" && !t.outputPx) fail(`ACTIVE artwork template ${t.id} has no output size`);
+  if (t.status === "TEMPLATE_REQUIRED" && (t.outputPx || t.bleed)) fail(`template ${t.id} requires a template but carries invented geometry`);
+}
+for (const [sku, entry] of Object.entries(skus)) {
+  if (catalogue.PHOTO_ARTWORK_PRODUCT_IDS.has(entry.product_id) && !artwork.ARTWORK_COMPONENTS_BY_SKU[sku]) fail(`photo-artwork SKU ${sku} has no artwork template`);
+}
+const snake = (value) =>
+  Array.isArray(value) ? value.map(snake)
+    : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k.replace(/[A-Z]/g, (c) => "_" + c.toLowerCase()), snake(v)]))
+      : value;
+const artworkOut = {
+  _generated: "Do not edit. INTERNAL. Generated from src/data/production/artwork.ts by scripts/generate-catalogue-json.mjs",
+  source_min_px: catalogue.ARTWORK_PHOTO_MIN_PX,
+  preparation_standard_max_unready_photos: artwork.PREPARATION_STANDARD_MAX_UNREADY_PHOTOS,
+  output_mime_types: [...artwork.ARTWORK_OUTPUT_MIME_TYPES],
+  templates: snake(artwork.ARTWORK_TEMPLATES),
+  components_by_sku: { ...artwork.ARTWORK_COMPONENTS_BY_SKU },
+};
+
 const outputs = [
   [TARGETS.catalogue, JSON.stringify(catalogueOut, null, 2) + "\n"],
   [TARGETS.legal, JSON.stringify(legalOut, null, 2) + "\n"],
   [TARGETS.personalisation, JSON.stringify(personalisationOut, null, 2) + "\n"],
   [TARGETS.operations, JSON.stringify(operationsOut, null, 2) + "\n"],
   [TARGETS.publicCatalogue, JSON.stringify(publicCatalogueOut, null, 2) + "\n"],
+  [TARGETS.artwork, JSON.stringify(artworkOut, null, 2) + "\n"],
 ];
 
 if (checkOnly) {

@@ -18,6 +18,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/bootstrap.php';
+require_once __DIR__ . '/../lib/operations.php';
 
 require_method('GET');
 require_crm_key();
@@ -126,12 +127,38 @@ try {
     $add('creative_authority_migration_applied', 'FAIL', 'The database could not be checked.');
 }
 
+try {
+    $found = db()->query(
+        "SELECT (SELECT COUNT(*) FROM information_schema.tables
+                  WHERE table_schema = DATABASE() AND table_name IN ('order_artwork','founder_notifications','product_sales_suspensions'))
+              + (SELECT COUNT(*) FROM information_schema.columns
+                  WHERE table_schema = DATABASE()
+                    AND ((table_name = 'order_production' AND column_name = 'supplier_purchase_authorised_at')
+                      OR (table_name = 'order_events' AND column_name = 'source')))"
+    )->fetchColumn();
+    $add('automation_foundation_migration_applied', (int) $found === 5 ? 'PASS' : 'FAIL',
+        'db/migrations/2026-09-15-automation-foundation.sql must be applied (after a backup). Payments cannot record the founder notification without it.');
+} catch (PDOException $e) {
+    error_log('MCB preflight: database check failed: ' . $e->getMessage());
+    $add('automation_foundation_migration_applied', 'FAIL', 'The database could not be checked.');
+}
+
+// Supplier purchases need Bella or Lewis's own authorisation code (a password hash in config).
+$configuredFounders = array_values(array_filter(MCB_FOUNDERS, 'founder_authorisation_configured'));
+$add('founder_authorisation_configured', $configuredFounders === [] ? 'WARN' : 'PASS',
+    $configuredFounders === []
+        ? 'No founder authorisation code is configured: physical orders cannot be authorised for supplier purchase. Set founders.BELLA / founders.LEWIS authorisation_hash (password_hash output).'
+        : 'Supplier purchase authorisation is configured for: ' . implode(', ', $configuredFounders) . '.');
+$workerKey = (string) mcb_setting('notifications.worker_key', '');
+$add('notification_worker_key', strlen($workerKey) >= 32 ? 'PASS' : 'WARN',
+    'notifications.worker_key (32+ random characters) lets an authorised notification bridge claim founder notifications without the CRM key. Until then notifications wait in the outbox and the staff queue.');
+
 // Customer order and reveal links are HMACs under token_secret.
 $add('customer_links_secret', strlen((string) mcb_setting('token_secret', '')) >= 32 ? 'PASS' : 'FAIL',
     'token_secret must be at least 32 random characters: customer order and reveal links depend on it.');
 
 // ---- Generated data ------------------------------------------------------------
-foreach (['catalogue.json', 'legal.json', 'personalisation.json', 'operations.json'] as $file) {
+foreach (['catalogue.json', 'legal.json', 'personalisation.json', 'operations.json', 'artwork.json'] as $file) {
     $add('data_' . basename($file, '.json'), is_readable(__DIR__ . '/../data/' . $file) ? 'PASS' : 'FAIL', "api/data/{$file} must be deployed with the build.");
 }
 

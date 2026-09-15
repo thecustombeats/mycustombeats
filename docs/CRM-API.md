@@ -361,7 +361,10 @@ Full runbook: `docs/OPERATIONS-RUNBOOK.md`. All CRM endpoints need `Authorizatio
 | `GET /api/crm/operations?enquiry=LIVE-…` / `?view=live-enquiries` | MCB LIVE and Bespoke enquiries |
 | `POST /api/crm/operations` | `ACKNOWLEDGE` a queue item; `ENQUIRY_STATUS` |
 | `POST /api/crm/order-action` | Staff actions (state-checked, audited, idempotent emails) |
-| `GET /api/crm/automation-events` | Automation-ready events, two cursors |
+| `GET /api/crm/automation-events` | Automation-ready events, two cursors (order events now carry `source`) |
+| `GET /api/crm/artwork?order_id=41` · `POST` (multipart) · `GET ?artwork_id=&download=1` | Production artwork plan with template metadata; register an output (automated technical QC); download it |
+| `GET/POST /api/crm/notifications` | Founder notification outbox: list, `?view=health`, `CLAIM`, `ACK`, `REQUEUE` (worker key or CRM key; `REQUEUE` CRM only) |
+| `GET/POST /api/crm/product-sales` | Suspend / resume NEW sales of a SKU or product |
 
 Public (same-origin, rate-limited, token in body):
 
@@ -371,3 +374,4 @@ Public (same-origin, rate-limited, token in body):
 | `POST /api/order-approval` `{token}` | **Retired** (Single Creative Authority): always `{retired: true, message}`, records nothing |
 | `POST /api/order-support` `{token, kind, item?, priorityReplacement?, description}` | Report a problem or ask a question |
 | `POST /api/live/enquiry` | MCB LIVE enquiry → `LIVE-YYYY-XXXXXX` |
+| `GET /api/product-availability` | Public: SKUs/products currently unavailable for new orders (identifiers only) |

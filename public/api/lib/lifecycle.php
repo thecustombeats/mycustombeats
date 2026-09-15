@@ -351,6 +351,9 @@ function send_review_request(PDO $pdo, int $orderId): string
         $claimId,
         is_string($messageId) ? mb_substr($messageId, 0, 190) : null
     );
+    // Lifecycle hook: COMPLETED → FOLLOW_UP → REVIEW.REQUESTED. Asking for a
+    // review grants no marketing use of the customer's photos or story.
+    record_order_event_safely($pdo, $recipient['order_id'], 'REVIEW.REQUESTED', [], 'review-requested');
 
     return 'sent';
 }

@@ -27,6 +27,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/bootstrap.php';
 require_once __DIR__ . '/../lib/referral.php';
+require_once __DIR__ . '/../lib/founder-notifications.php';
+require_once __DIR__ . '/../lib/artwork.php';
+
+mcb_event_source('STRIPE_WEBHOOK');
 
 require_method('POST');
 
@@ -339,6 +343,10 @@ try {
         // Single Creative Authority: verified payment is the order commitment.
         // Personalised production may begin now; no approval is awaited.
         record_order_event($pdo, $orderId, 'ORDER.READY_FOR_PROCESSING', [], 'ready-for-processing');
+        // …and the Founders are told, in the same transaction: an order is
+        // never paid without its notification being on record, and a replayed
+        // event matches the same key and queues nothing twice.
+        notify_founders_about_order($pdo, 'NEW_ORDER_READY_FOR_PROCESSING', $orderId, "new-order:{$orderId}");
         record_order_event($pdo, $orderId, 'CUSTOMER.CONFIRMATION.DUE', [], 'confirmation-due');
 
         // The only place affiliate sales are ever incremented. Stripe is the
@@ -429,6 +437,17 @@ if ($outcome === 'recorded' || $outcome === 'already_paid' || $outcome === 'dupl
 // no customer contact details or story. Dormant unless configured.
 if ($outcome === 'recorded') {
     notify_operations_of_payment(db(), $orderId);
+}
+
+// The production artwork plan (which templates, from which photograph). A
+// failure here never affects the payment: the plan is refreshed again when
+// staff open the order or pass the quality check.
+if ($outcome === 'recorded' || $outcome === 'already_paid' || $outcome === 'duplicate') {
+    try {
+        db_transaction(fn (PDO $pdo): array => plan_order_artwork($pdo, $orderId));
+    } catch (Throwable $e) {
+        error_log('MCB artwork: could not plan artwork for order ' . $orderId . ': ' . $e->getMessage());
+    }
 }
 
 // Close the snapshot, for operators reading the checkout history. Purely a

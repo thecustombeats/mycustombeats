@@ -62,6 +62,7 @@ crmp() { curl -s -o /tmp/lc.json -w '%{http_code}' -X POST "$BASE/$1" -H "Author
 # check, a reveal (no email here), then completion. Prints the last status code.
 QC_ALL='"checklist":{"correct_order":true,"names":true,"details":true,"no_other_customer":true,"song_version":true,"spelling":true,"sku":true,"no_output_defect":true,"quality_standard":true}'
 QC_PHYS='"checklist":{"correct_order":true,"names":true,"details":true,"no_other_customer":true,"song_version":true,"spelling":true,"sku":true,"no_output_defect":true,"quality_standard":true,"photographs":true,"artwork_dimensions":true,"production_files":true,"delivery_information":true}'
+. tests/automation-helpers.sh
 act_lc() { crmp crm/order-action "{\"order_id\":$1,\"action\":\"$2\",\"staff\":\"Ops\"${3:+,$3}}"; }
 complete_digital() {
   local today; today=$(date -u +%Y-%m-%d)
@@ -69,8 +70,10 @@ complete_digital() {
   if [ "$(q "SELECT fulfilment_type FROM orders WHERE id=$1")" = "PHYSICAL" ]; then
     # Test setup: these lifecycle orders use the older single-brief form.
     q "UPDATE orders SET personalisation_status='COMPLETE' WHERE id=$1" >/dev/null
+    register_artwork "$1"
     act_lc "$1" PASS_QUALITY_CHECK "$QC_PHYS" >/dev/null
-    act_lc "$1" CONFIRM_FULFILMENT '"purchase_authorised_by":"BELLA","send_email":false' >/dev/null
+    founder_authorise "$1" BELLA "$FOUNDER_CODE_BELLA" >/dev/null
+    act_lc "$1" CONFIRM_FULFILMENT '"send_email":false' >/dev/null
     act_lc "$1" MARK_DISPATCHED "\"carrier\":\"Royal Mail\",\"dispatched_on\":\"$today\",\"send_email\":false" >/dev/null
     act_lc "$1" MARK_DELIVERED "\"delivered_on\":\"$today\"" >/dev/null
   else

@@ -36,7 +36,8 @@ function available_staff_actions(array $row): array
         'REVEAL.READY'                        => ['SEND_REVEAL', 'REOPEN'],
         'REVEALED'                            => ['MARK_COMPLETED', 'REOPEN'],
         'FULFILMENT.PENDING'                  => ['SET_FULFILMENT_READY', 'REOPEN'],
-        'FULFILMENT.READY'                    => ['CONFIRM_FULFILMENT', 'REOPEN'],
+        'FULFILMENT.READY'                    => ['AUTHORISE_SUPPLIER_PURCHASE', 'REOPEN'],
+        'FULFILMENT.AUTHORISED'               => ['CONFIRM_FULFILMENT', 'REOPEN'],
         'FULFILMENT.CONFIRMED'                => ['MARK_DISPATCHED', 'REOPEN'],
         'DISPATCHED'                          => ['UPDATE_TRACKING', 'MARK_DELIVERY_DELAYED', 'MARK_DELIVERED'],
         'DELIVERED'                           => ['MARK_COMPLETED', 'REOPEN'],
@@ -135,7 +136,11 @@ function operations_queue(PDO $pdo, ?int $now = null): array
                 break;
             case 'FULFILMENT.READY':
                 $items[] = queue_item("ORDER:{$id}:FULFILMENT_READY:{$reopen}", 'FULFILMENT_READY', $subject, $r['fulfilment_ready_at'],
-                    'Bella or Lewis authorises the partner purchase; place it by hand, then confirm it here. Nothing is ordered automatically. Items may come from different partners and be sent separately.');
+                    'Fulfilment approval required: customer payment verified, MCB quality check passed. Bella or Lewis authorises the supplier purchase on this order. Nothing is ordered automatically.');
+                break;
+            case 'FULFILMENT.AUTHORISED':
+                $items[] = queue_item("ORDER:{$id}:SUPPLIER_ORDER_REQUIRED:{$reopen}", 'SUPPLIER_ORDER_REQUIRED', $subject, $r['supplier_purchase_authorised_at'],
+                    'Authorised by ' . ucfirst(strtolower((string) $r['supplier_purchase_authorised_by'])) . '. Place the supplier order by hand, then record it here. Items may come from different partners and be sent separately.');
                 break;
             case 'FULFILMENT.CONFIRMED':
                 $items[] = queue_item("ORDER:{$id}:SUPPLIER_ACTION:{$reopen}", 'SUPPLIER_ACTION', $subject, $r['fulfilment_confirmed_at'],
@@ -170,6 +175,32 @@ function operations_queue(PDO $pdo, ?int $now = null): array
                     $hours !== null ? "Past MCB's internal {$hours}-hour objective." : "Paid more than {$overdueDays} days ago and not yet through the quality check.");
             }
         }
+    }
+
+    // ---- Artwork that needs a person ----------------------------------------
+    foreach ($pdo->query(
+        "SELECT a.id, a.order_id, a.template_id, a.status, a.exception_reason, a.updated_at, o.mcb_reference, o.fulfilment_type
+           FROM order_artwork a JOIN orders o ON o.id = a.order_id
+           LEFT JOIN order_production p ON p.order_id = o.id
+          WHERE a.status IN ('TEMPLATE_REQUIRED','EXCEPTION') AND o.status = 'PAID'
+            AND (p.stage IS NULL OR p.stage IN ('CREATIVE','QUALITY_CHECK','SONG_READY','AWAITING_APPROVAL','REVISION_REQUESTED'))
+          ORDER BY a.id LIMIT 500"
+    )->fetchAll() as $r) {
+        $items[] = queue_item("ARTWORK:{$r['id']}:{$r['status']}", 'ARTWORK_EXCEPTION',
+            ['type' => 'ORDER', 'order_id' => (int) $r['order_id'], 'reference' => $r['mcb_reference'], 'workflow' => $r['fulfilment_type'], 'artwork_id' => (int) $r['id']],
+            $r['updated_at'], $r['status'] === 'TEMPLATE_REQUIRED'
+                ? 'No manufacturer template is on record for ' . strtolower(str_replace('_', ' ', (string) $r['template_id'])) . '. Prepare it by hand to the manufacturer\'s dieline; nothing is generated.'
+                : 'Artwork exception (' . strtolower(str_replace('_', ' ', (string) $r['exception_reason'])) . '): review internally. No extra charge is made automatically.');
+    }
+
+    // ---- Founder notifications that could not be delivered ---------------------
+    foreach ($pdo->query(
+        "SELECT id, notification_type, subject_reference, order_id, attempts, last_error, updated_at
+           FROM founder_notifications WHERE status = 'ABANDONED' ORDER BY id LIMIT 200"
+    )->fetchAll() as $r) {
+        $items[] = queue_item("NOTIFICATION:{$r['id']}:ABANDONED", 'NOTIFICATION_FAILED',
+            ['type' => 'NOTIFICATION', 'notification_id' => (int) $r['id'], 'order_id' => $r['order_id'] === null ? null : (int) $r['order_id'], 'reference' => $r['subject_reference']],
+            $r['updated_at'], 'The ' . strtolower(str_replace('_', ' ', (string) $r['notification_type'])) . " founder notification was not delivered after {$r['attempts']} attempts. Check the notification bridge; requeue it once fixed.");
     }
 
     // ---- Payments that need a person ---------------------------------------

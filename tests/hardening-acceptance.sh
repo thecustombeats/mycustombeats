@@ -341,8 +341,9 @@ tc "75. Resend behaviour is unchanged — the closure sends no mail" \
 tc "76. the review URL is still configuration and still empty" \
   "$(grep -A3 "'reviews'" public/api/config.example.php | grep -q "'url' => ''" && echo 1 || echo 0)"
 
-tc "77. earlier migrations are untouched; Sprint 4, Sprint 5 and Single Creative Authority additive migrations follow" \
-  "$([ "$(ls db/migrations/*.sql | wc -l | tr -d ' ')" = "11" ] && [ -f db/migrations/2026-09-15-single-creative-authority.sql ] \
+tc "77. earlier migrations are untouched; Sprint 4, Sprint 5, Single Creative Authority and Automation Foundation additive migrations follow" \
+  "$([ "$(ls db/migrations/*.sql | wc -l | tr -d ' ')" = "12" ] && [ -f db/migrations/2026-09-15-single-creative-authority.sql ] \
+     && [ -f db/migrations/2026-09-15-automation-foundation.sql ] && git diff --quiet 60209ec9 -- db/migrations/2026-09-15-single-creative-authority.sql \
      && git diff --quiet e2d83387 -- db/migrations/2026-09-14-sprint5-operations.sql \
      && [ -f db/migrations/2026-09-14-canonical-catalogue.sql ] && [ -f db/migrations/2026-09-14-sprint4-order-persistence.sql ] \
      && [ -f db/migrations/2026-09-14-sprint5-operations.sql ] \

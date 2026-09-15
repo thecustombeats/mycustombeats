@@ -101,11 +101,18 @@ if ($blocker !== null) {
 
 // ---- The saved lines -----------------------------------------------------
 $stmt = db()->prepare(
-    'SELECT item_id, item_name, quantity, unit_minor, line_minor
+    'SELECT item_id, product_id, item_name, quantity, unit_minor, line_minor
        FROM order_items WHERE order_id = :id ORDER BY id'
 );
 $stmt->execute([':id' => $orderId]);
 $lines = $stmt->fetchAll();
+
+// New sales suspended since this order was created: no new payment is taken.
+foreach ($lines as $line) {
+    if (sales_suspended((string) $line['item_id'], $line['product_id'] === null ? null : (string) $line['product_id'])) {
+        json_error(409, 'product_unavailable', $line['item_name'] . ' is currently unavailable, so this order cannot be paid. Please contact MCB.');
+    }
+}
 
 $totalMinor = 0;
 foreach ($lines as $line) {

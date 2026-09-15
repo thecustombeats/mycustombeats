@@ -192,4 +192,5 @@ function require_crm_key(): void
         header('WWW-Authenticate: Bearer');
         json_error(401, 'unauthorized', 'Authentication required.');
     }
+    mcb_event_source('STAFF');
 }

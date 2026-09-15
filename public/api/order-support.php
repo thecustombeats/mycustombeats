@@ -89,9 +89,14 @@ try {
             ':oid' => $orderId, ':unit' => $unitId, ':kind' => $kind, ':pr' => $wantsPriority ? 1 : 0,
             ':elig' => $eligibility, ':descr' => $description, ':ip' => hash_ip(client_ip()),
         ]);
+        $requestId = (int) $pdo->lastInsertId();
         record_order_event($pdo, $orderId, 'SERVICE_REQUEST.RECEIVED', [
             'kind' => $kind, 'priority_replacement' => $wantsPriority, 'eligibility' => $eligibility,
         ]);
+        // A genuine report interrupts the Founders; a plain question waits in the queue.
+        if ($kind !== 'QUESTION') {
+            notify_founders_about_order($pdo, 'CUSTOMER_SUPPORT_EXCEPTION', $orderId, "support:{$orderId}:{$requestId}", ['reason' => $kind]);
+        }
     });
 } catch (Throwable $e) {
     error_log('MCB support request failed for order ' . $orderId . ': ' . $e->getMessage());

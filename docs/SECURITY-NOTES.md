@@ -13,7 +13,10 @@
 | `affiliate/dashboard` | GET | signed dashboard token; rate-limited (Sprint 6) |
 | `referral/check`, `checkout/status`, `fx/rates` | GET | public, no personal data; referral check rate-limited |
 | `stripe/webhook` | POST | Stripe signature with tolerance; event idempotency; exact amount/currency/mode matching |
-| `crm/*` (all 13 endpoints) | GET/POST | CRM key (Bearer, constant-time compare); no browser cookie |
+| `crm/*` (all 16 endpoints) | GET/POST | CRM key (Bearer, constant-time compare); no browser cookie |
+| `crm/notifications` | GET/POST | CRM key **or** the separate `notifications.worker_key`, which can do nothing else; claim tokens are one-time (stored as SHA-256) |
+| `product-availability` | GET | public; catalogue identifiers only |
+| `AUTHORISE_SUPPLIER_PURCHASE` (via `crm/order-action`) | POST | CRM key **and** the founder's own code (`password_verify` against a config hash); 5 refusals per order per 15 min → 429; refusals audited without the code. A notification deep link carries only `#order=…&action=…` and authorises nothing |
 
 Proven by `tests/release-acceptance.sh`: every public write endpoint refuses GET (405) and a foreign `Origin` (403); every CRM endpoint refuses a missing or wrong key (401); private links cannot be opened by MCB reference or order number; wrong-token and unknown-order answers are identical; error bodies carry no stack trace, path or SQL.
 

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Helmet } from "react-helmet-async";
-import { OPERATIONAL_STATES, QC_CHECKLIST, QC_FAIL_REASONS, REOPEN_REASONS } from "../data/operations";
+import { useLocation } from "react-router-dom";
+import { parseOperationsLink } from "../lib/operationsLink";
+import { FINANCIAL_AUTHORISERS, OPERATIONAL_STATES, QC_CHECKLIST, QC_FAIL_REASONS, REOPEN_REASONS } from "../data/operations";
 
 /**
  * /operations — the MCB staff console.
@@ -14,6 +16,11 @@ import { OPERATIONAL_STATES, QC_CHECKLIST, QC_FAIL_REASONS, REOPEN_REASONS } fro
  * It reads the queue and order detail from /api/crm/operations and performs
  * actions through /api/crm/order-action. The server checks every action
  * against the order's state; the buttons here are a convenience, not the rule.
+ *
+ * DEEP LINKS from founder notifications — /operations#order=MCB-…&action=… —
+ * only choose which order to open, after sign-in. They carry no credential
+ * and approve nothing: a supplier purchase is authorised only when Bella or
+ * Lewis submits AUTHORISE_SUPPLIER_PURCHASE here with their own code.
  */
 
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -28,12 +35,13 @@ const ghost =
 const STATE_TEXT = Object.fromEntries(OPERATIONAL_STATES.map((s) => [s.state, s.staff]));
 
 /** Extra fields each action needs. */
-const ACTION_FIELDS: Record<string, { name: string; label: string; type?: "text" | "date" | "url" | "select" | "textarea" | "checkbox"; options?: string[] }[]> = {
+const ACTION_FIELDS: Record<string, { name: string; label: string; type?: "text" | "date" | "url" | "select" | "textarea" | "checkbox" | "password"; options?: string[] }[]> = {
   PASS_QUALITY_CHECK: [{ name: "reveal_url", label: "Digital only: private https link to the finished song you checked", type: "url" }, { name: "reveal_now", label: "Digital only: reveal to the customer now", type: "checkbox" }, { name: "send_email", label: "Email the customer the reveal", type: "checkbox" }],
   FAIL_QUALITY_CHECK: [{ name: "reason", label: "Why it failed", type: "select", options: [...QC_FAIL_REASONS] }, { name: "note", label: "What to correct (internal, never shown to the customer)", type: "textarea" }],
   SEND_REVEAL: [{ name: "reveal_url", label: "Private https link to the finished song (if not already added)", type: "url" }, { name: "send_email", label: "Email the customer the reveal", type: "checkbox" }],
   CONFIRM_FULFILMENT_REVIEW: [{ name: "confirmed", label: "I have confirmed availability, the destination and the actual delivery cost with the partner", type: "checkbox" }, { name: "note", label: "What was confirmed (no card or account details)", type: "textarea" }],
-  CONFIRM_FULFILMENT: [{ name: "purchase_authorised_by", label: "Partner purchase authorised by", type: "select", options: ["BELLA", "LEWIS"] }, { name: "fulfilment_reference", label: "Your order reference with the supplier (optional)" }, { name: "send_email", label: "Tell the customer their keepsake is being made", type: "checkbox" }],
+  AUTHORISE_SUPPLIER_PURCHASE: [{ name: "founder", label: "Founder authorising", type: "select", options: [...FINANCIAL_AUTHORISERS] }, { name: "founder_code", label: "Your founder authorisation code (never share it or send it in a message)", type: "password" }, { name: "confirm", label: "I authorise MCB to purchase this order from the production partner", type: "checkbox" }],
+  CONFIRM_FULFILMENT: [{ name: "fulfilment_reference", label: "Your order reference with the supplier (optional)" }, { name: "send_email", label: "Tell the customer their keepsake is being made", type: "checkbox" }],
   MARK_DISPATCHED: [{ name: "carrier", label: "Carrier" }, { name: "tracking_reference", label: "Tracking reference(s) — separate several parcels with commas (optional)" }, { name: "tracking_url", label: "Tracking link, https (optional)", type: "url" }, { name: "dispatched_on", label: "Dispatched on", type: "date" }, { name: "send_email", label: "Email the customer", type: "checkbox" }],
   UPDATE_TRACKING: [{ name: "carrier", label: "Carrier" }, { name: "tracking_reference", label: "Tracking reference(s) — separate several parcels with commas (optional)" }, { name: "tracking_url", label: "Tracking link, https (optional)", type: "url" }, { name: "dispatched_on", label: "Dispatched on", type: "date" }],
   MARK_DELIVERED: [{ name: "delivered_on", label: "Delivered on", type: "date" }],
@@ -66,6 +74,10 @@ const Operations = () => {
   const [fields, setFields] = useState<Record<string, string | boolean | Record<string, boolean>>>({});
   const [busy, setBusy] = useState(false);
   const [brief, setBrief] = useState<Json | null>(null);
+  const [artworkFiles, setArtworkFiles] = useState<Record<number, File | null>>({});
+  const { hash } = useLocation();
+  const [link] = useState(() => parseOperationsLink(hash));
+  const [linkUsed, setLinkUsed] = useState(false);
 
   const api = useCallback(
     async (path: string, body?: Json): Promise<Json> => {
@@ -93,13 +105,15 @@ const Operations = () => {
     }
   }, [api]);
 
-  const openOrder = async (orderId: number) => {
+  const openOrder = async (orderId: number, preselect?: string | null) => {
     setEnquiry(null);
     setBrief(null);
     setAction("");
     setFields({});
     try {
-      setOrder(await api(`/api/crm/operations?order=${orderId}`));
+      const opened = await api(`/api/crm/operations?order=${orderId}`);
+      setOrder(opened);
+      if (preselect && opened.operations.available_actions.includes(preselect)) setAction(preselect);
       // The creative brief: every memory, style, plaque and frame detail, the
       // delivery address and the photos, so staff never need the database.
       setBrief(await api(`/api/crm/order-personalisation?order_id=${orderId}`));
@@ -121,6 +135,44 @@ const Operations = () => {
   useEffect(() => {
     if (signedIn) loadQueue();
   }, [signedIn, loadQueue]);
+
+  // A notification link opens its order once, after sign-in. Opening is all it does.
+  useEffect(() => {
+    if (!signedIn || linkUsed || !link.reference) return;
+    setLinkUsed(true);
+    api(`/api/crm/operations?q=${encodeURIComponent(link.reference)}`)
+      .then((found) => {
+        const match = found.orders.find((o: Json) => o.reference === link.reference);
+        if (!match) throw new Error(`No order ${link.reference} was found.`);
+        return openOrder(match.order_id, link.action);
+      })
+      .catch((e) => setMessage((e as Error).message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn, linkUsed, link, api]);
+
+  /** Registers a production output; the server runs the technical artwork checks. */
+  const registerArtwork = async (component: Json, extra: Record<string, string>) => {
+    const file = artworkFiles[component.artwork_id];
+    if (!order || !file) return;
+    const form = new FormData();
+    Object.entries({
+      order_id: String(order.order_id), artwork_id: String(component.artwork_id), reference: order.reference ?? "",
+      template_id: component.template?.id ?? "", template_version: String(component.template?.version ?? ""), staff, ...extra,
+    }).forEach(([k, v]) => form.append(k, v));
+    form.append("output", file);
+    setBusy(true);
+    try {
+      const response = await fetch("/api/crm/artwork", { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: form });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.message ?? `Request failed (${response.status}).`);
+      setMessage(`Artwork ready: ${Object.entries(payload.checks ?? {}).map(([k, v]) => `${humanise(k)} ${v}`).join(", ")}`);
+      await openOrder(order.order_id);
+    } catch (e) {
+      setMessage((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const signIn = async (event: FormEvent) => {
     event.preventDefault();
@@ -203,6 +255,7 @@ const Operations = () => {
             <label className="block font-semibold">Your name (for the audit trail)<input value={staff} onChange={(e) => setStaff(e.target.value)} className={input} /></label>
             <button className={btn} disabled={!key || !staff}>Open</button>
             {message && <p role="alert" className="text-[#9B2C2C]">{message}</p>}
+            {link.reference && <p className="text-sm text-espresso/75">After you sign in, order {link.reference} opens. The link itself authorises nothing.</p>}
             <p className="text-sm text-espresso/75">The key stays in this tab only and is forgotten when you close it.</p>
           </form>
         ) : (
@@ -274,6 +327,23 @@ const Operations = () => {
                     {order.operations.next_action && <p className="mt-1">Next: {order.operations.next_action}</p>}
                   </div>
 
+                  {order.operations.fulfilment.approval?.required && (
+                    <section aria-labelledby="approval-heading" className="rounded-2xl border-2 border-ink bg-white p-5">
+                      <h3 id="approval-heading" className="font-serif text-xl uppercase tracking-wide text-ink">Fulfilment approval required</h3>
+                      <dl className="m-0 mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+                        <dt className="font-semibold">Order</dt><dd className="m-0">{order.reference}</dd>
+                        <dt className="font-semibold">Product</dt><dd className="m-0">{order.lines.map((l: Json) => `${l.quantity} × ${l.name}`).join(", ")}</dd>
+                        <dt className="font-semibold">Customer payment</dt><dd className="m-0">{order.operations.fulfilment.approval.customer_payment}</dd>
+                        <dt className="font-semibold">MCB QC</dt><dd className="m-0">{order.operations.fulfilment.approval.mcb_qc}</dd>
+                        <dt className="font-semibold">Supplier order</dt><dd className="m-0">{order.operations.fulfilment.approval.supplier_order}</dd>
+                      </dl>
+                      <p className="mt-3 text-sm">Only Bella or Lewis can approve, with their own authorisation code. Nothing is purchased automatically.</p>
+                      {order.operations.available_actions.includes("AUTHORISE_SUPPLIER_PURCHASE") && action !== "AUTHORISE_SUPPLIER_PURCHASE" && (
+                        <button className={`${btn} mt-3`} onClick={() => { setAction("AUTHORISE_SUPPLIER_PURCHASE"); setFields({}); }}>Approve supplier purchase…</button>
+                      )}
+                    </section>
+                  )}
+
                   <Section title="Action">
                     <form onSubmit={runAction} className="space-y-3">
                       <select value={action} onChange={(e) => { setAction(e.target.value); setFields(["PASS_QUALITY_CHECK", "SEND_REVEAL", "MARK_DISPATCHED", "CONFIRM_FULFILMENT"].includes(e.target.value) ? { send_email: true, ...(e.target.value === "PASS_QUALITY_CHECK" ? { reveal_now: true, checklist: {} } : {}) } : {}); }} className={input} aria-label="Action">
@@ -308,7 +378,7 @@ const Operations = () => {
                           ) : f.type === "textarea" ? (
                             <textarea value={String(fields[f.name] ?? "")} onChange={(e) => setFields({ ...fields, [f.name]: e.target.value })} rows={3} className={input} />
                           ) : f.type !== "checkbox" ? (
-                            <input type={f.type ?? "text"} value={String(fields[f.name] ?? "")} onChange={(e) => setFields({ ...fields, [f.name]: e.target.value })} className={input} />
+                            <input type={f.type ?? "text"} autoComplete={f.type === "password" ? "off" : undefined} value={String(fields[f.name] ?? "")} onChange={(e) => setFields({ ...fields, [f.name]: e.target.value })} className={input} />
                           ) : null}
                         </label>
                       ))}
@@ -326,7 +396,10 @@ const Operations = () => {
                       {order.operations.quality_check?.failed_count ? ` · failed ${order.operations.quality_check.failed_count} time(s) before` : ""}
                     </p>
                     {order.operations.reveal && <p>Reveal: {order.operations.reveal.revealed_at ? `revealed ${order.operations.reveal.revealed_at}` : "not revealed yet"}</p>}
-                    {order.operations.fulfilment.purchase_authorised_by && <p>Partner purchase authorised by {humanise(order.operations.fulfilment.purchase_authorised_by)}</p>}
+                    {order.operations.fulfilment.purchase_authorised_by && <p>Supplier purchase authorised by {humanise(order.operations.fulfilment.purchase_authorised_by)}{order.operations.fulfilment.purchase_authorised_at ? ` at ${order.operations.fulfilment.purchase_authorised_at}` : ""}</p>}
+                    {order.operations.lifecycle?.completed && (
+                      <p>Completed {order.operations.lifecycle.completed_at} · follow-up {order.operations.lifecycle.follow_up_sent_at ? `sent ${order.operations.lifecycle.follow_up_sent_at}` : order.operations.lifecycle.follow_up_done_at ? "recorded" : "not yet"} · review {order.operations.lifecycle.review_requested_at ? `requested ${order.operations.lifecycle.review_requested_at}` : "not requested"}</p>
+                    )}
                     {order.operations.legacy_approval && <p className="text-sm text-espresso/75">Legacy record (retired approval model): approved {order.operations.legacy_approval.approved_at ?? "—"} via {order.operations.legacy_approval.channel ?? "—"}</p>}
                     <p>Fulfilment: {humanise(order.operations.fulfilment.state)}{order.operations.fulfilment.pending_reason ? ` (waiting on ${humanise(order.operations.fulfilment.pending_reason)})` : ""}</p>
                     {order.operations.fulfilment.review_required && (
@@ -338,6 +411,44 @@ const Operations = () => {
                     )}
                     {order.operations.delivery.carrier && <p>Delivery: {order.operations.delivery.carrier} {order.operations.delivery.tracking_reference ?? ""} · sent {order.operations.delivery.dispatched_on ?? "—"} · delivered {order.operations.delivery.delivered_on ?? "not recorded"}</p>}
                   </Section>
+
+                  {order.artwork?.components?.length > 0 && (
+                    <Section title="Production artwork">
+                      <p className="text-sm text-espresso/75">Source photographs must be square and at least 2500 × 2500 px. Production outputs are checked automatically against the template below; nothing is generated here.</p>
+                      <ul className="m-0 mt-3 list-none space-y-4 p-0">
+                        {order.artwork.components.map((c: Json) => (
+                          <li key={c.artwork_id} className="rounded-xl border border-ink/15 p-3">
+                            <p className="font-semibold text-ink">{c.template?.label ?? c.template_version_planned} · v{c.template?.version} · {humanise(c.status)}{c.exception_reason ? ` (${humanise(c.exception_reason)})` : ""}</p>
+                            <p className="text-sm">
+                              {c.template?.output_px ? `Output ${c.template.output_px.width} × ${c.template.output_px.height} px` : c.template?.diameter_mm ? `${c.template.diameter_mm} mm disc, square output` : "No manufacturer template on record — prepare by hand to the manufacturer's dieline"}
+                              {c.template?.bleed ? ` · bleed ${c.template.bleed.min.mm === c.template.bleed.max.mm ? c.template.bleed.min.mm : `${c.template.bleed.min.mm}–${c.template.bleed.max.mm}`} mm${c.template.bleed.min.px ? ` (~${c.template.bleed.min.px} px)` : ""}` : ""}
+                              {c.template?.spine_allowance ? ` · spine allowance top/bottom ${c.template.spine_allowance.top.mm} mm (~${c.template.spine_allowance.top.px} px)` : ""}
+                              {c.template?.centre_hole_mm ? ` · centre hole ${c.template.centre_hole_mm} mm` : ""}
+                              {c.template?.centre_creative_exclusion ? ` · keep text and faces out of the central ~${c.template.centre_creative_exclusion.diameter_inches}-inch zone (not the hole)` : ""}
+                            </p>
+                            {c.template?.missing?.length > 0 && <p className="text-sm text-espresso/75">Not yet supplied: {c.template.missing.join("; ")}</p>}
+                            {c.source ? <p className="text-sm">Source photo {c.source.width ?? "?"} × {c.source.height ?? "?"} px · {c.source.artwork_ready ? "artwork-ready" : "needs preparation"}</p> : <p className="text-sm font-semibold text-[#9B2C2C]">No source photograph on record</p>}
+                            {c.output && <p className="text-sm">Registered output {c.output.width} × {c.output.height} px {c.output.mime}{c.manual ? " (manual)" : ""} · by {c.ready_by}</p>}
+                            {["CREATIVE.PENDING", "CREATIVE.IN_PROGRESS", "QUALITY_CHECK"].includes(order.operations.state) && (
+                              <form className="mt-2 flex flex-wrap items-center gap-2" onSubmit={(e) => {
+                                e.preventDefault();
+                                const data = new FormData(e.currentTarget);
+                                registerArtwork(c, Object.fromEntries(["manual_template_confirmed", "exception_reviewed", "manual_source"].filter((n) => data.get(n) === "on").map((n) => [n, "true"])));
+                              }}>
+                                <label className="block text-sm font-semibold">Production output (PNG, JPEG or TIFF)
+                                  <input type="file" accept="image/png,image/jpeg,image/tiff" onChange={(e) => setArtworkFiles({ ...artworkFiles, [c.artwork_id]: e.target.files?.[0] ?? null })} className="mt-1 block" />
+                                </label>
+                                {c.status === "TEMPLATE_REQUIRED" && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="manual_template_confirmed" className="h-5 w-5" />Prepared by hand to the manufacturer's own dieline</label>}
+                                {c.status === "EXCEPTION" && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="exception_reviewed" className="h-5 w-5" />Exception reviewed internally</label>}
+                                {!c.source && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="manual_source" className="h-5 w-5" />No customer photograph on record (older order)</label>}
+                                <button className={ghost} disabled={busy || !artworkFiles[c.artwork_id]}>Register output</button>
+                              </form>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </Section>
+                  )}
 
                   {brief && (
                     <Section title="Creative brief">

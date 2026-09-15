@@ -21,6 +21,7 @@ require_once __DIR__ . '/http.php';
 require_once __DIR__ . '/validate.php';
 require_once __DIR__ . '/security.php';
 require_once __DIR__ . '/catalogue.php';
+require_once __DIR__ . '/sales-suspension.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/reference.php';
 require_once __DIR__ . '/reconciliation.php';

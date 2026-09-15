@@ -303,6 +303,11 @@ function send_lifecycle_message(PDO $pdo, int $orderId, string $type, string $de
 
         mark_communication_sent($pdo, $claim, $sent['id']);
         record_order_event_safely($pdo, $orderId, 'CUSTOMER.MESSAGE.SENT', ['type' => $type, 'test_mode' => $testMode]);
+        if ($type === 'FOLLOW_UP') {
+            // Only an email that actually went counts as sent. One that fails
+            // leaves the order exactly as complete as it already was.
+            record_order_event_safely($pdo, $orderId, 'FOLLOW_UP.SENT', [], "follow-up-sent:{$dedupeKey}");
+        }
         return 'sent';
     } catch (Throwable $e) {
         error_log("MCB lifecycle: {$type} for order {$orderId} failed: " . $e->getMessage());

@@ -200,7 +200,6 @@ $row = operations_order_row($pdo, $orderId);
 if ($row === null) {
     json_error(404, 'order_not_found', 'No such order.');
 }
-$state = operational_state($row);
 
 $customer = $pdo->prepare('SELECT c.name, c.email, c.phone FROM customers c JOIN orders o ON o.customer_id = c.id WHERE o.id = :id');
 $customer->execute([':id' => $orderId]);
@@ -250,6 +249,30 @@ $referralRow = $referral->fetch();
 
 $units = customer_order_items($pdo, $orderId);
 
+// The production artwork plan, refreshed (idempotent) so staff always see the current position.
+try {
+    $artworkRows = db_transaction(fn (PDO $pdo): array => plan_order_artwork($pdo, $orderId));
+} catch (Throwable $e) {
+    error_log('MCB artwork: could not refresh the plan for order ' . $orderId . ': ' . $e->getMessage());
+    $artworkRows = order_artwork_rows($pdo, $orderId);
+}
+$row = operations_order_row($pdo, $orderId) ?? $row;
+
+$founderNotes = $pdo->prepare(
+    'SELECT id, notification_type AS type, status, attempts, last_error, delivered_at, delivered_channel, created_at
+       FROM founder_notifications WHERE order_id = :id ORDER BY id'
+);
+$founderNotes->execute([':id' => $orderId]);
+
+$lifecycleEvents = $pdo->prepare(
+    "SELECT event_type, MIN(created_at) AS at FROM order_events
+      WHERE order_id = :id AND event_type IN ('ORDER.COMPLETED','FOLLOW_UP.DUE','FOLLOW_UP.DONE','FOLLOW_UP.SENT','REVIEW.REQUESTED')
+      GROUP BY event_type"
+);
+$lifecycleEvents->execute([':id' => $orderId]);
+$lifecycleAt = array_column($lifecycleEvents->fetchAll(), 'at', 'event_type');
+
+$state = operational_state($row);
 $actions = available_staff_actions($row);
 $reviewRequired = order_workflow($row) === 'PHYSICAL' && order_requires_fulfilment_review($pdo, $orderId);
 $reviewConfirmed = $reviewRequired && fulfilment_review_confirmed($pdo, $orderId);
@@ -306,6 +329,22 @@ json_response(200, [
             'confirmed_at'   => $row['fulfilment_confirmed_at'],
             'reference'      => $row['fulfilment_reference'],
             'purchase_authorised_by' => $row['supplier_purchase_authorised_by'],
+            'purchase_authorised_at' => $row['supplier_purchase_authorised_at'],
+            // What Bella or Lewis sees before explicitly authorising. The link that
+            // brought them here authorised nothing.
+            'approval'       => order_workflow($row) === 'PHYSICAL' ? [
+                'required'         => $state === 'FULFILMENT.READY',
+                'customer_payment' => $row['status'] === 'PAID' ? 'VERIFIED' : 'NOT_VERIFIED',
+                'mcb_qc'           => in_array($row['stage'], MCB_QC_PASSED_STAGES, true) || in_array($row['stage'], ['PRODUCTION_LOCKED', 'FULFILMENT', 'COMPLETED'], true) ? 'PASSED' : 'NOT_PASSED',
+                'supplier_order'   => match ($state) {
+                    'FULFILMENT.READY' => 'READY', 'FULFILMENT.AUTHORISED' => 'AUTHORISED',
+                    'FULFILMENT.CONFIRMED', 'DISPATCHED', 'DELIVERED', 'COMPLETED' => 'RECORDED',
+                    default => 'NOT_READY',
+                },
+                'authorisers'        => MCB_FOUNDERS,
+                'authorisation_configured' => array_values(array_filter(MCB_FOUNDERS, 'founder_authorisation_configured')),
+                'action_url'         => founder_action_url($row['mcb_reference'], 'AUTHORISE_SUPPLIER_PURCHASE'),
+            ] : null,
             // Availability, destination and delivery cost confirmed with the partner.
             'review_required'  => $reviewRequired,
             'review_confirmed' => $reviewConfirmed,
@@ -320,6 +359,15 @@ json_response(200, [
         ],
         'follow_up'         => ['due_at' => $row['follow_up_due_at'], 'done_at' => $row['follow_up_done_at']],
         'completed_at'      => $row['completed_at'],
+        // Completion, follow-up and review are separate facts.
+        'lifecycle'         => [
+            'completed'         => $row['stage'] === 'COMPLETED',
+            'completed_at'      => $row['completed_at'],
+            'follow_up_due_at'  => $row['follow_up_due_at'],
+            'follow_up_done_at' => $row['follow_up_done_at'],
+            'follow_up_sent_at' => $lifecycleAt['FOLLOW_UP.SENT'] ?? null,
+            'review_requested_at' => $lifecycleAt['REVIEW.REQUESTED'] ?? null,
+        ],
         'reopen_count'      => (int) ($row['reopen_count'] ?? 0),
     ],
     'items'            => array_map(static fn (array $u): array => [
@@ -327,6 +375,8 @@ json_response(200, [
         'priority_replacement' => $u['priority_replacement'],
         'priority_replacement_request_by' => $u['priority_replacement'] ? priority_replacement_window_end($row['delivered_on']) : null,
     ], $units),
+    'artwork'          => ['components' => artwork_view($artworkRows), 'blocking' => count(artwork_blocking_rows($artworkRows))],
+    'founder_notifications' => $founderNotes->fetchAll(),
     'service_requests' => $serviceRows,
     'notes'            => $notes->fetchAll(),
     'communications'   => $comms->fetchAll(),

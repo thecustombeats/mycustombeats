@@ -48,6 +48,7 @@ import ResponsiveImage from "../components/ResponsiveImage";
 import { IMAGES } from "../data/imagery";
 import HowMcbCreates from "../components/product/HowMcbCreates";
 import { PRODUCT_PAGE_ANSWERS } from "../lib/productAnswers";
+import { CURRENTLY_UNAVAILABLE, useSalesAvailability } from "../lib/salesAvailability";
 
 type ProductPageId = Extract<ProductId, "moment" | "keepsake" | "journey">;
 
@@ -86,6 +87,7 @@ const FeatureList = ({ features }: { features: readonly string[] }) => (
 const ProductDetail = ({ product }: { product: Product }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [sku, setSku] = useState(() => initialVariantSku(product, searchParams.get("sku")));
+  const unavailable = useSalesAvailability();
   const variant = product.variants.find((v) => v.sku === sku) ?? product.variants[0];
   const choosable = product.commercialModel === "VARIANT_FIXED" && product.variants.length > 1;
 
@@ -112,6 +114,7 @@ const ProductDetail = ({ product }: { product: Product }) => {
     trackFunnel("package_select", { product_id: product.id, sku: variant.sku, location: "product_page" });
 
   const cta = productCtaLabel(product);
+  const suspended = unavailable.has(variant.sku) || unavailable.has(product.id);
   const songs = songsLabel(variant.songCount);
   const format = formatLine(variant);
   const physical = isPhysical(variant);
@@ -156,6 +159,7 @@ const ProductDetail = ({ product }: { product: Product }) => {
               <p className="mt-1 text-base text-espresso/80">{[songs, format].filter(Boolean).join(" · ")}</p>
               {product.turnaround && <p className="mt-3 text-base text-espresso/80">{product.turnaround.label}.</p>}
               {physical && <p className="mt-1 text-base font-medium text-ink">{DELIVERY_NOTE}</p>}
+              {suspended && <p className="mt-3 text-base font-semibold text-ink">{CURRENTLY_UNAVAILABLE}</p>}
             </div>
 
             {product.id === "journey" && (
@@ -165,10 +169,14 @@ const ProductDetail = ({ product }: { product: Product }) => {
             )}
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <McbButtonLink to={createHref(variant.sku)} onClick={selectPackage} className="w-full sm:w-auto">
-                {cta}
-                <span className="sr-only">{` — ${variant.name}`}</span>
-              </McbButtonLink>
+              {suspended ? (
+                <p className="inline-flex min-h-12 items-center text-base font-semibold text-ink">{CURRENTLY_UNAVAILABLE}</p>
+              ) : (
+                <McbButtonLink to={createHref(variant.sku)} onClick={selectPackage} className="w-full sm:w-auto">
+                  {cta}
+                  <span className="sr-only">{` — ${variant.name}`}</span>
+                </McbButtonLink>
+              )}
               <Link
                 to="/products"
                 className="inline-flex min-h-12 items-center justify-center px-2 text-base font-medium text-ink underline underline-offset-4 hover:text-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
@@ -365,10 +373,14 @@ const ProductDetail = ({ product }: { product: Product }) => {
             <span className="font-mono">{formatMoney(variant.price)}</span>
           </p>
           <div className="mt-8">
-            <McbButtonLink to={createHref(variant.sku)} onClick={selectPackage} tone="gold" className="w-full sm:w-auto">
-              {cta}
-              <span className="sr-only">{` — ${variant.name}`}</span>
-            </McbButtonLink>
+            {suspended ? (
+              <p className="text-lg font-semibold text-ivory">{CURRENTLY_UNAVAILABLE}</p>
+            ) : (
+              <McbButtonLink to={createHref(variant.sku)} onClick={selectPackage} tone="gold" className="w-full sm:w-auto">
+                {cta}
+                <span className="sr-only">{` — ${variant.name}`}</span>
+              </McbButtonLink>
+            )}
           </div>
         </div>
       </section>

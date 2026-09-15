@@ -63,18 +63,22 @@ test("the operational states are the Single Creative Authority model: creation, 
   assert.deepEqual(M.ops.OPERATIONAL_STATES.map((s) => s.state), [
     "ORDER.PAID", "CREATIVE.PENDING", "CREATIVE.IN_PROGRESS", "QUALITY_CHECK",
     "REVEAL.READY", "REVEALED",
-    "FULFILMENT.NOT_REQUIRED", "FULFILMENT.PENDING", "FULFILMENT.READY", "FULFILMENT.CONFIRMED",
+    "FULFILMENT.NOT_REQUIRED", "FULFILMENT.PENDING", "FULFILMENT.READY", "FULFILMENT.AUTHORISED", "FULFILMENT.CONFIRMED",
     "DISPATCHED", "DELIVERED", "FOLLOW_UP.DUE", "COMPLETED",
   ]);
-  const all = JSON.stringify([M.ops.OPERATIONAL_STATES, M.ops.CUSTOMER_STAGES, M.ops.LIFECYCLE_TEMPLATES, M.ops.QUEUE_KINDS]);
+  // The Founders' FINANCIAL approval of a supplier purchase is the only approval left; no customer approval exists.
+  const all = JSON.stringify([M.ops.OPERATIONAL_STATES, M.ops.CUSTOMER_STAGES, M.ops.LIFECYCLE_TEMPLATES, M.ops.QUEUE_KINDS])
+    .replace(/Fulfilment approval required/gi, "");
   assert.doesNotMatch(all, /APPROVAL|approve|CHANGES_REQUESTED|revision|refine/i);
+  assert.doesNotMatch(JSON.stringify(M.ops.CUSTOMER_STAGES), /approv/i);
   assert.equal(M.ops.OPERATIONAL_STATES.find((s) => s.state === "CREATIVE.PENDING").staff, "New order ready for processing.");
   assert.deepEqual(M.ops.OPERATIONAL_STATES.find((s) => s.state === "REVEAL.READY").workflows, ["DIGITAL"]);
-  assert.match(M.ops.OPERATIONAL_STATES.find((s) => s.state === "FULFILMENT.READY").nextAction, /Bella or Lewis authorises/);
+  assert.match(M.ops.OPERATIONAL_STATES.find((s) => s.state === "FULFILMENT.READY").nextAction, /Bella or Lewis .*explicitly authorises the supplier purchase/);
+  assert.match(M.ops.OPERATIONAL_STATES.find((s) => s.state === "FULFILMENT.AUTHORISED").nextAction, /Place the supplier order by hand/);
 });
 
 test("a digital Moment has no physical states, on the staff model or the customer page", () => {
-  const physicalOnly = ["FULFILMENT.PENDING", "FULFILMENT.READY", "FULFILMENT.CONFIRMED", "DISPATCHED", "DELIVERED"];
+  const physicalOnly = ["FULFILMENT.PENDING", "FULFILMENT.READY", "FULFILMENT.AUTHORISED", "FULFILMENT.CONFIRMED", "DISPATCHED", "DELIVERED"];
   for (const state of physicalOnly) {
     assert.deepEqual(M.ops.OPERATIONAL_STATES.find((s) => s.state === state).workflows, ["PHYSICAL"], state);
   }
@@ -126,8 +130,11 @@ test("lifecycle templates: follow-up and review are never sent automatically", (
 
 test("automation events are the named set, with nothing financial or supplier-facing", () => {
   assert.deepEqual([...M.ops.AUTOMATION_EVENTS].sort(), [
-    "BESPOKE.ENQUIRY_RECEIVED", "DELIVERED", "DISPATCHED", "FOLLOW_UP.DUE", "FULFILMENT.READY", "MCB_LIVE.ENQUIRY_RECEIVED",
-    "ORDER.PAID", "ORDER.READY_FOR_PROCESSING", "QUALITY_CHECK.FAILED", "QUALITY_CHECK.PASSED", "QUALITY_CHECK.READY", "REVEALED",
+    "ARTWORK.EXCEPTION", "ARTWORK.INPUT_VALIDATED", "ARTWORK.PREPARATION_REQUIRED", "ARTWORK.READY", "ARTWORK.TEMPLATE_REQUIRED",
+    "BESPOKE.ENQUIRY_RECEIVED", "CREATIVE.IN_PROGRESS", "DELIVERED", "DISPATCHED", "FOLLOW_UP.DUE", "FOLLOW_UP.SENT",
+    "FULFILMENT.AUTHORISED", "FULFILMENT.CONFIRMED", "FULFILMENT.READY", "MCB_LIVE.ENQUIRY_RECEIVED",
+    "ORDER.COMPLETED", "ORDER.PAID", "ORDER.READY_FOR_PROCESSING", "QUALITY_CHECK.FAILED", "QUALITY_CHECK.PASSED", "QUALITY_CHECK.READY",
+    "REVEALED", "REVIEW.REQUESTED",
   ]);
   assert.ok(!M.ops.AUTOMATION_EVENTS.some((e) => /REFUND|CHARGE|SUPPLIER|PURCHASE/.test(e)));
 });

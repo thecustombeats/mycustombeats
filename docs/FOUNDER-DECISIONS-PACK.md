@@ -105,3 +105,14 @@ Each line is an exact mismatch between current wording and actual site behaviour
 | 17 | Photo requirement implemented as **at least one photograph per Keepsake record and per Journey** (square, ≥ 2500 × 2500 px within 1%, or the service); the plaque keeps its own required photo without the square rule — confirm | F |
 | 18 | Retention period for quality-check notes (internal) — add to §1 decisions | F |
 
+## 6. Automation Foundation (15 September 2026) — items for the Founders
+
+| # | Item | Class |
+|---|---|---|
+| 19 | Each founder chooses a personal authorisation code (12+ characters) and supplies only its `password_hash` for `founders.BELLA` / `founders.LEWIS`. Without one, no supplier purchase can be authorised. | F |
+| 20 | Telegram / TaskNotify bridge: who builds and hosts it, bot and chat identity, and the worker key. The outbox contract is ready (`docs/AUTOMATION-FOUNDATION-20260915.md` §5). Email fallback recipient. | F |
+| 21 | Manufacturer artwork data still missing: Heart dieline; double-gatefold template (Journey 12); picture-disc pixel canvas / resolution; 10- and 7-inch centre-hole diameters; sleeve safe-area and trim values. Until supplied these stay TEMPLATE_REQUIRED or shape-checked only. | F |
+| 22 | Journey 6 uses the supplied single 12-inch sleeve front/back templates — confirm that is the sleeve the Journey 6 is made in. | F |
+| 23 | Artwork Preparation Service: more than one unready photograph in an order is routed to an internal exception (no automatic extra charge) — confirm the threshold of one. | F |
+| 24 | Largest production file size to register (currently 10 MB, the PHP upload limit) — raise the server limits if print files are larger. | F |
+

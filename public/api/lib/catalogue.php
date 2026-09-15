@@ -163,6 +163,11 @@ function price_order_lines(mixed $requested): OrderPricing
             return OrderPricing::refused('invalid_quantity', 'That quantity is not valid.');
         }
 
+        // New sales suspended by MCB (existing paid orders are unaffected).
+        if (sales_suspended($sku, isset($item['product_id']) ? (string) $item['product_id'] : null)) {
+            return OrderPricing::refused('product_unavailable', (string) $item['name'] . ' is currently unavailable.');
+        }
+
         $unit = $item['price_minor'] ?? null;
         if (!is_int($unit) || $unit <= 0 || ($item['currency'] ?? null) !== 'GBP') {
             error_log("MCB: catalogue SKU '{$sku}' has no valid GBP price.");

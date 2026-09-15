@@ -35,13 +35,14 @@ The **operational state** is derived from those columns (`src/data/operations.ts
 
 ## 2. The normal path
 
-**Moment:** Start creative → Send to quality check → **Pass quality check** (every checklist item + the private https link to the checked song) → revealed at once by default (CREATION_READY email with the private order-page link) → follow-up due → Record follow-up → Mark completed → (optional) review request.
+**Moment:** Start creative → Send to quality check → **Pass quality check** (every checklist item + the private https link to the checked song) → revealed at once by default (CREATION_READY email with the private order-page link) → **COMPLETED at the reveal** → follow-up due → Record follow-up → (optional) review request. Completion does not wait for the follow-up; a failed follow-up email never makes the order look incomplete (Automation Foundation, `docs/AUTOMATION-FOUNDATION-20260915.md`).
 
-**Keepsake / Journey:** Start creative → Send to quality check → Pass quality check (every item, including photographs, artwork dimensions, production files and delivery information):
-- with address and personalisation present → **FULFILMENT.READY** (a task: *Bella or Lewis authorises the partner purchase; place it by hand*; nothing is ordered automatically)
-- Confirm fulfilment (**purchase authorised by BELLA or LEWIS**, optional partner reference; sets the production lock; one-way "being made" email)
+**Keepsake / Journey:** Start creative → register each **production artwork** output on the artwork panel (`POST /api/crm/artwork`; checked automatically against the template — e.g. sleeve front exactly 3756 × 3827 px, back 3756 × 3756 px, discs square; Heart and gatefold prepared by hand, confirmed) → Send to quality check → Pass quality check (every item, including photographs, artwork dimensions, production files and delivery information; **refused until every artwork component is READY**):
+- with address and personalisation present → **FULFILMENT.READY** — *fulfilment approval required*; the Founders get a FULFILMENT_APPROVAL_REQUIRED notification with a link that opens this order (it approves nothing)
+- **Authorise supplier purchase** — Bella or Lewis only, with their own authorisation code, and the explicit tick → FULFILMENT.AUTHORISED (supplier order required)
+- Confirm fulfilment (the supplier order placed **by hand**, optional partner reference; refused until authorised; sets the production lock; one-way "being made" email)
 - Mark dispatched (carrier, dispatch date, optional tracking) → "on the way" email
-- Mark delivered (a person confirms; never automatic) → follow-up due → Record follow-up → Mark completed
+- Mark delivered (a person confirms; never automatic) → **COMPLETED** → follow-up due → Record follow-up
 
 **Quality check fails:** Fail quality check (reason + internal note) → back to creation for an internal correction → Send to quality check again. The customer is never part of this loop and is not told.
 
@@ -54,12 +55,13 @@ The **operational state** is derived from those columns (`src/data/operations.ts
 | `SEND_REVEAL` `{reveal_url?, send_email}` | digital, QC passed, not revealed | CREATION_READY |
 | `SET_FULFILMENT_READY` | physical, QC passed, PENDING | — |
 | `CONFIRM_FULFILMENT_REVIEW` `{confirmed, note}` | physical with availability-sensitive items | — |
-| `CONFIRM_FULFILMENT` `{purchase_authorised_by, fulfilment_reference, send_email}` | physical, READY | IN_PRODUCTION |
+| `AUTHORISE_SUPPLIER_PURCHASE` `{founder: BELLA\|LEWIS, founder_code, confirm: true}` | physical, READY | — (5 refused codes per order in 15 min → 429) |
+| `CONFIRM_FULFILMENT` `{fulfilment_reference, send_email}` | physical, READY **and authorised** | IN_PRODUCTION |
 | `MARK_DISPATCHED` / `UPDATE_TRACKING` | CONFIRMED / DISPATCHED | DISPATCHED (once) |
 | `MARK_DELIVERY_DELAYED` | DISPATCHED | — |
 | `MARK_DELIVERED` `{delivered_on}` | DISPATCHED | — |
 | `RECORD_FOLLOW_UP` `{send_email}` | follow-up due | FOLLOW_UP if asked |
-| `MARK_COMPLETED` | digital revealed / physical delivered | — |
+| `MARK_COMPLETED` | legacy records only (reveal and delivery now complete the order; `unchanged` if already complete) | — |
 | `REOPEN` `{reason: MCB_CORRECTION, REPLACEMENT, OTHER}` | QC passed or later | — (warns if already placed) |
 | `ISSUE_STATUS_LINK`, `REVOKE_LINKS`, `ADD_NOTE`, `UPDATE_SERVICE_REQUEST`, `RETRY_MESSAGE` | any paid order | — |
 
@@ -125,3 +127,13 @@ Unchanged from the existing foundation: a paid customer gets a share code; order
 ## 11. Rate limits (per source)
 
 Retired approval endpoint 30 / 10 min; progress page 60 / 10 min; problem reports 8 / hour; MCB LIVE enquiries 5 / hour; Bespoke enquiries 5 / hour; delivery quote 60 / 10 min; order status 120 / 10 min; order reference 120 / 10 min; affiliate dashboard check 60 / 10 min.
+
+## 12. Automation Foundation (15 September 2026)
+
+Full record: `docs/AUTOMATION-FOUNDATION-20260915.md`.
+
+- **Founder notifications** are written to an outbox (`founder_notifications`) and never sent from MCB itself. A separately authorised bridge (Telegram, email) claims and acknowledges them at `/api/crm/notifications`. If it cannot deliver one after 8 attempts, it appears in the queue as *Founder notification not delivered*; requeue it once the bridge is fixed.
+- **Artwork exceptions** appear in the queue: a format with no manufacturer template (Heart, double gatefold) or several unready photographs in one order. Review them internally. No extra charge is ever made automatically.
+- **Suspending new sales** (`POST /api/crm/product-sales`) marks a SKU or product *Currently unavailable* for new orders only. Paid orders continue as normal.
+- **Health:** `GET /api/crm/notifications?view=health` lists outbox counts and any paid order missing its ready event or notification.
+

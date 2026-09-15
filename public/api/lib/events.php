@@ -13,9 +13,25 @@
  *
  * `dedupe_key` makes once-only events idempotent: a replayed webhook records
  * ORDER.PAID once, however many times it is delivered.
+ *
+ * `source` says which part of the system recorded it — STRIPE_WEBHOOK, STAFF
+ * (a CRM-key request), CUSTOMER (a same-origin site request) or SYSTEM — for
+ * observability. It is set once per request by the entry point.
  */
 
 declare(strict_types=1);
+
+const MCB_EVENT_SOURCES = ['STRIPE_WEBHOOK', 'STAFF', 'CUSTOMER', 'NOTIFICATION_WORKER', 'SYSTEM'];
+
+/** The source recorded on events in this request; pass a value to set it. */
+function mcb_event_source(?string $set = null): string
+{
+    static $source = 'SYSTEM';
+    if ($set !== null && in_array($set, MCB_EVENT_SOURCES, true)) {
+        $source = $set;
+    }
+    return $source;
+}
 
 /** Records an event. Throws, so a failure inside a transaction rolls it back. */
 function record_order_event(PDO $pdo, int $orderId, string $type, array $detail = [], ?string $dedupeKey = null): void
@@ -28,9 +44,10 @@ function record_order_event(PDO $pdo, int $orderId, string $type, array $detail 
     }
 
     $pdo->prepare(
-        'INSERT IGNORE INTO order_events (order_id, event_type, detail, dedupe_key)
-         VALUES (:oid, :type, :detail, :dedupe)'
+        'INSERT IGNORE INTO order_events (order_id, event_type, detail, dedupe_key, source)
+         VALUES (:oid, :type, :detail, :dedupe, :source)'
     )->execute([
+        ':source' => mcb_event_source(),
         ':oid'    => $orderId,
         ':type'   => $type,
         ':detail' => $clean === [] ? null : json_encode($clean, JSON_UNESCAPED_SLASHES),

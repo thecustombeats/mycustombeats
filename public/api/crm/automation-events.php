@@ -28,7 +28,7 @@ $in      = implode(',', array_fill(0, count($names), '?'));
 $pdo     = db();
 
 $stmt = $pdo->prepare(
-    "SELECT e.id, e.event_type, e.detail, e.created_at, o.mcb_reference
+    "SELECT e.id, e.event_type, e.detail, e.source, e.created_at, o.mcb_reference
        FROM order_events e JOIN orders o ON o.id = e.order_id
       WHERE e.id > ? AND e.event_type IN ($in)
       ORDER BY e.id LIMIT {$limit}"
@@ -39,6 +39,7 @@ $orderEvents = array_map(static fn (array $r): array => [
     'event'     => $r['event_type'],
     'reference' => $r['mcb_reference'],
     'detail'    => $r['detail'] === null ? null : json_decode($r['detail'], true),
+    'source'    => $r['source'],
     'at'        => $r['created_at'],
 ], $stmt->fetchAll());
 

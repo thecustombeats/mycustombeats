@@ -80,6 +80,7 @@ function read_json_body(int $maxBytes = 262144): array
  */
 function require_same_origin(): void
 {
+    mcb_event_source('CUSTOMER');
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
     if ($origin === '') {
         return;

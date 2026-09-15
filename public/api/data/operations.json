@@ -66,7 +66,14 @@
       "workflows": [
         "PHYSICAL"
       ],
-      "next_action": "Bella or Lewis authorises the partner purchase; place it by hand, then confirm it here."
+      "next_action": "Bella or Lewis opens the order and explicitly authorises the supplier purchase."
+    },
+    {
+      "state": "FULFILMENT.AUTHORISED",
+      "workflows": [
+        "PHYSICAL"
+      ],
+      "next_action": "Place the supplier order by hand, then record it here."
     },
     {
       "state": "FULFILMENT.CONFIRMED",
@@ -234,6 +241,7 @@
         "states": [
           "FULFILMENT.PENDING",
           "FULFILMENT.READY",
+          "FULFILMENT.AUTHORISED",
           "FULFILMENT.CONFIRMED"
         ]
       },
@@ -301,16 +309,94 @@
   "automation_events": [
     "ORDER.PAID",
     "ORDER.READY_FOR_PROCESSING",
+    "CREATIVE.IN_PROGRESS",
+    "ARTWORK.INPUT_VALIDATED",
+    "ARTWORK.PREPARATION_REQUIRED",
+    "ARTWORK.TEMPLATE_REQUIRED",
+    "ARTWORK.EXCEPTION",
+    "ARTWORK.READY",
     "QUALITY_CHECK.READY",
     "QUALITY_CHECK.PASSED",
     "QUALITY_CHECK.FAILED",
     "REVEALED",
     "FULFILMENT.READY",
+    "FULFILMENT.AUTHORISED",
+    "FULFILMENT.CONFIRMED",
     "DISPATCHED",
     "DELIVERED",
+    "ORDER.COMPLETED",
     "FOLLOW_UP.DUE",
+    "FOLLOW_UP.SENT",
+    "REVIEW.REQUESTED",
     "MCB_LIVE.ENQUIRY_RECEIVED",
     "BESPOKE.ENQUIRY_RECEIVED"
+  ],
+  "event_model": {
+    "ORDER.PAID": "ORDER.PAID",
+    "ORDER.READY_FOR_PROCESSING": "ORDER.READY_FOR_PROCESSING",
+    "CREATIVE.PENDING": "ORDER.READY_FOR_PROCESSING",
+    "CREATIVE.IN_PROGRESS": "CREATIVE.IN_PROGRESS",
+    "CREATIVE.READY": "QUALITY_CHECK.READY",
+    "ARTWORK.INPUT_VALIDATED": "ARTWORK.INPUT_VALIDATED",
+    "ARTWORK.PREPARATION_REQUIRED": "ARTWORK.PREPARATION_REQUIRED",
+    "ARTWORK.TEMPLATE_REQUIRED": "ARTWORK.TEMPLATE_REQUIRED",
+    "ARTWORK.READY": "ARTWORK.READY",
+    "QC.REQUIRED": "QUALITY_CHECK.READY",
+    "QC.PASSED": "QUALITY_CHECK.PASSED",
+    "QC.FAILED": "QUALITY_CHECK.FAILED",
+    "FULFILMENT.READY": "FULFILMENT.READY",
+    "FULFILMENT.APPROVAL_REQUIRED": "FULFILMENT.READY",
+    "FULFILMENT.AUTHORISED": "FULFILMENT.AUTHORISED",
+    "SUPPLIER.ORDER_REQUIRED": "FULFILMENT.AUTHORISED",
+    "SUPPLIER.ORDER_RECORDED": "FULFILMENT.CONFIRMED",
+    "SHIPMENT.DISPATCHED": "DISPATCHED",
+    "SHIPMENT.DELIVERED": "DELIVERED",
+    "REVEAL.READY": "QUALITY_CHECK.PASSED",
+    "REVEAL.SENT": "REVEALED",
+    "FOLLOW_UP.DUE": "FOLLOW_UP.DUE",
+    "FOLLOW_UP.SENT": "FOLLOW_UP.SENT",
+    "REVIEW.REQUESTED": "REVIEW.REQUESTED"
+  },
+  "founder_notifications": [
+    {
+      "type": "NEW_ORDER_READY_FOR_PROCESSING",
+      "title": "New order ready for processing",
+      "required_action": "Open the order and start the creative work."
+    },
+    {
+      "type": "FULFILMENT_APPROVAL_REQUIRED",
+      "title": "Fulfilment approval required",
+      "required_action": "Open the order and approve the supplier purchase (Bella or Lewis)."
+    },
+    {
+      "type": "QC_EXCEPTION",
+      "title": "Quality check failed",
+      "required_action": "Open the order: the work is back in creation for an internal correction."
+    },
+    {
+      "type": "ARTWORK_EXCEPTION",
+      "title": "Artwork needs attention",
+      "required_action": "Open the order and review the production artwork."
+    },
+    {
+      "type": "FULFILMENT_EXCEPTION",
+      "title": "Fulfilment exception",
+      "required_action": "Open the order and resolve what is holding fulfilment or delivery."
+    },
+    {
+      "type": "CUSTOMER_SUPPORT_EXCEPTION",
+      "title": "Customer support report",
+      "required_action": "Open the order and review the customer's report."
+    },
+    {
+      "type": "PRODUCT_SALES_SUSPENDED",
+      "title": "New sales suspended",
+      "required_action": "Review the product's availability. Existing paid orders are unaffected."
+    }
+  ],
+  "financial_authorisers": [
+    "BELLA",
+    "LEWIS"
   ],
   "queue_kinds": {
     "PAYMENT_REVIEW": {
@@ -353,8 +439,20 @@
       "label": "Ready to reveal",
       "priority": 2
     },
+    "ARTWORK_EXCEPTION": {
+      "label": "Artwork needs attention",
+      "priority": 1
+    },
+    "NOTIFICATION_FAILED": {
+      "label": "Founder notification not delivered",
+      "priority": 1
+    },
     "FULFILMENT_READY": {
-      "label": "Ready to order from supplier",
+      "label": "Fulfilment approval required",
+      "priority": 2
+    },
+    "SUPPLIER_ORDER_REQUIRED": {
+      "label": "Authorised: place supplier order",
       "priority": 2
     },
     "SUPPLIER_ACTION": {

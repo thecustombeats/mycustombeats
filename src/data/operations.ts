@@ -20,11 +20,17 @@
  *   stage QC_PASSED, digital, not revealed → REVEAL.READY
  *   stage QC_PASSED, digital, revealed    → REVEALED, then FOLLOW_UP.DUE
  *   stage QC_PASSED, fulfilment PENDING   → FULFILMENT.PENDING
- *   stage QC_PASSED, fulfilment READY     → FULFILMENT.READY
- *   stage PRODUCTION_LOCKED (CONFIRMED)   → FULFILMENT.CONFIRMED
+ *   stage QC_PASSED, fulfilment READY     → FULFILMENT.READY   (founder approval required)
+ *   … and authorised by Bella or Lewis    → FULFILMENT.AUTHORISED (supplier order required)
+ *   stage PRODUCTION_LOCKED (CONFIRMED)   → FULFILMENT.CONFIRMED (supplier order recorded)
  *   stage FULFILMENT, DISPATCHED          → DISPATCHED
- *   stage FULFILMENT, DELIVERED           → DELIVERED, then FOLLOW_UP.DUE
  *   stage COMPLETED                       → COMPLETED
+ *
+ * COMPLETION IS INDEPENDENT OF FOLLOW-UP (15 September 2026): the reveal of a
+ * digital order and the delivery of a physical one complete it at once. The
+ * follow-up and review request follow on their own clocks. REVEALED,
+ * DELIVERED and FOLLOW_UP.DUE remain only for records completed by hand
+ * before that change.
  *
  * Legacy stages from the retired approval model (historical and test records
  * only): SONG_READY, AWAITING_APPROVAL and REVISION_REQUESTED read as
@@ -48,6 +54,7 @@ export type OperationalState =
   | "FULFILMENT.NOT_REQUIRED"
   | "FULFILMENT.PENDING"
   | "FULFILMENT.READY"
+  | "FULFILMENT.AUTHORISED"
   | "FULFILMENT.CONFIRMED"
   | "DISPATCHED"
   | "DELIVERED"
@@ -75,7 +82,8 @@ export const OPERATIONAL_STATES: readonly StateDefinition[] = [
   { state: "REVEALED", workflows: ["DIGITAL"], staff: "Revealed to the customer.", nextAction: "Follow up when it is due, then complete." },
   { state: "FULFILMENT.NOT_REQUIRED", workflows: ["DIGITAL"], staff: "Digital: nothing physical to make.", nextAction: null },
   { state: "FULFILMENT.PENDING", workflows: ["PHYSICAL"], staff: "Quality check passed, but something is missing before the keepsake can be made.", nextAction: "Resolve what is missing, then mark fulfilment ready." },
-  { state: "FULFILMENT.READY", workflows: ["PHYSICAL"], staff: "Quality check passed and ready for the physical order to be placed.", nextAction: "Bella or Lewis authorises the partner purchase; place it by hand, then confirm it here." },
+  { state: "FULFILMENT.READY", workflows: ["PHYSICAL"], staff: "Fulfilment approval required: payment verified, quality check passed, supplier order ready to place.", nextAction: "Bella or Lewis opens the order and explicitly authorises the supplier purchase." },
+  { state: "FULFILMENT.AUTHORISED", workflows: ["PHYSICAL"], staff: "Supplier purchase authorised by Bella or Lewis. The supplier order is required.", nextAction: "Place the supplier order by hand, then record it here." },
   { state: "FULFILMENT.CONFIRMED", workflows: ["PHYSICAL"], staff: "The physical order is placed. It can no longer be changed.", nextAction: "When it is sent, record the dispatch and tracking." },
   { state: "DISPATCHED", workflows: ["PHYSICAL"], staff: "Sent to the customer.", nextAction: "When delivery is confirmed, mark it delivered." },
   { state: "DELIVERED", workflows: ["PHYSICAL"], staff: "Delivered: the reveal.", nextAction: "Follow up, then complete." },
@@ -110,7 +118,7 @@ export const CUSTOMER_STAGES: Readonly<Record<Workflow, readonly CustomerStage[]
     { id: "received", title: "Order received", description: "We have your order, your story, your preferences and your photographs.", states: ["ORDER.PAID", "CREATIVE.PENDING"] },
     { id: "creating", title: "Creating your memory", description: "Our creative team is creating your music and artwork.", states: ["CREATIVE.IN_PROGRESS"] },
     { id: "quality", title: "Quality check", description: "We're checking every detail before your keepsake is made.", states: ["QUALITY_CHECK"] },
-    { id: "making", title: "Being made", description: "Your keepsake is being made.", states: ["FULFILMENT.PENDING", "FULFILMENT.READY", "FULFILMENT.CONFIRMED"] },
+    { id: "making", title: "Being made", description: "Your keepsake is being made.", states: ["FULFILMENT.PENDING", "FULFILMENT.READY", "FULFILMENT.AUTHORISED", "FULFILMENT.CONFIRMED"] },
     { id: "on-its-way", title: "On its way", description: "Your order has been sent. If it includes more than one item, they may arrive in separate parcels.", states: ["DISPATCHED"] },
     { id: "delivered", title: "Delivered", description: "Your keepsake has arrived — we hope you love the reveal.", states: ["DELIVERED", "FOLLOW_UP.DUE", "COMPLETED"] },
   ],
@@ -220,17 +228,92 @@ export const LIFECYCLE_TEMPLATES: readonly LifecycleTemplate[] = [
 export const AUTOMATION_EVENTS: readonly string[] = [
   "ORDER.PAID",
   "ORDER.READY_FOR_PROCESSING",
+  "CREATIVE.IN_PROGRESS",
+  "ARTWORK.INPUT_VALIDATED",
+  "ARTWORK.PREPARATION_REQUIRED",
+  "ARTWORK.TEMPLATE_REQUIRED",
+  "ARTWORK.EXCEPTION",
+  "ARTWORK.READY",
   "QUALITY_CHECK.READY",
   "QUALITY_CHECK.PASSED",
   "QUALITY_CHECK.FAILED",
   "REVEALED",
   "FULFILMENT.READY",
+  "FULFILMENT.AUTHORISED",
+  "FULFILMENT.CONFIRMED",
   "DISPATCHED",
   "DELIVERED",
+  "ORDER.COMPLETED",
   "FOLLOW_UP.DUE",
+  "FOLLOW_UP.SENT",
+  "REVIEW.REQUESTED",
   "MCB_LIVE.ENQUIRY_RECEIVED",
   "BESPOKE.ENQUIRY_RECEIVED",
 ];
+
+/**
+ * The Founders' automation event model, mapped to the event MCB already
+ * records for the same moment. One name per meaning: where the model's name
+ * and an existing event mean the same thing, the existing event is used and
+ * no second event is written.
+ */
+export const EVENT_MODEL: Readonly<Record<string, string>> = {
+  "ORDER.PAID": "ORDER.PAID",
+  "ORDER.READY_FOR_PROCESSING": "ORDER.READY_FOR_PROCESSING",
+  "CREATIVE.PENDING": "ORDER.READY_FOR_PROCESSING",
+  "CREATIVE.IN_PROGRESS": "CREATIVE.IN_PROGRESS",
+  "CREATIVE.READY": "QUALITY_CHECK.READY",
+  "ARTWORK.INPUT_VALIDATED": "ARTWORK.INPUT_VALIDATED",
+  "ARTWORK.PREPARATION_REQUIRED": "ARTWORK.PREPARATION_REQUIRED",
+  "ARTWORK.TEMPLATE_REQUIRED": "ARTWORK.TEMPLATE_REQUIRED",
+  "ARTWORK.READY": "ARTWORK.READY",
+  "QC.REQUIRED": "QUALITY_CHECK.READY",
+  "QC.PASSED": "QUALITY_CHECK.PASSED",
+  "QC.FAILED": "QUALITY_CHECK.FAILED",
+  "FULFILMENT.READY": "FULFILMENT.READY",
+  "FULFILMENT.APPROVAL_REQUIRED": "FULFILMENT.READY",
+  "FULFILMENT.AUTHORISED": "FULFILMENT.AUTHORISED",
+  "SUPPLIER.ORDER_REQUIRED": "FULFILMENT.AUTHORISED",
+  "SUPPLIER.ORDER_RECORDED": "FULFILMENT.CONFIRMED",
+  "SHIPMENT.DISPATCHED": "DISPATCHED",
+  "SHIPMENT.DELIVERED": "DELIVERED",
+  "REVEAL.READY": "QUALITY_CHECK.PASSED",
+  "REVEAL.SENT": "REVEALED",
+  "FOLLOW_UP.DUE": "FOLLOW_UP.DUE",
+  "FOLLOW_UP.SENT": "FOLLOW_UP.SENT",
+  "REVIEW.REQUESTED": "REVIEW.REQUESTED",
+};
+
+/* ------------------------------------------------------------------ */
+/* Founder notifications                                               */
+/* ------------------------------------------------------------------ */
+
+export type FounderNotificationType =
+  | "NEW_ORDER_READY_FOR_PROCESSING"
+  | "FULFILMENT_APPROVAL_REQUIRED"
+  | "QC_EXCEPTION"
+  | "ARTWORK_EXCEPTION"
+  | "FULFILMENT_EXCEPTION"
+  | "CUSTOMER_SUPPORT_EXCEPTION"
+  | "PRODUCT_SALES_SUSPENDED";
+
+/**
+ * What interrupts the Founders. Exceptions and decisions only — plus every
+ * new paid order. Written to the outbox (lib/founder-notifications.php) and
+ * delivered by a separately authorised worker; nothing here calls a provider.
+ */
+export const FOUNDER_NOTIFICATIONS: readonly { readonly type: FounderNotificationType; readonly title: string; readonly requiredAction: string }[] = [
+  { type: "NEW_ORDER_READY_FOR_PROCESSING", title: "New order ready for processing", requiredAction: "Open the order and start the creative work." },
+  { type: "FULFILMENT_APPROVAL_REQUIRED", title: "Fulfilment approval required", requiredAction: "Open the order and approve the supplier purchase (Bella or Lewis)." },
+  { type: "QC_EXCEPTION", title: "Quality check failed", requiredAction: "Open the order: the work is back in creation for an internal correction." },
+  { type: "ARTWORK_EXCEPTION", title: "Artwork needs attention", requiredAction: "Open the order and review the production artwork." },
+  { type: "FULFILMENT_EXCEPTION", title: "Fulfilment exception", requiredAction: "Open the order and resolve what is holding fulfilment or delivery." },
+  { type: "CUSTOMER_SUPPORT_EXCEPTION", title: "Customer support report", requiredAction: "Open the order and review the customer's report." },
+  { type: "PRODUCT_SALES_SUSPENDED", title: "New sales suspended", requiredAction: "Review the product's availability. Existing paid orders are unaffected." },
+];
+
+/** Who may authorise money leaving MCB. Either one is enough; automation is neither. */
+export const FINANCIAL_AUTHORISERS = ["BELLA", "LEWIS"] as const;
 
 /* ------------------------------------------------------------------ */
 /* The action and exception queue                                      */
@@ -245,7 +328,10 @@ export type QueueKind =
   | "INCORRECT_DETAIL"
   | "PAYMENT_REVIEW"
   | "FULFILMENT_READY"
+  | "SUPPLIER_ORDER_REQUIRED"
   | "SUPPLIER_ACTION"
+  | "ARTWORK_EXCEPTION"
+  | "NOTIFICATION_FAILED"
   | "DELIVERY_DELAY"
   | "REPLACEMENT_REQUEST"
   | "SUPPORT"
@@ -266,7 +352,10 @@ export const QUEUE_KINDS: Readonly<Record<QueueKind, { readonly label: string; r
   CREATIVE_WORK: { label: "Creative work", priority: 2 },
   QUALITY_CHECK: { label: "Quality check due", priority: 2 },
   REVEAL_READY: { label: "Ready to reveal", priority: 2 },
-  FULFILMENT_READY: { label: "Ready to order from supplier", priority: 2 },
+  ARTWORK_EXCEPTION: { label: "Artwork needs attention", priority: 1 },
+  NOTIFICATION_FAILED: { label: "Founder notification not delivered", priority: 1 },
+  FULFILMENT_READY: { label: "Fulfilment approval required", priority: 2 },
+  SUPPLIER_ORDER_REQUIRED: { label: "Authorised: place supplier order", priority: 2 },
   SUPPLIER_ACTION: { label: "Waiting to dispatch", priority: 2 },
   SUPPORT: { label: "Customer question", priority: 2 },
   MESSAGE_FAILED: { label: "Email not sent", priority: 2 },
