@@ -415,6 +415,7 @@ git show 720c556a:db/schema.sql | ROOTQ bib 2>/dev/null
 ROOTQ bib < db/migrations/2026-09-16-business-intelligence.sql 2>/dev/null; B1=$?
 ROOTQ bib < db/migrations/2026-09-16-business-intelligence.sql 2>/dev/null; B2=$?
 ROOTQ bib < db/migrations/2026-09-16-supplier-routing.sql 2>/dev/null
+ROOTQ bib < db/migrations/2026-09-17-resilience.sql 2>/dev/null
 dumpdb() { for tb in $(ROOTQ -N -e "SHOW TABLES" "$1"); do ROOTQ -N -e "SHOW CREATE TABLE \`$tb\`" "$1" | sed 's/AUTO_INCREMENT=[0-9]* //'; done; }
 tc "the business migration applies to the previous schema, twice, and equals a fresh schema" "$([ "$B1" = 0 ] && [ "$B2" = 0 ] && [ "$(dumpdb bia | shasum)" = "$(dumpdb bib | shasum)" ] && echo 1 || echo 0)"
 ROOTQ -e 'DROP DATABASE bia; DROP DATABASE bib;' 2>/dev/null

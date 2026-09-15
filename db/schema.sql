@@ -2533,6 +2533,8 @@ CREATE TABLE IF NOT EXISTS order_route_decisions (
   confirmed_delivered_cost_minor INT UNSIGNED NULL,
   confirmed_delivered_currency   CHAR(3)      NULL,
   delivered_cost_evidence        VARCHAR(300) NULL,
+  availability_confirmed TINYINT(1) NOT NULL DEFAULT 0,
+  destination_confirmed  TINYINT(1) NOT NULL DEFAULT 0,
   status                ENUM('CURRENT','SUPERSEDED') NOT NULL DEFAULT 'CURRENT',
   decided_by            VARCHAR(160) NOT NULL,
   created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -568,10 +568,16 @@ function cc_health(PDO $pdo): array
         $found = array_values(array_filter($care, static fn (array $f): bool => $f['check'] === $check));
         $items[] = ['key' => 'support_' . strtolower($check), 'label' => $label, 'count' => count($found), 'detail' => array_values(array_unique(array_map(static fn (array $f): string => (string) $f['reference'], $found)))];
     }
+    // Every other failure check (System readiness), except launch configuration, which readiness reports.
+    require_once __DIR__ . '/resilience.php';
+    $known = ['PAID_ORDER_NOT_PROCESSED', 'FOUNDER_NOTIFICATION_UNDELIVERED', 'SUPPLIER_ORDER_NOT_PLACED', 'SHIPMENT_OVERDUE', 'CUSTOMER_EMAIL_FAILED', 'SUPPORT_CASE_ABANDONED', 'REFUND_AUTHORISED_NOT_RECORDED', 'REPLACEMENT_AUTHORISED_NOT_ACTIONED', 'REQUIRED_CONFIGURATION_MISSING'];
+    $other = array_values(array_filter(resilience_failures($pdo)['checks'], static fn (array $c): bool => $c['count'] > 0 && !in_array($c['key'], $known, true)));
+    $items[] = ['key' => 'other_failures', 'label' => 'Other failures needing attention (see System readiness)', 'count' => array_sum(array_column($other, 'count')), 'detail' => array_column($other, 'label')];
     $needed = array_values(array_filter($items, static fn (array $i): bool => $i['count'] > 0));
+    // Never "all good": these checks cover known failure modes, not everything.
     return [
-        'status' => $needed === [] ? 'ALL_GOOD' : 'ACTION_NEEDED',
-        'label' => $needed === [] ? 'All good' : 'Action needed',
+        'status' => $needed === [] ? 'NO_PROBLEMS_FOUND' : 'ACTION_NEEDED',
+        'label' => $needed === [] ? 'No problems found by these checks' : 'Action needed',
         'items' => $items,
         'stranded' => array_map(static fn (array $f): array => ['order_id' => $f['order_id'], 'reference' => $f['reference'], 'check' => $f['check'], 'since' => $f['since']], $stranded),
     ];

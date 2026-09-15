@@ -155,6 +155,8 @@ test("automation events are the named set, with nothing financial or supplier-fa
     "SUPPORT.CASE_OPENED", "SUPPORT.RESPONSE_SENT", "SUPPORT.CASE_RESOLVED", "SUPPORT.PRIVACY_REVIEW_REQUIRED",
     // Supplier Intelligence & Commercial Routing (a person's route choice; never an authorisation)
     "ROUTING.DECISION_RECORDED",
+    // Security, Resilience & Automation Readiness (a person retried idempotent work)
+    "SYSTEM.RECOVERY_ATTEMPTED",
   ].sort());
   assert.ok(!M.ops.AUTOMATION_EVENTS.some((e) => /REFUND|CHARGE|SUPPLIER|PURCHASE/.test(e)));
 });

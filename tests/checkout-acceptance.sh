@@ -188,6 +188,13 @@ authorised = {
     "lyrics-frame-16x24": 8999, "lyrics-frame-20x30": 9999,
     "vintage-smartphone-gramophone": 10000, "antique-brass-gramophone": 100000,
     "portable-suitcase-record-player": 20000, "priority-replacement": 1999,
+    # The 18 pop-up cards decided by the Founders (17 September 2026).
+    "pop-up-card-anniversary-gold-white": 4999, "pop-up-card-anniversary-large": 6999, "pop-up-card-birthday-candles-music": 4999,
+    "pop-up-card-birthday-auto-play-music": 1999, "pop-up-card-wedding": 4999, "pop-up-card-mothers-day-flowers": 4999,
+    "pop-up-card-christmas-tree": 4999, "pop-up-card-birthday-tropical-bird-cage": 4999, "pop-up-card-halloween-pumpkin-flowers": 4999,
+    "pop-up-card-thanksgiving-flowers": 4999, "pop-up-card-thank-you-flowers": 4999, "pop-up-card-congratulations-flowers": 4999,
+    "pop-up-card-valentines-love-tree-hearts": 4999, "pop-up-card-cruise-voyage-vessel": 4999, "pop-up-card-multi-flower-pack-4": 7999,
+    "pop-up-card-single-colour-flower-pack-4": 7999, "pop-up-card-four-colour-flower-pack-4": 7999, "pop-up-card-paper-flower-pack-8": 12999,
     "artwork-preparation": 1500,
     "memory-music-video": 4900,
 }

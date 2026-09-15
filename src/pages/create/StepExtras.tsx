@@ -5,6 +5,7 @@ import ResponsiveImage from "../../components/ResponsiveImage";
 import {
   LYRICS_FRAME,
   PERSONALISED_MUSIC_PLAQUE,
+  POP_UP_CARD,
   PRIORITY_REPLACEMENT,
   PRIORITY_REPLACEMENT_CLAIM_WINDOW_DAYS,
   formatMoney,
@@ -228,6 +229,28 @@ const StepExtras = ({ draft, setDraft, photos, setPhoto, showErrors, onAdd }: St
           })}
         </ul>
       </section>
+
+      {/* ---- Pop-up cards ---- */}
+      {POP_UP_CARD.active && POP_UP_CARD.public && POP_UP_CARD.onlineCheckout && (
+        <section aria-labelledby={`${uid}-cards`} className="rounded-2xl bg-white p-5 sm:p-7">
+          <h2 id={`${uid}-cards`} className="!text-3xl text-ink">{POP_UP_CARD.name}</h2>
+          <p className="mt-3 text-base leading-relaxed text-espresso/80">{POP_UP_CARD.shortDescription} {DELIVERY_CONFIRMED_FIRST_NOTE}</p>
+          <ul className="mt-6 grid list-none gap-4 p-0 sm:grid-cols-2">
+            {POP_UP_CARD.variants.map((card) => {
+              const quantity = draft.players.find((p) => p.sku === card.sku)?.quantity ?? 0;
+              return (
+                <li key={card.sku} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-espresso/12 p-4">
+                  <div className="min-w-0">
+                    <p className="text-lg text-ink">{card.label}</p>
+                    <p className="mt-1 font-mono text-base text-ink">{formatMoney(card.price)}</p>
+                  </div>
+                  <Stepper label={card.name} value={quantity} min={0} max={50} onChange={(n) => { setDraft((d) => setPlayer(d, card.sku, n)); if (n > quantity) onAdd(card.sku, 1); }} />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {/* ---- Priority Replacement: Keepsakes only, never preselected ---- */}
       {prLimit > 0 && product && (

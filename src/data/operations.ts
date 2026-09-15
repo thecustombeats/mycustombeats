@@ -318,6 +318,8 @@ export const AUTOMATION_EVENTS: readonly string[] = [
   "SUPPORT.PRIVACY_REVIEW_REQUIRED",
   // Supplier Intelligence & Commercial Routing (a person's route choice; never an authorisation)
   "ROUTING.DECISION_RECORDED",
+  // Security, Resilience & Automation Readiness (a person retried idempotent work)
+  "SYSTEM.RECOVERY_ATTEMPTED",
 ];
 
 /**

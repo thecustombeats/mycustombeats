@@ -115,6 +115,13 @@
   </If>
   <If "%{THE_REQUEST} =~ m#^[A-Z]+ /(your-order|approve|operations|command-centre)#">
     Header always set Referrer-Policy "no-referrer"
+    # Private customer and staff screens (17 Sept hardening): no analytics, form or
+    # captcha origins at all, and they can never be framed (no clickjacking of a
+    # founder's authorisation or a customer's order page). Songs and videos play
+    # from same-origin signed URLs and blob: previews.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; media-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    Header always set X-Frame-Options "DENY"
+    Header always set Cache-Control "no-store"
   </If>
 
   # HSTS — PREPARED, NOT ENABLED. Turn on only after confirming every

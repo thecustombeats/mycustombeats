@@ -6,7 +6,7 @@
     "url": "https://www.mycustombeats.com"
   },
   "currency": "GBP",
-  "catalogue_hash": "ee5c02eddb389a443a30ae51d2cfe81a4529e8135f985e5f38883308ec501271",
+  "catalogue_hash": "8d131f3f3fed71e89888dd837cf503e886500053d79b8fed637094e4da3e75e3",
   "how_to_order": "https://www.mycustombeats.com/create",
   "ordering_rules": {
     "automated_ordering": false,
@@ -754,6 +754,492 @@
           "price": {
             "amount": "200.00",
             "minor_units": 20000,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        }
+      ]
+    },
+    {
+      "id": "pop-up-card",
+      "name": "Pop-Up Cards",
+      "description": "Pop-up greeting cards for the moment you share your song.",
+      "positioning": "A musical pop-up card to give alongside your song.",
+      "product_type": "CARD",
+      "commercial_model": "VARIANT_FIXED",
+      "url": "https://www.mycustombeats.com/products",
+      "image_url": null,
+      "availability": "ORDERABLE_ONLINE",
+      "enquiry_url": null,
+      "timing": null,
+      "availability_note": "Sourced for each order; MCB confirms availability and delivery with the partner. No stock level is claimed.",
+      "disclosures": [],
+      "requires_song_experience_in_order": true,
+      "variants": [
+        {
+          "sku": "pop-up-card-anniversary-gold-white",
+          "name": "Pop-Up Card — Anniversary — Gold and White",
+          "label": "Anniversary — Gold and White",
+          "price": {
+            "amount": "49.99",
+            "minor_units": 4999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-anniversary-large",
+          "name": "Pop-Up Card — Anniversary — Large",
+          "label": "Anniversary — Large",
+          "price": {
+            "amount": "69.99",
+            "minor_units": 6999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-birthday-candles-music",
+          "name": "Pop-Up Card — Birthday — Candles / Music",
+          "label": "Birthday — Candles / Music",
+          "price": {
+            "amount": "49.99",
+            "minor_units": 4999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-birthday-auto-play-music",
+          "name": "Pop-Up Card — Birthday — Auto-Play Music",
+          "label": "Birthday — Auto-Play Music",
+          "price": {
+            "amount": "19.99",
+            "minor_units": 1999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-wedding",
+          "name": "Pop-Up Card — Wedding",
+          "label": "Wedding",
+          "price": {
+            "amount": "49.99",
+            "minor_units": 4999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-mothers-day-flowers",
+          "name": "Pop-Up Card — Mother's Day — Flowers",
+          "label": "Mother's Day — Flowers",
+          "price": {
+            "amount": "49.99",
+            "minor_units": 4999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-christmas-tree",
+          "name": "Pop-Up Card — Christmas — Christmas Tree",
+          "label": "Christmas — Christmas Tree",
+          "price": {
+            "amount": "49.99",
+            "minor_units": 4999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-birthday-tropical-bird-cage",
+          "name": "Pop-Up Card — Birthday — Tropical Bird Cage",
+          "label": "Birthday — Tropical Bird Cage",
+          "price": {
+            "amount": "49.99",
+            "minor_units": 4999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-halloween-pumpkin-flowers",
+          "name": "Pop-Up Card — Halloween — Pumpkin Flowers",
+          "label": "Halloween — Pumpkin Flowers",
+          "price": {
+            "amount": "49.99",
+            "minor_units": 4999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-thanksgiving-flowers",
+          "name": "Pop-Up Card — Thanksgiving — Flowers",
+          "label": "Thanksgiving — Flowers",
+          "price": {
+            "amount": "49.99",
+            "minor_units": 4999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-thank-you-flowers",
+          "name": "Pop-Up Card — Thank You — Flowers",
+          "label": "Thank You — Flowers",
+          "price": {
+            "amount": "49.99",
+            "minor_units": 4999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-congratulations-flowers",
+          "name": "Pop-Up Card — Congratulations — Flowers",
+          "label": "Congratulations — Flowers",
+          "price": {
+            "amount": "49.99",
+            "minor_units": 4999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-valentines-love-tree-hearts",
+          "name": "Pop-Up Card — Valentine's Day — Love Tree / Hearts",
+          "label": "Valentine's Day — Love Tree / Hearts",
+          "price": {
+            "amount": "49.99",
+            "minor_units": 4999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-cruise-voyage-vessel",
+          "name": "Pop-Up Card — Cruise / Voyage — Cruise Vessel",
+          "label": "Cruise / Voyage — Cruise Vessel",
+          "price": {
+            "amount": "49.99",
+            "minor_units": 4999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-multi-flower-pack-4",
+          "name": "Pop-Up Card — Multi Flower Pop-Up Card — Pack of 4",
+          "label": "Multi Flower Pop-Up Card — Pack of 4",
+          "price": {
+            "amount": "79.99",
+            "minor_units": 7999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-single-colour-flower-pack-4",
+          "name": "Pop-Up Card — Single Colour Flower Pop-Up Card — Pack of 4",
+          "label": "Single Colour Flower Pop-Up Card — Pack of 4",
+          "price": {
+            "amount": "79.99",
+            "minor_units": 7999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-four-colour-flower-pack-4",
+          "name": "Pop-Up Card — Four Colour Flower Pop-Up Card — Pack of 4",
+          "label": "Four Colour Flower Pop-Up Card — Pack of 4",
+          "price": {
+            "amount": "79.99",
+            "minor_units": 7999,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "PHYSICAL",
+          "shipping_required": true,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": null
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        },
+        {
+          "sku": "pop-up-card-paper-flower-pack-8",
+          "name": "Pop-Up Card — Paper Flower Pop-Up Cards — Pack of 8",
+          "label": "Paper Flower Pop-Up Cards — Pack of 8",
+          "price": {
+            "amount": "129.99",
+            "minor_units": 12999,
             "currency": "GBP"
           },
           "orderable_online": true,

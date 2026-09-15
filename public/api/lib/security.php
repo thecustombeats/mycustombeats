@@ -183,12 +183,35 @@ function bearer_token(): ?string
  * needs per-consumer access, this becomes a keys table without changing the
  * calling convention.
  */
+/**
+ * Failed staff-key attempts are counted per (hashed) address: after 100 in ten
+ * minutes the address is refused with 429 until the window passes. The key is
+ * long and random, so this only slows automated guessing and noise.
+ */
+function crm_key_failure_throttle(): void
+{
+    try {
+        $pdo = db();
+        $ipHash = hash_ip(client_ip());
+        $pdo->prepare("INSERT INTO rate_limit_hits (scope, ip_hash, created_at) VALUES ('crm-auth-failure', :h, UTC_TIMESTAMP())")->execute([':h' => $ipHash]);
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM rate_limit_hits WHERE scope = 'crm-auth-failure' AND ip_hash = :h AND created_at > (UTC_TIMESTAMP() - INTERVAL 600 SECOND)");
+        $stmt->execute([':h' => $ipHash]);
+        if ((int) $stmt->fetchColumn() > 100) {
+            header('Retry-After: 600');
+            json_error(429, 'rate_limited', 'Too many attempts. Please wait and try again.');
+        }
+    } catch (PDOException $e) {
+        error_log('MCB security: could not record a failed staff key attempt: ' . $e->getMessage());
+    }
+}
+
 function require_crm_key(): void
 {
     $expected = (string) mcb_setting('crm_api_key', '');
     $given    = bearer_token() ?? '';
 
     if ($expected === '' || $given === '' || !hash_equals($expected, $given)) {
+        crm_key_failure_throttle();
         header('WWW-Authenticate: Bearer');
         json_error(401, 'unauthorized', 'Authentication required.');
     }

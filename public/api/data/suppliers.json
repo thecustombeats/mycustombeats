@@ -17,7 +17,7 @@
       "family": "CARD",
       "label": "Pop-up cards",
       "expected": 18,
-      "mapped": 0
+      "mapped": 18
     },
     {
       "family": "GRAMOPHONE",
@@ -280,6 +280,330 @@
       ]
     },
     {
+      "sku": "pop-up-card-anniversary-gold-white",
+      "family": "CARD",
+      "label": "Anniversary — Gold and White",
+      "songs": null,
+      "price_minor": 4999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-anniversary-large",
+      "family": "CARD",
+      "label": "Anniversary — Large",
+      "songs": null,
+      "price_minor": 6999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-birthday-candles-music",
+      "family": "CARD",
+      "label": "Birthday — Candles / Music",
+      "songs": null,
+      "price_minor": 4999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-birthday-auto-play-music",
+      "family": "CARD",
+      "label": "Birthday — Auto-Play Music",
+      "songs": null,
+      "price_minor": 1999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-wedding",
+      "family": "CARD",
+      "label": "Wedding",
+      "songs": null,
+      "price_minor": 4999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-mothers-day-flowers",
+      "family": "CARD",
+      "label": "Mother's Day — Flowers",
+      "songs": null,
+      "price_minor": 4999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-christmas-tree",
+      "family": "CARD",
+      "label": "Christmas — Christmas Tree",
+      "songs": null,
+      "price_minor": 4999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-birthday-tropical-bird-cage",
+      "family": "CARD",
+      "label": "Birthday — Tropical Bird Cage",
+      "songs": null,
+      "price_minor": 4999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-halloween-pumpkin-flowers",
+      "family": "CARD",
+      "label": "Halloween — Pumpkin Flowers",
+      "songs": null,
+      "price_minor": 4999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-thanksgiving-flowers",
+      "family": "CARD",
+      "label": "Thanksgiving — Flowers",
+      "songs": null,
+      "price_minor": 4999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-thank-you-flowers",
+      "family": "CARD",
+      "label": "Thank You — Flowers",
+      "songs": null,
+      "price_minor": 4999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-congratulations-flowers",
+      "family": "CARD",
+      "label": "Congratulations — Flowers",
+      "songs": null,
+      "price_minor": 4999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-valentines-love-tree-hearts",
+      "family": "CARD",
+      "label": "Valentine's Day — Love Tree / Hearts",
+      "songs": null,
+      "price_minor": 4999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-cruise-voyage-vessel",
+      "family": "CARD",
+      "label": "Cruise / Voyage — Cruise Vessel",
+      "songs": null,
+      "price_minor": 4999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-multi-flower-pack-4",
+      "family": "CARD",
+      "label": "Multi Flower Pop-Up Card — Pack of 4",
+      "songs": null,
+      "price_minor": 7999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-single-colour-flower-pack-4",
+      "family": "CARD",
+      "label": "Single Colour Flower Pop-Up Card — Pack of 4",
+      "songs": null,
+      "price_minor": 7999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-four-colour-flower-pack-4",
+      "family": "CARD",
+      "label": "Four Colour Flower Pop-Up Card — Pack of 4",
+      "songs": null,
+      "price_minor": 7999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
+      "sku": "pop-up-card-paper-flower-pack-8",
+      "family": "CARD",
+      "label": "Paper Flower Pop-Up Cards — Pack of 8",
+      "songs": null,
+      "price_minor": 12999,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": "CARD",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability and delivery vary: a person confirms them before purchase.",
+        "Only an appropriate alternative card may be substituted, recorded in full."
+      ]
+    },
+    {
       "sku": "personalised-music-plaque",
       "family": "PLAQUE",
       "label": "Personalised Music Plaque (8 × 12)",
@@ -325,7 +649,8 @@
       "price_minor": 12999
     }
   ],
-  "card_listings": [],
+  "route_freshness_days": 30,
+  "new_sale_safety": "REQUIRED",
   "card_alternative_record": [
     "ORIGINAL_SKU",
     "ALTERNATIVE",

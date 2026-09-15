@@ -107,7 +107,7 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
               return <li key={frame.id}>Lyrics frame {i + 1}: {getVariant(frame.sku)?.variant.label} · {position?.label}{frame.heading ? ` · “${frame.heading}”` : ""}</li>;
             })}
             {draft.players.map((player) => (
-              <li key={player.sku}>{getProduct(getVariant(player.sku)?.product.id ?? "")?.name ?? player.sku}{player.quantity > 1 ? ` × ${player.quantity}` : ""}</li>
+              <li key={player.sku}>{getVariant(player.sku)?.variant.name ?? getProduct(getVariant(player.sku)?.product.id ?? "")?.name ?? player.sku}{player.quantity > 1 ? ` × ${player.quantity}` : ""}</li>
             ))}
             {draft.artworkPreparation && <li>{ARTWORK_PREPARATION.name} — chosen by you, once for this order</li>}
             {draft.memoryVideo && (

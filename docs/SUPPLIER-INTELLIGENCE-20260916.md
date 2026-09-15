@@ -48,7 +48,7 @@ It is decision support, not procurement.
 |---|---|---|---|
 | Vinyl | 6 | 6 | Gatefold 12 songs £349 · 12" 6 songs £199 · 12" picture 4 songs £149.99 · 10" picture 3 songs £139.99 · Heart 1 song £129.99 · 7" 1 song £99 |
 | Frames / wall art | 5 | 5 | The catalogue's Lyrics Frames. **Founders to confirm** these are the frames the partner routes supply |
-| Pop-up cards | 18 | **0** | **FOUNDER DATA REQUIRED.** Price points: singles £49.99, Large Anniversary £69.99, Birthday Auto-Play £19.99, 4-packs £79.99, 8-pack £129.99. No names, shipping or bundle discounts are invented |
+| Pop-up cards | 18 | 18 | **Corrected 17 Sept:** the Founders' 18 cards are catalogued (see SECURITY-RESILIENCE-20260917.md). Routes stay VERIFICATION_REQUIRED until evidenced |
 | Gramophones | 3 | 3 | Manual / availability-confirmed. The £1,000 gramophone needs its delivered cost confirmed before purchase |
 | Plaque | 1 | 1 | 8 × 12, associated with one song, does not play music. Unverified destinations go to manual review |
 

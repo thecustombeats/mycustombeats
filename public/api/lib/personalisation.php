@@ -402,7 +402,7 @@ function validate_personalisation(mixed $raw, OrderPricing $pricing): Personalis
             $sku === ($rules['artwork_preparation_sku'] ?? null) => true,
             $sku === ($rules['memory_video_sku'] ?? null) => true,
             $line['product_id'] === 'lyrics-frame' => ($frameCounts[$sku] ?? 0) === $line['quantity'],
-            $line['category'] === 'PLAYER' => true,
+            $line['category'] === 'PLAYER', $line['category'] === 'CARD' => true,
             default => false,
         };
         if (!$accounted) {

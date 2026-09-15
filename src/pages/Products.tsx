@@ -8,6 +8,7 @@ import {
   LYRICS_FRAME,
   MOMENT,
   PERSONALISED_MUSIC_PLAQUE,
+  POP_UP_CARD,
   PRIORITY_REPLACEMENT,
   formatMoney,
   priceSummary,
@@ -39,6 +40,7 @@ const listed = (product: Product) => product.active && product.public && product
 const PLAQUE = listed(PERSONALISED_MUSIC_PLAQUE) ? PERSONALISED_MUSIC_PLAQUE : null;
 const FRAMES = listed(LYRICS_FRAME) ? LYRICS_FRAME : null;
 const PLAYERS = publicProducts().filter((p) => p.category === "PLAYER" && p.onlineCheckout);
+const CARDS = listed(POP_UP_CARD) ? POP_UP_CARD : null;
 
 /** What a customer provides for the plaque. Matches the order flow's fields. */
 const PLAQUE_FIELDS = ["A photograph", "A song title", "The artist"];
@@ -218,6 +220,22 @@ const Products = () => {
                     );
                   })}
                 </ul>
+              </div>
+            )}
+
+            {CARDS && (
+              <div className="mt-16">
+                <h3 className="font-serif text-3xl leading-tight text-ink">{CARDS.name}</h3>
+                <p className="mt-2 max-w-2xl text-base leading-relaxed text-espresso/80">{CARDS.positioning}</p>
+                <ul className="m-0 mt-6 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
+                  {CARDS.variants.map((card) => (
+                    <li key={card.sku} className="flex items-baseline justify-between gap-3 rounded-2xl bg-white px-5 py-4">
+                      <span className="text-base text-ink">{card.label}</span>
+                      <span className="shrink-0 font-mono text-base text-ink">{formatMoney(card.price)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-base text-espresso/80">{DELIVERY_NOTE}</p>
               </div>
             )}
 

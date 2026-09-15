@@ -143,6 +143,21 @@ function inspect_uploaded_image(string $path, int $size): ?array
 
     // Markup or PHP anywhere in the file: not a photograph MCB needs.
     $content = (string) file_get_contents($path, false, null, 0, $size);
+
+    // A complete file, not one cut short in transfer: a JPEG's image data (after its
+    // start-of-scan marker) reaches an end-of-image marker, a PNG has its IEND chunk,
+    // and a WebP is at least as long as its RIFF header says. Data a phone appends after
+    // the image (motion photos, trailers) is still accepted.
+    $sos = strpos($content, "\xFF\xDA");
+    $complete = match ($mime) {
+        'image/jpeg' => $sos !== false && strpos($content, "\xFF\xD9", $sos) !== false,
+        'image/png' => str_contains($content, "IEND\xAE\x42\x60\x82"),
+        'image/webp' => strlen($content) >= 12 && unpack('V', substr($content, 4, 4))[1] + 8 <= strlen($content),
+        default => true,
+    };
+    if (!$complete) {
+        return null;
+    }
     if (preg_match('/<\?php|<\?=|<script|<html|<svg|<iframe|<body/i', $content) === 1) {
         return null;
     }

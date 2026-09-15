@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Helmet } from "react-helmet-async";
 import { useLocation } from "react-router-dom";
-import { READINESS_LABELS, ago, commandLink, humanise, money, parseBusinessSection, parseCommandLink, parseSupplierSection, type Json, type View, careCaseHref } from "../lib/commandCentre";
+import { READINESS_LABELS, ago, commandLink, humanise, money, parseBusinessSection, parseCommandLink, parseSupplierSection, parseSystemSection, type Json, type View, careCaseHref } from "../lib/commandCentre";
 import Business from "./command-centre/Business";
 import Suppliers from "./command-centre/Suppliers";
+import SystemReadiness from "./command-centre/SystemReadiness";
 import OrderView from "./command-centre/OrderView";
 import { ActionCard, OrderRow, Panel, Status, Tile } from "./command-centre/ui";
 import { card, eyebrow, field, primary, secondary } from "./command-centre/styles";
@@ -29,6 +30,7 @@ const NAV: { view: View; label: string }[] = [
   { view: "customers", label: "Customers" },
   { view: "suppliers", label: "Suppliers" },
   { view: "business", label: "Business" },
+  { view: "system", label: "System readiness" },
   { view: "health", label: "Health & readiness" },
   { view: "notifications", label: "Notifications" },
   { view: "search", label: "Search" },
@@ -254,7 +256,7 @@ const CommandCentre = () => {
                       {overview.customer_care && <CareSummary summary={overview.customer_care} />}
                       <CustomerList customers={overview.customers} />
                     </Panel>
-                    <Panel id="health-summary" title="MCB system health" aside={<Status good={overview.health.status === "ALL_GOOD"} label={overview.health.label} />}>
+                    <Panel id="health-summary" title="MCB system health" aside={<Status good={overview.health.status === "NO_PROBLEMS_FOUND"} label={overview.health.label} />}>
                       <HealthList items={overview.health.items} />
                     </Panel>
                     {overview.videos && <VideoSummary videos={overview.videos} />}
@@ -345,6 +347,8 @@ const CommandCentre = () => {
               </>
             ) : link.view === "suppliers" ? (
               <Suppliers section={parseSupplierSection(hash)} api={api} staff={staff} />
+            ) : link.view === "system" ? (
+              <SystemReadiness section={parseSystemSection(hash)} api={api} staff={staff} />
             ) : link.view === "business" ? (
               <Business section={parseBusinessSection(hash)} api={api} fetchBlob={fetchBlob} staff={staff} />
             ) : link.view === "health" ? (
@@ -352,7 +356,7 @@ const CommandCentre = () => {
                 <h1 className="font-serif text-4xl text-ink">Health &amp; readiness</h1>
                 {!data?.health ? <p role="status">Loading…</p> : (
                   <>
-                    <Panel id="health" title="MCB system health" aside={<Status good={data.health.status === "ALL_GOOD"} label={data.health.label} />}>
+                    <Panel id="health" title="MCB system health" aside={<Status good={data.health.status === "NO_PROBLEMS_FOUND"} label={data.health.label} />}>
                       <HealthList items={data.health.items} />
                     </Panel>
                     <Panel id="readiness" title="Launch readiness">

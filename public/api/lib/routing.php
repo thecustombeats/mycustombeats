@@ -105,14 +105,21 @@ function route_record_fields(array $r): array
     ];
 }
 
-/** The freshness period for a route: its own, else the configured one, else NOT CONFIGURED. */
+/**
+ * The freshness period for a route: its own, else the server configuration,
+ * else the Founders' decision (30 days, suppliers.json).
+ */
 function route_freshness_days(array $route): ?int
 {
     if (($route['freshness_days'] ?? null) !== null) {
         return $route['freshness_days'];
     }
     $v = mcb_setting('fulfilment.route_freshness_days', null);
-    return is_int($v) && $v > 0 ? $v : null;
+    if (is_int($v) && $v > 0) {
+        return $v;
+    }
+    $decided = suppliers_data()['route_freshness_days'] ?? null;
+    return is_int($decided) && $decided > 0 ? $decided : null;
 }
 
 /**
@@ -453,6 +460,7 @@ function current_route_decision(PDO $pdo, int $orderId, string $sku): ?array
         'route_group' => $row['route_group'], 'deviation_reason' => $row['deviation_reason'], 'note' => $row['note'], 'country_code' => $row['country_code'],
         'confirmed_delivered_cost_minor' => $row['confirmed_delivered_cost_minor'] === null ? null : (int) $row['confirmed_delivered_cost_minor'],
         'confirmed_delivered_currency' => $row['confirmed_delivered_currency'], 'delivered_cost_evidence' => $row['delivered_cost_evidence'],
+        'availability_confirmed' => (int) ($row['availability_confirmed'] ?? 0) === 1, 'destination_confirmed' => (int) ($row['destination_confirmed'] ?? 0) === 1,
         'decided_by' => $row['decided_by'], 'created_at' => $row['created_at'],
     ];
 }
@@ -528,14 +536,20 @@ function record_route_decision(PDO $pdo, int $orderId, array $in, string $staff)
     if ($cost !== null && ($currency === null || $evidence === null)) {
         throw new OperationsException('delivered_cost_evidence_required', 'Give the currency and where the delivered cost was confirmed (never card details).', 422);
     }
+    $availabilityConfirmed = ($in['availability_confirmed'] ?? null) === true;
+    $destinationConfirmed = ($in['destination_confirmed'] ?? null) === true;
+    if (($availabilityConfirmed || $destinationConfirmed) && $evidence === null) {
+        throw new OperationsException('confirmation_evidence_required', 'Say where availability and delivery to this destination were confirmed.', 422);
+    }
     $pdo->prepare("UPDATE order_route_decisions SET status = 'SUPERSEDED', superseded_at = UTC_TIMESTAMP() WHERE order_id = :o AND sku = :s AND status = 'CURRENT'")
         ->execute([':o' => $orderId, ':s' => $sku]);
     $pdo->prepare(
         'INSERT INTO order_route_decisions (order_id, sku, route_id, recommended_route_id, route_group, deviation_reason, note, country_code,
-             confirmed_delivered_cost_minor, confirmed_delivered_currency, delivered_cost_evidence, decided_by, created_at)
-         VALUES (:o, :s, :r, :rec, :g, :dr, :n, :cc, :c, :cur, :ev, :by, UTC_TIMESTAMP())'
+             confirmed_delivered_cost_minor, confirmed_delivered_currency, delivered_cost_evidence, availability_confirmed, destination_confirmed, decided_by, created_at)
+         VALUES (:o, :s, :r, :rec, :g, :dr, :n, :cc, :c, :cur, :ev, :ac, :dc, :by, UTC_TIMESTAMP())'
     )->execute([':o' => $orderId, ':s' => $sku, ':r' => $routeId, ':rec' => $recommended, ':g' => $chosen['group'], ':dr' => $reason, ':n' => $note,
-        ':cc' => $cc, ':c' => $cost, ':cur' => $cost === null ? null : $currency, ':ev' => $cost === null ? null : $evidence, ':by' => $staff]);
+        ':cc' => $cc, ':c' => $cost, ':cur' => $cost === null ? null : $currency, ':ev' => $cost === null && !$availabilityConfirmed && !$destinationConfirmed ? null : $evidence,
+        ':ac' => $availabilityConfirmed ? 1 : 0, ':dc' => $destinationConfirmed ? 1 : 0, ':by' => $staff]);
     $id = (int) $pdo->lastInsertId();
     record_order_event($pdo, $orderId, 'ROUTING.DECISION_RECORDED', ['decision_id' => $id, 'sku' => $sku, 'route' => $routeId, 'recommended' => $recommended,
         'followed_recommendation' => $routeId === $recommended, 'delivered_cost_confirmed' => $cost !== null, 'by' => $staff], "route-decision:{$id}");
@@ -559,8 +573,23 @@ function route_authorisation_requirements(PDO $pdo, int $orderId): array
     $unreviewed = [];
     foreach (fulfilment_lines($pdo, $orderId) as $line) {
         $decision = current_route_decision($pdo, $orderId, $line['sku']);
-        if ((registry_entry($line['sku'])['delivered_cost_confirmation_required'] ?? false) === true && ($decision['confirmed_delivered_cost_minor'] ?? null) === null) {
-            $unmet[] = ['sku' => $line['sku'], 'product' => $line['name'], 'requirement' => 'CONFIRMED_DELIVERED_COST'];
+        if ((registry_entry($line['sku'])['delivered_cost_confirmation_required'] ?? false) === true) {
+            // The high-value gramophone: every part of the evidence, recorded by a person, before a founder can authorise.
+            $need = static function (string $requirement) use (&$unmet, $line): void {
+                $unmet[] = ['sku' => $line['sku'], 'product' => $line['name'], 'requirement' => $requirement];
+            };
+            if (($decision['confirmed_delivered_cost_minor'] ?? null) === null || ($decision['confirmed_delivered_currency'] ?? null) === null) {
+                $need('CONFIRMED_DELIVERED_COST');
+            }
+            if (($decision['availability_confirmed'] ?? false) !== true) {
+                $need('AVAILABILITY_CONFIRMED');
+            }
+            if (($decision['destination_confirmed'] ?? false) !== true) {
+                $need('DESTINATION_SUPPORT_CONFIRMED');
+            }
+            if (($decision['delivered_cost_evidence'] ?? null) === null) {
+                $need('SUPPORTING_EVIDENCE');
+            }
         }
         // A route review is needed where there is a real choice (more than one route recorded).
         if ($decision === null && count(routes_for_sku($line['sku'])) > 1) {
@@ -574,9 +603,14 @@ function route_authorisation_requirements(PDO $pdo, int $orderId): array
 /* New sales: commercial safety before a sale is accepted              */
 /* ------------------------------------------------------------------ */
 
+/** New-sale safety: the Founders decided REQUIRED; only an explicit ADVISORY setting relaxes it. */
 function new_sale_safety_enforcement(): string
 {
-    return mcb_setting('fulfilment.new_sale_safety', 'ADVISORY') === 'REQUIRED' ? 'REQUIRED' : 'ADVISORY';
+    $configured = mcb_setting('fulfilment.new_sale_safety', null);
+    if ($configured === 'ADVISORY' || $configured === 'REQUIRED') {
+        return $configured;
+    }
+    return (suppliers_data()['new_sale_safety'] ?? 'REQUIRED') === 'ADVISORY' ? 'ADVISORY' : 'REQUIRED';
 }
 
 /**
@@ -610,6 +644,14 @@ function new_sale_route_flags(string $sku, ?string $countryCode): array
     }
     if ($best !== null && $best['high_risk_marketplace']) {
         $flags[] = 'UNVERIFIED_HIGH_RISK_MARKETPLACE_ROUTE';
+    }
+    // Evidence gaps that stop MCB fulfilling safely. Manual products (a person confirms
+    // availability before payment anyway) are judged on destination and data, not on grouping.
+    if ($best !== null && $best['group'] === 'UNVERIFIED') {
+        $flags[] = 'ROUTE_NOT_VERIFIED';
+    }
+    if ($best !== null && !$best['expected_cost']['complete']) {
+        $flags[] = 'COMMERCIAL_DATA_MISSING';
     }
     if (array_filter(manufacturing_data_items(), static fn (array $i): bool => in_array($sku, $i['skus'], true) && $i['blocks_manufacture']) !== []) {
         $flags[] = 'MANUFACTURING_DATA_MISSING';
@@ -701,9 +743,10 @@ function supplier_research_items(): array
             $add('CAPACITY_MISSING', $e['sku'], null, 'Ask the production partner for the verified programme duration (see MANUFACTURING DATA REQUIRED).');
         }
     }
-    $cards = array_values(array_filter(suppliers_data()['families'], static fn (array $f): bool => $f['family'] === 'CARD'))[0];
-    if ($cards['mapped'] < $cards['expected']) {
-        $add('FOUNDER_DATA_REQUIRED', null, null, ($cards['expected'] - $cards['mapped']) . " of {$cards['expected']} pop-up card listings need their name, price point, image and personalisation from Bella or Lewis.");
+    foreach (suppliers_data()['families'] as $family) {
+        if ($family['mapped'] < $family['expected']) {
+            $add('FOUNDER_DATA_REQUIRED', null, null, ($family['expected'] - $family['mapped']) . " of {$family['expected']} {$family['label']} products are not in the catalogue.");
+        }
     }
     return $items;
 }
@@ -935,11 +978,11 @@ function suppliers_overview(PDO $pdo): array
             'expected_physical_skus' => suppliers_data()['expected_physical_skus'],
             'mapped_physical_skus' => array_sum(array_column(suppliers_data()['families'], 'mapped')),
             'families' => suppliers_data()['families'],
-            'cards' => ['expected' => $cards['expected'], 'mapped' => $cards['mapped'], 'status' => $cards['mapped'] === $cards['expected'] ? 'MAPPED' : 'FOUNDER_DATA_REQUIRED',
+            'cards' => ['expected' => $cards['expected'], 'mapped' => $cards['mapped'], 'status' => $cards['mapped'] === $cards['expected'] ? 'MAPPED' : 'PRODUCT_DATA_REQUIRED',
                 'price_points' => suppliers_data()['card_price_points']],
         ],
         'research' => supplier_research_items(),
-        'enforcement' => ['new_sale_safety' => new_sale_safety_enforcement(), 'route_freshness_days' => (($f = mcb_setting('fulfilment.route_freshness_days', null)) !== null && is_int($f) && $f > 0) ? $f : null],
+        'enforcement' => ['new_sale_safety' => new_sale_safety_enforcement(), 'route_freshness_days' => route_freshness_days([])],
         'route_data_present' => $routes !== [],
         'no_money_moves' => 'Nothing on this page purchases, pays, refunds or places an order. Bella or Lewis authorises every purchase with their own code.',
     ];

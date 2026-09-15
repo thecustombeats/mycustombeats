@@ -44,17 +44,29 @@ const { suppliers: S, artwork: A, catalogue: C, cc: CC } = await import(outFile)
 const routing = read("public/api/lib/routing.php");
 const serverSkus = JSON.parse(read("public/api/data/catalogue.json")).skus;
 
-test("the physical registry: 33 SKUs by family, every catalogue physical SKU mapped, cards not invented", () => {
+test("the physical registry: 33 SKUs by family, every catalogue physical SKU mapped, the Founders' 18 cards catalogued", () => {
   assert.equal(S.EXPECTED_PHYSICAL_SKUS, 33);
   assert.deepEqual(S.PHYSICAL_FAMILIES.map((f) => [f.family, f.expected]), [["VINYL", 6], ["FRAME", 5], ["CARD", 18], ["GRAMOPHONE", 3], ["PLAQUE", 1]]);
   const physical = Object.entries(serverSkus).filter(([, s]) => s.fulfilment === "PHYSICAL").map(([k]) => k).sort();
+  assert.equal(physical.length, 33);
   assert.deepEqual(S.PHYSICAL_REGISTRY.map((e) => e.sku).sort(), physical);
   for (const e of S.PHYSICAL_REGISTRY) assert.equal(e.priceMinor, serverSkus[e.sku].price_minor, e.sku);
-  assert.deepEqual(S.CARD_LISTINGS, [], "card listings come from the Founders; none is guessed");
+  // The authoritative card catalogue (names and prices), in the Founders' order.
+  assert.deepEqual(C.POP_UP_CARD.variants.map((v) => [v.label, v.price.minor]), [
+    ["Anniversary — Gold and White", 4999], ["Anniversary — Large", 6999], ["Birthday — Candles / Music", 4999], ["Birthday — Auto-Play Music", 1999],
+    ["Wedding", 4999], ["Mother's Day — Flowers", 4999], ["Christmas — Christmas Tree", 4999], ["Birthday — Tropical Bird Cage", 4999],
+    ["Halloween — Pumpkin Flowers", 4999], ["Thanksgiving — Flowers", 4999], ["Thank You — Flowers", 4999], ["Congratulations — Flowers", 4999],
+    ["Valentine's Day — Love Tree / Hearts", 4999], ["Cruise / Voyage — Cruise Vessel", 4999], ["Multi Flower Pop-Up Card — Pack of 4", 7999],
+    ["Single Colour Flower Pop-Up Card — Pack of 4", 7999], ["Four Colour Flower Pop-Up Card — Pack of 4", 7999], ["Paper Flower Pop-Up Cards — Pack of 8", 12999],
+  ]);
+  assert.ok(C.POP_UP_CARD.variants.every((v) => v.fulfilment === "PHYSICAL") && C.POP_UP_CARD.deliveryClass === "CARD");
+  assert.equal(C.POP_UP_CARD.image, null, "no image is invented");
   assert.deepEqual(S.CARD_PRICE_POINTS.map((p) => [p.tier, p.priceMinor]), [["SINGLE", 4999], ["LARGE_ANNIVERSARY", 6999], ["BIRTHDAY_AUTO_PLAY", 1999], ["FOUR_PACK", 7999], ["EIGHT_PACK", 12999]]);
   const json = JSON.parse(read("public/api/data/suppliers.json"));
-  assert.equal(json.families.find((f) => f.family === "CARD").mapped, 0);
-  assert.equal(json.registry.length, 15);
+  assert.equal(json.families.find((f) => f.family === "CARD").mapped, 18);
+  assert.equal(json.registry.length, 33);
+  assert.equal(json.route_freshness_days, 30);
+  assert.equal(json.new_sale_safety, "REQUIRED");
   execFileSync("node", [join(root, "scripts/generate-catalogue-json.mjs"), "--check"], { cwd: root, stdio: "pipe" });
 });
 

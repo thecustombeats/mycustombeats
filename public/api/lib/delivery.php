@@ -368,17 +368,19 @@ function quote_delivery(OrderPricing $pricing, ?string $countryCode): DeliveryQu
 
 /**
  * The physical SKUs of a NEW sale that MCB must confirm delivery for, from the
- * server-only route data (lib/routing.php). Without route data there is no
- * evidence either way and nothing changes here.
+ * server-only route data (lib/routing.php). Under REQUIRED safety (the
+ * Founders' decision) missing evidence holds the item for MCB to confirm;
+ * under ADVISORY, only a destination the routes prove unsupported does.
  *
  * @return list<string>
  */
 function delivery_route_confirmation_skus(OrderPricing $pricing, string $countryCode): array
 {
-    if (!is_readable(__DIR__ . '/../data/supplier-routes.json')) {
+    require_once __DIR__ . '/routing.php';
+    // Without route data there is no evidence at all: only REQUIRED safety (the Founders' decision) acts on that.
+    if (!is_readable(__DIR__ . '/../data/supplier-routes.json') && new_sale_safety_enforcement() !== 'REQUIRED') {
         return [];
     }
-    require_once __DIR__ . '/routing.php';
     $skus = [];
     foreach ($pricing->lines as $line) {
         if ($line['fulfilment'] === 'PHYSICAL') {

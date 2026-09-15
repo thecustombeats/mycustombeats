@@ -22,7 +22,16 @@
  *      nothing else writes those decisions;
  *   4. automation entry points (webhooks, workers, lifecycle runs, routing,
  *      business intelligence, notifications) never reach those decisions;
- *   5. a route recommendation, a deep link or an alert never authorises spend.
+ *   5. a route recommendation, a deep link or an alert never authorises spend;
+ *   6. every HTTP endpoint is in a reviewed register with its access class, so a
+ *      new endpoint fails this test until someone reviews it;
+ *   7. every staff action whose name touches money is reviewed and, where it
+ *      decides money, sits behind the founder code;
+ *   8. failure recovery can only retry idempotent, non-financial work.
+ *
+ * REVIEWED OUTBOUND ALLOWLIST (see REVIEWED_OUTBOUND below): Stripe Checkout
+ * Sessions (money IN only), the configured transactional email service, MCB's own
+ * signed operations webhook, and free public exchange-rate data. Nothing else.
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -132,6 +141,7 @@ test("4. automation entry points never reach a financial decision", () => {
     "public/api/lib/lifecycle.php", "public/api/lib/lifecycle-messages.php", "public/api/lib/notify.php", "public/api/crm/notifications.php",
     "public/api/lib/sales-suspension.php", "public/api/lib/delivery.php", "public/api/lib/command-centre.php", "public/api/crm/command-centre.php",
     "public/api/lib/video.php", "public/api/crm/automation-events.php", "public/api/crm/reconcile.php",
+    "public/api/lib/resilience.php", "public/api/crm/system.php", "public/api/crm/preflight.php",
   ].filter((f) => src[f] !== undefined);
   assert.ok(automation.length >= 12, automation.join(","));
   for (const f of automation) assert.doesNotMatch(src[f], decisions, f);
@@ -162,4 +172,76 @@ test("5. a recommendation, a deep link or an alert never authorises spend", () =
   // The Memory Music Video platform stays unintegrated: no call, credential or purchase.
   const video = JSON.parse(read("public/api/data/creative.json"));
   assert.notEqual(video.provider_integration_status, "INTEGRATED");
+});
+
+/**
+ * Every HTTP endpoint, reviewed, with who may call it. A new endpoint must be added
+ * here deliberately (and reviewed for money, isolation and privacy) or this fails.
+ *   PUBLIC       no identity (rate limited where it writes)
+ *   CUSTOMER     the customer's own checkout token or order link (one order only)
+ *   STAFF        the CRM key and a named person
+ *   WORKER       the notification bridge key (or the CRM key)
+ *   WEBHOOK      Stripe's signed request (money IN only)
+ */
+const REVIEWED_ENDPOINTS = {
+  "public/api/affiliate/click.php": "PUBLIC", "public/api/affiliate/dashboard.php": "PUBLIC", "public/api/affiliate/register.php": "PUBLIC",
+  "public/api/checkout/session.php": "CUSTOMER", "public/api/checkout/status.php": "PUBLIC", "public/api/concierge/enquiry.php": "PUBLIC",
+  "public/api/crm/artwork.php": "STAFF", "public/api/crm/automation-events.php": "STAFF", "public/api/crm/business.php": "STAFF", "public/api/crm/command-centre.php": "STAFF",
+  "public/api/crm/concierge.php": "STAFF", "public/api/crm/creative-file.php": "STAFF", "public/api/crm/creative.php": "STAFF", "public/api/crm/customer.php": "STAFF",
+  "public/api/crm/fulfilment.php": "STAFF", "public/api/crm/notifications.php": "WORKER", "public/api/crm/operations.php": "STAFF", "public/api/crm/order-action.php": "STAFF",
+  "public/api/crm/order-personalisation.php": "STAFF", "public/api/crm/orders.php": "STAFF", "public/api/crm/preflight.php": "STAFF", "public/api/crm/product-sales.php": "STAFF",
+  "public/api/crm/production-files.php": "STAFF", "public/api/crm/production.php": "STAFF", "public/api/crm/reconcile.php": "STAFF", "public/api/crm/review-request.php": "STAFF",
+  "public/api/crm/suppliers.php": "STAFF", "public/api/crm/support.php": "STAFF", "public/api/crm/system.php": "STAFF", "public/api/crm/unreconciled.php": "STAFF",
+  "public/api/crm/upload.php": "STAFF", "public/api/crm/video.php": "STAFF", "public/api/fx/rates.php": "PUBLIC", "public/api/live/enquiry.php": "PUBLIC",
+  "public/api/order-approval.php": "PUBLIC", "public/api/order-evidence.php": "CUSTOMER", "public/api/order-progress.php": "CUSTOMER", "public/api/order-quote.php": "PUBLIC",
+  "public/api/order-reference.php": "PUBLIC", "public/api/order-status.php": "CUSTOMER", "public/api/order-support-case.php": "CUSTOMER", "public/api/order-support.php": "CUSTOMER",
+  "public/api/order-upload.php": "CUSTOMER", "public/api/order-video-media.php": "CUSTOMER", "public/api/order-video.php": "CUSTOMER", "public/api/order.php": "PUBLIC",
+  "public/api/product-availability.php": "PUBLIC", "public/api/referral/check.php": "PUBLIC", "public/api/stripe/webhook.php": "WEBHOOK",
+  "public/api/video-availability.php": "PUBLIC", "public/api/video-offer-event.php": "PUBLIC",
+};
+
+test("6. every HTTP endpoint is in the reviewed register, and its access class is enforced in the source", () => {
+  // config.example.php is refused over HTTP by api/.htaccess (with config.php).
+  const endpoints = php.filter((f) => !f.includes("/lib/") && !f.endsWith("/config.example.php")).sort();
+  assert.deepEqual(endpoints, Object.keys(REVIEWED_ENDPOINTS).sort(), "a new or removed endpoint must be reviewed and registered here");
+  for (const [f, cls] of Object.entries(REVIEWED_ENDPOINTS)) {
+    const body = src[f];
+    if (cls === "STAFF") assert.match(body, /require_crm_key\(\);/, f);
+    if (cls === "WORKER") assert.match(body, /hash_equals\(\$workerKey, \$given\)[\s\S]*json_error\(401/, f);
+    if (cls === "WEBHOOK") assert.match(body, /stripe_signature_valid\(/, f);
+    if (cls === "CUSTOMER") assert.match(body, /find_access_token\(|find_order_by_token\(|checkoutToken/, f);
+    if (cls === "PUBLIC" || cls === "CUSTOMER") assert.doesNotMatch(body, /perform_staff_action\(|care_staff_action\(|record_supplier_order\(|resilience_recover\(/, f);
+  }
+});
+
+test("7. every staff action that touches money is reviewed; the ones that decide money need the founder code", () => {
+  const ops = read("public/api/lib/operations.php");
+  const care = read("public/api/lib/customer-care.php");
+  const list = (source, name) => [...source.slice(source.indexOf(`const ${name} = [`), source.indexOf("];", source.indexOf(`const ${name} = [`))).matchAll(/'([A-Z_]+)'/g)].map((m) => m[1]);
+  const actions = [...list(ops, "MCB_STAFF_ACTIONS"), ...list(care, "CARE_ACTIONS")];
+  assert.ok(actions.length > 40);
+  const MONEY_WORDS = /REFUND|PURCHASE|PAY|TRANSFER|CREDIT|SUBSCRI|COMPENSAT|REMEDY|SUPPLIER_ORDER/;
+  const REVIEWED_MONEY_ACTIONS = {
+    AUTHORISE_SUPPLIER_PURCHASE: "FOUNDER_CODE", RECORD_SUPPLIER_ORDER: "RECORDS_A_PURCHASE_A_PERSON_MADE_AFTER_AUTHORISATION",
+    PROPOSE_REMEDY: "RECORD_ONLY", DECIDE_REMEDY: "FOUNDER_CODE", START_REMEDY: "RECORD_ONLY", COMPLETE_REMEDY: "RECORD_ONLY", CANCEL_REMEDY: "RECORD_ONLY",
+    REQUEST_REFUND_REVIEW: "RECORD_ONLY", SUBMIT_REFUND_FOR_DECISION: "RECORD_ONLY", DECIDE_REFUND: "FOUNDER_CODE", RECORD_REFUND: "RECORDS_A_REFUND_A_PERSON_MADE_AFTER_DECISION",
+  };
+  assert.deepEqual(actions.filter((a) => MONEY_WORDS.test(a)).sort(), Object.keys(REVIEWED_MONEY_ACTIONS).sort(), "a new money-related action must be reviewed here");
+  assert.match(phpFunction(src["public/api/lib/customer-care.php"], "care_staff_action"), /in_array\(\$action, \['DECIDE_REMEDY', 'DECIDE_REFUND'\], true\)/);
+  assert.match(phpFunction(src["public/api/lib/fulfilment-controller.php"], "record_supplier_order"), /founder_authorisation_required/);
+  assert.match(care, /case 'RECORD_REFUND':[\s\S]*?status'\] !== 'AUTHORISED'|RECORD_REFUND[\s\S]{0,600}AUTHORISED/);
+});
+
+test("8. failure recovery only retries idempotent, non-financial work", () => {
+  const res = src["public/api/lib/resilience.php"];
+  const recover = phpFunction(res, "resilience_recover");
+  const cases = [...recover.matchAll(/case '([A-Z_]+)':/g)].map((m) => m[1]).sort();
+  assert.deepEqual(cases, ["PREPARE_LIFECYCLE_HOOKS", "RECORD_PROCESSING_EVENT", "RETRY_CUSTOMER_EMAIL", "RETRY_FOUNDER_NOTIFICATION", "RETRY_PAYMENT_CONFIRMATION"]);
+  assert.doesNotMatch(recover, /supplier_purchase_authorised|record_supplier_order|refund_reviews|support_remedies|stripe|curl_/i);
+  assert.match(recover, /default:\s*throw new OperationsException\('no_automatic_recovery'/);
+  for (const work of ["SUPPLIER_PURCHASE_AUTHORISATION", "SUPPLIER_PURCHASE", "REPLACEMENT_PURCHASE", "REFUND"]) {
+    assert.match(res, new RegExp(`'${work}' => \\[[^\\]]*'retry' => 'DO_NOT_AUTO_RETRY'`), work);
+  }
+  // An interrupted email is never re-sent blindly.
+  assert.match(recover, /status'\] !== 'FAILED'[\s\S]*not_retryable/);
 });

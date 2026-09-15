@@ -40,6 +40,7 @@ const TARGETS = {
   customerCare: join(root, "public/api/data/customer-care.json"),
   business: join(root, "public/api/data/business.json"),
   suppliers: join(root, "public/api/data/suppliers.json"),
+  schema: join(root, "public/api/data/schema-manifest.json"),
 };
 
 const fail = (message) => {
@@ -693,6 +694,9 @@ const REJECTED_PARTNERS = /prodigi|kunaki/i;
 const registrySkus = suppliers.PHYSICAL_REGISTRY.map((e) => e.sku);
 if (new Set(registrySkus).size !== registrySkus.length) fail("suppliers: a SKU appears twice in the physical registry");
 const catalogueFamily = { VINYL: "VINYL", FRAME: "FRAME", PLAYER: "GRAMOPHONE", PLAQUE: "PLAQUE", CARD: "CARD" };
+// Supplier route freshness (founder decision, 16 Sept): 30 days unless the server configuration sets another period.
+if (suppliers.ROUTE_FRESHNESS_DAYS !== 30) fail("suppliers: route freshness is 30 days");
+if (suppliers.NEW_SALE_SAFETY !== "REQUIRED") fail("suppliers: new-sale safety is REQUIRED");
 for (const [id, s] of Object.entries(skus)) {
   if (s.fulfilment === "PHYSICAL" && !registrySkus.includes(id)) fail(`suppliers: physical SKU ${id} is not in the registry`);
 }
@@ -713,13 +717,12 @@ for (const [sku, [songs, price]] of Object.entries(vinylTruth)) {
 }
 const cardPrices = suppliers.CARD_PRICE_POINTS.map((c) => c.priceMinor).join(",");
 if (cardPrices !== "4999,6999,1999,7999,12999") fail("suppliers: the pop-up card price points changed");
-for (const c of suppliers.CARD_LISTINGS) {
-  if (!suppliers.CARD_PRICE_POINTS.some((t) => t.tier === c.tier)) fail(`suppliers: card ${c.sku} has no authoritative price point`);
+for (const e of suppliers.PHYSICAL_REGISTRY.filter((r) => r.family === "CARD")) {
+  if (!suppliers.CARD_PRICE_POINTS.some((t) => t.priceMinor === e.priceMinor)) fail(`suppliers: card ${e.sku} has no authoritative price point`);
 }
-const familyCounts = Object.fromEntries(suppliers.PHYSICAL_FAMILIES.map((f) => [f.family, f.family === "CARD" ? suppliers.CARD_LISTINGS.length : suppliers.PHYSICAL_REGISTRY.filter((e) => e.family === f.family).length]));
+const familyCounts = Object.fromEntries(suppliers.PHYSICAL_FAMILIES.map((f) => [f.family, suppliers.PHYSICAL_REGISTRY.filter((e) => e.family === f.family).length]));
 for (const f of suppliers.PHYSICAL_FAMILIES) {
-  if (f.family !== "CARD" && familyCounts[f.family] !== f.expected) fail(`suppliers: ${f.family} has ${familyCounts[f.family]} SKUs, expected ${f.expected}`);
-  if (f.family === "CARD" && familyCounts.CARD > f.expected) fail("suppliers: more card listings than the Founders' 18");
+  if (familyCounts[f.family] !== f.expected) fail(`suppliers: ${f.family} has ${familyCounts[f.family]} SKUs, expected ${f.expected}`);
 }
 if (suppliers.PHYSICAL_FAMILIES.reduce((n, f) => n + f.expected, 0) !== suppliers.EXPECTED_PHYSICAL_SKUS) fail("suppliers: the families do not add up to 33");
 if (suppliers.PHYSICAL_REGISTRY.filter((e) => e.deliveredCostConfirmationRequired).map((e) => e.sku).join() !== "antique-brass-gramophone") fail("suppliers: the £1,000 gramophone needs its delivered cost confirmed");
@@ -731,7 +734,8 @@ const suppliersOut = {
   expected_physical_skus: suppliers.EXPECTED_PHYSICAL_SKUS,
   registry: suppliers.PHYSICAL_REGISTRY.map((e) => ({ ...snakeKeys(e), manufacturing: { ...e.manufacturing } })),
   card_price_points: suppliers.CARD_PRICE_POINTS.map(snakeKeys),
-  card_listings: suppliers.CARD_LISTINGS.map(snakeKeys),
+  route_freshness_days: suppliers.ROUTE_FRESHNESS_DAYS,
+  new_sale_safety: suppliers.NEW_SALE_SAFETY,
   card_alternative_record: [...suppliers.CARD_ALTERNATIVE_RECORD],
   card_alternative_impacts: [...suppliers.CARD_ALTERNATIVE_IMPACTS],
   routing_modes: [...suppliers.ROUTING_MODES],
@@ -753,6 +757,39 @@ const suppliersOut = {
   route_deviation_reasons: [...suppliers.ROUTE_DEVIATION_REASONS],
 };
 
+// ---- Schema manifest (server-only) -------------------------------------------------
+// Every table and column db/schema.sql defines, and the migration (in the authoritative
+// db/migrations/MANIFEST order) that introduces it, so deployment preflight can name
+// exactly which migration a database is missing.
+const tableColumns = (sql) => {
+  const out = {};
+  for (const m of sql.matchAll(/CREATE TABLE IF NOT EXISTS `?(\w+)`? \(([\s\S]*?)\n\)\s*ENGINE/g)) {
+    out[m[1]] = m[2].split("\n").map((l) => l.trim()).filter((l) => /^`?[a-z_][a-z0-9_]*`?\s+[A-Za-z]/.test(l) && !/^(PRIMARY|KEY|UNIQUE|CONSTRAINT|INDEX|FOREIGN|CHECK)\b/i.test(l)).map((l) => l.match(/^`?([a-z0-9_]+)/)[1]);
+  }
+  return out;
+};
+const schemaSql = readFileSync(join(root, "db/schema.sql"), "utf8");
+const schemaTables = tableColumns(schemaSql);
+const migrationOrder = readFileSync(join(root, "db/migrations/MANIFEST"), "utf8").split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("#"));
+const migrationFiles = readdirSync(join(root, "db/migrations")).filter((f) => f.endsWith(".sql")).sort();
+if (JSON.stringify([...migrationOrder].sort()) !== JSON.stringify(migrationFiles)) fail("db/migrations/MANIFEST must list every migration exactly once");
+const introducedBy = {};
+for (const file of migrationOrder) {
+  const sql = readFileSync(join(root, "db/migrations", file), "utf8").replace(/^--.*$/gm, "");
+  for (const [table, cols] of Object.entries(tableColumns(sql))) {
+    introducedBy[table] ??= file;
+    for (const c of cols) introducedBy[`${table}.${c}`] ??= file;
+  }
+  for (const m of sql.matchAll(/ALTER TABLE `?(\w+)`?([\s\S]*?);/g)) {
+    for (const c of m[2].matchAll(/ADD COLUMN(?: IF NOT EXISTS)? `?(\w+)`?/g)) introducedBy[`${m[1]}.${c[1]}`] ??= file;
+  }
+}
+const schemaOut = {
+  _generated: "Do not edit. INTERNAL. Generated from db/schema.sql and db/migrations/MANIFEST by scripts/generate-catalogue-json.mjs",
+  migration_order: migrationOrder,
+  tables: Object.fromEntries(Object.entries(schemaTables).map(([t, cols]) => [t, { introduced_by: introducedBy[t] ?? "BASE_SCHEMA", columns: Object.fromEntries(cols.map((c) => [c, introducedBy[`${t}.${c}`] ?? introducedBy[t] ?? "BASE_SCHEMA"])) }])),
+};
+
 const outputs = [
   [TARGETS.catalogue, JSON.stringify(catalogueOut, null, 2) + "\n"],
   [TARGETS.legal, JSON.stringify(legalOut, null, 2) + "\n"],
@@ -766,6 +803,7 @@ const outputs = [
   [TARGETS.customerCare, JSON.stringify(customerCareOut, null, 2) + "\n"],
   [TARGETS.business, JSON.stringify(businessOut, null, 2) + "\n"],
   [TARGETS.suppliers, JSON.stringify(suppliersOut, null, 2) + "\n"],
+  [TARGETS.schema, JSON.stringify(schemaOut, null, 2) + "\n"],
 ];
 
 if (checkOnly) {

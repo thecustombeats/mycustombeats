@@ -12,7 +12,7 @@
  *       priorityReplacement   chosen for THIS Keepsake; never preselected
  *     plaques[]      one per Personalised Music Plaque (photo, song, artist)
  *     frames[]       one per Lyrics Frame (size, which song, heading)
- *     players[]      gramophones / record player (no personalisation)
+ *     players[]      gramophones / record player and pop-up cards (no personalisation)
  *
  * Two Keepsakes are two independent units with their own memories: quantity
  * never means "the same record twice".
@@ -558,7 +558,7 @@ export const parseDraft = (raw: string | null, now: number): OrderDraft | null =
       artist: str(plaque?.artist, ARTIST_MAX),
     }));
     const players = (saved.players ?? []).filter(
-      (player): player is PlayerDraft => typeof player?.sku === "string" && getVariant(player.sku)?.product.category === "PLAYER"
+      (player): player is PlayerDraft => typeof player?.sku === "string" && (getVariant(player.sku)?.product.category === "PLAYER" || getVariant(player.sku)?.product.category === "CARD")
     );
 
     // Drafts saved before Priority Replacement was chosen per Keepsake held a

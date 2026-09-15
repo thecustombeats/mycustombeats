@@ -1,0 +1,28 @@
+# MCB database migrations — the authoritative order.
+#
+# Apply in THIS order (not filename order: several migrations share a date and
+# depend on earlier ones, e.g. business-intelligence references support_remedies
+# from customer-care). The base is the original CRM schema from before
+# 2026-08-31-mcb-reference.sql. tests/security-acceptance.sh replays the whole
+# chain onto that base and proves it equals a fresh db/schema.sql, and
+# crm/preflight checks the result on the target database.
+2026-08-31-mcb-reference.sql
+2026-09-09-checkout-sessions.sql
+2026-09-09-order-items.sql
+2026-09-09-concierge-enquiries.sql
+2026-09-09-legal-consent-production.sql
+2026-09-09-customer-lifecycle-referral.sql
+2026-09-09-cruise-context-and-review-states.sql
+2026-09-14-canonical-catalogue.sql
+2026-09-14-sprint4-order-persistence.sql
+2026-09-14-sprint5-operations.sql
+2026-09-15-single-creative-authority.sql
+2026-09-15-automation-foundation.sql
+2026-09-15-creative-factory.sql
+2026-09-15-production-file-factory.sql
+2026-09-15-fulfilment-controller.sql
+2026-09-15-memory-music-video.sql
+2026-09-16-customer-care.sql
+2026-09-16-business-intelligence.sql
+2026-09-16-supplier-routing.sql
+2026-09-17-resilience.sql

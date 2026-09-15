@@ -196,9 +196,21 @@ Each line is an exact mismatch between current wording and actual site behaviour
 | # | Item | Class |
 |---|---|---|
 | 65 | Upload the private `api/data/supplier-routes.json` to the server (never the repository): every route's partner, private link, product reference, route type, destinations and per-country evidence, verification source and date, costs, internal allowances, availability, risks, fallback. A route is VERIFIED only with a source and a date. | F |
-| 66 | Route verification freshness (`fulfilment.route_freshness_days`). Not set = no route is ever marked STALE automatically (no universal period is assumed). | F |
-| 67 | The 18 pop-up card listings: each card's customer-facing name, price point (£49.99 single / £69.99 Large Anniversary / £19.99 Birthday Auto-Play / £79.99 4-pack / £129.99 8-pack), image and personalisation. Until supplied the cards are FOUNDER DATA REQUIRED and not sold. | F |
+| 66 | ~~Route verification freshness~~ **DECIDED 17 Sept: 30 days** (a route verified more than 30 days ago is STALE → reverify; paid orders never disabled). | Decided |
+| 67 | ~~The 18 pop-up card listings~~ **CORRECTED 17 Sept: the 18 cards were already decided and are now catalogued** (names and prices in docs/SECURITY-RESILIENCE-20260917.md). Still to supply: an approved image per card; routes stay VERIFICATION_REQUIRED until evidenced. | F (images) |
 | 68 | Confirm the five frame / wall-art configurations the frame routes supply are the catalogue's Lyrics Frames (or supply the correct products). | F |
-| 69 | New-sale commercial safety enforcement (`fulfilment.new_sale_safety`): ADVISORY (default: flags shown in Suppliers) or REQUIRED (flagged items go to MCB to confirm delivery before payment). A destination the routes prove unsupported always goes to MCB. | F |
+| 69 | ~~New-sale commercial safety enforcement~~ **DECIDED 17 Sept: REQUIRED.** A new physical sale without enough evidence (route, destination, cost, manufacturing data) is confirmed by MCB before payment; digital products are never affected. | Decided |
 | 70 | Manufacturing data from the partners: vinyl programme durations, safe areas, trim, disc pixel canvases, 10" and 7" centre holes, the Heart dieline and the Gatefold template. | External |
-| 71 | The £1,000 gramophone: confirm the actual delivered cost to each customer's destination before authorising (the system requires it). International marketplace shipping is never assumed. | F |
+| 71 | The £1,000 gramophone: **DECIDED 17 Sept** — before authorisation, a person records the verified delivered cost, currency, availability, destination support and evidence (the system requires all five). | Decided (per order) |
+
+## 15. Security, Resilience & Automation Readiness (17 September 2026) — items for the Founders
+
+| # | Item | Class |
+|---|---|---|
+| 72 | Supply the manufacturer's disc pixel canvas (12", 10", 7"), the Heart dieline and the Gatefold template. Under REQUIRED safety those products are confirmed by MCB before payment until then. | External |
+| 73 | Individual staff accounts (or host-level authentication in front of the Command Centre) before the team grows; rotate the staff key on any staff change. | F |
+| 74 | Malware scanning of uploaded photos and evidence (host antivirus or a scanning service) — not present today. | F + external |
+| 75 | Enable HSTS once every mycustombeats.com host serves HTTPS. | F (host) |
+| 76 | A controlled dependency update (React Router ≥ 7.18.2 and build tooling). | Tech |
+| 77 | An independent penetration test of the production host before or shortly after launch. | External |
+| 78 | Approved images for the 18 pop-up cards. | F |

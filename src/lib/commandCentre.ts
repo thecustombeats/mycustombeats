@@ -8,7 +8,7 @@
 
 export type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-export const VIEWS = ["today", "approvals", "orders", "videos", "customers", "suppliers", "business", "health", "notifications", "search"] as const;
+export const VIEWS = ["today", "approvals", "orders", "videos", "customers", "suppliers", "business", "system", "health", "notifications", "search"] as const;
 export type View = (typeof VIEWS)[number];
 export const OPEN_MODES = ["card", "quality", "approve", "decide", "advanced"] as const;
 export type OpenMode = (typeof OPEN_MODES)[number];
@@ -130,3 +130,29 @@ export const supplierLink = (section: SupplierSection): string => `#view=supplie
 /** The API view behind each section. */
 export const supplierView = (section: SupplierSection): string =>
   ({ overview: "overview", orders: "orders", finder: "lookup", data: "overview", evidence: "scorecards" })[section];
+
+/** SYSTEM READINESS sections (#view=system&section=…). Choosing one only changes what is shown. */
+export const SYSTEM_SECTIONS = [
+  ["failures", "Failures needing attention"],
+  ["readiness", "System readiness"],
+  ["automation", "Automation readiness"],
+  ["founder-actions", "Founder actions"],
+] as const;
+export type SystemSection = (typeof SYSTEM_SECTIONS)[number][0];
+
+export const parseSystemSection = (hash: string): SystemSection => {
+  const section = new URLSearchParams(hash.replace(/^#/, "")).get("section");
+  return SYSTEM_SECTIONS.some(([s]) => s === section) ? (section as SystemSection) : "failures";
+};
+
+export const systemLink = (section: SystemSection): string => `#view=system&section=${section}`;
+
+/** Founder words for automation statuses (always spelled out, never colour alone). */
+export const AUTOMATION_STATUS_LABELS: Record<string, string> = {
+  AUTOMATED_AND_TESTED: "Automated and tested",
+  AUTOMATION_READY_CONNECTION_REQUIRED: "Prepared — external connection required",
+  HUMAN_OPERATED_BY_DESIGN: "Done by people, by design",
+  FOUNDER_APPROVAL_REQUIRED: "Bella or Lewis decide",
+  EXTERNAL_VERIFICATION_REQUIRED: "Waiting on outside verification",
+  NOT_READY: "Not ready",
+};

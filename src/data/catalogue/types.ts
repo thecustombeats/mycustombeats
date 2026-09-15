@@ -34,6 +34,8 @@ export type Category =
   | "LIVE_PERFORMANCE"
   | "PERSONALISED_DECOR"
   | "PLAYER"
+  /** A musical pop-up greeting card, added alongside a song experience. */
+  | "CARD"
   | "PROTECTION"
   /** An optional service that prepares a customer's photograph for artwork. */
   | "ARTWORK_SERVICE"
@@ -113,6 +115,7 @@ export type ProductId =
   | "vintage-smartphone-gramophone"
   | "antique-brass-gramophone"
   | "portable-suitcase-record-player"
+  | "pop-up-card"
   | "priority-replacement"
   | "artwork-preparation"
   | "memory-music-video"
@@ -154,7 +157,7 @@ export interface Product {
   readonly turnaround: { readonly basis: DeliveryBasis; readonly label: string } | null;
   readonly schemaType: SchemaType;
   /** The variant property a ProductGroup varies by, for structured data. */
-  readonly variesBy: "size" | "songCount" | "level" | null;
+  readonly variesBy: "size" | "songCount" | "level" | "design" | null;
   readonly analyticsCategory: string;
   /** Public image path, or null until an approved image is assigned. */
   readonly image: string | null;

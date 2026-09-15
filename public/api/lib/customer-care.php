@@ -191,7 +191,8 @@ function care_open_case(PDO $pdo, int $orderId, string $kind, string $descriptio
     record_order_event($pdo, $orderId, 'SUPPORT.CASE_OPENED', ['case_id' => $caseId, 'kind' => $kind, 'origin' => $origin, 'priority' => $priority]);
     // Kept for existing consumers of the service-request event.
     record_order_event($pdo, $orderId, 'SERVICE_REQUEST.RECEIVED', ['kind' => $kind, 'priority_replacement' => (bool) ($fields['priority_replacement'] ?? false), 'eligibility' => $fields['eligibility'] ?? 'NOT_APPLICABLE']);
-    care_system_event($pdo, $case, 'Case opened (' . strtolower($origin) . ', ' . $kind . ', ' . $priority . ')');
+    $plain = static fn (string $code): string => strtolower(str_replace('_', ' ', $code));
+    care_system_event($pdo, $case, 'Case opened by ' . ($origin === 'CUSTOMER' ? 'the customer' : $plain($origin)) . ': ' . $plain($kind) . ', ' . $plain($priority) . ' priority');
 
     if ($privacy) {
         care_flag_privacy($pdo, $case, 'CUSTOMER');

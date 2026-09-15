@@ -17,6 +17,8 @@
  * scripts/generate-catalogue-json.mjs, which checks it against the catalogue.
  */
 
+import { POP_UP_CARD } from "../catalogue/products";
+
 /** The Founders' current supplier-linked physical catalogue: 33 SKUs/configurations. */
 export const PHYSICAL_FAMILIES = [
   { family: "VINYL", label: "Vinyl", expected: 6 },
@@ -72,14 +74,20 @@ export const PHYSICAL_REGISTRY: readonly PhysicalRegistryEntry[] = [
   { sku: "vintage-smartphone-gramophone", family: "GRAMOPHONE", label: "Vintage Smartphone Gramophone", songs: null, priceMinor: 10000, routingMode: "MANUAL_AVAILABILITY_CONFIRMED", partnerGroup: null, manufacturing: { artwork: [], capacity: false }, deliveredCostConfirmationRequired: false, notes: ["Marketplace availability, destination and shipping vary: a person confirms them before purchase."] },
   { sku: "portable-suitcase-record-player", family: "GRAMOPHONE", label: "Portable Suitcase Record Player", songs: null, priceMinor: 20000, routingMode: "MANUAL_AVAILABILITY_CONFIRMED", partnerGroup: null, manufacturing: { artwork: [], capacity: false }, deliveredCostConfirmationRequired: false, notes: ["Marketplace availability, destination and shipping vary: a person confirms them before purchase."] },
   { sku: "antique-brass-gramophone", family: "GRAMOPHONE", label: "Antique Brass Gramophone", songs: null, priceMinor: 100000, routingMode: "MANUAL_AVAILABILITY_CONFIRMED", partnerGroup: null, manufacturing: { artwork: [], capacity: false }, deliveredCostConfirmationRequired: true, notes: ["High value: the actual delivered cost to the customer's destination must be confirmed and recorded before purchase.", "International shipping from a marketplace is never assumed."] },
+  // The 18 pop-up cards: product data is the Founders' (catalogue); routes stay VERIFICATION_REQUIRED until evidenced.
+  ...POP_UP_CARD.variants.map((v): PhysicalRegistryEntry => ({
+    sku: v.sku, family: "CARD", label: v.label, songs: null, priceMinor: v.price.minor,
+    routingMode: "MANUAL_AVAILABILITY_CONFIRMED", partnerGroup: "CARD", manufacturing: { artwork: [], capacity: false }, deliveredCostConfirmationRequired: false,
+    notes: ["Marketplace availability and delivery vary: a person confirms them before purchase.", "Only an appropriate alternative card may be substituted, recorded in full."],
+  })),
   { sku: "personalised-music-plaque", family: "PLAQUE", label: "Personalised Music Plaque (8 × 12)", songs: 1, priceMinor: 4999, routingMode: "MANUAL_WHEN_UNVERIFIED", partnerGroup: null, manufacturing: { artwork: [], capacity: false }, deliveredCostConfirmationRequired: false, notes: ["8 × 12, associated with one song. It does not play music.", "Destinations without verified evidence go to manual fulfilment review; customers are never told a country-only restriction."] },
 ];
 
 /**
- * Pop-up cards: the Founders' 18 current listings. The public price points are
- * authoritative; each listing's customer-facing name, price point, image and
- * personalisation must be supplied by Bella or Lewis before it is catalogued.
- * Nothing is invented: no names, no shipping, no bundle discounts.
+ * Pop-up cards: the Founders' 18 listings are catalogued (src/data/catalogue,
+ * product "pop-up-card"). These are the only authorised price points; no
+ * shipping or bundle discount is invented. PRODUCT data is known; ROUTE
+ * verification is separate and stays VERIFICATION_REQUIRED until evidenced.
  */
 export const CARD_PRICE_POINTS = [
   { tier: "SINGLE", label: "Most single cards", priceMinor: 4999 },
@@ -89,18 +97,20 @@ export const CARD_PRICE_POINTS = [
   { tier: "EIGHT_PACK", label: "8-pack", priceMinor: 12999 },
 ] as const;
 
-export interface CardListing {
-  readonly sku: string;
-  readonly label: string;
-  readonly tier: (typeof CARD_PRICE_POINTS)[number]["tier"];
-}
-
-/** Supplied by the Founders. Empty until then (FOUNDER DATA REQUIRED); never guessed. */
-export const CARD_LISTINGS: readonly CardListing[] = [];
-
 /** The only substitution rule: an appropriate alternative card, recorded in full. Never other products. */
 export const CARD_ALTERNATIVE_RECORD = ["ORIGINAL_SKU", "ALTERNATIVE", "REASON", "AUTHORITY", "CUSTOMER_IMPACT"] as const;
 export const CARD_ALTERNATIVE_IMPACTS = ["NO_MATERIAL_DIFFERENCE", "CUSTOMER_TOLD", "CUSTOMER_AGREED"] as const;
+
+/**
+ * Founder decisions (16 September 2026).
+ *   Route freshness: 30 days. A verified route older than this is STALE
+ *   (REVERIFY ROUTE); fulfilment.route_freshness_days may set another period.
+ *   New-sale safety: REQUIRED. A NEW payment is held for MCB to confirm
+ *   delivery where the recorded evidence is not enough to fulfil safely.
+ *   Paid orders are never cancelled or repriced.
+ */
+export const ROUTE_FRESHNESS_DAYS = 30;
+export const NEW_SALE_SAFETY = "REQUIRED" as const;
 
 /** Route verification. VERIFIED needs a source and a verification date; STALE is calculated. */
 export const VERIFICATION_STATES = ["VERIFIED", "PARTIALLY_VERIFIED", "VERIFICATION_REQUIRED", "STALE", "UNSUPPORTED", "SUSPENDED"] as const;

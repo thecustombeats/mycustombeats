@@ -238,8 +238,37 @@ $add('notification_worker_key', strlen($workerKey) >= 32 ? 'PASS' : 'WARN',
 $add('customer_links_secret', strlen((string) mcb_setting('token_secret', '')) >= 32 ? 'PASS' : 'FAIL',
     'token_secret must be at least 32 random characters: customer order and reveal links depend on it.');
 
+// ---- The whole schema: every table and column the code expects ------------------
+// Names the migration (db/migrations/MANIFEST order) that adds anything missing.
+try {
+    $manifest = json_decode((string) @file_get_contents(__DIR__ . '/../data/schema-manifest.json'), true);
+    if (!is_array($manifest) || !is_array($manifest['tables'] ?? null)) {
+        throw new RuntimeException('schema manifest unavailable');
+    }
+    $present = [];
+    foreach (db()->query('SELECT table_name AS t, column_name AS c FROM information_schema.columns WHERE table_schema = DATABASE()')->fetchAll() as $row) {
+        $present[strtolower((string) $row['t'])][strtolower((string) $row['c'])] = true;
+    }
+    $missingMigrations = [];
+    $missingCount = 0;
+    foreach ($manifest['tables'] as $table => $spec) {
+        foreach ($spec['columns'] as $column => $migration) {
+            if (!isset($present[$table][$column])) {
+                $missingMigrations[$migration] = true;
+                $missingCount++;
+            }
+        }
+    }
+    $add('schema_complete', $missingMigrations === [] ? 'PASS' : 'FAIL', $missingMigrations === []
+        ? 'Every table and column the release expects is present (' . count($manifest['tables']) . ' tables).'
+        : $missingCount . ' expected column(s) missing. Apply, in db/migrations/MANIFEST order and after a backup: ' . implode(', ', array_keys($missingMigrations)) . '.');
+} catch (Throwable $e) {
+    error_log('MCB preflight: schema check failed: ' . $e->getMessage());
+    $add('schema_complete', 'FAIL', 'The database schema could not be checked against the release.');
+}
+
 // ---- Generated data ------------------------------------------------------------
-foreach (['catalogue.json', 'legal.json', 'personalisation.json', 'operations.json', 'artwork.json', 'creative.json'] as $file) {
+foreach (['catalogue.json', 'legal.json', 'personalisation.json', 'operations.json', 'artwork.json', 'creative.json', 'fulfilment.json', 'video.json', 'customer-care.json', 'business.json', 'suppliers.json', 'schema-manifest.json'] as $file) {
     $add('data_' . basename($file, '.json'), is_readable(__DIR__ . '/../data/' . $file) ? 'PASS' : 'FAIL', "api/data/{$file} must be deployed with the build.");
 }
 

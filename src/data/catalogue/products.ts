@@ -458,6 +458,72 @@ export const PORTABLE_SUITCASE_RECORD_PLAYER = player(
 );
 
 /* ------------------------------------------------------------------ */
+/* Pop-up cards                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The Founders' 18 musical pop-up cards (authoritative names and prices).
+ * The product is known; which partner supplies each design, and whether a
+ * listing and its delivery are verified, is server-only route data. Delivery
+ * is confirmed by MCB before payment (delivery class CARD). No image is
+ * assigned until an approved one exists.
+ */
+const popUpCard = (slug: string, name: string, minor: number): Variant => ({
+  ...plainVariant,
+  sku: `pop-up-card-${slug}`,
+  name: `Pop-Up Card — ${name}`,
+  label: name,
+  price: gbp(minor),
+  fulfilment: "PHYSICAL",
+  features: [],
+});
+
+export const POP_UP_CARD: Product = {
+  id: "pop-up-card",
+  slug: "pop-up-card",
+  name: "Pop-Up Cards",
+  positioning: "A musical pop-up card to give alongside your song.",
+  shortDescription: "Pop-up greeting cards for the moment you share your song.",
+  commercialModel: "VARIANT_FIXED",
+  category: "CARD",
+  active: true,
+  public: true,
+  onlineCheckout: true,
+  requiresPersonalisation: false,
+  route: null,
+  deliveryClass: "CARD",
+  turnaround: null,
+  schemaType: "ProductGroup",
+  variesBy: "design",
+  analyticsCategory: "Pop-Up Card",
+  image: null,
+  imageAlt: null,
+  disclosures: [],
+  cta: "Add to Your Memory",
+  storedValue: null,
+  variants: [
+    popUpCard("anniversary-gold-white", "Anniversary — Gold and White", 4999),
+    popUpCard("anniversary-large", "Anniversary — Large", 6999),
+    popUpCard("birthday-candles-music", "Birthday — Candles / Music", 4999),
+    popUpCard("birthday-auto-play-music", "Birthday — Auto-Play Music", 1999),
+    popUpCard("wedding", "Wedding", 4999),
+    popUpCard("mothers-day-flowers", "Mother's Day — Flowers", 4999),
+    popUpCard("christmas-tree", "Christmas — Christmas Tree", 4999),
+    popUpCard("birthday-tropical-bird-cage", "Birthday — Tropical Bird Cage", 4999),
+    popUpCard("halloween-pumpkin-flowers", "Halloween — Pumpkin Flowers", 4999),
+    popUpCard("thanksgiving-flowers", "Thanksgiving — Flowers", 4999),
+    popUpCard("thank-you-flowers", "Thank You — Flowers", 4999),
+    popUpCard("congratulations-flowers", "Congratulations — Flowers", 4999),
+    popUpCard("valentines-love-tree-hearts", "Valentine's Day — Love Tree / Hearts", 4999),
+    popUpCard("cruise-voyage-vessel", "Cruise / Voyage — Cruise Vessel", 4999),
+    popUpCard("multi-flower-pack-4", "Multi Flower Pop-Up Card — Pack of 4", 7999),
+    popUpCard("single-colour-flower-pack-4", "Single Colour Flower Pop-Up Card — Pack of 4", 7999),
+    popUpCard("four-colour-flower-pack-4", "Four Colour Flower Pop-Up Card — Pack of 4", 7999),
+    popUpCard("paper-flower-pack-8", "Paper Flower Pop-Up Cards — Pack of 8", 12999),
+  ],
+};
+
+/* ------------------------------------------------------------------ */
 /* Protection                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -701,6 +767,7 @@ export const PRODUCTS: readonly Product[] = [
   VINTAGE_SMARTPHONE_GRAMOPHONE,
   ANTIQUE_BRASS_GRAMOPHONE,
   PORTABLE_SUITCASE_RECORD_PLAYER,
+  POP_UP_CARD,
   PRIORITY_REPLACEMENT,
   ARTWORK_PREPARATION,
   MEMORY_MUSIC_VIDEO,

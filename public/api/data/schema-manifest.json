@@ -1,0 +1,1278 @@
+{
+  "_generated": "Do not edit. INTERNAL. Generated from db/schema.sql and db/migrations/MANIFEST by scripts/generate-catalogue-json.mjs",
+  "migration_order": [
+    "2026-08-31-mcb-reference.sql",
+    "2026-09-09-checkout-sessions.sql",
+    "2026-09-09-order-items.sql",
+    "2026-09-09-concierge-enquiries.sql",
+    "2026-09-09-legal-consent-production.sql",
+    "2026-09-09-customer-lifecycle-referral.sql",
+    "2026-09-09-cruise-context-and-review-states.sql",
+    "2026-09-14-canonical-catalogue.sql",
+    "2026-09-14-sprint4-order-persistence.sql",
+    "2026-09-14-sprint5-operations.sql",
+    "2026-09-15-single-creative-authority.sql",
+    "2026-09-15-automation-foundation.sql",
+    "2026-09-15-creative-factory.sql",
+    "2026-09-15-production-file-factory.sql",
+    "2026-09-15-fulfilment-controller.sql",
+    "2026-09-15-memory-music-video.sql",
+    "2026-09-16-customer-care.sql",
+    "2026-09-16-business-intelligence.sql",
+    "2026-09-16-supplier-routing.sql",
+    "2026-09-17-resilience.sql"
+  ],
+  "tables": {
+    "partners": {
+      "introduced_by": "BASE_SCHEMA",
+      "columns": {
+        "id": "BASE_SCHEMA",
+        "slug": "BASE_SCHEMA",
+        "name": "BASE_SCHEMA",
+        "active": "BASE_SCHEMA",
+        "created_at": "BASE_SCHEMA"
+      }
+    },
+    "affiliates": {
+      "introduced_by": "BASE_SCHEMA",
+      "columns": {
+        "id": "BASE_SCHEMA",
+        "name": "BASE_SCHEMA",
+        "email": "BASE_SCHEMA",
+        "username": "BASE_SCHEMA",
+        "referral_link": "BASE_SCHEMA",
+        "clicks": "BASE_SCHEMA",
+        "sales": "BASE_SCHEMA",
+        "expires_at": "BASE_SCHEMA",
+        "dashboard_token_hash": "BASE_SCHEMA",
+        "created_at": "BASE_SCHEMA",
+        "updated_at": "BASE_SCHEMA"
+      }
+    },
+    "customers": {
+      "introduced_by": "BASE_SCHEMA",
+      "columns": {
+        "id": "BASE_SCHEMA",
+        "name": "BASE_SCHEMA",
+        "email": "BASE_SCHEMA",
+        "phone": "BASE_SCHEMA",
+        "first_source_type": "BASE_SCHEMA",
+        "first_affiliate_id": "BASE_SCHEMA",
+        "first_partner_id": "BASE_SCHEMA",
+        "created_at": "BASE_SCHEMA",
+        "updated_at": "BASE_SCHEMA"
+      }
+    },
+    "orders": {
+      "introduced_by": "BASE_SCHEMA",
+      "columns": {
+        "id": "BASE_SCHEMA",
+        "customer_id": "BASE_SCHEMA",
+        "package": "BASE_SCHEMA",
+        "format": "BASE_SCHEMA",
+        "fulfilment_type": "BASE_SCHEMA",
+        "amount_gbp": "BASE_SCHEMA",
+        "amount_usd": "BASE_SCHEMA",
+        "currency": "BASE_SCHEMA",
+        "total_minor": "2026-09-14-canonical-catalogue.sql",
+        "subtotal_minor": "2026-09-14-sprint4-order-persistence.sql",
+        "delivery_minor": "2026-09-14-sprint4-order-persistence.sql",
+        "delivery_status": "2026-09-14-sprint4-order-persistence.sql",
+        "delivery_rate_source": "2026-09-14-sprint4-order-persistence.sql",
+        "delivery_rate_id": "2026-09-14-sprint4-order-persistence.sql",
+        "delivery_label": "2026-09-14-sprint4-order-persistence.sql",
+        "personalisation_status": "2026-09-14-sprint4-order-persistence.sql",
+        "checkout_token_hash": "2026-09-14-canonical-catalogue.sql",
+        "idempotency_key_hash": "2026-09-14-canonical-catalogue.sql",
+        "request_hash": "2026-09-14-canonical-catalogue.sql",
+        "status": "BASE_SCHEMA",
+        "mcb_reference": "2026-08-31-mcb-reference.sql",
+        "customer_notified_at": "2026-08-31-mcb-reference.sql",
+        "source_type": "BASE_SCHEMA",
+        "affiliate_id": "BASE_SCHEMA",
+        "partner_id": "BASE_SCHEMA",
+        "referral_raw": "BASE_SCHEMA",
+        "stripe_session_id": "BASE_SCHEMA",
+        "stripe_payment_intent": "BASE_SCHEMA",
+        "stripe_livemode": "2026-09-14-sprint4-order-persistence.sql",
+        "brief_mood": "BASE_SCHEMA",
+        "brief_genre": "BASE_SCHEMA",
+        "brief_personal_touches": "BASE_SCHEMA",
+        "brief_story": "BASE_SCHEMA",
+        "brief_cruise_companions": "2026-09-09-cruise-context-and-review-states.sql",
+        "artwork_url": "BASE_SCHEMA",
+        "created_at": "BASE_SCHEMA",
+        "updated_at": "BASE_SCHEMA"
+      }
+    },
+    "delivery_addresses": {
+      "introduced_by": "BASE_SCHEMA",
+      "columns": {
+        "id": "BASE_SCHEMA",
+        "order_id": "BASE_SCHEMA",
+        "recipient_name": "BASE_SCHEMA",
+        "address_line_1": "BASE_SCHEMA",
+        "address_line_2": "BASE_SCHEMA",
+        "city": "BASE_SCHEMA",
+        "state_region": "BASE_SCHEMA",
+        "postal_code": "BASE_SCHEMA",
+        "country": "BASE_SCHEMA",
+        "country_code": "2026-09-14-sprint4-order-persistence.sql",
+        "phone": "BASE_SCHEMA",
+        "created_at": "BASE_SCHEMA"
+      }
+    },
+    "clicks": {
+      "introduced_by": "BASE_SCHEMA",
+      "columns": {
+        "id": "BASE_SCHEMA",
+        "affiliate_id": "BASE_SCHEMA",
+        "username": "BASE_SCHEMA",
+        "user_agent": "BASE_SCHEMA",
+        "ip_hash": "BASE_SCHEMA",
+        "created_at": "BASE_SCHEMA"
+      }
+    },
+    "reference_sequence": {
+      "introduced_by": "2026-08-31-mcb-reference.sql",
+      "columns": {
+        "year": "2026-08-31-mcb-reference.sql",
+        "last_value": "2026-08-31-mcb-reference.sql",
+        "updated_at": "2026-08-31-mcb-reference.sql"
+      }
+    },
+    "unreconciled_payments": {
+      "introduced_by": "2026-08-31-mcb-reference.sql",
+      "columns": {
+        "id": "2026-08-31-mcb-reference.sql",
+        "stripe_session_id": "2026-08-31-mcb-reference.sql",
+        "stripe_payment_intent": "2026-08-31-mcb-reference.sql",
+        "event_id": "2026-08-31-mcb-reference.sql",
+        "reason": "2026-08-31-mcb-reference.sql",
+        "customer_email": "2026-08-31-mcb-reference.sql",
+        "customer_name": "2026-08-31-mcb-reference.sql",
+        "customer_phone": "2026-08-31-mcb-reference.sql",
+        "amount_total": "2026-08-31-mcb-reference.sql",
+        "currency": "2026-08-31-mcb-reference.sql",
+        "resolved_order_id": "2026-08-31-mcb-reference.sql",
+        "resolved_at": "2026-08-31-mcb-reference.sql",
+        "created_at": "2026-08-31-mcb-reference.sql"
+      }
+    },
+    "stripe_events": {
+      "introduced_by": "BASE_SCHEMA",
+      "columns": {
+        "id": "BASE_SCHEMA",
+        "event_id": "BASE_SCHEMA",
+        "event_type": "BASE_SCHEMA",
+        "order_id": "BASE_SCHEMA",
+        "processed_at": "BASE_SCHEMA"
+      }
+    },
+    "checkout_sessions": {
+      "introduced_by": "2026-09-09-checkout-sessions.sql",
+      "columns": {
+        "id": "2026-09-09-checkout-sessions.sql",
+        "order_id": "2026-09-09-checkout-sessions.sql",
+        "basket_hash": "2026-09-09-checkout-sessions.sql",
+        "package": "2026-09-09-checkout-sessions.sql",
+        "format": "2026-09-09-checkout-sessions.sql",
+        "basket_lines": "2026-09-09-checkout-sessions.sql",
+        "expected_amount_gbp": "2026-09-09-checkout-sessions.sql",
+        "expected_minor": "2026-09-14-canonical-catalogue.sql",
+        "currency": "2026-09-09-checkout-sessions.sql",
+        "livemode": "2026-09-14-sprint4-order-persistence.sql",
+        "stripe_session_id": "2026-09-09-checkout-sessions.sql",
+        "stripe_session_url": "2026-09-09-checkout-sessions.sql",
+        "stripe_expires_at": "2026-09-14-canonical-catalogue.sql",
+        "attempt": "2026-09-14-canonical-catalogue.sql",
+        "status": "2026-09-09-checkout-sessions.sql",
+        "ip_hash": "2026-09-09-checkout-sessions.sql",
+        "created_at": "2026-09-09-checkout-sessions.sql",
+        "updated_at": "2026-09-09-checkout-sessions.sql"
+      }
+    },
+    "order_items": {
+      "introduced_by": "2026-09-09-order-items.sql",
+      "columns": {
+        "id": "2026-09-09-order-items.sql",
+        "order_id": "2026-09-09-order-items.sql",
+        "item_id": "2026-09-09-order-items.sql",
+        "product_id": "2026-09-14-canonical-catalogue.sql",
+        "item_name": "2026-09-09-order-items.sql",
+        "category": "2026-09-14-canonical-catalogue.sql",
+        "fulfilment": "2026-09-14-canonical-catalogue.sql",
+        "quantity": "2026-09-09-order-items.sql",
+        "unit_gbp": "2026-09-09-order-items.sql",
+        "line_gbp": "2026-09-09-order-items.sql",
+        "unit_minor": "2026-09-14-canonical-catalogue.sql",
+        "line_minor": "2026-09-14-canonical-catalogue.sql",
+        "created_at": "2026-09-09-order-items.sql"
+      }
+    },
+    "concierge_enquiries": {
+      "introduced_by": "2026-09-09-concierge-enquiries.sql",
+      "columns": {
+        "id": "2026-09-09-concierge-enquiries.sql",
+        "reference": "2026-09-09-concierge-enquiries.sql",
+        "customer_id": "2026-09-09-concierge-enquiries.sql",
+        "name": "2026-09-09-concierge-enquiries.sql",
+        "email": "2026-09-09-concierge-enquiries.sql",
+        "phone": "2026-09-09-concierge-enquiries.sql",
+        "preferred_contact": "2026-09-09-concierge-enquiries.sql",
+        "occasion": "2026-09-09-concierge-enquiries.sql",
+        "needed_by": "2026-09-09-concierge-enquiries.sql",
+        "delivery_region": "2026-09-09-concierge-enquiries.sql",
+        "budget_mode": "2026-09-09-concierge-enquiries.sql",
+        "budget_amount_minor": "2026-09-09-concierge-enquiries.sql",
+        "budget_currency": "2026-09-09-concierge-enquiries.sql",
+        "story": "2026-09-09-concierge-enquiries.sql",
+        "status": "2026-09-09-concierge-enquiries.sql",
+        "internal_notes": "2026-09-09-concierge-enquiries.sql",
+        "source_type": "2026-09-09-concierge-enquiries.sql",
+        "affiliate_id": "2026-09-09-concierge-enquiries.sql",
+        "partner_id": "2026-09-09-concierge-enquiries.sql",
+        "referral_raw": "2026-09-09-concierge-enquiries.sql",
+        "ip_hash": "2026-09-09-concierge-enquiries.sql",
+        "created_at": "2026-09-09-concierge-enquiries.sql",
+        "updated_at": "2026-09-09-concierge-enquiries.sql"
+      }
+    },
+    "order_consents": {
+      "introduced_by": "2026-09-09-legal-consent-production.sql",
+      "columns": {
+        "id": "2026-09-09-legal-consent-production.sql",
+        "order_id": "2026-09-09-legal-consent-production.sql",
+        "terms_version": "2026-09-09-legal-consent-production.sql",
+        "refund_policy_version": "2026-09-09-legal-consent-production.sql",
+        "privacy_policy_version": "2026-09-09-legal-consent-production.sql",
+        "terms_accepted_at": "2026-09-09-legal-consent-production.sql",
+        "service_start_requested": "2026-09-09-legal-consent-production.sql",
+        "service_start_at": "2026-09-09-legal-consent-production.sql",
+        "digital_content_required": "2026-09-09-legal-consent-production.sql",
+        "digital_content_ack": "2026-09-09-legal-consent-production.sql",
+        "digital_content_ack_at": "2026-09-09-legal-consent-production.sql",
+        "ip_hash": "2026-09-09-legal-consent-production.sql",
+        "user_agent": "2026-09-09-legal-consent-production.sql",
+        "created_at": "2026-09-09-legal-consent-production.sql"
+      }
+    },
+    "order_production": {
+      "introduced_by": "2026-09-09-legal-consent-production.sql",
+      "columns": {
+        "id": "2026-09-09-legal-consent-production.sql",
+        "order_id": "2026-09-09-legal-consent-production.sql",
+        "stage": "2026-09-09-legal-consent-production.sql",
+        "revisions_used": "2026-09-09-legal-consent-production.sql",
+        "approved_at": "2026-09-09-legal-consent-production.sql",
+        "approval_channel": "2026-09-09-legal-consent-production.sql",
+        "approval_reference": "2026-09-09-legal-consent-production.sql",
+        "approved_item": "2026-09-09-legal-consent-production.sql",
+        "approved_by": "2026-09-09-legal-consent-production.sql",
+        "production_locked_at": "2026-09-09-legal-consent-production.sql",
+        "production_note": "2026-09-09-legal-consent-production.sql",
+        "completed_at": "2026-09-09-customer-lifecycle-referral.sql",
+        "terms_version": "2026-09-09-legal-consent-production.sql",
+        "created_at": "2026-09-09-legal-consent-production.sql",
+        "updated_at": "2026-09-09-legal-consent-production.sql"
+      }
+    },
+    "customer_referrals": {
+      "introduced_by": "2026-09-09-customer-lifecycle-referral.sql",
+      "columns": {
+        "id": "2026-09-09-customer-lifecycle-referral.sql",
+        "customer_id": "2026-09-09-customer-lifecycle-referral.sql",
+        "code": "2026-09-09-customer-lifecycle-referral.sql",
+        "first_paid_order_id": "2026-09-09-customer-lifecycle-referral.sql",
+        "revoked_at": "2026-09-09-customer-lifecycle-referral.sql",
+        "created_at": "2026-09-09-customer-lifecycle-referral.sql",
+        "updated_at": "2026-09-09-customer-lifecycle-referral.sql"
+      }
+    },
+    "customer_referral_conversions": {
+      "introduced_by": "2026-09-09-customer-lifecycle-referral.sql",
+      "columns": {
+        "id": "2026-09-09-customer-lifecycle-referral.sql",
+        "referral_id": "2026-09-09-customer-lifecycle-referral.sql",
+        "order_id": "2026-09-09-customer-lifecycle-referral.sql",
+        "code_snapshot": "2026-09-09-customer-lifecycle-referral.sql",
+        "status": "2026-09-09-customer-lifecycle-referral.sql",
+        "attributed_at": "2026-09-09-customer-lifecycle-referral.sql",
+        "confirmed_at": "2026-09-09-customer-lifecycle-referral.sql",
+        "reversed_at": "2026-09-09-customer-lifecycle-referral.sql",
+        "reversal_reason": "2026-09-09-customer-lifecycle-referral.sql"
+      }
+    },
+    "customer_communications": {
+      "introduced_by": "2026-09-09-customer-lifecycle-referral.sql",
+      "columns": {
+        "id": "2026-09-09-customer-lifecycle-referral.sql",
+        "order_id": "2026-09-09-customer-lifecycle-referral.sql",
+        "customer_id": "2026-09-09-customer-lifecycle-referral.sql",
+        "message_type": "2026-09-09-customer-lifecycle-referral.sql",
+        "status": "2026-09-09-customer-lifecycle-referral.sql",
+        "attempted_at": "2026-09-09-customer-lifecycle-referral.sql",
+        "sent_at": "2026-09-09-customer-lifecycle-referral.sql",
+        "provider_message_id": "2026-09-09-customer-lifecycle-referral.sql",
+        "failure_code": "2026-09-09-customer-lifecycle-referral.sql"
+      }
+    },
+    "order_units": {
+      "introduced_by": "2026-09-14-sprint4-order-persistence.sql",
+      "columns": {
+        "id": "2026-09-14-sprint4-order-persistence.sql",
+        "order_id": "2026-09-14-sprint4-order-persistence.sql",
+        "order_item_id": "2026-09-14-sprint4-order-persistence.sql",
+        "sku": "2026-09-14-sprint4-order-persistence.sql",
+        "product_id": "2026-09-14-sprint4-order-persistence.sql",
+        "kind": "2026-09-14-sprint4-order-persistence.sql",
+        "unit_index": "2026-09-14-sprint4-order-persistence.sql",
+        "song_count": "2026-09-14-sprint4-order-persistence.sql",
+        "picture_disc": "2026-09-14-sprint4-order-persistence.sql",
+        "size_inches": "2026-09-14-sprint4-order-persistence.sql",
+        "shape": "2026-09-14-sprint4-order-persistence.sql",
+        "disc_count": "2026-09-14-sprint4-order-persistence.sql",
+        "gatefold": "2026-09-14-sprint4-order-persistence.sql",
+        "priority_replacement": "2026-09-14-sprint4-order-persistence.sql",
+        "plaque_song_title": "2026-09-14-sprint4-order-persistence.sql",
+        "plaque_artist": "2026-09-14-sprint4-order-persistence.sql",
+        "frame_memory_id": "2026-09-14-sprint4-order-persistence.sql",
+        "frame_heading": "2026-09-14-sprint4-order-persistence.sql",
+        "created_at": "2026-09-14-sprint4-order-persistence.sql"
+      }
+    },
+    "order_memories": {
+      "introduced_by": "2026-09-14-sprint4-order-persistence.sql",
+      "columns": {
+        "id": "2026-09-14-sprint4-order-persistence.sql",
+        "order_id": "2026-09-14-sprint4-order-persistence.sql",
+        "unit_id": "2026-09-14-sprint4-order-persistence.sql",
+        "sequence": "2026-09-14-sprint4-order-persistence.sql",
+        "story": "2026-09-14-sprint4-order-persistence.sql",
+        "about": "2026-09-14-sprint4-order-persistence.sql",
+        "occasion": "2026-09-14-sprint4-order-persistence.sql",
+        "style_choice": "2026-09-14-sprint4-order-persistence.sql",
+        "style_label": "2026-09-14-sprint4-order-persistence.sql",
+        "photo_requested": "2026-09-14-sprint4-order-persistence.sql",
+        "created_at": "2026-09-14-sprint4-order-persistence.sql"
+      }
+    },
+    "order_uploads": {
+      "introduced_by": "2026-09-14-sprint4-order-persistence.sql",
+      "columns": {
+        "id": "2026-09-14-sprint4-order-persistence.sql",
+        "public_id": "2026-09-14-sprint4-order-persistence.sql",
+        "order_id": "2026-09-14-sprint4-order-persistence.sql",
+        "memory_id": "2026-09-14-sprint4-order-persistence.sql",
+        "unit_id": "2026-09-14-sprint4-order-persistence.sql",
+        "stored_name": "2026-09-14-sprint4-order-persistence.sql",
+        "mime_type": "2026-09-14-sprint4-order-persistence.sql",
+        "byte_size": "2026-09-14-sprint4-order-persistence.sql",
+        "width": "2026-09-14-sprint4-order-persistence.sql",
+        "height": "2026-09-14-sprint4-order-persistence.sql",
+        "sha256": "2026-09-14-sprint4-order-persistence.sql",
+        "ip_hash": "2026-09-14-sprint4-order-persistence.sql",
+        "created_at": "2026-09-14-sprint4-order-persistence.sql"
+      }
+    },
+    "order_events": {
+      "introduced_by": "2026-09-14-sprint4-order-persistence.sql",
+      "columns": {
+        "id": "2026-09-14-sprint4-order-persistence.sql",
+        "order_id": "2026-09-14-sprint4-order-persistence.sql",
+        "event_type": "2026-09-14-sprint4-order-persistence.sql",
+        "detail": "2026-09-14-sprint4-order-persistence.sql",
+        "dedupe_key": "2026-09-14-sprint4-order-persistence.sql",
+        "created_at": "2026-09-14-sprint4-order-persistence.sql"
+      }
+    },
+    "order_access_tokens": {
+      "introduced_by": "2026-09-14-sprint5-operations.sql",
+      "columns": {
+        "id": "2026-09-14-sprint5-operations.sql",
+        "order_id": "2026-09-14-sprint5-operations.sql",
+        "purpose": "2026-09-14-sprint5-operations.sql",
+        "nonce": "2026-09-14-sprint5-operations.sql",
+        "token_hash": "2026-09-14-sprint5-operations.sql",
+        "approval_round": "2026-09-14-sprint5-operations.sql",
+        "expires_at": "2026-09-14-sprint5-operations.sql",
+        "revoked_at": "2026-09-14-sprint5-operations.sql",
+        "last_used_at": "2026-09-14-sprint5-operations.sql",
+        "created_by": "2026-09-14-sprint5-operations.sql",
+        "created_at": "2026-09-14-sprint5-operations.sql"
+      }
+    },
+    "order_change_requests": {
+      "introduced_by": "2026-09-14-sprint5-operations.sql",
+      "columns": {
+        "id": "2026-09-14-sprint5-operations.sql",
+        "order_id": "2026-09-14-sprint5-operations.sql",
+        "approval_round": "2026-09-14-sprint5-operations.sql",
+        "channel": "2026-09-14-sprint5-operations.sql",
+        "feedback": "2026-09-14-sprint5-operations.sql",
+        "within_allowance": "2026-09-14-sprint5-operations.sql",
+        "recorded_by": "2026-09-14-sprint5-operations.sql",
+        "created_at": "2026-09-14-sprint5-operations.sql"
+      }
+    },
+    "order_service_requests": {
+      "introduced_by": "2026-09-14-sprint5-operations.sql",
+      "columns": {
+        "id": "2026-09-14-sprint5-operations.sql",
+        "order_id": "2026-09-14-sprint5-operations.sql",
+        "unit_id": "2026-09-14-sprint5-operations.sql",
+        "kind": "2026-09-14-sprint5-operations.sql",
+        "priority_replacement_requested": "2026-09-14-sprint5-operations.sql",
+        "eligibility": "2026-09-14-sprint5-operations.sql",
+        "description": "2026-09-14-sprint5-operations.sql",
+        "status": "2026-09-14-sprint5-operations.sql",
+        "resolution": "2026-09-14-sprint5-operations.sql",
+        "resolved_by": "2026-09-14-sprint5-operations.sql",
+        "resolved_at": "2026-09-14-sprint5-operations.sql",
+        "ip_hash": "2026-09-14-sprint5-operations.sql",
+        "created_at": "2026-09-14-sprint5-operations.sql",
+        "updated_at": "2026-09-14-sprint5-operations.sql"
+      }
+    },
+    "order_staff_notes": {
+      "introduced_by": "2026-09-14-sprint5-operations.sql",
+      "columns": {
+        "id": "2026-09-14-sprint5-operations.sql",
+        "order_id": "2026-09-14-sprint5-operations.sql",
+        "note": "2026-09-14-sprint5-operations.sql",
+        "staff": "2026-09-14-sprint5-operations.sql",
+        "created_at": "2026-09-14-sprint5-operations.sql"
+      }
+    },
+    "operations_acknowledgements": {
+      "introduced_by": "2026-09-14-sprint5-operations.sql",
+      "columns": {
+        "id": "2026-09-14-sprint5-operations.sql",
+        "item_key": "2026-09-14-sprint5-operations.sql",
+        "staff": "2026-09-14-sprint5-operations.sql",
+        "note": "2026-09-14-sprint5-operations.sql",
+        "created_at": "2026-09-14-sprint5-operations.sql"
+      }
+    },
+    "live_enquiries": {
+      "introduced_by": "2026-09-14-sprint5-operations.sql",
+      "columns": {
+        "id": "2026-09-14-sprint5-operations.sql",
+        "reference": "2026-09-14-sprint5-operations.sql",
+        "request_type": "2026-09-14-sprint5-operations.sql",
+        "name": "2026-09-14-sprint5-operations.sql",
+        "email": "2026-09-14-sprint5-operations.sql",
+        "phone": "2026-09-14-sprint5-operations.sql",
+        "event_type": "2026-09-14-sprint5-operations.sql",
+        "event_date": "2026-09-14-sprint5-operations.sql",
+        "location": "2026-09-14-sprint5-operations.sql",
+        "performer": "2026-09-14-sprint5-operations.sql",
+        "duration": "2026-09-14-sprint5-operations.sql",
+        "approximate_budget": "2026-09-14-sprint5-operations.sql",
+        "song_reveal": "2026-09-14-sprint5-operations.sql",
+        "details": "2026-09-14-sprint5-operations.sql",
+        "status": "2026-09-14-sprint5-operations.sql",
+        "ip_hash": "2026-09-14-sprint5-operations.sql",
+        "created_at": "2026-09-14-sprint5-operations.sql",
+        "updated_at": "2026-09-14-sprint5-operations.sql"
+      }
+    },
+    "operations_events": {
+      "introduced_by": "2026-09-14-sprint5-operations.sql",
+      "columns": {
+        "id": "2026-09-14-sprint5-operations.sql",
+        "subject_type": "2026-09-14-sprint5-operations.sql",
+        "subject_reference": "2026-09-14-sprint5-operations.sql",
+        "event_type": "2026-09-14-sprint5-operations.sql",
+        "detail": "2026-09-14-sprint5-operations.sql",
+        "dedupe_key": "2026-09-14-sprint5-operations.sql",
+        "created_at": "2026-09-14-sprint5-operations.sql"
+      }
+    },
+    "rate_limit_hits": {
+      "introduced_by": "2026-09-14-sprint5-operations.sql",
+      "columns": {
+        "id": "2026-09-14-sprint5-operations.sql",
+        "scope": "2026-09-14-sprint5-operations.sql",
+        "ip_hash": "2026-09-14-sprint5-operations.sql",
+        "created_at": "2026-09-14-sprint5-operations.sql"
+      }
+    },
+    "order_artwork": {
+      "introduced_by": "2026-09-15-automation-foundation.sql",
+      "columns": {
+        "id": "2026-09-15-automation-foundation.sql",
+        "order_id": "2026-09-15-automation-foundation.sql",
+        "unit_id": "2026-09-15-automation-foundation.sql",
+        "template_id": "2026-09-15-automation-foundation.sql",
+        "template_version": "2026-09-15-automation-foundation.sql",
+        "status": "2026-09-15-automation-foundation.sql",
+        "exception_reason": "2026-09-15-automation-foundation.sql",
+        "source_upload_id": "2026-09-15-automation-foundation.sql",
+        "source_width": "2026-09-15-automation-foundation.sql",
+        "source_height": "2026-09-15-automation-foundation.sql",
+        "source_artwork_ready": "2026-09-15-automation-foundation.sql",
+        "output_stored_name": "2026-09-15-automation-foundation.sql",
+        "output_mime": "2026-09-15-automation-foundation.sql",
+        "output_width": "2026-09-15-automation-foundation.sql",
+        "output_height": "2026-09-15-automation-foundation.sql",
+        "output_byte_size": "2026-09-15-automation-foundation.sql",
+        "output_sha256": "2026-09-15-automation-foundation.sql",
+        "manual": "2026-09-15-automation-foundation.sql",
+        "qc_result": "2026-09-15-automation-foundation.sql",
+        "ready_at": "2026-09-15-automation-foundation.sql",
+        "ready_by": "2026-09-15-automation-foundation.sql",
+        "created_at": "2026-09-15-automation-foundation.sql",
+        "updated_at": "2026-09-15-automation-foundation.sql"
+      }
+    },
+    "founder_notifications": {
+      "introduced_by": "2026-09-15-automation-foundation.sql",
+      "columns": {
+        "id": "2026-09-15-automation-foundation.sql",
+        "notification_type": "2026-09-15-automation-foundation.sql",
+        "order_id": "2026-09-15-automation-foundation.sql",
+        "subject_reference": "2026-09-15-automation-foundation.sql",
+        "dedupe_key": "2026-09-15-automation-foundation.sql",
+        "payload": "2026-09-15-automation-foundation.sql",
+        "status": "2026-09-15-automation-foundation.sql",
+        "attempts": "2026-09-15-automation-foundation.sql",
+        "next_attempt_at": "2026-09-15-automation-foundation.sql",
+        "claim_token_hash": "2026-09-15-automation-foundation.sql",
+        "claimed_at": "2026-09-15-automation-foundation.sql",
+        "claimed_by": "2026-09-15-automation-foundation.sql",
+        "last_error": "2026-09-15-automation-foundation.sql",
+        "delivered_at": "2026-09-15-automation-foundation.sql",
+        "delivered_channel": "2026-09-15-automation-foundation.sql",
+        "created_at": "2026-09-15-automation-foundation.sql",
+        "updated_at": "2026-09-15-automation-foundation.sql"
+      }
+    },
+    "product_sales_suspensions": {
+      "introduced_by": "2026-09-15-automation-foundation.sql",
+      "columns": {
+        "id": "2026-09-15-automation-foundation.sql",
+        "subject": "2026-09-15-automation-foundation.sql",
+        "reason": "2026-09-15-automation-foundation.sql",
+        "suspended_by": "2026-09-15-automation-foundation.sql",
+        "suspended_at": "2026-09-15-automation-foundation.sql",
+        "resumed_by": "2026-09-15-automation-foundation.sql",
+        "resumed_at": "2026-09-15-automation-foundation.sql"
+      }
+    },
+    "creative_albums": {
+      "introduced_by": "2026-09-15-creative-factory.sql",
+      "columns": {
+        "id": "2026-09-15-creative-factory.sql",
+        "order_id": "2026-09-15-creative-factory.sql",
+        "unit_id": "2026-09-15-creative-factory.sql",
+        "sku": "2026-09-15-creative-factory.sql",
+        "track_count": "2026-09-15-creative-factory.sql",
+        "target_programme_seconds": "2026-09-15-creative-factory.sql",
+        "album_qc_status": "2026-09-15-creative-factory.sql",
+        "album_qc_result": "2026-09-15-creative-factory.sql",
+        "capacity_status": "2026-09-15-creative-factory.sql",
+        "capacity_result": "2026-09-15-creative-factory.sql",
+        "created_at": "2026-09-15-creative-factory.sql",
+        "updated_at": "2026-09-15-creative-factory.sql"
+      }
+    },
+    "creative_jobs": {
+      "introduced_by": "2026-09-15-creative-factory.sql",
+      "columns": {
+        "id": "2026-09-15-creative-factory.sql",
+        "order_id": "2026-09-15-creative-factory.sql",
+        "album_id": "2026-09-15-creative-factory.sql",
+        "unit_id": "2026-09-15-creative-factory.sql",
+        "memory_id": "2026-09-15-creative-factory.sql",
+        "track_number": "2026-09-15-creative-factory.sql",
+        "status": "2026-09-15-creative-factory.sql",
+        "waiting_on": "2026-09-15-creative-factory.sql",
+        "exception_reason": "2026-09-15-creative-factory.sql",
+        "fact_ledger_version": "2026-09-15-creative-factory.sql",
+        "story_map_version": "2026-09-15-creative-factory.sql",
+        "lyric_version": "2026-09-15-creative-factory.sql",
+        "lyric_qc_status": "2026-09-15-creative-factory.sql",
+        "lyric_qc_result": "2026-09-15-creative-factory.sql",
+        "direction_version": "2026-09-15-creative-factory.sql",
+        "plan_version": "2026-09-15-creative-factory.sql",
+        "current_master_id": "2026-09-15-creative-factory.sql",
+        "attempt_allowance_extra": "2026-09-15-creative-factory.sql",
+        "created_at": "2026-09-15-creative-factory.sql",
+        "updated_at": "2026-09-15-creative-factory.sql"
+      }
+    },
+    "creative_artifacts": {
+      "introduced_by": "2026-09-15-creative-factory.sql",
+      "columns": {
+        "id": "2026-09-15-creative-factory.sql",
+        "order_id": "2026-09-15-creative-factory.sql",
+        "scope_key": "2026-09-15-creative-factory.sql",
+        "kind": "2026-09-15-creative-factory.sql",
+        "version": "2026-09-15-creative-factory.sql",
+        "body": "2026-09-15-creative-factory.sql",
+        "body_sha256": "2026-09-15-creative-factory.sql",
+        "created_by": "2026-09-15-creative-factory.sql",
+        "created_at": "2026-09-15-creative-factory.sql"
+      }
+    },
+    "creative_generation_attempts": {
+      "introduced_by": "2026-09-15-creative-factory.sql",
+      "columns": {
+        "id": "2026-09-15-creative-factory.sql",
+        "job_id": "2026-09-15-creative-factory.sql",
+        "order_id": "2026-09-15-creative-factory.sql",
+        "attempt_number": "2026-09-15-creative-factory.sql",
+        "fact_ledger_version": "2026-09-15-creative-factory.sql",
+        "story_map_version": "2026-09-15-creative-factory.sql",
+        "lyric_version": "2026-09-15-creative-factory.sql",
+        "direction_version": "2026-09-15-creative-factory.sql",
+        "plan_version": "2026-09-15-creative-factory.sql",
+        "provider_id": "2026-09-15-creative-factory.sql",
+        "provider_model": "2026-09-15-creative-factory.sql",
+        "provider_generation_id": "2026-09-15-creative-factory.sql",
+        "requested_duration_seconds": "2026-09-15-creative-factory.sql",
+        "requested_output": "2026-09-15-creative-factory.sql",
+        "actual_duration_ms": "2026-09-15-creative-factory.sql",
+        "status": "2026-09-15-creative-factory.sql",
+        "failure_reason": "2026-09-15-creative-factory.sql",
+        "cost_estimated_minor": "2026-09-15-creative-factory.sql",
+        "cost_actual_minor": "2026-09-15-creative-factory.sql",
+        "cost_currency": "2026-09-15-creative-factory.sql",
+        "created_by": "2026-09-15-creative-factory.sql",
+        "started_at": "2026-09-15-creative-factory.sql",
+        "completed_at": "2026-09-15-creative-factory.sql"
+      }
+    },
+    "creative_candidates": {
+      "introduced_by": "2026-09-15-creative-factory.sql",
+      "columns": {
+        "id": "2026-09-15-creative-factory.sql",
+        "attempt_id": "2026-09-15-creative-factory.sql",
+        "job_id": "2026-09-15-creative-factory.sql",
+        "order_id": "2026-09-15-creative-factory.sql",
+        "stored_name": "2026-09-15-creative-factory.sql",
+        "container": "2026-09-15-creative-factory.sql",
+        "byte_size": "2026-09-15-creative-factory.sql",
+        "sha256": "2026-09-15-creative-factory.sql",
+        "duration_ms": "2026-09-15-creative-factory.sql",
+        "sample_rate_hz": "2026-09-15-creative-factory.sql",
+        "channels": "2026-09-15-creative-factory.sql",
+        "bits_per_sample": "2026-09-15-creative-factory.sql",
+        "transcript": "2026-09-15-creative-factory.sql",
+        "technical_status": "2026-09-15-creative-factory.sql",
+        "technical_qc": "2026-09-15-creative-factory.sql",
+        "fact_status": "2026-09-15-creative-factory.sql",
+        "fact_qc": "2026-09-15-creative-factory.sql",
+        "creative_status": "2026-09-15-creative-factory.sql",
+        "creative_qc": "2026-09-15-creative-factory.sql",
+        "created_at": "2026-09-15-creative-factory.sql"
+      }
+    },
+    "creative_masters": {
+      "introduced_by": "2026-09-15-creative-factory.sql",
+      "columns": {
+        "id": "2026-09-15-creative-factory.sql",
+        "job_id": "2026-09-15-creative-factory.sql",
+        "order_id": "2026-09-15-creative-factory.sql",
+        "track_number": "2026-09-15-creative-factory.sql",
+        "kind": "2026-09-15-creative-factory.sql",
+        "version": "2026-09-15-creative-factory.sql",
+        "candidate_id": "2026-09-15-creative-factory.sql",
+        "derived_from_master_id": "2026-09-15-creative-factory.sql",
+        "conversion_note": "2026-09-15-creative-factory.sql",
+        "stored_name": "2026-09-15-creative-factory.sql",
+        "container": "2026-09-15-creative-factory.sql",
+        "sha256": "2026-09-15-creative-factory.sql",
+        "byte_size": "2026-09-15-creative-factory.sql",
+        "duration_ms": "2026-09-15-creative-factory.sql",
+        "sample_rate_hz": "2026-09-15-creative-factory.sql",
+        "channels": "2026-09-15-creative-factory.sql",
+        "qc_evidence": "2026-09-15-creative-factory.sql",
+        "is_current": "2026-09-15-creative-factory.sql",
+        "created_by": "2026-09-15-creative-factory.sql",
+        "created_at": "2026-09-15-creative-factory.sql"
+      }
+    },
+    "creative_access_log": {
+      "introduced_by": "2026-09-15-creative-factory.sql",
+      "columns": {
+        "id": "2026-09-15-creative-factory.sql",
+        "order_id": "2026-09-15-creative-factory.sql",
+        "staff": "2026-09-15-creative-factory.sql",
+        "action": "2026-09-15-creative-factory.sql",
+        "created_at": "2026-09-15-creative-factory.sql"
+      }
+    },
+    "artwork_creative_jobs": {
+      "introduced_by": "2026-09-15-production-file-factory.sql",
+      "columns": {
+        "id": "2026-09-15-production-file-factory.sql",
+        "order_id": "2026-09-15-production-file-factory.sql",
+        "unit_id": "2026-09-15-production-file-factory.sql",
+        "sku": "2026-09-15-production-file-factory.sql",
+        "status": "2026-09-15-production-file-factory.sql",
+        "visual_direction": "2026-09-15-production-file-factory.sql",
+        "current_art_master_id": "2026-09-15-production-file-factory.sql",
+        "created_at": "2026-09-15-production-file-factory.sql",
+        "updated_at": "2026-09-15-production-file-factory.sql"
+      }
+    },
+    "artwork_art_masters": {
+      "introduced_by": "2026-09-15-production-file-factory.sql",
+      "columns": {
+        "id": "2026-09-15-production-file-factory.sql",
+        "job_id": "2026-09-15-production-file-factory.sql",
+        "order_id": "2026-09-15-production-file-factory.sql",
+        "unit_id": "2026-09-15-production-file-factory.sql",
+        "version": "2026-09-15-production-file-factory.sql",
+        "creation_method": "2026-09-15-production-file-factory.sql",
+        "provider_id": "2026-09-15-production-file-factory.sql",
+        "source_upload_ids": "2026-09-15-production-file-factory.sql",
+        "personalisation_version": "2026-09-15-production-file-factory.sql",
+        "input_sha256": "2026-09-15-production-file-factory.sql",
+        "stored_name": "2026-09-15-production-file-factory.sql",
+        "mime_type": "2026-09-15-production-file-factory.sql",
+        "width": "2026-09-15-production-file-factory.sql",
+        "height": "2026-09-15-production-file-factory.sql",
+        "byte_size": "2026-09-15-production-file-factory.sql",
+        "sha256": "2026-09-15-production-file-factory.sql",
+        "visual_qc_status": "2026-09-15-production-file-factory.sql",
+        "visual_qc": "2026-09-15-production-file-factory.sql",
+        "is_current": "2026-09-15-production-file-factory.sql",
+        "created_by": "2026-09-15-production-file-factory.sql",
+        "created_at": "2026-09-15-production-file-factory.sql"
+      }
+    },
+    "image_preparation_records": {
+      "introduced_by": "2026-09-15-production-file-factory.sql",
+      "columns": {
+        "id": "2026-09-15-production-file-factory.sql",
+        "order_id": "2026-09-15-production-file-factory.sql",
+        "unit_id": "2026-09-15-production-file-factory.sql",
+        "upload_id": "2026-09-15-production-file-factory.sql",
+        "status": "2026-09-15-production-file-factory.sql",
+        "preparation_notes": "2026-09-15-production-file-factory.sql",
+        "identity_preserved": "2026-09-15-production-file-factory.sql",
+        "updated_by": "2026-09-15-production-file-factory.sql",
+        "created_at": "2026-09-15-production-file-factory.sql",
+        "updated_at": "2026-09-15-production-file-factory.sql"
+      }
+    },
+    "production_render_jobs": {
+      "introduced_by": "2026-09-15-production-file-factory.sql",
+      "columns": {
+        "id": "2026-09-15-production-file-factory.sql",
+        "order_id": "2026-09-15-production-file-factory.sql",
+        "unit_id": "2026-09-15-production-file-factory.sql",
+        "artwork_id": "2026-09-15-production-file-factory.sql",
+        "art_master_id": "2026-09-15-production-file-factory.sql",
+        "sku": "2026-09-15-production-file-factory.sql",
+        "template_id": "2026-09-15-production-file-factory.sql",
+        "template_version": "2026-09-15-production-file-factory.sql",
+        "output_spec": "2026-09-15-production-file-factory.sql",
+        "renderer": "2026-09-15-production-file-factory.sql",
+        "status": "2026-09-15-production-file-factory.sql",
+        "created_at": "2026-09-15-production-file-factory.sql",
+        "updated_at": "2026-09-15-production-file-factory.sql"
+      }
+    },
+    "print_production_masters": {
+      "introduced_by": "2026-09-15-production-file-factory.sql",
+      "columns": {
+        "id": "2026-09-15-production-file-factory.sql",
+        "render_job_id": "2026-09-15-production-file-factory.sql",
+        "order_id": "2026-09-15-production-file-factory.sql",
+        "unit_id": "2026-09-15-production-file-factory.sql",
+        "artwork_id": "2026-09-15-production-file-factory.sql",
+        "art_master_id": "2026-09-15-production-file-factory.sql",
+        "sku": "2026-09-15-production-file-factory.sql",
+        "template_id": "2026-09-15-production-file-factory.sql",
+        "template_version": "2026-09-15-production-file-factory.sql",
+        "version": "2026-09-15-production-file-factory.sql",
+        "stored_name": "2026-09-15-production-file-factory.sql",
+        "mime_type": "2026-09-15-production-file-factory.sql",
+        "width": "2026-09-15-production-file-factory.sql",
+        "height": "2026-09-15-production-file-factory.sql",
+        "byte_size": "2026-09-15-production-file-factory.sql",
+        "sha256": "2026-09-15-production-file-factory.sql",
+        "file_qc_status": "2026-09-15-production-file-factory.sql",
+        "file_qc": "2026-09-15-production-file-factory.sql",
+        "safe_zone_status": "2026-09-15-production-file-factory.sql",
+        "manual": "2026-09-15-production-file-factory.sql",
+        "is_current": "2026-09-15-production-file-factory.sql",
+        "created_by": "2026-09-15-production-file-factory.sql",
+        "created_at": "2026-09-15-production-file-factory.sql"
+      }
+    },
+    "manufacturing_packages": {
+      "introduced_by": "2026-09-15-production-file-factory.sql",
+      "columns": {
+        "id": "2026-09-15-production-file-factory.sql",
+        "order_id": "2026-09-15-production-file-factory.sql",
+        "version": "2026-09-15-production-file-factory.sql",
+        "status": "2026-09-15-production-file-factory.sql",
+        "blockers": "2026-09-15-production-file-factory.sql",
+        "body": "2026-09-15-production-file-factory.sql",
+        "body_sha256": "2026-09-15-production-file-factory.sql",
+        "created_by": "2026-09-15-production-file-factory.sql",
+        "created_at": "2026-09-15-production-file-factory.sql"
+      }
+    },
+    "supplier_order_packs": {
+      "introduced_by": "2026-09-15-production-file-factory.sql",
+      "columns": {
+        "id": "2026-09-15-production-file-factory.sql",
+        "order_id": "2026-09-15-production-file-factory.sql",
+        "package_id": "2026-09-15-production-file-factory.sql",
+        "version": "2026-09-15-production-file-factory.sql",
+        "status": "2026-09-15-production-file-factory.sql",
+        "body": "2026-09-15-production-file-factory.sql",
+        "body_sha256": "2026-09-15-production-file-factory.sql",
+        "placed_by": "2026-09-15-production-file-factory.sql",
+        "placed_at": "2026-09-15-production-file-factory.sql",
+        "created_at": "2026-09-15-production-file-factory.sql"
+      }
+    },
+    "order_economics": {
+      "introduced_by": "2026-09-15-fulfilment-controller.sql",
+      "columns": {
+        "id": "2026-09-15-fulfilment-controller.sql",
+        "order_id": "2026-09-15-fulfilment-controller.sql",
+        "kind": "2026-09-15-fulfilment-controller.sql",
+        "status": "2026-09-15-fulfilment-controller.sql",
+        "currency": "2026-09-15-fulfilment-controller.sql",
+        "revenue_minor": "2026-09-15-fulfilment-controller.sql",
+        "purchase_cost_minor": "2026-09-15-fulfilment-controller.sql",
+        "shipping_cost_minor": "2026-09-15-fulfilment-controller.sql",
+        "contingency_minor": "2026-09-15-fulfilment-controller.sql",
+        "handling_minor": "2026-09-15-fulfilment-controller.sql",
+        "total_cost_minor": "2026-09-15-fulfilment-controller.sql",
+        "contribution_minor": "2026-09-15-fulfilment-controller.sql",
+        "margin_basis_points": "2026-09-15-fulfilment-controller.sql",
+        "body": "2026-09-15-fulfilment-controller.sql",
+        "body_sha256": "2026-09-15-fulfilment-controller.sql",
+        "created_at": "2026-09-15-fulfilment-controller.sql"
+      }
+    },
+    "supplier_orders": {
+      "introduced_by": "2026-09-15-fulfilment-controller.sql",
+      "columns": {
+        "id": "2026-09-15-fulfilment-controller.sql",
+        "order_id": "2026-09-15-fulfilment-controller.sql",
+        "route_id": "2026-09-15-fulfilment-controller.sql",
+        "supplier_order_reference": "2026-09-15-fulfilment-controller.sql",
+        "skus": "2026-09-15-fulfilment-controller.sql",
+        "purchased_at": "2026-09-15-fulfilment-controller.sql",
+        "operator": "2026-09-15-fulfilment-controller.sql",
+        "financial_authoriser": "2026-09-15-fulfilment-controller.sql",
+        "currency": "2026-09-15-fulfilment-controller.sql",
+        "expected_purchase_cost_minor": "2026-09-15-fulfilment-controller.sql",
+        "expected_shipping_cost_minor": "2026-09-15-fulfilment-controller.sql",
+        "expected_total_cost_minor": "2026-09-15-fulfilment-controller.sql",
+        "actual_purchase_cost_minor": "2026-09-15-fulfilment-controller.sql",
+        "actual_shipping_cost_minor": "2026-09-15-fulfilment-controller.sql",
+        "actual_tax_duty_minor": "2026-09-16-supplier-routing.sql",
+        "actual_total_cost_minor": "2026-09-15-fulfilment-controller.sql",
+        "variance_minor": "2026-09-15-fulfilment-controller.sql",
+        "variance_reason": "2026-09-15-fulfilment-controller.sql",
+        "expected_dispatch_date": "2026-09-15-fulfilment-controller.sql",
+        "expected_delivery_date": "2026-09-15-fulfilment-controller.sql",
+        "tracking_pending": "2026-09-15-fulfilment-controller.sql",
+        "confirmation_reference": "2026-09-15-fulfilment-controller.sql",
+        "notes": "2026-09-15-fulfilment-controller.sql",
+        "status": "2026-09-15-fulfilment-controller.sql",
+        "created_at": "2026-09-15-fulfilment-controller.sql"
+      }
+    },
+    "shipments": {
+      "introduced_by": "2026-09-15-fulfilment-controller.sql",
+      "columns": {
+        "id": "2026-09-15-fulfilment-controller.sql",
+        "order_id": "2026-09-15-fulfilment-controller.sql",
+        "supplier_order_id": "2026-09-15-fulfilment-controller.sql",
+        "sequence": "2026-09-15-fulfilment-controller.sql",
+        "skus": "2026-09-15-fulfilment-controller.sql",
+        "required": "2026-09-15-fulfilment-controller.sql",
+        "state": "2026-09-15-fulfilment-controller.sql",
+        "carrier": "2026-09-15-fulfilment-controller.sql",
+        "tracking_reference": "2026-09-15-fulfilment-controller.sql",
+        "tracking_url": "2026-09-15-fulfilment-controller.sql",
+        "dispatched_on": "2026-09-15-fulfilment-controller.sql",
+        "estimated_delivery_date": "2026-09-15-fulfilment-controller.sql",
+        "delivered_on": "2026-09-15-fulfilment-controller.sql",
+        "created_by": "2026-09-15-fulfilment-controller.sql",
+        "created_at": "2026-09-15-fulfilment-controller.sql",
+        "updated_at": "2026-09-15-fulfilment-controller.sql"
+      }
+    },
+    "fulfilment_exceptions": {
+      "introduced_by": "2026-09-15-fulfilment-controller.sql",
+      "columns": {
+        "id": "2026-09-15-fulfilment-controller.sql",
+        "order_id": "2026-09-15-fulfilment-controller.sql",
+        "type": "2026-09-15-fulfilment-controller.sql",
+        "shipment_id": "2026-09-15-fulfilment-controller.sql",
+        "supplier_order_id": "2026-09-15-fulfilment-controller.sql",
+        "service_request_id": "2026-09-15-fulfilment-controller.sql",
+        "blocking": "2026-09-15-fulfilment-controller.sql",
+        "status": "2026-09-15-fulfilment-controller.sql",
+        "next_action": "2026-09-15-fulfilment-controller.sql",
+        "detail": "2026-09-15-fulfilment-controller.sql",
+        "resolution": "2026-09-15-fulfilment-controller.sql",
+        "resolution_note": "2026-09-15-fulfilment-controller.sql",
+        "resolution_authorised_by": "2026-09-15-fulfilment-controller.sql",
+        "opened_by": "2026-09-15-fulfilment-controller.sql",
+        "resolved_by": "2026-09-15-fulfilment-controller.sql",
+        "dedupe_key": "2026-09-15-fulfilment-controller.sql",
+        "created_at": "2026-09-15-fulfilment-controller.sql",
+        "resolved_at": "2026-09-15-fulfilment-controller.sql"
+      }
+    },
+    "support_evidence": {
+      "introduced_by": "2026-09-15-fulfilment-controller.sql",
+      "columns": {
+        "id": "2026-09-15-fulfilment-controller.sql",
+        "order_id": "2026-09-15-fulfilment-controller.sql",
+        "service_request_id": "2026-09-15-fulfilment-controller.sql",
+        "kind": "2026-09-15-fulfilment-controller.sql",
+        "stored_name": "2026-09-15-fulfilment-controller.sql",
+        "mime_type": "2026-09-15-fulfilment-controller.sql",
+        "byte_size": "2026-09-15-fulfilment-controller.sql",
+        "sha256": "2026-09-15-fulfilment-controller.sql",
+        "reference_text": "2026-09-15-fulfilment-controller.sql",
+        "ip_hash": "2026-09-15-fulfilment-controller.sql",
+        "created_at": "2026-09-15-fulfilment-controller.sql"
+      }
+    },
+    "customer_content_permissions": {
+      "introduced_by": "2026-09-15-fulfilment-controller.sql",
+      "columns": {
+        "id": "2026-09-15-fulfilment-controller.sql",
+        "order_id": "2026-09-15-fulfilment-controller.sql",
+        "scope": "2026-09-15-fulfilment-controller.sql",
+        "status": "2026-09-15-fulfilment-controller.sql",
+        "granted_via": "2026-09-15-fulfilment-controller.sql",
+        "evidence_reference": "2026-09-15-fulfilment-controller.sql",
+        "recorded_by": "2026-09-15-fulfilment-controller.sql",
+        "granted_at": "2026-09-15-fulfilment-controller.sql",
+        "withdrawn_at": "2026-09-15-fulfilment-controller.sql",
+        "updated_at": "2026-09-15-fulfilment-controller.sql"
+      }
+    },
+    "lifecycle_hooks": {
+      "introduced_by": "2026-09-15-fulfilment-controller.sql",
+      "columns": {
+        "id": "2026-09-15-fulfilment-controller.sql",
+        "order_id": "2026-09-15-fulfilment-controller.sql",
+        "hook": "2026-09-15-fulfilment-controller.sql",
+        "status": "2026-09-15-fulfilment-controller.sql",
+        "due_on": "2026-09-15-fulfilment-controller.sql",
+        "requires_marketing_consent": "2026-09-15-fulfilment-controller.sql",
+        "created_at": "2026-09-15-fulfilment-controller.sql"
+      }
+    },
+    "video_entitlements": {
+      "introduced_by": "2026-09-15-memory-music-video.sql",
+      "columns": {
+        "id": "2026-09-15-memory-music-video.sql",
+        "order_id": "2026-09-15-memory-music-video.sql",
+        "order_item_id": "2026-09-15-memory-music-video.sql",
+        "unit_id": "2026-09-15-memory-music-video.sql",
+        "memory_id": "2026-09-15-memory-music-video.sql",
+        "price_minor": "2026-09-15-memory-music-video.sql",
+        "currency": "2026-09-15-memory-music-video.sql",
+        "status": "2026-09-15-memory-music-video.sql",
+        "created_at": "2026-09-15-memory-music-video.sql",
+        "updated_at": "2026-09-15-memory-music-video.sql"
+      }
+    },
+    "video_capacity_periods": {
+      "introduced_by": "2026-09-15-memory-music-video.sql",
+      "columns": {
+        "id": "2026-09-15-memory-music-video.sql",
+        "period_key": "2026-09-15-memory-music-video.sql",
+        "starts_at": "2026-09-15-memory-music-video.sql",
+        "ends_at": "2026-09-15-memory-music-video.sql",
+        "capacity": "2026-09-15-memory-music-video.sql",
+        "model": "2026-09-15-memory-music-video.sql",
+        "basis": "2026-09-15-memory-music-video.sql",
+        "source": "2026-09-15-memory-music-video.sql",
+        "created_by": "2026-09-15-memory-music-video.sql",
+        "created_at": "2026-09-15-memory-music-video.sql"
+      }
+    },
+    "video_capacity_reservations": {
+      "introduced_by": "2026-09-15-memory-music-video.sql",
+      "columns": {
+        "id": "2026-09-15-memory-music-video.sql",
+        "period_id": "2026-09-15-memory-music-video.sql",
+        "entitlement_id": "2026-09-15-memory-music-video.sql",
+        "order_id": "2026-09-15-memory-music-video.sql",
+        "status": "2026-09-15-memory-music-video.sql",
+        "held_until": "2026-09-15-memory-music-video.sql",
+        "reserved_at": "2026-09-15-memory-music-video.sql",
+        "completed_at": "2026-09-15-memory-music-video.sql",
+        "released_at": "2026-09-15-memory-music-video.sql",
+        "released_by": "2026-09-15-memory-music-video.sql",
+        "release_note": "2026-09-15-memory-music-video.sql",
+        "created_at": "2026-09-15-memory-music-video.sql",
+        "updated_at": "2026-09-15-memory-music-video.sql"
+      }
+    },
+    "video_jobs": {
+      "introduced_by": "2026-09-15-memory-music-video.sql",
+      "columns": {
+        "id": "2026-09-15-memory-music-video.sql",
+        "order_id": "2026-09-15-memory-music-video.sql",
+        "entitlement_id": "2026-09-15-memory-music-video.sql",
+        "status": "2026-09-15-memory-music-video.sql",
+        "waiting_on": "2026-09-15-memory-music-video.sql",
+        "exception_reason": "2026-09-15-memory-music-video.sql",
+        "inputs_confirmed_at": "2026-09-15-memory-music-video.sql",
+        "inputs_confirmed_by": "2026-09-15-memory-music-video.sql",
+        "duration_status": "2026-09-15-memory-music-video.sql",
+        "duration_decision": "2026-09-15-memory-music-video.sql",
+        "audio_master_id": "2026-09-15-memory-music-video.sql",
+        "audio_master_version": "2026-09-15-memory-music-video.sql",
+        "audio_master_sha256": "2026-09-15-memory-music-video.sql",
+        "audio_duration_ms": "2026-09-15-memory-music-video.sql",
+        "visual_direction": "2026-09-15-memory-music-video.sql",
+        "production_method": "2026-09-15-memory-music-video.sql",
+        "production_started_at": "2026-09-15-memory-music-video.sql",
+        "rework_count": "2026-09-15-memory-music-video.sql",
+        "production_cost_minor": "2026-09-15-memory-music-video.sql",
+        "production_cost_note": "2026-09-15-memory-music-video.sql",
+        "current_video_master_id": "2026-09-15-memory-music-video.sql",
+        "revealed_at": "2026-09-15-memory-music-video.sql",
+        "created_at": "2026-09-15-memory-music-video.sql",
+        "updated_at": "2026-09-15-memory-music-video.sql"
+      }
+    },
+    "video_media": {
+      "introduced_by": "2026-09-15-memory-music-video.sql",
+      "columns": {
+        "id": "2026-09-15-memory-music-video.sql",
+        "public_id": "2026-09-15-memory-music-video.sql",
+        "order_id": "2026-09-15-memory-music-video.sql",
+        "video_job_id": "2026-09-15-memory-music-video.sql",
+        "stored_name": "2026-09-15-memory-music-video.sql",
+        "mime_type": "2026-09-15-memory-music-video.sql",
+        "byte_size": "2026-09-15-memory-music-video.sql",
+        "width": "2026-09-15-memory-music-video.sql",
+        "height": "2026-09-15-memory-music-video.sql",
+        "sha256": "2026-09-15-memory-music-video.sql",
+        "rights_confirmed_at": "2026-09-15-memory-music-video.sql",
+        "rights_statement_sha256": "2026-09-15-memory-music-video.sql",
+        "ip_hash": "2026-09-15-memory-music-video.sql",
+        "created_at": "2026-09-15-memory-music-video.sql"
+      }
+    },
+    "video_candidates": {
+      "introduced_by": "2026-09-15-memory-music-video.sql",
+      "columns": {
+        "id": "2026-09-15-memory-music-video.sql",
+        "video_job_id": "2026-09-15-memory-music-video.sql",
+        "order_id": "2026-09-15-memory-music-video.sql",
+        "version": "2026-09-15-memory-music-video.sql",
+        "stored_name": "2026-09-15-memory-music-video.sql",
+        "container": "2026-09-15-memory-music-video.sql",
+        "byte_size": "2026-09-15-memory-music-video.sql",
+        "sha256": "2026-09-15-memory-music-video.sql",
+        "duration_ms": "2026-09-15-memory-music-video.sql",
+        "width": "2026-09-15-memory-music-video.sql",
+        "height": "2026-09-15-memory-music-video.sql",
+        "audio_master_id": "2026-09-15-memory-music-video.sql",
+        "audio_master_sha256": "2026-09-15-memory-music-video.sql",
+        "production_method": "2026-09-15-memory-music-video.sql",
+        "external_reference": "2026-09-15-memory-music-video.sql",
+        "technical_checks": "2026-09-15-memory-music-video.sql",
+        "qc_status": "2026-09-15-memory-music-video.sql",
+        "qc": "2026-09-15-memory-music-video.sql",
+        "created_by": "2026-09-15-memory-music-video.sql",
+        "created_at": "2026-09-15-memory-music-video.sql"
+      }
+    },
+    "video_masters": {
+      "introduced_by": "2026-09-15-memory-music-video.sql",
+      "columns": {
+        "id": "2026-09-15-memory-music-video.sql",
+        "video_job_id": "2026-09-15-memory-music-video.sql",
+        "order_id": "2026-09-15-memory-music-video.sql",
+        "version": "2026-09-15-memory-music-video.sql",
+        "candidate_id": "2026-09-15-memory-music-video.sql",
+        "audio_master_id": "2026-09-15-memory-music-video.sql",
+        "audio_master_version": "2026-09-15-memory-music-video.sql",
+        "audio_master_sha256": "2026-09-15-memory-music-video.sql",
+        "stored_name": "2026-09-15-memory-music-video.sql",
+        "container": "2026-09-15-memory-music-video.sql",
+        "byte_size": "2026-09-15-memory-music-video.sql",
+        "sha256": "2026-09-15-memory-music-video.sql",
+        "duration_ms": "2026-09-15-memory-music-video.sql",
+        "width": "2026-09-15-memory-music-video.sql",
+        "height": "2026-09-15-memory-music-video.sql",
+        "qc_evidence": "2026-09-15-memory-music-video.sql",
+        "is_current": "2026-09-15-memory-music-video.sql",
+        "created_by": "2026-09-15-memory-music-video.sql",
+        "created_at": "2026-09-15-memory-music-video.sql"
+      }
+    },
+    "video_access_log": {
+      "introduced_by": "2026-09-15-memory-music-video.sql",
+      "columns": {
+        "id": "2026-09-15-memory-music-video.sql",
+        "order_id": "2026-09-15-memory-music-video.sql",
+        "actor": "2026-09-15-memory-music-video.sql",
+        "staff": "2026-09-15-memory-music-video.sql",
+        "action": "2026-09-15-memory-music-video.sql",
+        "subject_id": "2026-09-15-memory-music-video.sql",
+        "version": "2026-09-15-memory-music-video.sql",
+        "ip_hash": "2026-09-15-memory-music-video.sql",
+        "created_at": "2026-09-15-memory-music-video.sql"
+      }
+    },
+    "video_offer_counters": {
+      "introduced_by": "2026-09-15-memory-music-video.sql",
+      "columns": {
+        "day": "2026-09-15-memory-music-video.sql",
+        "product_id": "2026-09-15-memory-music-video.sql",
+        "event": "2026-09-15-memory-music-video.sql",
+        "count": "2026-09-15-memory-music-video.sql"
+      }
+    },
+    "support_case_messages": {
+      "introduced_by": "2026-09-16-customer-care.sql",
+      "columns": {
+        "id": "2026-09-16-customer-care.sql",
+        "case_id": "2026-09-16-customer-care.sql",
+        "order_id": "2026-09-16-customer-care.sql",
+        "kind": "2026-09-16-customer-care.sql",
+        "body": "2026-09-16-customer-care.sql",
+        "author": "2026-09-16-customer-care.sql",
+        "template_key": "2026-09-16-customer-care.sql",
+        "email_outcome": "2026-09-16-customer-care.sql",
+        "ip_hash": "2026-09-16-customer-care.sql",
+        "created_at": "2026-09-16-customer-care.sql"
+      }
+    },
+    "support_remedies": {
+      "introduced_by": "2026-09-16-customer-care.sql",
+      "columns": {
+        "id": "2026-09-16-customer-care.sql",
+        "case_id": "2026-09-16-customer-care.sql",
+        "order_id": "2026-09-16-customer-care.sql",
+        "type": "2026-09-16-customer-care.sql",
+        "status": "2026-09-16-customer-care.sql",
+        "costs_mcb": "2026-09-16-customer-care.sql",
+        "capacity_basis": "2026-09-16-customer-care.sql",
+        "video_job_id": "2026-09-16-customer-care.sql",
+        "shipment_id": "2026-09-16-customer-care.sql",
+        "supplier_order_pack_id": "2026-09-16-customer-care.sql",
+        "refund_review_id": "2026-09-16-customer-care.sql",
+        "note": "2026-09-16-customer-care.sql",
+        "proposed_by": "2026-09-16-customer-care.sql",
+        "authorised_by": "2026-09-16-customer-care.sql",
+        "decided_at": "2026-09-16-customer-care.sql",
+        "decision_note": "2026-09-16-customer-care.sql",
+        "completed_by": "2026-09-16-customer-care.sql",
+        "completed_at": "2026-09-16-customer-care.sql",
+        "created_at": "2026-09-16-customer-care.sql",
+        "updated_at": "2026-09-16-customer-care.sql"
+      }
+    },
+    "refund_reviews": {
+      "introduced_by": "2026-09-16-customer-care.sql",
+      "columns": {
+        "id": "2026-09-16-customer-care.sql",
+        "order_id": "2026-09-16-customer-care.sql",
+        "case_id": "2026-09-16-customer-care.sql",
+        "status": "2026-09-16-customer-care.sql",
+        "refund_type": "2026-09-16-customer-care.sql",
+        "currency": "2026-09-16-customer-care.sql",
+        "gross_paid_minor": "2026-09-16-customer-care.sql",
+        "amount_minor": "2026-09-16-customer-care.sql",
+        "reason": "2026-09-16-customer-care.sql",
+        "requested_by": "2026-09-16-customer-care.sql",
+        "founder": "2026-09-16-customer-care.sql",
+        "decided_at": "2026-09-16-customer-care.sql",
+        "decision_note": "2026-09-16-customer-care.sql",
+        "recorded_by": "2026-09-16-customer-care.sql",
+        "recorded_at": "2026-09-16-customer-care.sql",
+        "refunded_on": "2026-09-16-customer-care.sql",
+        "external_reference": "2026-09-16-customer-care.sql",
+        "created_at": "2026-09-16-customer-care.sql",
+        "updated_at": "2026-09-16-customer-care.sql"
+      }
+    },
+    "direct_cost_entries": {
+      "introduced_by": "2026-09-16-business-intelligence.sql",
+      "columns": {
+        "id": "2026-09-16-business-intelligence.sql",
+        "order_id": "2026-09-16-business-intelligence.sql",
+        "category": "2026-09-16-business-intelligence.sql",
+        "basis": "2026-09-16-business-intelligence.sql",
+        "amount_minor": "2026-09-16-business-intelligence.sql",
+        "currency": "2026-09-16-business-intelligence.sql",
+        "remedy_id": "2026-09-16-business-intelligence.sql",
+        "note": "2026-09-16-business-intelligence.sql",
+        "status": "2026-09-16-business-intelligence.sql",
+        "recorded_by": "2026-09-16-business-intelligence.sql",
+        "voided_by": "2026-09-16-business-intelligence.sql",
+        "voided_at": "2026-09-16-business-intelligence.sql",
+        "void_reason": "2026-09-16-business-intelligence.sql",
+        "created_at": "2026-09-16-business-intelligence.sql"
+      }
+    },
+    "business_audit_log": {
+      "introduced_by": "2026-09-16-business-intelligence.sql",
+      "columns": {
+        "id": "2026-09-16-business-intelligence.sql",
+        "staff": "2026-09-16-business-intelligence.sql",
+        "action": "2026-09-16-business-intelligence.sql",
+        "dataset": "2026-09-16-business-intelligence.sql",
+        "rows_exported": "2026-09-16-business-intelligence.sql",
+        "subject_id": "2026-09-16-business-intelligence.sql",
+        "created_at": "2026-09-16-business-intelligence.sql"
+      }
+    },
+    "order_route_decisions": {
+      "introduced_by": "2026-09-16-supplier-routing.sql",
+      "columns": {
+        "id": "2026-09-16-supplier-routing.sql",
+        "order_id": "2026-09-16-supplier-routing.sql",
+        "sku": "2026-09-16-supplier-routing.sql",
+        "route_id": "2026-09-16-supplier-routing.sql",
+        "recommended_route_id": "2026-09-16-supplier-routing.sql",
+        "route_group": "2026-09-16-supplier-routing.sql",
+        "deviation_reason": "2026-09-16-supplier-routing.sql",
+        "note": "2026-09-16-supplier-routing.sql",
+        "country_code": "2026-09-16-supplier-routing.sql",
+        "confirmed_delivered_cost_minor": "2026-09-16-supplier-routing.sql",
+        "confirmed_delivered_currency": "2026-09-16-supplier-routing.sql",
+        "delivered_cost_evidence": "2026-09-16-supplier-routing.sql",
+        "availability_confirmed": "2026-09-17-resilience.sql",
+        "destination_confirmed": "2026-09-17-resilience.sql",
+        "status": "2026-09-16-supplier-routing.sql",
+        "decided_by": "2026-09-16-supplier-routing.sql",
+        "created_at": "2026-09-16-supplier-routing.sql",
+        "superseded_at": "2026-09-16-supplier-routing.sql"
+      }
+    },
+    "card_alternatives": {
+      "introduced_by": "2026-09-16-supplier-routing.sql",
+      "columns": {
+        "id": "2026-09-16-supplier-routing.sql",
+        "order_id": "2026-09-16-supplier-routing.sql",
+        "supplier_order_reference": "2026-09-16-supplier-routing.sql",
+        "original_sku": "2026-09-16-supplier-routing.sql",
+        "alternative": "2026-09-16-supplier-routing.sql",
+        "reason": "2026-09-16-supplier-routing.sql",
+        "authority": "2026-09-16-supplier-routing.sql",
+        "authorised_by": "2026-09-16-supplier-routing.sql",
+        "customer_impact": "2026-09-16-supplier-routing.sql",
+        "customer_impact_note": "2026-09-16-supplier-routing.sql",
+        "created_at": "2026-09-16-supplier-routing.sql"
+      }
+    }
+  }
+}

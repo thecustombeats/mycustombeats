@@ -502,6 +502,8 @@ const MCB_FOUNDERS = ['BELLA', 'LEWIS'];
 
 /** Refused authorisation attempts allowed per order in 15 minutes. */
 const MCB_FOUNDER_AUTHORISATION_ATTEMPTS = 5;
+/** Refused founder codes across all orders in 15 minutes before every authorisation pauses. */
+const MCB_FOUNDER_AUTHORISATION_ATTEMPTS_ALL_ORDERS = 15;
 
 /** Whether a founder has an authorisation code configured (as a password hash). */
 function founder_authorisation_configured(string $founder): bool
@@ -546,6 +548,11 @@ function check_founder_authorisation_request(int $orderId, array $in, string $st
     $recent->execute([':oid' => $orderId]);
     if ((int) $recent->fetchColumn() >= MCB_FOUNDER_AUTHORISATION_ATTEMPTS) {
         throw new OperationsException('too_many_attempts', 'Too many refused authorisation attempts for this order. Wait 15 minutes.', 429);
+    }
+    // Across every order too: guessing a code by spreading attempts over many orders is stopped.
+    $everywhere = (int) $pdo->query("SELECT COUNT(*) FROM order_events WHERE event_type = 'FULFILMENT.AUTHORISATION_REFUSED' AND created_at > UTC_TIMESTAMP() - INTERVAL 15 MINUTE")->fetchColumn();
+    if ($everywhere >= MCB_FOUNDER_AUTHORISATION_ATTEMPTS_ALL_ORDERS) {
+        throw new OperationsException('too_many_attempts', 'Too many refused authorisation attempts. Wait 15 minutes.', 429);
     }
     if (!verify_founder_authorisation($founder, $in['founder_code'] ?? null)) {
         record_order_event_safely($pdo, $orderId, 'FULFILMENT.AUTHORISATION_REFUSED', ['founder' => $founder, 'by' => $staff]);
