@@ -50,7 +50,7 @@ function founder_notification_types(): array
 /** The only payload keys a notification may carry. */
 const MCB_NOTIFICATION_PAYLOAD_KEYS = [
     'notification', 'title', 'reference', 'product', 'amount', 'payment', 'input', 'qc',
-    'supplier_order', 'state', 'reason', 'required_action', 'action_url', 'test_payment',
+    'supplier_order', 'manufacturing_package', 'state', 'reason', 'required_action', 'action_url', 'test_payment',
 ];
 
 /** Worker retry policy. */

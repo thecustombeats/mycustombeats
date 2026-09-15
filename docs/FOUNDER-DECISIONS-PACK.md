@@ -126,3 +126,14 @@ Each line is an exact mismatch between current wording and actual site behaviour
 | 28 | Generation attempts per song before a creative exception (default 3), and an optional preferred finished-song window around 195 s. | F |
 | 29 | Retention period for creative material (ledgers, lyrics, candidates, masters, access logs). NOT SET pending legal review. | F + L |
 | 30 | Minimum production sample rate (default 44.1 kHz) and the archival master format (no format is mandated). | F |
+
+## 8. Production File Factory (15 September 2026) — items for the Founders
+
+| # | Item | Class |
+|---|---|---|
+| 31 | Artwork generation provider: DEFERRED (manual design today). Any future AI artwork must preserve the customer's people and content and remain subject to visual QC. | F + L |
+| 32 | Manufacturer data still required: picture-disc pixel canvas (all sizes), 10- and 7-inch centre holes, heart dieline, double-gatefold template, safe-zone insets and trim for every format. Until supplied: MANUFACTURING_DATA_REQUIRED or manual safe-zone review. | F |
+| 33 | Internal supplier order data (`api/data/supplier-orders.json`: supplier, product URL, configuration, estimated cost, delivery provision, destination limitations) — uploaded to the server only. | F |
+| 34 | Hosting: confirm the host honours `api/crm/.user.ini` / `.htaccess` upload limits (260 MB), execution time and disk space for production files; otherwise raise the limits with the host. | F |
+| 35 | MCB brand guidelines for artwork (where the brand appears, wordmark usage) — not in the repository. | F |
+| 36 | Audio probing (e.g. an ffprobe-capable worker) so MP3 durations can be verified; until then WAV/FLAC/AIFF for production masters. | F |

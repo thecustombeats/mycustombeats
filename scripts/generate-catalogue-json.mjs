@@ -445,7 +445,25 @@ const artworkOut = {
   output_mime_types: [...artwork.ARTWORK_OUTPUT_MIME_TYPES],
   templates: snake(artwork.ARTWORK_TEMPLATES),
   components_by_sku: { ...artwork.ARTWORK_COMPONENTS_BY_SKU },
+  artwork_provider_decision_status: artwork.ARTWORK_PROVIDER_DECISION_STATUS,
+  art_creation_methods: [...artwork.ART_CREATION_METHODS],
+  art_creation_methods_available: [...artwork.ART_CREATION_METHODS_AVAILABLE],
+  renderers: [...artwork.RENDERERS],
+  renderers_available: [...artwork.RENDERERS_AVAILABLE],
+  visual_qc_criteria: [...artwork.VISUAL_QC_CRITERIA],
+  visual_qc_outcomes: [...artwork.VISUAL_QC_OUTCOMES],
+  image_preparation_states: [...artwork.IMAGE_PREPARATION_STATES],
+  brand_rules: [...artwork.BRAND_RULES],
+  file_role_limits: { ...artwork.FILE_ROLE_LIMITS },
+  manufacturing_package_states: [...artwork.MANUFACTURING_PACKAGE_STATES],
+  supplier_pack_states: [...artwork.SUPPLIER_PACK_STATES],
+  production_exceptions: [...artwork.PRODUCTION_EXCEPTIONS],
 };
+for (const t of artwork.ARTWORK_TEMPLATES) {
+  for (const item of t.manufacturingDataRequired) if (!t.missing.includes(item)) fail(`template ${t.id}: manufacturing data "${item}" is not listed as missing`);
+  if (t.status === "TEMPLATE_REQUIRED" && t.manufacturingDataRequired.length === 0) fail(`template ${t.id} requires a template but lists no manufacturing data`);
+  if (t.safeZoneStatus === "VERIFIED" && t.safeInsetMm === null) fail(`template ${t.id}: safe zone VERIFIED without a safe inset`);
+}
 
 /* ------------------------------------------------------------------ */
 /* creative.json — INTERNAL Creative Factory policy (server only)       */
@@ -489,6 +507,7 @@ const creativeOut = {
   album_review_criteria: [...creative.ALBUM_REVIEW_CRITERIA],
   master_kinds: [...creative.MASTER_KINDS],
   audio_containers: [...creative.AUDIO_CONTAINERS],
+  audio_format_capabilities: Object.fromEntries(Object.entries(creative.AUDIO_FORMAT_CAPABILITIES).map(([k, v]) => [k, snake(v)])),
   default_min_sample_rate_hz: creative.DEFAULT_MIN_SAMPLE_RATE_HZ,
   lyric_duplication_threshold: creative.LYRIC_DUPLICATION_THRESHOLD,
 };

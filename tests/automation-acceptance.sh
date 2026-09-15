@@ -199,9 +199,15 @@ notes() { q "SELECT COUNT(*) FROM founder_notifications WHERE order_id=$1 AND no
 payload_of() { q "SELECT payload FROM founder_notifications WHERE order_id=$1 AND notification_type='$2' ORDER BY id LIMIT 1" > /tmp/np.json; }
 evcount() { q "SELECT COUNT(*) FROM order_events WHERE order_id=$1 AND event_type='$2'"; }
 # aw ORDER ARTWORK_ID REF TEMPLATE VERSION FIXTURE [extra curl -F …] → code (body /tmp/tx.json)
+# A print production master is rendered from the record's Creative Art Master (created
+# and visually passed by the helper if needed), with MCB's manual safe-zone review.
 aw() { local oid=$1 aid=$2 ref=$3 tpl=$4 ver=$5 file=$6; shift 6
+  local unit am sku
+  unit=$(q "SELECT unit_id FROM order_artwork WHERE id=$aid"); [ -z "$unit" ] && unit=0
+  [ "$unit" != 0 ] && ensure_art_master "$(q "SELECT order_id FROM order_artwork WHERE id=$aid")" >/dev/null
+  am=$(q "SELECT id FROM artwork_art_masters WHERE unit_id=$unit AND is_current=1"); sku=$(q "SELECT sku FROM order_units WHERE id=$unit")
   curl -s -o /tmp/tx.json -w '%{http_code}' -X POST "$BASE/crm/artwork" -H "Authorization: Bearer $CRMKEY" \
-    -F "order_id=$oid" -F "artwork_id=$aid" -F "reference=$ref" -F "template_id=$tpl" -F "template_version=$ver" -F "staff=Artwork Tester" "$@" -F "output=@$file"; }
+    -F "order_id=$oid" -F "artwork_id=$aid" -F "art_master_id=$am" -F "sku=$sku" -F safe_zone_reviewed=true -F "reference=$ref" -F "template_id=$tpl" -F "template_version=$ver" -F "staff=Artwork Tester" "$@" -F "output=@$file"; }
 wk() { curl -s -o /tmp/tx.json -w '%{http_code}' -X POST "$BASE/crm/notifications" -H "Authorization: Bearer $NOTIFICATION_WORKER_KEY" -H 'Content-Type: application/json' -d "$1"; }
 # ack ID TOKEN RESULT [CHANNEL] [ERROR_CODE] → code (JSON built here: bash 3.2 mangles escaped quotes inside "$(…)")
 ack() { local body; body=$(python3 -c 'import json,sys;a=sys.argv[1:];d={"action":"ACK","id":int(a[0]),"claim_token":a[1],"result":a[2]}
@@ -238,6 +244,7 @@ git show 60209ec9:db/schema.sql | ROOTQ afb 2>/dev/null
 ROOTQ afb < db/migrations/2026-09-15-automation-foundation.sql 2>/dev/null; A1=$?
 ROOTQ afb < db/migrations/2026-09-15-automation-foundation.sql 2>/dev/null; A2=$?
 ROOTQ afb < db/migrations/2026-09-15-creative-factory.sql 2>/dev/null
+ROOTQ afb < db/migrations/2026-09-15-production-file-factory.sql 2>/dev/null
 dumpdb() { for tb in $(ROOTQ -N -e "SHOW TABLES" "$1"); do ROOTQ -N -e "SHOW CREATE TABLE \`$tb\`" "$1" | sed 's/AUTO_INCREMENT=[0-9]* //'; done; }
 tc "the Automation Foundation migration applies to the previous schema, and again (idempotent)" "$([ "$A1" = 0 ] && [ "$A2" = 0 ] && echo 1 || echo 0)"
 tc "  → the migrated database is identical to a fresh db/schema.sql" "$([ "$(dumpdb afa | shasum)" = "$(dumpdb afb | shasum)" ] && echo 1 || echo 0)"
@@ -264,7 +271,7 @@ payload_of $MO NEW_ORDER_READY_FOR_PROCESSING
 tc "  → payload: reference, product, amount, PAYMENT VERIFIED, input complete, next action, deep link" "$(python3 -c 'import json,sys;p=json.load(open("/tmp/np.json"));r=sys.argv[1]
 ok=p["reference"]==r and "Moment" in p["product"] and p["amount"].startswith("£") and p["payment"]=="VERIFIED" and p["input"]=="COMPLETE" and p["required_action"] and p["action_url"]=="http://localhost:8080/operations#order="+r and p["title"]=="New order ready for processing"
 print(1 if ok else 0)' "$MREF")"
-tc "  → nothing else: no story, name, email, address, photo, credential or secret" "$(python3 -c 'import json;p=json.load(open("/tmp/np.json"));allowed={"notification","title","reference","product","amount","payment","input","qc","supplier_order","state","reason","required_action","action_url","test_payment"};print(1 if set(p)<=allowed else 0)')$(grep -qiE 'Guernsey|whistle|af-moment|@|Tx Customer|Harbour|whsec|sk_test|crm_key|photo' /tmp/np.json && echo X || echo '')"
+tc "  → nothing else: no story, name, email, address, photo, credential or secret" "$(python3 -c 'import json;p=json.load(open("/tmp/np.json"));allowed={"notification","title","reference","product","amount","payment","input","qc","supplier_order","manufacturing_package","state","reason","required_action","action_url","test_payment"};print(1 if set(p)<=allowed else 0)')$(grep -qiE 'Guernsey|whistle|af-moment|@|Tx Customer|Harbour|whsec|sk_test|crm_key|photo' /tmp/np.json && echo X || echo '')"
 t "  → recorded by the webhook (event source)" "STRIPE_WEBHOOK" "$(q "SELECT source FROM order_events WHERE order_id=$MO AND event_type='ORDER.PAID'")"
 t "the same Stripe event delivered again" 200 "$(hook "$(pay_event "$EVT1" "$MSID" "$MO" "$MTOTAL" gbp)")"
 t "  → no second ready event, notification or confirmation" "1|1|1" "$(evcount $MO ORDER.READY_FOR_PROCESSING)|$(q "SELECT COUNT(*) FROM founder_notifications WHERE order_id=$MO")|$(evcount $MO CUSTOMER.CONFIRMATION.SENT)"
@@ -326,8 +333,8 @@ t "the wrong template is refused" "422|FAIL" "$(aw $KO $KAID "$KREF" SLEEVE_12_F
 t "a file that is not an image is refused" "422|FAIL" "$(aw $KO $KAID "$KREF" PICTURE_DISC_12 1 tests/README.md)|$(jget checks.FILE_TYPE)"
 t "a missing output is refused" "422|FAIL" "$(curl -s -o /tmp/tx.json -w '%{http_code}' -X POST "$BASE/crm/artwork" -H "Authorization: Bearer $CRMKEY" -F "order_id=$KO" -F "artwork_id=$KAID" -F "reference=$KREF" -F "template_id=PICTURE_DISC_12" -F "template_version=1" -F "staff=A")|$(jget checks.OUTPUT_PRESENT)"
 t "a square output of the right order, template and version passes" "200|READY" "$(aw $KO $KAID "$KREF" PICTURE_DISC_12 1 $FIX/artwork-3600x3600.png)|$(jget status)"
-tc "  → every check PASS, recorded with the file facts and ARTWORK.READY" "$(python3 -c 'import json;d=json.load(open("/tmp/tx.json"));print(1 if all(v=="PASS" for v in d["checks"].values()) and len(d["checks"])==6 else 0)')$([ "$(q "SELECT CONCAT_WS('|',status,output_mime,output_width,output_height,LENGTH(output_sha256),manual) FROM order_artwork WHERE id=$KAID")|$(evcount $KO ARTWORK.READY)" = "READY|image/png|3600|3600|64|0|1" ] && echo '' || echo X)"
-t "  → the output is retrievable only with the CRM key" "401|200" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/crm/artwork?artwork_id=$KAID&download=1")|$(curl -s -o /dev/null -w '%{http_code}' "$BASE/crm/artwork?artwork_id=$KAID&download=1" -H "Authorization: Bearer $CRMKEY")"
+tc "  → every check PASS, recorded with the file facts and ARTWORK.READY" "$(python3 -c 'import json;d=json.load(open("/tmp/tx.json"));print(1 if all(v in ("PASS","NOT_APPLICABLE","MISSING_FROM_MANUFACTURER","MANUAL_REVIEW_PASSED") for v in d["checks"].values()) and d["checks"]["SQUARE_ASPECT"]=="PASS" and len(d["checks"])>=6 else 0)')$([ "$(q "SELECT CONCAT_WS('|',status,output_mime,output_width,output_height,LENGTH(output_sha256),manual) FROM order_artwork WHERE id=$KAID")|$(evcount $KO ARTWORK.READY)" = "READY|image/png|3600|3600|64|0|1" ] && echo '' || echo X)"
+t "  → the output is retrievable only with the CRM key and a staff name (audited)" "401|422|200" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/crm/artwork?artwork_id=$KAID&download=1&staff=A")|$(curl -s -o /dev/null -w '%{http_code}' "$BASE/crm/artwork?artwork_id=$KAID&download=1" -H "Authorization: Bearer $CRMKEY")|$(curl -s -o /dev/null -w '%{http_code}' "$BASE/crm/artwork?artwork_id=$KAID&download=1&staff=A" -H "Authorization: Bearer $CRMKEY")"
 STRIPE_BEFORE=$(stub_count)
 t "now the quality check passes" "200|FULFILMENT.READY" "$(act $KO PASS_QUALITY_CHECK "$QC_PHYSICAL")|$(jget state)"
 
@@ -408,7 +415,7 @@ t "  → surfaced in the staff queue" 1 "$(queue_has "ARTWORK:$HA:TEMPLATE_REQUI
 act $HO SEND_TO_QUALITY_CHECK >/dev/null
 t "registering Heart artwork needs confirmation it was prepared by hand to the manufacturer's dieline" "422|manual_template_confirmation_required" "$(aw $HO $HA "$HREF" PICTURE_DISC_HEART 1 $FIX/artwork-3600x3600.png)|$(jget error)"
 t "with that confirmation it is recorded as MANUAL" "200|READY|1" "$(aw $HO $HA "$HREF" PICTURE_DISC_HEART 1 $FIX/artwork-3600x3500.png -F manual_template_confirmed=true)|$(jget status)|$(q "SELECT manual FROM order_artwork WHERE id=$HA")"
-tc "  → only presence, type and order association are checked — no invented shape rule" "$(python3 -c 'import json;print(1 if sorted(json.load(open("/tmp/tx.json"))["checks"])==["FILE_TYPE","ORDER_ASSOCIATION","OUTPUT_PRESENT"] else 0)')"
+tc "  → no invented shape or dimension rule; missing manufacturer geometry stays explicitly missing" "$(python3 -c 'import json;c=json.load(open("/tmp/tx.json"))["checks"];print(1 if "EXACT_DIMENSIONS" not in c and "SQUARE_ASPECT" not in c and c["BLEED_METADATA"]=="MISSING_FROM_MANUFACTURER" and c["TRIM_METADATA"]=="MISSING_FROM_MANUFACTURER" and c["ORIENTATION"]=="NOT_APPLICABLE" else 0)')"
 t "  → the queue item has gone" 0 "$(queue_has "ARTWORK:$HA:")"
 HSTATE_BEFORE=$(state_of $HO)
 
@@ -488,7 +495,7 @@ wkget "?view=health" >/dev/null
 t "no paid order is missing its ready event or founder notification" "[]" "$(jget paid_orders_missing_ready_signal)"
 q "SELECT payload FROM founder_notifications" > /tmp/all-payloads.txt
 tc "every notification payload is allow-listed and free of customer or secret data" "$(python3 -c 'import json
-allowed={"notification","title","reference","product","amount","payment","input","qc","supplier_order","state","reason","required_action","action_url","test_payment"}
+allowed={"notification","title","reference","product","amount","payment","input","qc","supplier_order","manufacturing_package","state","reason","required_action","action_url","test_payment"}
 rows=[json.loads(l) for l in open("/tmp/all-payloads.txt") if l.strip()]
 print(1 if rows and all(set(r)<=allowed for r in rows) else 0)')$(grep -qiE '@|Harbour|Southampton|Rec Ipient|Tx Customer|\+44|Guernsey|whistle|cracked|whsec_|sk_test|crm_key|worker_key|not-real|stored_name|upload|story' /tmp/all-payloads.txt && echo X || echo '')"
 tc "no Telegram, TaskNotify or AI provider is called, and no bot credential exists in the code" "$(grep -rniE 'api\.telegram\.org|sendMessage\?chat_id|bot[0-9]{6,}:|api\.openai\.com|replicate\.com|stability\.ai' public/api src 2>/dev/null | grep -v '^public/api/_test' | grep -q . && echo 0 || echo 1)"

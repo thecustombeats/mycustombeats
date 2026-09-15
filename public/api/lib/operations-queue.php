@@ -217,6 +217,37 @@ function operations_queue(PDO $pdo, ?int $now = null): array
         }
     }
 
+    // ---- Production File Factory ------------------------------------------------------
+    foreach ($pdo->query(
+        "SELECT o.id, o.mcb_reference, o.fulfilment_type,
+                (SELECT GROUP_CONCAT(DISTINCT j.status) FROM artwork_creative_jobs j WHERE j.order_id = o.id) AS art_jobs,
+                (SELECT COUNT(*) FROM image_preparation_records r WHERE r.order_id = o.id AND r.status IN ('PREPARATION_REQUIRED','PREPARATION_IN_PROGRESS')) AS preparing,
+                (SELECT COUNT(*) FROM image_preparation_records r WHERE r.order_id = o.id AND r.status IN ('UNUSABLE','EXCEPTION')) AS photo_exceptions,
+                (SELECT COUNT(*) FROM production_render_jobs rj WHERE rj.order_id = o.id AND rj.status = 'FILE_QC_FAILED') AS file_failures,
+                (SELECT COUNT(*) FROM production_render_jobs rj WHERE rj.order_id = o.id AND rj.status = 'RENDER_REQUIRED') AS renders,
+                (SELECT m.status FROM manufacturing_packages m WHERE m.order_id = o.id AND m.status <> 'SUPERSEDED' ORDER BY m.version DESC LIMIT 1) AS package,
+                (SELECT MAX(j.updated_at) FROM artwork_creative_jobs j WHERE j.order_id = o.id) AS since
+           FROM orders o LEFT JOIN order_production p ON p.order_id = o.id
+          WHERE o.status = 'PAID' AND o.fulfilment_type = 'PHYSICAL'
+            AND (p.stage IS NULL OR p.stage IN ('CREATIVE','QUALITY_CHECK','QC_PASSED'))
+            AND EXISTS (SELECT 1 FROM artwork_creative_jobs j WHERE j.order_id = o.id)
+          LIMIT 500"
+    )->fetchAll() as $r) {
+        $subject = ['type' => 'ORDER', 'order_id' => (int) $r['id'], 'reference' => $r['mcb_reference'], 'workflow' => $r['fulfilment_type']];
+        $fingerprint = substr(md5(json_encode($r)), 0, 8);
+        $exception = str_contains((string) $r['art_jobs'], 'EXCEPTION') || (int) $r['photo_exceptions'] > 0 || (int) $r['file_failures'] > 0 || $r['package'] === 'MANUFACTURING_DATA_REQUIRED';
+        if ($exception) {
+            $what = [];
+            if (str_contains((string) $r['art_jobs'], 'EXCEPTION') || (int) $r['photo_exceptions'] > 0) $what[] = 'artwork exception';
+            if ((int) $r['file_failures'] > 0) $what[] = 'production file failed its checks';
+            if ($r['package'] === 'MANUFACTURING_DATA_REQUIRED') $what[] = 'manufacturing data required from the manufacturer';
+            $items[] = queue_item("PRODUCTION:{$r['id']}:EXCEPTION:{$fingerprint}", 'PRODUCTION_EXCEPTION', $subject, $r['since'], 'Production: ' . implode('; ', $what) . '.');
+        } elseif ((int) $r['preparing'] > 0 || (int) $r['renders'] > 0 || preg_match('/AWAITING_ART_MASTER|VISUAL_QC_REQUIRED|REWORK_REQUIRED/', (string) $r['art_jobs']) === 1) {
+            $items[] = queue_item("PRODUCTION:{$r['id']}:ACTION:{$fingerprint}", 'PRODUCTION_ACTION', $subject, $r['since'],
+                'Production File Factory: ' . strtolower(str_replace('_', ' ', (string) $r['art_jobs'])) . ((int) $r['renders'] > 0 ? "; {$r['renders']} print file(s) to render" : '') . ((int) $r['preparing'] > 0 ? "; {$r['preparing']} photo(s) to prepare" : '') . '. Artwork provider: deferred (manual design).');
+        }
+    }
+
     // ---- Founder notifications that could not be delivered ---------------------
     foreach ($pdo->query(
         "SELECT id, notification_type, subject_reference, order_id, attempts, last_error, updated_at

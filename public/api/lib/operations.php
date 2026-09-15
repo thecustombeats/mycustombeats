@@ -43,6 +43,7 @@ require_once __DIR__ . '/legal.php';
 require_once __DIR__ . '/founder-notifications.php';
 require_once __DIR__ . '/artwork.php';
 require_once __DIR__ . '/creative-factory.php';
+require_once __DIR__ . '/production-files.php';
 
 final class OperationsException extends RuntimeException
 {
@@ -416,7 +417,17 @@ function fulfilment_blocker(PDO $pdo, array $row): ?string
     if ((int) $stmt->fetchColumn() === 0) {
         return 'DELIVERY_ADDRESS';
     }
-    return fulfilment_review_pending($pdo, (int) $row['id']) ? 'FULFILMENT_REVIEW' : null;
+    if (fulfilment_review_pending($pdo, (int) $row['id'])) {
+        return 'FULFILMENT_REVIEW';
+    }
+    // The Manufacturing Package (Production File Factory). Built every time it is
+    // checked (a new version only when its content changes). In REQUIRED mode a
+    // physical order cannot be fulfilment-ready until the package is READY.
+    $package = build_manufacturing_package($pdo, (int) $row['id'], 'SYSTEM');
+    if ($package !== null && $package['status'] !== 'READY' && creative_enforcement() === 'REQUIRED') {
+        return 'MANUFACTURING_PACKAGE';
+    }
+    return null;
 }
 
 /** Whether staff still owe the partner availability/delivery confirmation. */
@@ -435,9 +446,11 @@ function fulfilment_review_confirmed(PDO $pdo, int $orderId): bool
 /** Staff wording for a blocker. */
 function fulfilment_blocker_text(string $blocker): string
 {
-    return $blocker === 'FULFILMENT_REVIEW'
-        ? 'availability, destination and actual delivery cost confirmed with the partner'
-        : strtolower(str_replace('_', ' ', $blocker));
+    return match ($blocker) {
+        'FULFILMENT_REVIEW' => 'availability, destination and actual delivery cost confirmed with the partner',
+        'MANUFACTURING_PACKAGE' => 'a READY manufacturing package (masters, album QC, artwork, production files, verified capacity)',
+        default => strtolower(str_replace('_', ' ', $blocker)),
+    };
 }
 
 /** The value a blocker is stored as in `order_production.fulfilment_pending_reason`. */
@@ -472,8 +485,9 @@ function mark_fulfilment_ready(PDO $pdo, array $row, ?string $staff): void
           WHERE order_id = :oid"
     )->execute([':oid' => $orderId]);
     record_order_event($pdo, $orderId, 'FULFILMENT.READY', $staff === null ? [] : ['by' => $staff], "fulfilment-ready:{$reopen}");
+    $package = current_manufacturing_package($pdo, $orderId);
     notify_founders_about_order($pdo, 'FULFILMENT_APPROVAL_REQUIRED', $orderId, "fulfilment-approval:{$orderId}:{$reopen}",
-        ['qc' => 'PASSED', 'supplier_order' => 'READY'], 'AUTHORISE_SUPPLIER_PURCHASE');
+        ['qc' => 'PASSED', 'supplier_order' => 'READY', 'manufacturing_package' => $package['status'] ?? 'NOT_BUILT'], 'AUTHORISE_SUPPLIER_PURCHASE');
 }
 
 /* ------------------------------------------------------------------ */
@@ -830,6 +844,9 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 if (fulfilment_review_pending($pdo, $orderId)) {
                     $refuse('Confirm availability, the destination and the actual delivery cost with the partner before authorising the purchase.');
                 }
+                if (creative_enforcement() === 'REQUIRED' && (current_manufacturing_package($pdo, $orderId)['status'] ?? null) !== 'READY') {
+                    throw new OperationsException('manufacturing_package_not_ready', 'The manufacturing package is not READY, so there is nothing ready to purchase.');
+                }
                 if (creative_fulfilment_gate($pdo, $row)['capacity_exception']) {
                     throw new OperationsException('audio_capacity_exception', 'The finished programme exceeds the verified record capacity. It cannot be purchased for manufacture until that is resolved.');
                 }
@@ -855,6 +872,12 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                     throw new OperationsException('founder_authorisation_required', 'Bella or Lewis must authorise the supplier purchase first (AUTHORISE_SUPPLIER_PURCHASE).', 409);
                 }
                 $authorisedBy = (string) $row['supplier_purchase_authorised_by'];
+                if (creative_enforcement() === 'REQUIRED' && (current_manufacturing_package($pdo, $orderId)['status'] ?? null) !== 'READY') {
+                    throw new OperationsException('manufacturing_package_not_ready', 'The manufacturing package is not READY.');
+                }
+                // The supplier order pack records that the order was placed, by whom.
+                $pdo->prepare("UPDATE supplier_order_packs SET status = 'ORDER_PLACED', placed_by = :by, placed_at = UTC_TIMESTAMP() WHERE order_id = :oid AND status = 'PREPARED'")
+                    ->execute([':by' => $staff, ':oid' => $orderId]);
                 $update(
                     "stage = 'PRODUCTION_LOCKED', production_locked_at = COALESCE(production_locked_at, UTC_TIMESTAMP()),
                      fulfilment_state = 'CONFIRMED', fulfilment_confirmed_at = UTC_TIMESTAMP(), fulfilment_reference = :ref",

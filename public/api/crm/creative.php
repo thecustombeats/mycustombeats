@@ -228,7 +228,7 @@ try {
                 $map = $doc('album_map');
                 $ledger = creative_artifact($pdo, "album:{$a['id']}", 'FACT_LEDGER');
                 creative_validate_album_map($map, creative_album_jobs($pdo, (int) $a['id']), $ledger['body']);
-                $version = creative_store_artifact($pdo, $orderId, "album:{$a['id']}", 'ALBUM_MAP', ['schema' => 'mcb.album_map.v1', 'status' => 'AUTHORED', 'track_count' => (int) $a['track_count'], 'target_programme_seconds' => (int) $a['target_programme_seconds'], 'fact_ledger_version' => $ledger['version'], 'tracks' => $map['tracks'], 'duplication_controls' => $map['duplication_controls'] ?? null], $staff);
+                $version = creative_store_artifact($pdo, $orderId, "album:{$a['id']}", 'ALBUM_MAP', ['schema' => 'mcb.album_map.v1', 'status' => 'AUTHORED', 'track_count' => (int) $a['track_count'], 'target_programme_seconds' => (int) $a['target_programme_seconds'], 'fact_ledger_version' => $ledger['version'], 'album_title' => $map['album_title'] ?? null, 'tracks' => $map['tracks'], 'duplication_controls' => $map['duplication_controls'] ?? null], $staff);
                 return ['version' => $version];
 
             case 'UPDATE_STORY_MAP':

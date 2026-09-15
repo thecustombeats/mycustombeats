@@ -264,6 +264,7 @@ ROOTQ cfa < db/schema.sql 2>/dev/null
 git show 478eb469:db/schema.sql | ROOTQ cfb 2>/dev/null
 ROOTQ cfb < db/migrations/2026-09-15-creative-factory.sql 2>/dev/null; C1=$?
 ROOTQ cfb < db/migrations/2026-09-15-creative-factory.sql 2>/dev/null; C2=$?
+ROOTQ cfb < db/migrations/2026-09-15-production-file-factory.sql 2>/dev/null
 dumpdb() { for tb in $(ROOTQ -N -e "SHOW TABLES" "$1"); do ROOTQ -N -e "SHOW CREATE TABLE \`$tb\`" "$1" | sed 's/AUTO_INCREMENT=[0-9]* //'; done; }
 tc "the Creative Factory migration applies to the previous schema, twice, and equals a fresh schema" "$([ "$C1" = 0 ] && [ "$C2" = 0 ] && [ "$(dumpdb cfa | shasum)" = "$(dumpdb cfb | shasum)" ] && echo 1 || echo 0)"
 ROOTQ -e 'DROP DATABASE cfa; DROP DATABASE cfb;' 2>/dev/null
@@ -437,7 +438,7 @@ t "  → surfaced in the staff queue" 1 "$(queue_has "CREATIVE:$KO:EXCEPTION")"
 printf '%s' '{"profiles":[{"sku":"keepsake-12-picture-disc","verified_per_side_seconds":450,"version":2,"source":"TEST FIXTURE ONLY - not a manufacturer figure","last_verified_date":"2026-09-15"}]}' > "$CAP"
 t "against a VERIFIED 450 s per side the programme passes" "CAPACITY_PASSED|1" "$(cpost "$(js '{"action":"RUN_CAPACITY_CHECK","order_id":int(E["OID"]),"staff":"Creative Tester","album_id":int(E["ALBUM"])}')" >/dev/null; jget capacity.status)|$(evcount $KO AUDIO.CAPACITY_PASSED)"
 with_config "\$c['creative']['enforcement']='REQUIRED';"
-t "with every gate passed, MCB's quality check and fulfilment proceed (REQUIRED mode)" "200|FULFILMENT.READY" "$(act $KO PASS_QUALITY_CHECK "$QC_PHYSICAL")|$(jget state)"
+t "with every creative gate passed MCB's quality check passes; fulfilment then waits on the manufacturing package: album title to add, and the disc canvas the manufacturer has not supplied (REQUIRED mode)" "200|FULFILMENT.PENDING|NOT_READY|1|1" "$(act $KO PASS_QUALITY_CHECK "$QC_PHYSICAL")|$(jget state)|$(q "SELECT status FROM manufacturing_packages WHERE order_id=$KO AND status<>'SUPERSEDED'")|$(q "SELECT blockers LIKE '%ALBUM_TITLE_MISSING%' FROM manufacturing_packages WHERE order_id=$KO AND status<>'SUPERSEDED'")|$(q "SELECT blockers LIKE '%MANUFACTURER_DATA:PICTURE_DISC_12:%' FROM manufacturing_packages WHERE order_id=$KO AND status<>'SUPERSEDED'")"
 restore_config
 rm -f "$CAP"
 act $KO ISSUE_STATUS_LINK >/dev/null; KPROG="{\"token\":\"$(link_token status)\"}"

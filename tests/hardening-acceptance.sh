@@ -342,7 +342,7 @@ tc "76. the review URL is still configuration and still empty" \
   "$(grep -A3 "'reviews'" public/api/config.example.php | grep -q "'url' => ''" && echo 1 || echo 0)"
 
 tc "77. earlier migrations are untouched; Sprint 4, Sprint 5, Single Creative Authority and Automation Foundation additive migrations follow" \
-  "$([ "$(ls db/migrations/*.sql | wc -l | tr -d ' ')" = "13" ] && [ -f db/migrations/2026-09-15-single-creative-authority.sql ] && [ -f db/migrations/2026-09-15-creative-factory.sql ] \
+  "$([ "$(ls db/migrations/*.sql | wc -l | tr -d ' ')" = "14" ] && [ -f db/migrations/2026-09-15-single-creative-authority.sql ] && [ -f db/migrations/2026-09-15-creative-factory.sql ] && [ -f db/migrations/2026-09-15-production-file-factory.sql ] && git diff --quiet 25c428e1 -- db/migrations/2026-09-15-creative-factory.sql \
      && [ -f db/migrations/2026-09-15-automation-foundation.sql ] && git diff --quiet 60209ec9 -- db/migrations/2026-09-15-single-creative-authority.sql && git diff --quiet 478eb469 -- db/migrations/2026-09-15-automation-foundation.sql \
      && git diff --quiet e2d83387 -- db/migrations/2026-09-14-sprint5-operations.sql \
      && [ -f db/migrations/2026-09-14-canonical-catalogue.sql ] && [ -f db/migrations/2026-09-14-sprint4-order-persistence.sql ] \

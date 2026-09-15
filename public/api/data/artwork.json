@@ -60,6 +60,8 @@
         "Safe-area inset",
         "Trim size"
       ],
+      "manufacturing_data_required": [],
+      "safe_zone_status": "UNVERIFIED",
       "notes": [
         "Founder-supplied production template (front).",
         "3 mm bleed ≈ 35 px; top/bottom spine allowance 3 mm ≈ 35 px."
@@ -108,6 +110,8 @@
         "Safe-area inset",
         "Trim size"
       ],
+      "manufacturing_data_required": [],
+      "safe_zone_status": "UNVERIFIED",
       "notes": [
         "Founder-supplied production template (back).",
         "3 mm bleed ≈ 35 px."
@@ -140,6 +144,10 @@
       "missing": [
         "Manufacturer gatefold template (panels, spine, bleed, output size)"
       ],
+      "manufacturing_data_required": [
+        "Manufacturer gatefold template (panels, spine, bleed, output size)"
+      ],
+      "safe_zone_status": "UNVERIFIED",
       "notes": [
         "The supplied front/back sleeve templates are single-sleeve; the gatefold dieline was not supplied and is not assumed."
       ]
@@ -187,6 +195,10 @@
         "Supplier output resolution / pixel canvas",
         "Safe-zone inset from the outer edge"
       ],
+      "manufacturing_data_required": [
+        "Supplier output resolution / pixel canvas"
+      ],
+      "safe_zone_status": "UNVERIFIED",
       "notes": [
         "Extend artwork/background about 2–3 mm beyond the final cut line where the template requires bleed.",
         "Keep important content inside the safe zone and away from the outer trim edge.",
@@ -237,6 +249,10 @@
         "Centre-hole diameter",
         "Safe-zone inset from the outer edge"
       ],
+      "manufacturing_data_required": [
+        "Supplier output resolution / pixel canvas"
+      ],
+      "safe_zone_status": "UNVERIFIED",
       "notes": [
         "Extend artwork/background about 2–3 mm beyond the final cut line where the template requires bleed.",
         "Keep important content inside the safe zone and away from the outer trim edge.",
@@ -287,6 +303,10 @@
         "Centre-hole diameter",
         "Safe-zone inset from the outer edge"
       ],
+      "manufacturing_data_required": [
+        "Supplier output resolution / pixel canvas"
+      ],
+      "safe_zone_status": "UNVERIFIED",
       "notes": [
         "Extend artwork/background about 2–3 mm beyond the final cut line where the template requires bleed.",
         "Keep important content inside the safe zone and away from the outer trim edge.",
@@ -323,6 +343,10 @@
       "missing": [
         "Manufacturer heart dieline / cut line, bleed and output size"
       ],
+      "manufacturing_data_required": [
+        "Manufacturer heart dieline / cut line, bleed and output size"
+      ],
+      "safe_zone_status": "UNVERIFIED",
       "notes": [
         "MANUAL / TEMPLATE REQUIRED: the heart cut line is never guessed. Staff prepare and register the artwork manually."
       ]
@@ -348,5 +372,85 @@
     "keepsake-10-heart-picture-disc": [
       "PICTURE_DISC_HEART"
     ]
-  }
+  },
+  "artwork_provider_decision_status": "DEFERRED",
+  "art_creation_methods": [
+    "MANUAL_DESIGN",
+    "MCB_INTERNAL",
+    "AI_PROVIDER",
+    "OTHER_APPROVED_PROVIDER"
+  ],
+  "art_creation_methods_available": [
+    "MANUAL_DESIGN",
+    "MCB_INTERNAL"
+  ],
+  "renderers": [
+    "MANUAL_EXTERNAL",
+    "LOCAL_ADAPTER"
+  ],
+  "renderers_available": [
+    "MANUAL_EXTERNAL"
+  ],
+  "visual_qc_criteria": [
+    "correct_photographs",
+    "correct_names",
+    "correct_dates",
+    "correct_title",
+    "correct_occasion",
+    "spelling",
+    "image_quality",
+    "crop_composition",
+    "facial_visibility",
+    "text_legibility",
+    "visual_balance",
+    "premium_standard",
+    "mcb_branding",
+    "no_other_customer_material"
+  ],
+  "visual_qc_outcomes": [
+    "PASS",
+    "REWORK",
+    "ESCALATE"
+  ],
+  "image_preparation_states": [
+    "SOURCE_READY",
+    "PREPARATION_REQUIRED",
+    "PREPARATION_IN_PROGRESS",
+    "PREPARED",
+    "UNUSABLE",
+    "EXCEPTION"
+  ],
+  "brand_rules": [
+    "The customer's photograph is the heart of the artwork; do not alter a person's identity or features.",
+    "Names, dates, places and titles are used exactly as recorded in the Fact Ledger.",
+    "Apply the My Custom Beats brand only where the product requires it, following MCB's brand guidelines.",
+    "Keep important text and faces inside the safe zone and out of any centre exclusion zone."
+  ],
+  "file_role_limits": {
+    "CUSTOMER_SOURCE_PHOTO": 10485760,
+    "CREATIVE_ART_MASTER": 104857600,
+    "PRINT_PRODUCTION_MASTER": 104857600,
+    "AUDIO_PRODUCTION_MASTER": 262144000,
+    "CUSTOMER_LISTENING_COPY": 52428800
+  },
+  "manufacturing_package_states": [
+    "NOT_READY",
+    "MANUFACTURING_DATA_REQUIRED",
+    "READY",
+    "SUPERSEDED"
+  ],
+  "supplier_pack_states": [
+    "PREPARED",
+    "ORDER_PLACED",
+    "SUPERSEDED"
+  ],
+  "production_exceptions": [
+    "ARTWORK_EXCEPTION",
+    "ARTWORK_TEMPLATE_REQUIRED",
+    "ARTWORK_SAFE_ZONE_UNVERIFIED",
+    "PRODUCTION_FILE_EXCEPTION",
+    "AUDIO_CAPACITY_EXCEPTION",
+    "MANUFACTURING_DATA_REQUIRED",
+    "FULFILMENT_EXCEPTION"
+  ]
 }

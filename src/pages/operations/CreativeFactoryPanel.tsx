@@ -129,8 +129,8 @@ const CreativeFactoryPanel = ({ orderId, reference, apiKey, staff }: { orderId: 
           <Doc label="Fact Ledger" doc={album.fact_ledger} />
           {album.track_count > 1 && <Doc label="Album map" doc={album.album_map} />}
           <div className="mt-2 flex flex-wrap gap-2">
-            <button className={btn} onClick={() => openDoc("UPDATE_FACT_LEDGER", album.album_id, album)}>Revise Fact Ledger</button>
-            {album.track_count > 1 && <button className={btn} onClick={() => openDoc("UPDATE_ALBUM_MAP", album.album_id, album)}>Revise album map</button>}
+            <button className={btn} onClick={() => openDoc("UPDATE_FACT_LEDGER", album.album_id, album)}>Revise Fact Ledger (advanced JSON)</button>
+            {album.track_count > 1 && <button className={btn} onClick={() => openDoc("UPDATE_ALBUM_MAP", album.album_id, album)}>Revise album map (advanced JSON)</button>}
           </div>
           <p className="mt-2">Album QC: {humanise(album.album_qc.status)} · Capacity: {humanise(album.capacity.status)} (profile {humanise(album.capacity.profile?.status)})</p>
           {album.capacity.result && <Doc label="Programme / side allocation" doc={{ body: album.capacity.result }} />}
@@ -159,7 +159,7 @@ const CreativeFactoryPanel = ({ orderId, reference, apiKey, staff }: { orderId: 
           <Doc label="Music Direction" doc={job.music_direction} />
           <Doc label="MCB composition plan" doc={job.composition_plan} />
           <div className="mt-2 flex flex-wrap gap-2">
-            {["UPDATE_STORY_MAP", "SUBMIT_LYRICS", "UPDATE_MUSIC_DIRECTION", "SUBMIT_PLAN"].map((a) => <button key={a} className={btn} onClick={() => openDoc(a, job.job_id, undefined, job)}>{humanise(a)}</button>)}
+            {["UPDATE_STORY_MAP", "SUBMIT_LYRICS", "UPDATE_MUSIC_DIRECTION", "SUBMIT_PLAN"].map((a) => <button key={a} className={btn} onClick={() => openDoc(a, job.job_id, undefined, job)}>{humanise(a)} (advanced JSON)</button>)}
             {job.status === "LYRICS_REVIEW_REQUIRED" && ["PASS", "FAIL"].map((o) => <button key={o} className={btn} disabled={busy} onClick={() => post({ action: "LYRICS_REVIEW", job_id: job.job_id, outcome: o })}>Lyric review {o}</button>)}
             {job.status === "EXCEPTION" && <button className={btn} disabled={busy} onClick={() => { const note = window.prompt("Why one more attempt?"); if (note) void post({ action: "RESOLVE_EXCEPTION", job_id: job.job_id, resolution: "AUTHORISE_ONE_MORE_ATTEMPT", note }); }}>Authorise one more attempt</button>}
           </div>
@@ -217,7 +217,8 @@ const CreativeFactoryPanel = ({ orderId, reference, apiKey, staff }: { orderId: 
 
       {docAction && (
         <form onSubmit={submitDoc} className={box}>
-          <p className="font-semibold">{humanise(docAction)} ({DOC_ACTIONS[docAction].scope} {target}) — a new version; earlier versions are kept</p>
+          <p className="font-semibold">ENGINEERING / ADVANCED — {humanise(docAction)} ({DOC_ACTIONS[docAction].scope} {target}) as raw JSON; a new version, earlier versions kept</p>
+          <p className="text-sm text-espresso/75">Not the normal founder workflow: structured forms cover the everyday steps.</p>
           <label className="sr-only" htmlFor="creative-doc">Document JSON</label>
           <textarea id="creative-doc" rows={14} value={docText} onChange={(e) => setDocText(e.target.value)} className={`${field} font-mono text-xs`} />
           <div className="mt-2 flex gap-2">

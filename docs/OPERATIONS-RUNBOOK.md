@@ -150,3 +150,16 @@ Full record: `docs/CREATIVE-FACTORY-20260915.md`. On `/operations`, every paid o
 - **Creative QC:** mark every criterion; the outcome is PASS, REGENERATE or ESCALATE. Then make the master. Register listening copies or physical masters as derived files, with a note.
 - **Albums:** review narrative, cohesion and variation. The record programme is then checked against VERIFIED capacity only; while unverified it reads *capacity unverified*.
 - **Exceptions:** the retry limit or an escalation creates one. Authorise one more attempt only with a note. Nothing is ever shortened or compressed to fit a record.
+
+## 14. Production File Factory (15 September 2026)
+
+Full record: `docs/PRODUCTION-FILE-FACTORY-20260915.md`. Physical orders have a **Production files and manufacturing package** panel.
+
+- **Prepare photos:** only where needed. Record what was done, and confirm people and content were preserved.
+- **Art master:** upload the Creative Art Master (made by hand; no artwork provider is selected). Run **visual QC**: PASS, REWORK or ESCALATE.
+- **Print files:** for each component, upload the rendered print file. Tick that faces and text are clear of the trim edges and the centre exclusion; manufacturer safe zones are unverified. Files are checked automatically. Every upload is a new version.
+- **Manufacturing package:** build or refresh it.
+  - **READY** means everything is in place.
+  - **MANUFACTURING DATA REQUIRED** means the manufacturer has not supplied something (for example the heart dieline or record capacity).
+  - **NOT READY** lists what MCB still needs to do.
+- **Founder approval:** at fulfilment approval the founder's page shows the package and the staff-only supplier order pack (supplier, link, estimated cost). Bella or Lewis authorises; then the order is placed by hand and recorded.

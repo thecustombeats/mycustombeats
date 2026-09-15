@@ -132,6 +132,17 @@ return [
         // DEVELOPMENT / TEST ONLY. Stores photos under the system temp
         // directory. Ignored with a live Stripe key. Never true in production.
         'development_storage' => false,
+
+        // Upload limits by FILE ROLE (bytes). Production masters are never
+        // compressed to fit: raise the hosting PHP limits instead (api/crm/.user.ini
+        // and api/crm/.htaccess allow 260 MB for staff endpoints only).
+        'role_limits' => [
+            'CUSTOMER_SOURCE_PHOTO'   => 10485760,
+            'CREATIVE_ART_MASTER'     => 104857600,
+            'PRINT_PRODUCTION_MASTER' => 104857600,
+            'AUDIO_PRODUCTION_MASTER' => 262144000,
+            'CUSTOMER_LISTENING_COPY' => 52428800,
+        ],
     ],
 
     // ---- Operations workflow -------------------------------------------
@@ -187,7 +198,7 @@ return [
     // Largest production output staff may register (bytes). The PHP upload
     // limits (api/.htaccess, api/.user.ini) must be at least this large.
     'artwork' => [
-        'max_output_bytes' => 10485760,
+        // Retired: production file limits are now per file role (uploads.role_limits).
     ],
 
     // ---- Creative Factory -----------------------------------------------
@@ -203,7 +214,7 @@ return [
         // 300-second ceiling rejects; deviation from 195 s is recorded.
         // 'duration' => ['preferred_min_seconds' => null, 'preferred_max_seconds' => null],
         'min_sample_rate_hz' => 44100,
-        'max_audio_bytes' => 209715200,
+        // Audio file limits: uploads.role_limits (AUDIO_PRODUCTION_MASTER, CUSTOMER_LISTENING_COPY).
         // Phrases MCB never allows in lyrics, in addition to each ledger's exclusions.
         'prohibited_phrases' => [],
         // Retention of creative material: NOT SET — awaiting legal review.

@@ -494,6 +494,28 @@
     "AIFF",
     "MP3"
   ],
+  "audio_format_capabilities": {
+    "WAV": {
+      "format_supported": true,
+      "duration_inspection": "HEADER",
+      "preferred_for_production": true
+    },
+    "FLAC": {
+      "format_supported": true,
+      "duration_inspection": "HEADER",
+      "preferred_for_production": true
+    },
+    "AIFF": {
+      "format_supported": true,
+      "duration_inspection": "HEADER",
+      "preferred_for_production": true
+    },
+    "MP3": {
+      "format_supported": true,
+      "duration_inspection": "NOT_AVAILABLE",
+      "preferred_for_production": false
+    }
+  },
   "default_min_sample_rate_hz": 44100,
   "lyric_duplication_threshold": 0.6
 }

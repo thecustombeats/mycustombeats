@@ -204,6 +204,20 @@ export const MASTER_KINDS = ["PRODUCTION_MASTER", "CUSTOMER_LISTENING_COPY", "PH
 
 /** Audio containers technical QC can read headers from. No format is the mandated archival master. */
 export const AUDIO_CONTAINERS = ["WAV", "FLAC", "AIFF", "MP3"] as const;
+/**
+ * FORMAT SUPPORT and DURATION INSPECTION are separate capabilities. MP3 is a
+ * supported format, but PHP's header-only inspection cannot establish its
+ * duration, so an MP3 cannot pass a check that needs a verified duration
+ * (a candidate or production master) until an audio probe exists. A listening
+ * copy, which needs no verified duration, may be MP3.
+ */
+export const AUDIO_FORMAT_CAPABILITIES: Readonly<Record<(typeof AUDIO_CONTAINERS)[number], { readonly formatSupported: boolean; readonly durationInspection: "HEADER" | "NOT_AVAILABLE"; readonly preferredForProduction: boolean }>> = {
+  WAV: { formatSupported: true, durationInspection: "HEADER", preferredForProduction: true },
+  FLAC: { formatSupported: true, durationInspection: "HEADER", preferredForProduction: true },
+  AIFF: { formatSupported: true, durationInspection: "HEADER", preferredForProduction: true },
+  MP3: { formatSupported: true, durationInspection: "NOT_AVAILABLE", preferredForProduction: false },
+};
+
 /** Minimum sample rate for a production master (server-configurable: creative.min_sample_rate_hz). */
 export const DEFAULT_MIN_SAMPLE_RATE_HZ = 44100;
 

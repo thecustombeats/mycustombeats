@@ -207,7 +207,7 @@ function order_artwork_rows(PDO $pdo, int $orderId): array
         'SELECT id, order_id, unit_id, template_id, template_version, status, exception_reason,
                 source_upload_id, source_width, source_height, source_artwork_ready,
                 output_stored_name, output_mime, output_width, output_height, output_byte_size, output_sha256,
-                manual, qc_result, ready_at, ready_by, updated_at
+                manual, qc_result, ready_at, ready_by, updated_at, art_master_id, print_master_id
            FROM order_artwork WHERE order_id = :oid ORDER BY unit_id, id'
     );
     $stmt->execute([':oid' => $orderId]);

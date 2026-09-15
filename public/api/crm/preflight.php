@@ -154,7 +154,29 @@ try {
     error_log('MCB preflight: database check failed: ' . $e->getMessage());
     $add('creative_factory_migration_applied', 'FAIL', 'The database could not be checked.');
 }
-require_once __DIR__ . '/../lib/creative-factory.php';
+require_once __DIR__ . '/../lib/production-files.php';
+try {
+    $found = db()->query(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()
+            AND table_name IN ('artwork_creative_jobs','artwork_art_masters','image_preparation_records','production_render_jobs','print_production_masters','manufacturing_packages','supplier_order_packs')"
+    )->fetchColumn();
+    $add('production_file_factory_migration_applied', (int) $found === 7 ? 'PASS' : 'FAIL',
+        'db/migrations/2026-09-15-production-file-factory.sql must be applied (after a backup).');
+} catch (PDOException $e) {
+    error_log('MCB preflight: database check failed: ' . $e->getMessage());
+    $add('production_file_factory_migration_applied', 'FAIL', 'The database could not be checked.');
+}
+$add('artwork_provider_decision', 'WARN', 'Artwork generation provider decision: ' . artwork_data()['artwork_provider_decision_status'] . '. Creative Art Masters are designed by people and registered; no image service is called.');
+// PHP's own limits for this (preflight) request's directory; staff upload endpoints live in the same api/crm/ directory.
+$tooSmall = array_values(array_filter(array_map('production_role_limit', ['CREATIVE_ART_MASTER', 'PRINT_PRODUCTION_MASTER', 'AUDIO_PRODUCTION_MASTER', 'CUSTOMER_LISTENING_COPY']),
+    static fn (array $r): bool => $r['php_limit_bytes'] !== null && $r['php_limit_bytes'] < $r['configured_bytes']));
+$add('production_upload_limits', $tooSmall === [] ? 'PASS' : 'WARN', $tooSmall === []
+    ? 'PHP upload limits on api/crm/ allow every production file role.'
+    : 'PHP upload limits on api/crm/ are lower than: ' . implode(', ', array_column($tooSmall, 'role')) . '. Ask the host to allow api/crm/.user.ini (or raise upload_max_filesize/post_max_size); files are never compressed to fit.');
+$supplierData = is_readable(__DIR__ . '/../data/supplier-orders.json');
+$add('supplier_order_data', $supplierData ? 'PASS' : 'WARN', $supplierData
+    ? 'Internal supplier order data is on the server (staff only).'
+    : 'No internal supplier order data (api/data/supplier-orders.json): supplier order packs will say NOT_ON_FILE for each line.');
 $add('creative_provider_decision', 'WARN', 'Music-generation provider decision: ' . creative_data()['provider_decision_status'] . '. Songs wait for manual generation; no provider is called.');
 $add('creative_factory_enforcement', creative_enforcement() === 'REQUIRED' ? 'PASS' : 'WARN',
     'creative.enforcement is ' . creative_enforcement() . '. ADVISORY reports unfinished Creative Factory work at the quality check; REQUIRED blocks it. An exceeded VERIFIED record capacity blocks in both.');

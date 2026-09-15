@@ -151,7 +151,7 @@ test("founder notifications: the exception types (incl. creative and audio capac
   ]);
   const outbox = read("public/api/lib/founder-notifications.php");
   const keys = outbox.match(/const MCB_NOTIFICATION_PAYLOAD_KEYS = \[([\s\S]*?)\];/)[1].match(/'([a-z_]+)'/g).map((k) => k.slice(1, -1));
-  assert.deepEqual(keys.sort(), ["action_url", "amount", "input", "notification", "payment", "product", "qc", "reason", "reference", "required_action", "state", "supplier_order", "test_payment", "title"]);
+  assert.deepEqual(keys.sort(), ["action_url", "amount", "input", "manufacturing_package", "notification", "payment", "product", "qc", "reason", "reference", "required_action", "state", "supplier_order", "test_payment", "title"]);
   for (const forbidden of ["story", "email", "phone", "address", "photo", "name", "card", "secret", "token", "supplier_cost"]) {
     assert.ok(!keys.includes(forbidden), forbidden);
   }

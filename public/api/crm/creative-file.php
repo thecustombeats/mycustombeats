@@ -20,7 +20,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/bootstrap.php';
-require_once __DIR__ . '/../lib/creative-factory.php';
+require_once __DIR__ . '/../lib/production-files.php';
 
 require_crm_key();
 
@@ -71,6 +71,11 @@ if ($orderId <= 0 || $jobId <= 0) {
 }
 
 $file = $_FILES['audio'] ?? null;
+try {
+    production_check_upload(is_array($file) ? $file : null, $action === 'REGISTER_DERIVED_MASTER' && ($_POST['kind'] ?? '') === 'CUSTOMER_LISTENING_COPY' ? 'CUSTOMER_LISTENING_COPY' : 'AUDIO_PRODUCTION_MASTER');
+} catch (OperationsException $e) {
+    json_error($e->httpStatus, $e->errorCode, $e->getMessage());
+}
 $tmp = is_array($file) && ($file['error'] ?? null) === UPLOAD_ERR_OK && is_uploaded_file((string) $file['tmp_name']) ? (string) $file['tmp_name'] : null;
 $size = $tmp === null ? 0 : (int) $file['size'];
 $dir = creative_audio_directory();
@@ -132,7 +137,7 @@ try {
             if ($stored === null) {
                 throw new OperationsException('audio_required', 'Attach the derived audio file.', 422);
             }
-            $technical = creative_technical_qc($audio, $size, $sha, ['order_id' => $orderId, 'reference' => $job['mcb_reference'], 'job_id' => $jobId, 'attempt_number' => 0],
+            $technical = creative_technical_qc($audio, $size, $sha, ['order_id' => $orderId, 'reference' => $job['mcb_reference'], 'job_id' => $jobId, 'attempt_number' => 0, 'role' => $kind === 'CUSTOMER_LISTENING_COPY' ? 'CUSTOMER_LISTENING_COPY' : 'AUDIO_PRODUCTION_MASTER'],
                 ['order_id' => $orderId, 'reference' => $reference, 'job_id' => $jobId, 'attempt_number' => 0]);
             // A listening copy may be lossy and shorter-header formats (MP3) have no readable duration: only identity, readability and ceiling apply.
             $required = $kind === 'PHYSICAL_MEDIA_MASTER'

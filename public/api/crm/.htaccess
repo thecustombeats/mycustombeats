@@ -1,0 +1,8 @@
+# Staff production endpoints: larger uploads than the customer photo endpoint.
+# mod_php reads these; PHP-FPM/LiteSpeed hosts read api/crm/.user.ini instead.
+# Each endpoint enforces its own file-role limit (uploads.role_limits).
+<IfModule mod_php.c>
+  php_value upload_max_filesize 260M
+  php_value post_max_size 270M
+  php_value max_input_time 300
+</IfModule>

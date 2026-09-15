@@ -66,6 +66,15 @@ export interface ArtworkTemplate {
   readonly qc: readonly ArtworkQcCheck[];
   /** What is still needed from the manufacturer, in words, for staff. */
   readonly missing: readonly string[];
+  /**
+   * The subset of `missing` a manufacturing package cannot do without. While
+   * any is outstanding a package is MANUFACTURING_DATA_REQUIRED, never READY.
+   * (A safe-zone inset is not here: an unknown safe zone is UNVERIFIED and
+   * needs MCB's manual production review instead.)
+   */
+  readonly manufacturingDataRequired: readonly string[];
+  /** Whether the manufacturer supplied safe-zone geometry. Unknown is UNVERIFIED — never invented. */
+  readonly safeZoneStatus: "VERIFIED" | "UNVERIFIED";
   readonly notes: readonly string[];
 }
 
@@ -96,6 +105,8 @@ export const ARTWORK_TEMPLATES: readonly ArtworkTemplate[] = [
     appliesToSkus: ["journey-6"], supplierRoute: null,
     qc: ["OUTPUT_PRESENT", "FILE_TYPE", "EXACT_DIMENSIONS", "ORDER_ASSOCIATION", "SOURCE_ASSOCIATION", "TEMPLATE_VERSION"],
     missing: ["Safe-area inset", "Trim size"],
+    manufacturingDataRequired: [],
+    safeZoneStatus: "UNVERIFIED",
     notes: ["Founder-supplied production template (front).", "3 mm bleed ≈ 35 px; top/bottom spine allowance 3 mm ≈ 35 px."],
   },
   {
@@ -106,6 +117,8 @@ export const ARTWORK_TEMPLATES: readonly ArtworkTemplate[] = [
     appliesToSkus: ["journey-6"], supplierRoute: null,
     qc: ["OUTPUT_PRESENT", "FILE_TYPE", "EXACT_DIMENSIONS", "ORDER_ASSOCIATION", "SOURCE_ASSOCIATION", "TEMPLATE_VERSION"],
     missing: ["Safe-area inset", "Trim size"],
+    manufacturingDataRequired: [],
+    safeZoneStatus: "UNVERIFIED",
     notes: ["Founder-supplied production template (back).", "3 mm bleed ≈ 35 px."],
   },
   {
@@ -114,6 +127,8 @@ export const ARTWORK_TEMPLATES: readonly ArtworkTemplate[] = [
     centreHoleMm: null, centreCreativeExclusion: null, safeInsetMm: null, trimPx: null,
     appliesToSkus: ["journey-12"], supplierRoute: null, qc: ["OUTPUT_PRESENT", "FILE_TYPE", "ORDER_ASSOCIATION"],
     missing: ["Manufacturer gatefold template (panels, spine, bleed, output size)"],
+    manufacturingDataRequired: ["Manufacturer gatefold template (panels, spine, bleed, output size)"],
+    safeZoneStatus: "UNVERIFIED",
     notes: ["The supplied front/back sleeve templates are single-sleeve; the gatefold dieline was not supplied and is not assumed."],
   },
   {
@@ -124,6 +139,8 @@ export const ARTWORK_TEMPLATES: readonly ArtworkTemplate[] = [
     appliesToSkus: ["keepsake-12-picture-disc"], supplierRoute: null,
     qc: ["OUTPUT_PRESENT", "FILE_TYPE", "SQUARE_ASPECT", "ORDER_ASSOCIATION", "SOURCE_ASSOCIATION", "TEMPLATE_VERSION"],
     missing: ["Supplier output resolution / pixel canvas", "Safe-zone inset from the outer edge"],
+    manufacturingDataRequired: ["Supplier output resolution / pixel canvas"],
+    safeZoneStatus: "UNVERIFIED",
     notes: DISC_GUIDANCE,
   },
   {
@@ -134,6 +151,8 @@ export const ARTWORK_TEMPLATES: readonly ArtworkTemplate[] = [
     appliesToSkus: ["keepsake-10-picture-disc"], supplierRoute: null,
     qc: ["OUTPUT_PRESENT", "FILE_TYPE", "SQUARE_ASPECT", "ORDER_ASSOCIATION", "SOURCE_ASSOCIATION", "TEMPLATE_VERSION"],
     missing: ["Supplier output resolution / pixel canvas", "Centre-hole diameter", "Safe-zone inset from the outer edge"],
+    manufacturingDataRequired: ["Supplier output resolution / pixel canvas"],
+    safeZoneStatus: "UNVERIFIED",
     notes: DISC_GUIDANCE,
   },
   {
@@ -144,6 +163,8 @@ export const ARTWORK_TEMPLATES: readonly ArtworkTemplate[] = [
     appliesToSkus: ["keepsake-7-picture-disc"], supplierRoute: null,
     qc: ["OUTPUT_PRESENT", "FILE_TYPE", "SQUARE_ASPECT", "ORDER_ASSOCIATION", "SOURCE_ASSOCIATION", "TEMPLATE_VERSION"],
     missing: ["Supplier output resolution / pixel canvas", "Centre-hole diameter", "Safe-zone inset from the outer edge"],
+    manufacturingDataRequired: ["Supplier output resolution / pixel canvas"],
+    safeZoneStatus: "UNVERIFIED",
     notes: DISC_GUIDANCE,
   },
   {
@@ -152,6 +173,8 @@ export const ARTWORK_TEMPLATES: readonly ArtworkTemplate[] = [
     centreHoleMm: null, centreCreativeExclusion: CENTRE_EXCLUSION, safeInsetMm: null, trimPx: null,
     appliesToSkus: ["keepsake-10-heart-picture-disc"], supplierRoute: null, qc: ["OUTPUT_PRESENT", "FILE_TYPE", "ORDER_ASSOCIATION"],
     missing: ["Manufacturer heart dieline / cut line, bleed and output size"],
+    manufacturingDataRequired: ["Manufacturer heart dieline / cut line, bleed and output size"],
+    safeZoneStatus: "UNVERIFIED",
     notes: ["MANUAL / TEMPLATE REQUIRED: the heart cut line is never guessed. Staff prepare and register the artwork manually."],
   },
 ];
@@ -173,3 +196,68 @@ export const PREPARATION_STANDARD_MAX_UNREADY_PHOTOS = 1;
 
 /** Output file types automated technical QC can read. */
 export const ARTWORK_OUTPUT_MIME_TYPES: readonly string[] = ["image/png", "image/jpeg", "image/tiff"];
+
+/* ------------------------------------------------------------------ */
+/* Production File Factory (15 September 2026)                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * CREATIVE ART MASTER ≠ PRINT PRODUCTION MASTER.
+ *
+ * The Creative Art Master is MCB's artistic composition for a record, owned
+ * by MCB and independent of any manufacturer template. A Print Production
+ * Master is rendered FROM an art master TO one template id and version. A
+ * template change means a new render and a new print-master version; the
+ * art is never recreated and old files stay tied to their old template.
+ */
+
+/** No image-generation provider is selected. Art masters are registered by people. */
+export const ARTWORK_PROVIDER_DECISION_STATUS = "DEFERRED" as const;
+
+export const ART_CREATION_METHODS = ["MANUAL_DESIGN", "MCB_INTERNAL", "AI_PROVIDER", "OTHER_APPROVED_PROVIDER"] as const;
+/** Methods usable today. AI_PROVIDER and OTHER_APPROVED_PROVIDER need a selected provider (none is). */
+export const ART_CREATION_METHODS_AVAILABLE = ["MANUAL_DESIGN", "MCB_INTERNAL"] as const;
+
+/** How a print production master is rendered. MANUAL_EXTERNAL: made in design software and registered. */
+export const RENDERERS = ["MANUAL_EXTERNAL", "LOCAL_ADAPTER"] as const;
+export const RENDERERS_AVAILABLE = ["MANUAL_EXTERNAL"] as const;
+
+/** MCB's internal visual QC of a Creative Art Master. Outcomes PASS, REWORK, ESCALATE. No customer approval. */
+export const VISUAL_QC_CRITERIA = [
+  "correct_photographs", "correct_names", "correct_dates", "correct_title", "correct_occasion", "spelling",
+  "image_quality", "crop_composition", "facial_visibility", "text_legibility", "visual_balance",
+  "premium_standard", "mcb_branding", "no_other_customer_material",
+] as const;
+export const VISUAL_QC_OUTCOMES = ["PASS", "REWORK", "ESCALATE"] as const;
+
+/** Customer source-photo preparation. Nothing invents or replaces faces or details. */
+export const IMAGE_PREPARATION_STATES = ["SOURCE_READY", "PREPARATION_REQUIRED", "PREPARATION_IN_PROGRESS", "PREPARED", "UNUSABLE", "EXCEPTION"] as const;
+
+/**
+ * MCB brand rules the artwork job carries. General only: MCB's full brand
+ * guidelines are not in this repository, so nothing more specific is assumed.
+ */
+export const BRAND_RULES: readonly string[] = [
+  "The customer's photograph is the heart of the artwork; do not alter a person's identity or features.",
+  "Names, dates, places and titles are used exactly as recorded in the Fact Ledger.",
+  "Apply the My Custom Beats brand only where the product requires it, following MCB's brand guidelines.",
+  "Keep important text and faces inside the safe zone and out of any centre exclusion zone.",
+];
+
+/** Configurable upload limits by file role (bytes). Server config: uploads.role_limits.<ROLE>. */
+export const FILE_ROLE_LIMITS: Readonly<Record<string, number>> = {
+  CUSTOMER_SOURCE_PHOTO: 10 * 1024 * 1024,
+  CREATIVE_ART_MASTER: 100 * 1024 * 1024,
+  PRINT_PRODUCTION_MASTER: 100 * 1024 * 1024,
+  AUDIO_PRODUCTION_MASTER: 250 * 1024 * 1024,
+  CUSTOMER_LISTENING_COPY: 50 * 1024 * 1024,
+};
+
+/** Manufacturing package and supplier order pack states. */
+export const MANUFACTURING_PACKAGE_STATES = ["NOT_READY", "MANUFACTURING_DATA_REQUIRED", "READY", "SUPERSEDED"] as const;
+export const SUPPLIER_PACK_STATES = ["PREPARED", "ORDER_PLACED", "SUPERSEDED"] as const;
+
+export const PRODUCTION_EXCEPTIONS = [
+  "ARTWORK_EXCEPTION", "ARTWORK_TEMPLATE_REQUIRED", "ARTWORK_SAFE_ZONE_UNVERIFIED", "PRODUCTION_FILE_EXCEPTION",
+  "AUDIO_CAPACITY_EXCEPTION", "MANUFACTURING_DATA_REQUIRED", "FULFILMENT_EXCEPTION",
+] as const;

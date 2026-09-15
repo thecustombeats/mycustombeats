@@ -210,6 +210,9 @@ function creative_validate_album_map(array $map, array $jobsByTrack, array $ledg
         throw new CreativeValidationException(['tracks' => 'The album map needs exactly one entry per track (' . count($jobsByTrack) . ').']);
     }
     $factIds = array_column($ledger['facts'] ?? [], null, 'id');
+    if (!creative_str($map['album_title'] ?? null, 120)) {
+        $problems['album_title'] = 'Up to 120 characters.';
+    }
     $seenMemories = [];
     foreach ($tracks as $i => $t) {
         $n = $i + 1;
@@ -653,12 +656,14 @@ function creative_technical_qc(array $audio, int $size, ?string $sha256, array $
     $maxMs = (int) $policy['max_seconds'] * 1000;
     $minRate = mcb_setting('creative.min_sample_rate_hz', null);
     $minRate = is_int($minRate) && $minRate > 0 ? $minRate : (int) creative_data()['default_min_sample_rate_hz'];
-    $maxBytes = (int) mcb_setting('creative.max_audio_bytes', 200 * 1024 * 1024);
+    $role = $expected['role'] ?? 'AUDIO_PRODUCTION_MASTER';
+    $maxBytes = function_exists('production_role_limit') ? production_role_limit($role)['configured_bytes'] : (int) mcb_setting('creative.max_audio_bytes', 250 * 1024 * 1024);
+    $capability = creative_data()['audio_format_capabilities'][$audio['container'] ?? ''] ?? null;
     $d = $audio['duration_ms'];
     $checks = [
         'FILE_EXISTS' => $size > 0 ? 'PASS' : 'FAIL',
         'FILE_READABLE' => $audio['readable'] ? 'PASS' : 'FAIL',
-        'SUPPORTED_TYPE' => in_array($audio['container'], creative_data()['audio_containers'], true) ? 'PASS' : 'FAIL',
+        'SUPPORTED_TYPE' => ($capability['format_supported'] ?? false) === true ? 'PASS' : 'FAIL',
         'DURATION_READABLE' => $d !== null && $d > 0 ? 'PASS' : 'FAIL',
         'DURATION_WITHIN_CEILING' => $d !== null && $d > 0 && $d <= $maxMs ? 'PASS' : 'FAIL',
         'SAMPLE_RATE' => $audio['sample_rate_hz'] !== null && $audio['sample_rate_hz'] >= $minRate ? 'PASS' : 'FAIL',
@@ -670,7 +675,15 @@ function creative_technical_qc(array $audio, int $size, ?string $sha256, array $
         'ATTEMPT_MATCH' => ($claimed['attempt_number'] ?? $expected['attempt_number']) === $expected['attempt_number'] ? 'PASS' : 'FAIL',
     ];
     // Not exactly 195 seconds is not a failure. Outside a configured preferred window is noted for people.
-    $notes = [];
+    $notes = [
+        'format_supported' => ($capability['format_supported'] ?? false) === true,
+        'duration_inspection_capability' => $capability['duration_inspection'] ?? 'NOT_AVAILABLE',
+        'preferred_for_production' => ($capability['preferred_for_production'] ?? false) === true,
+    ];
+    if ($d === null && ($capability['duration_inspection'] ?? null) === 'NOT_AVAILABLE') {
+        // Not "unsupported": the duration cannot be verified without an audio probe, so a duration check cannot pass.
+        $notes['duration_check'] = 'DURATION_INSPECTION_NOT_AVAILABLE_FOR_FORMAT';
+    }
     if ($d !== null) {
         $notes['deviation_from_target_seconds'] = round($d / 1000 - (int) $policy['target_seconds'], 1);
         if (($policy['preferred_min_seconds'] !== null && $d < $policy['preferred_min_seconds'] * 1000)

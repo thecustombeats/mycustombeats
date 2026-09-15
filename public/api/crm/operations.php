@@ -344,6 +344,22 @@ json_response(200, [
                 'authorisers'        => MCB_FOUNDERS,
                 'authorisation_configured' => array_values(array_filter(MCB_FOUNDERS, 'founder_authorisation_configured')),
                 'action_url'         => founder_action_url($row['mcb_reference'], 'AUTHORISE_SUPPLIER_PURCHASE'),
+                // Everything the founder needs before authorising, on this protected page only.
+                'manufacturing_package' => ($pkg = current_manufacturing_package($pdo, $orderId)) === null ? null : [
+                    'package_id' => (int) $pkg['id'], 'version' => (int) $pkg['version'], 'status' => $pkg['status'], 'blockers' => json_decode((string) $pkg['blockers'], true),
+                ],
+                'supplier_order_pack' => ($pack = current_supplier_order_pack($pdo, $orderId)) === null ? null : [
+                    'pack_id' => (int) $pack['id'], 'version' => (int) $pack['version'], 'status' => $pack['status'],
+                    'lines' => array_map(static fn (array $l): array => [
+                        'sku' => $l['sku'], 'product' => $l['product'], 'quantity' => $l['quantity'], 'supplier_data_status' => $l['supplier_data_status'],
+                        'supplier' => $l['supplier_data']['supplier'] ?? null, 'product_url' => $l['supplier_data']['product_url'] ?? null,
+                        'configuration' => $l['supplier_data']['configuration'] ?? null, 'expected_cost_minor' => $l['supplier_data']['expected_cost_minor'] ?? null,
+                        'shipping_allowance_minor' => $l['supplier_data']['shipping_allowance_minor'] ?? null, 'currency' => $l['supplier_data']['currency'] ?? null,
+                        'destination_limitations' => $l['supplier_data']['destination_limitations'] ?? [], 'order_notes' => $l['supplier_data']['order_notes'] ?? null,
+                    ], json_decode((string) $pack['body'], true)['lines'] ?? []),
+                    'placed_by' => $pack['placed_by'], 'placed_at' => $pack['placed_at'],
+                ],
+                'enforcement'        => creative_enforcement(),
             ] : null,
             // Availability, destination and delivery cost confirmed with the partner.
             'review_required'  => $reviewRequired,

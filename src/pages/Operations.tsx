@@ -4,6 +4,7 @@ import { Helmet } from "react-helmet-async";
 import { useLocation } from "react-router-dom";
 import { parseOperationsLink } from "../lib/operationsLink";
 import CreativeFactoryPanel from "./operations/CreativeFactoryPanel";
+import ProductionFilesPanel from "./operations/ProductionFilesPanel";
 import { FINANCIAL_AUTHORISERS, OPERATIONAL_STATES, QC_CHECKLIST, QC_FAIL_REASONS, REOPEN_REASONS } from "../data/operations";
 
 /**
@@ -75,7 +76,6 @@ const Operations = () => {
   const [fields, setFields] = useState<Record<string, string | boolean | Record<string, boolean>>>({});
   const [busy, setBusy] = useState(false);
   const [brief, setBrief] = useState<Json | null>(null);
-  const [artworkFiles, setArtworkFiles] = useState<Record<number, File | null>>({});
   const { hash } = useLocation();
   const [link] = useState(() => parseOperationsLink(hash));
   const [linkUsed, setLinkUsed] = useState(false);
@@ -151,29 +151,6 @@ const Operations = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn, linkUsed, link, api]);
 
-  /** Registers a production output; the server runs the technical artwork checks. */
-  const registerArtwork = async (component: Json, extra: Record<string, string>) => {
-    const file = artworkFiles[component.artwork_id];
-    if (!order || !file) return;
-    const form = new FormData();
-    Object.entries({
-      order_id: String(order.order_id), artwork_id: String(component.artwork_id), reference: order.reference ?? "",
-      template_id: component.template?.id ?? "", template_version: String(component.template?.version ?? ""), staff, ...extra,
-    }).forEach(([k, v]) => form.append(k, v));
-    form.append("output", file);
-    setBusy(true);
-    try {
-      const response = await fetch("/api/crm/artwork", { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: form });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.message ?? `Request failed (${response.status}).`);
-      setMessage(`Artwork ready: ${Object.entries(payload.checks ?? {}).map(([k, v]) => `${humanise(k)} ${v}`).join(", ")}`);
-      await openOrder(order.order_id);
-    } catch (e) {
-      setMessage((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const signIn = async (event: FormEvent) => {
     event.preventDefault();
@@ -337,7 +314,30 @@ const Operations = () => {
                         <dt className="font-semibold">Customer payment</dt><dd className="m-0">{order.operations.fulfilment.approval.customer_payment}</dd>
                         <dt className="font-semibold">MCB QC</dt><dd className="m-0">{order.operations.fulfilment.approval.mcb_qc}</dd>
                         <dt className="font-semibold">Supplier order</dt><dd className="m-0">{order.operations.fulfilment.approval.supplier_order}</dd>
+                        <dt className="font-semibold">Manufacturing package</dt><dd className="m-0">{order.operations.fulfilment.approval.manufacturing_package ? `${order.operations.fulfilment.approval.manufacturing_package.status} (v${order.operations.fulfilment.approval.manufacturing_package.version})` : "not built"}</dd>
                       </dl>
+                      {order.operations.fulfilment.approval.manufacturing_package?.blockers?.length > 0 && (
+                        <ul className="mt-2 list-disc pl-5 text-sm">{order.operations.fulfilment.approval.manufacturing_package.blockers.map((b: string) => <li key={b}>{humanise(b)}</li>)}</ul>
+                      )}
+                      {order.operations.fulfilment.approval.supplier_order_pack && (
+                        <div className="mt-3 text-sm">
+                          <p className="font-semibold">Supplier order pack v{order.operations.fulfilment.approval.supplier_order_pack.version} (internal)</p>
+                          <ul className="list-disc pl-5">
+                            {order.operations.fulfilment.approval.supplier_order_pack.lines.map((l: Json, i: number) => (
+                              <li key={i}>
+                                {l.quantity} × {l.product}: {l.supplier_data_status === "ON_FILE" ? (
+                                  <>
+                                    {l.supplier ?? "supplier"}{l.configuration ? ` · ${l.configuration}` : ""}
+                                    {l.expected_cost_minor !== null ? ` · estimated cost ${(l.expected_cost_minor / 100).toFixed(2)} ${l.currency ?? ""}` : ""}
+                                    {l.shipping_allowance_minor !== null ? ` · delivery provision ${(l.shipping_allowance_minor / 100).toFixed(2)} ${l.currency ?? ""}` : ""}
+                                    {l.product_url && <> · <a href={l.product_url} target="_blank" rel="noopener noreferrer" className="underline">supplier product page</a></>}
+                                  </>
+                                ) : "supplier data not on file"}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                       <p className="mt-3 text-sm">Only Bella or Lewis can approve, with their own authorisation code. Nothing is purchased automatically.</p>
                       {order.operations.available_actions.includes("AUTHORISE_SUPPLIER_PURCHASE") && action !== "AUTHORISE_SUPPLIER_PURCHASE" && (
                         <button className={`${btn} mt-3`} onClick={() => { setAction("AUTHORISE_SUPPLIER_PURCHASE"); setFields({}); }}>Approve supplier purchase…</button>
@@ -413,41 +413,9 @@ const Operations = () => {
                     {order.operations.delivery.carrier && <p>Delivery: {order.operations.delivery.carrier} {order.operations.delivery.tracking_reference ?? ""} · sent {order.operations.delivery.dispatched_on ?? "—"} · delivered {order.operations.delivery.delivered_on ?? "not recorded"}</p>}
                   </Section>
 
-                  {order.artwork?.components?.length > 0 && (
-                    <Section title="Production artwork">
-                      <p className="text-sm text-espresso/75">Source photographs must be square and at least 2500 × 2500 px. Production outputs are checked automatically against the template below; nothing is generated here.</p>
-                      <ul className="m-0 mt-3 list-none space-y-4 p-0">
-                        {order.artwork.components.map((c: Json) => (
-                          <li key={c.artwork_id} className="rounded-xl border border-ink/15 p-3">
-                            <p className="font-semibold text-ink">{c.template?.label ?? c.template_version_planned} · v{c.template?.version} · {humanise(c.status)}{c.exception_reason ? ` (${humanise(c.exception_reason)})` : ""}</p>
-                            <p className="text-sm">
-                              {c.template?.output_px ? `Output ${c.template.output_px.width} × ${c.template.output_px.height} px` : c.template?.diameter_mm ? `${c.template.diameter_mm} mm disc, square output` : "No manufacturer template on record — prepare by hand to the manufacturer's dieline"}
-                              {c.template?.bleed ? ` · bleed ${c.template.bleed.min.mm === c.template.bleed.max.mm ? c.template.bleed.min.mm : `${c.template.bleed.min.mm}–${c.template.bleed.max.mm}`} mm${c.template.bleed.min.px ? ` (~${c.template.bleed.min.px} px)` : ""}` : ""}
-                              {c.template?.spine_allowance ? ` · spine allowance top/bottom ${c.template.spine_allowance.top.mm} mm (~${c.template.spine_allowance.top.px} px)` : ""}
-                              {c.template?.centre_hole_mm ? ` · centre hole ${c.template.centre_hole_mm} mm` : ""}
-                              {c.template?.centre_creative_exclusion ? ` · keep text and faces out of the central ~${c.template.centre_creative_exclusion.diameter_inches}-inch zone (not the hole)` : ""}
-                            </p>
-                            {c.template?.missing?.length > 0 && <p className="text-sm text-espresso/75">Not yet supplied: {c.template.missing.join("; ")}</p>}
-                            {c.source ? <p className="text-sm">Source photo {c.source.width ?? "?"} × {c.source.height ?? "?"} px · {c.source.artwork_ready ? "artwork-ready" : "needs preparation"}</p> : <p className="text-sm font-semibold text-[#9B2C2C]">No source photograph on record</p>}
-                            {c.output && <p className="text-sm">Registered output {c.output.width} × {c.output.height} px {c.output.mime}{c.manual ? " (manual)" : ""} · by {c.ready_by}</p>}
-                            {["CREATIVE.PENDING", "CREATIVE.IN_PROGRESS", "QUALITY_CHECK"].includes(order.operations.state) && (
-                              <form className="mt-2 flex flex-wrap items-center gap-2" onSubmit={(e) => {
-                                e.preventDefault();
-                                const data = new FormData(e.currentTarget);
-                                registerArtwork(c, Object.fromEntries(["manual_template_confirmed", "exception_reviewed", "manual_source"].filter((n) => data.get(n) === "on").map((n) => [n, "true"])));
-                              }}>
-                                <label className="block text-sm font-semibold">Production output (PNG, JPEG or TIFF)
-                                  <input type="file" accept="image/png,image/jpeg,image/tiff" onChange={(e) => setArtworkFiles({ ...artworkFiles, [c.artwork_id]: e.target.files?.[0] ?? null })} className="mt-1 block" />
-                                </label>
-                                {c.status === "TEMPLATE_REQUIRED" && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="manual_template_confirmed" className="h-5 w-5" />Prepared by hand to the manufacturer's own dieline</label>}
-                                {c.status === "EXCEPTION" && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="exception_reviewed" className="h-5 w-5" />Exception reviewed internally</label>}
-                                {!c.source && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="manual_source" className="h-5 w-5" />No customer photograph on record (older order)</label>}
-                                <button className={ghost} disabled={busy || !artworkFiles[c.artwork_id]}>Register output</button>
-                              </form>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
+                  {order.payment_status === "PAID" && order.workflow === "PHYSICAL" && (
+                    <Section title="Production files and manufacturing package">
+                      <ProductionFilesPanel key={`p${order.order_id}`} orderId={order.order_id} reference={order.reference} apiKey={key} staff={staff} />
                     </Section>
                   )}
 
