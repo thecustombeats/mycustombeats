@@ -144,9 +144,9 @@ test("the Founders' event model maps each name to exactly one recorded automatio
   assert.ok(!M.ops.AUTOMATION_EVENTS.some((e) => /REFUND|CHARGE|PURCHASE|PAYOUT/.test(e)));
 });
 
-test("founder notifications: the six exception types plus suspension; safe payload allow-list; no provider call or credential", () => {
+test("founder notifications: the exception types (incl. creative and audio capacity) plus suspension; safe payload allow-list; no provider call or credential", () => {
   assert.deepEqual(M.ops.FOUNDER_NOTIFICATIONS.map((n) => n.type).sort(), [
-    "ARTWORK_EXCEPTION", "CUSTOMER_SUPPORT_EXCEPTION", "FULFILMENT_APPROVAL_REQUIRED", "FULFILMENT_EXCEPTION",
+    "ARTWORK_EXCEPTION", "AUDIO_CAPACITY_EXCEPTION", "CREATIVE_EXCEPTION", "CUSTOMER_SUPPORT_EXCEPTION", "FULFILMENT_APPROVAL_REQUIRED", "FULFILMENT_EXCEPTION",
     "NEW_ORDER_READY_FOR_PROCESSING", "PRODUCT_SALES_SUSPENDED", "QC_EXCEPTION",
   ]);
   const outbox = read("public/api/lib/founder-notifications.php");

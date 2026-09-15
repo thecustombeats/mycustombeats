@@ -34,6 +34,7 @@ const TARGETS = {
   operations: join(root, "public/api/data/operations.json"),
   publicCatalogue: join(root, "public/catalogue.json"),
   artwork: join(root, "public/api/data/artwork.json"),
+  creative: join(root, "public/api/data/creative.json"),
 };
 
 const fail = (message) => {
@@ -62,6 +63,7 @@ try {
       join(root, "src/data/operations.ts"),
       join(root, "src/data/imagery.ts"),
       join(root, "src/data/production/artwork.ts"),
+      join(root, "src/data/production/creative.ts"),
       "--outDir", tmp,
       "--rootDir", join(root, "src/data"),
       "--module", "esnext",
@@ -103,6 +105,7 @@ const countries = await import(pathToFileURL(join(tmp, "countries.js")).href);
 const operations = await import(pathToFileURL(join(tmp, "operations.js")).href);
 const imagery = await import(pathToFileURL(join(tmp, "imagery.js")).href);
 const artwork = await import(pathToFileURL(join(tmp, "production/artwork.js")).href);
+const creative = await import(pathToFileURL(join(tmp, "production/creative.js")).href);
 rmSync(tmp, { recursive: true, force: true });
 
 const { PRODUCTS, ORDER_LIMITS, PRIORITY_REPLACEMENT_SKU, validateCatalogue } = catalogue;
@@ -444,6 +447,52 @@ const artworkOut = {
   components_by_sku: { ...artwork.ARTWORK_COMPONENTS_BY_SKU },
 };
 
+/* ------------------------------------------------------------------ */
+/* creative.json — INTERNAL Creative Factory policy (server only)       */
+/* ------------------------------------------------------------------ */
+
+if (creative.CREATIVE_DURATION_POLICY.targetSeconds > creative.CREATIVE_DURATION_POLICY.maxSeconds) fail("creative target exceeds the ceiling");
+for (const profile of creative.PHYSICAL_MEDIA_CAPACITY_POLICY) {
+  if (!skus[profile.sku]) fail(`capacity profile names unknown SKU ${profile.sku}`);
+  if (profile.songCount !== skus[profile.sku].song_count) fail(`capacity profile ${profile.sku} disagrees with the catalogue song count`);
+  if (profile.status === "VERIFIED" && (!profile.source || !profile.lastVerifiedDate || (profile.verifiedTotalCapacitySeconds === null && profile.verifiedPerSideSeconds === null))) fail(`capacity ${profile.sku} marked VERIFIED without source, date and figures`);
+  if (profile.status === "UNVERIFIED" && (profile.verifiedTotalCapacitySeconds !== null || profile.verifiedPerSideSeconds !== null || profile.hardManufacturingMaximumSeconds !== null)) fail(`capacity ${profile.sku} is UNVERIFIED but carries figures`);
+}
+for (const provider of creative.PROVIDER_REGISTRY) {
+  if (provider.kind === "CANDIDATE" && (provider.role !== "DISABLED" || provider.adapter !== null)) fail(`provider ${provider.id} is selected while the decision is ${creative.PROVIDER_DECISION_STATUS}`);
+  if (provider.kind === "CANDIDATE" && Object.values(provider.capabilities).some((v) => v !== "UNKNOWN")) fail(`provider ${provider.id} has assumed capabilities`);
+}
+const creativeOut = {
+  _generated: "Do not edit. INTERNAL. Generated from src/data/production/creative.ts by scripts/generate-catalogue-json.mjs",
+  duration: snake(creative.CREATIVE_DURATION_POLICY),
+  capacity_profiles: snake(creative.PHYSICAL_MEDIA_CAPACITY_POLICY),
+  fact_types: [...creative.FACT_TYPES],
+  fact_classifications: [...creative.FACT_CLASSIFICATIONS],
+  fact_importance: [...creative.FACT_IMPORTANCE],
+  fact_verification: [...creative.FACT_VERIFICATION],
+  story_sections: [...creative.STORY_SECTIONS],
+  album_narrative_roles: [...creative.ALBUM_NARRATIVE_ROLES],
+  lyric_section_types: [...creative.LYRIC_SECTION_TYPES],
+  composition_section_types: [...creative.COMPOSITION_SECTION_TYPES],
+  adherence_importance: [...creative.ADHERENCE_IMPORTANCE],
+  genre_families: [...creative.GENRE_FAMILIES],
+  style_to_direction: { ...creative.STYLE_TO_DIRECTION },
+  music_direction_fields: [...creative.MUSIC_DIRECTION_FIELDS],
+  provider_decision_status: creative.PROVIDER_DECISION_STATUS,
+  provider_roles: [...creative.PROVIDER_ROLES],
+  provider_capability_fields: [...creative.PROVIDER_CAPABILITY_FIELDS],
+  providers: creative.PROVIDER_REGISTRY.map((p) => ({ id: p.id, label: p.label, kind: p.kind, role: p.role, adapter: p.adapter, capabilities: { ...p.capabilities } })),
+  default_max_generation_attempts: creative.DEFAULT_MAX_GENERATION_ATTEMPTS,
+  attempt_outcomes: [...creative.ATTEMPT_OUTCOMES],
+  creative_qc_criteria: [...creative.CREATIVE_QC_CRITERIA],
+  creative_qc_outcomes: [...creative.CREATIVE_QC_OUTCOMES],
+  album_review_criteria: [...creative.ALBUM_REVIEW_CRITERIA],
+  master_kinds: [...creative.MASTER_KINDS],
+  audio_containers: [...creative.AUDIO_CONTAINERS],
+  default_min_sample_rate_hz: creative.DEFAULT_MIN_SAMPLE_RATE_HZ,
+  lyric_duplication_threshold: creative.LYRIC_DUPLICATION_THRESHOLD,
+};
+
 const outputs = [
   [TARGETS.catalogue, JSON.stringify(catalogueOut, null, 2) + "\n"],
   [TARGETS.legal, JSON.stringify(legalOut, null, 2) + "\n"],
@@ -451,6 +500,7 @@ const outputs = [
   [TARGETS.operations, JSON.stringify(operationsOut, null, 2) + "\n"],
   [TARGETS.publicCatalogue, JSON.stringify(publicCatalogueOut, null, 2) + "\n"],
   [TARGETS.artwork, JSON.stringify(artworkOut, null, 2) + "\n"],
+  [TARGETS.creative, JSON.stringify(creativeOut, null, 2) + "\n"],
 ];
 
 if (checkOnly) {

@@ -143,6 +143,25 @@ try {
     $add('automation_foundation_migration_applied', 'FAIL', 'The database could not be checked.');
 }
 
+try {
+    $found = db()->query(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()
+            AND table_name IN ('creative_albums','creative_jobs','creative_artifacts','creative_generation_attempts','creative_candidates','creative_masters','creative_access_log')"
+    )->fetchColumn();
+    $add('creative_factory_migration_applied', (int) $found === 7 ? 'PASS' : 'FAIL',
+        'db/migrations/2026-09-15-creative-factory.sql must be applied (after a backup).');
+} catch (PDOException $e) {
+    error_log('MCB preflight: database check failed: ' . $e->getMessage());
+    $add('creative_factory_migration_applied', 'FAIL', 'The database could not be checked.');
+}
+require_once __DIR__ . '/../lib/creative-factory.php';
+$add('creative_provider_decision', 'WARN', 'Music-generation provider decision: ' . creative_data()['provider_decision_status'] . '. Songs wait for manual generation; no provider is called.');
+$add('creative_factory_enforcement', creative_enforcement() === 'REQUIRED' ? 'PASS' : 'WARN',
+    'creative.enforcement is ' . creative_enforcement() . '. ADVISORY reports unfinished Creative Factory work at the quality check; REQUIRED blocks it. An exceeded VERIFIED record capacity blocks in both.');
+$unverified = array_values(array_filter(creative_data()['capacity_profiles'], static fn (array $p): bool => creative_capacity_profile($p['sku'])['status'] !== 'VERIFIED'));
+$add('physical_capacity_verified', $unverified === [] ? 'PASS' : 'WARN',
+    $unverified === [] ? 'Every record format has manufacturer-verified capacity.' : 'Record capacity is UNVERIFIED for ' . count($unverified) . ' format(s); programme QC reports CAPACITY_UNVERIFIED until api/data/physical-capacity.json holds verified figures.');
+
 // Supplier purchases need Bella or Lewis's own authorisation code (a password hash in config).
 $configuredFounders = array_values(array_filter(MCB_FOUNDERS, 'founder_authorisation_configured'));
 $add('founder_authorisation_configured', $configuredFounders === [] ? 'WARN' : 'PASS',
@@ -158,7 +177,7 @@ $add('customer_links_secret', strlen((string) mcb_setting('token_secret', '')) >
     'token_secret must be at least 32 random characters: customer order and reveal links depend on it.');
 
 // ---- Generated data ------------------------------------------------------------
-foreach (['catalogue.json', 'legal.json', 'personalisation.json', 'operations.json', 'artwork.json'] as $file) {
+foreach (['catalogue.json', 'legal.json', 'personalisation.json', 'operations.json', 'artwork.json', 'creative.json'] as $file) {
     $add('data_' . basename($file, '.json'), is_readable(__DIR__ . '/../data/' . $file) ? 'PASS' : 'FAIL', "api/data/{$file} must be deployed with the build.");
 }
 

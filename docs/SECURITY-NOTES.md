@@ -13,7 +13,8 @@
 | `affiliate/dashboard` | GET | signed dashboard token; rate-limited (Sprint 6) |
 | `referral/check`, `checkout/status`, `fx/rates` | GET | public, no personal data; referral check rate-limited |
 | `stripe/webhook` | POST | Stripe signature with tolerance; event idempotency; exact amount/currency/mode matching |
-| `crm/*` (all 16 endpoints) | GET/POST | CRM key (Bearer, constant-time compare); no browser cookie |
+| `crm/creative`, `crm/creative-file` | GET/POST | CRM key; a staff name on every read (creative_access_log); objects checked against the order named (another order's ids → 404); audio in private storage only |
+| `crm/*` (all 18 endpoints) | GET/POST | CRM key (Bearer, constant-time compare); no browser cookie |
 | `crm/notifications` | GET/POST | CRM key **or** the separate `notifications.worker_key`, which can do nothing else; claim tokens are one-time (stored as SHA-256) |
 | `product-availability` | GET | public; catalogue identifiers only |
 | `AUTHORISE_SUPPLIER_PURCHASE` (via `crm/order-action`) | POST | CRM key **and** the founder's own code (`password_verify` against a config hash); 5 refusals per order per 15 min → 429; refusals audited without the code. A notification deep link carries only `#order=…&action=…` and authorises nothing |

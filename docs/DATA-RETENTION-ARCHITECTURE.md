@@ -30,3 +30,7 @@ Sprint 5 · 14 September 2026 · **No retention period has been decided, none is
 ## Not done in Sprint 5
 
 No deletion job, no scheduled task and no period exists. The privacy page continues to say exact periods are being formalised.
+
+## Creative Factory material (15 September 2026)
+
+`creative_artifacts` (Fact Ledgers, album and story maps, lyric packages, Music Direction, composition plans), `creative_generation_attempts`, `creative_candidates` (including any transcript), `creative_masters`, the audio in private storage (`mcb-uploads/creative/`) and `creative_access_log` hold private creative material. **No retention period is set** — it is a Founder decision pending legal review (decisions pack item 29). Nothing is deleted automatically.

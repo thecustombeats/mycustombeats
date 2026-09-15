@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from "react";
 import { Helmet } from "react-helmet-async";
 import { useLocation } from "react-router-dom";
 import { parseOperationsLink } from "../lib/operationsLink";
+import CreativeFactoryPanel from "./operations/CreativeFactoryPanel";
 import { FINANCIAL_AUTHORISERS, OPERATIONAL_STATES, QC_CHECKLIST, QC_FAIL_REASONS, REOPEN_REASONS } from "../data/operations";
 
 /**
@@ -447,6 +448,12 @@ const Operations = () => {
                           </li>
                         ))}
                       </ul>
+                    </Section>
+                  )}
+
+                  {order.payment_status === "PAID" && (
+                    <Section title="Creative Factory">
+                      <CreativeFactoryPanel key={order.order_id} orderId={order.order_id} reference={order.reference} apiKey={key} staff={staff} />
                     </Section>
                   )}
 

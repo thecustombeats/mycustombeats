@@ -137,3 +137,16 @@ Full record: `docs/AUTOMATION-FOUNDATION-20260915.md`.
 - **Suspending new sales** (`POST /api/crm/product-sales`) marks a SKU or product *Currently unavailable* for new orders only. Paid orders continue as normal.
 - **Health:** `GET /api/crm/notifications?view=health` lists outbox counts and any paid order missing its ready event or notification.
 
+## 13. Creative Factory (15 September 2026)
+
+Full record: `docs/CREATIVE-FACTORY-20260915.md`. On `/operations`, every paid order has a **Creative Factory** panel.
+
+- **What appears by itself:** after payment each song gets a job, a Fact Ledger (what the customer supplied), a story skeleton and a Music Direction. Several songs get an album map first.
+- **Author and check:**
+  - Add EXACT names, dates and places to the ledger as a new version.
+  - Submit the lyric package; objective fact checks run.
+  - Review the semantic items; the composition plan is then derived.
+- **Generation:** the provider decision is **DEFERRED**, so songs wait at *generation required*. Register a manually generated candidate (WAV/FLAC/AIFF, plus what was sung if it differs). Technical and fact QC run on their own.
+- **Creative QC:** mark every criterion; the outcome is PASS, REGENERATE or ESCALATE. Then make the master. Register listening copies or physical masters as derived files, with a note.
+- **Albums:** review narrative, cohesion and variation. The record programme is then checked against VERIFIED capacity only; while unverified it reads *capacity unverified*.
+- **Exceptions:** the retry limit or an escalation creates one. Authorise one more attempt only with a note. Nothing is ever shortened or compressed to fit a record.

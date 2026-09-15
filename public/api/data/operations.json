@@ -329,7 +329,27 @@
     "FOLLOW_UP.SENT",
     "REVIEW.REQUESTED",
     "MCB_LIVE.ENQUIRY_RECEIVED",
-    "BESPOKE.ENQUIRY_RECEIVED"
+    "BESPOKE.ENQUIRY_RECEIVED",
+    "CREATIVE.JOB_READY",
+    "CREATIVE.FACT_LEDGER_READY",
+    "CREATIVE.STORY_MAP_READY",
+    "CREATIVE.LYRICS_REQUIRED",
+    "CREATIVE.LYRICS_READY",
+    "CREATIVE.PLAN_READY",
+    "CREATIVE.GENERATION_REQUIRED",
+    "CREATIVE.GENERATION_STARTED",
+    "CREATIVE.CANDIDATE_READY",
+    "CREATIVE.TECHNICAL_QC_PASSED",
+    "CREATIVE.FACT_QC_PASSED",
+    "CREATIVE.CREATIVE_QC_REQUIRED",
+    "CREATIVE.CREATIVE_QC_PASSED",
+    "CREATIVE.MASTER_READY",
+    "CREATIVE.ALBUM_QC_REQUIRED",
+    "CREATIVE.ALBUM_READY",
+    "CREATIVE.EXCEPTION",
+    "AUDIO.CAPACITY_CHECK_REQUIRED",
+    "AUDIO.CAPACITY_PASSED",
+    "AUDIO.CAPACITY_EXCEPTION"
   ],
   "event_model": {
     "ORDER.PAID": "ORDER.PAID",
@@ -355,7 +375,27 @@
     "REVEAL.SENT": "REVEALED",
     "FOLLOW_UP.DUE": "FOLLOW_UP.DUE",
     "FOLLOW_UP.SENT": "FOLLOW_UP.SENT",
-    "REVIEW.REQUESTED": "REVIEW.REQUESTED"
+    "REVIEW.REQUESTED": "REVIEW.REQUESTED",
+    "CREATIVE.JOB_READY": "CREATIVE.JOB_READY",
+    "CREATIVE.FACT_LEDGER_READY": "CREATIVE.FACT_LEDGER_READY",
+    "CREATIVE.STORY_MAP_READY": "CREATIVE.STORY_MAP_READY",
+    "CREATIVE.LYRICS_REQUIRED": "CREATIVE.LYRICS_REQUIRED",
+    "CREATIVE.LYRICS_READY": "CREATIVE.LYRICS_READY",
+    "CREATIVE.PLAN_READY": "CREATIVE.PLAN_READY",
+    "CREATIVE.GENERATION_REQUIRED": "CREATIVE.GENERATION_REQUIRED",
+    "CREATIVE.GENERATION_STARTED": "CREATIVE.GENERATION_STARTED",
+    "CREATIVE.CANDIDATE_READY": "CREATIVE.CANDIDATE_READY",
+    "CREATIVE.TECHNICAL_QC_PASSED": "CREATIVE.TECHNICAL_QC_PASSED",
+    "CREATIVE.FACT_QC_PASSED": "CREATIVE.FACT_QC_PASSED",
+    "CREATIVE.CREATIVE_QC_REQUIRED": "CREATIVE.CREATIVE_QC_REQUIRED",
+    "CREATIVE.CREATIVE_QC_PASSED": "CREATIVE.CREATIVE_QC_PASSED",
+    "CREATIVE.MASTER_READY": "CREATIVE.MASTER_READY",
+    "CREATIVE.ALBUM_QC_REQUIRED": "CREATIVE.ALBUM_QC_REQUIRED",
+    "CREATIVE.ALBUM_READY": "CREATIVE.ALBUM_READY",
+    "CREATIVE.EXCEPTION": "CREATIVE.EXCEPTION",
+    "AUDIO.CAPACITY_CHECK_REQUIRED": "AUDIO.CAPACITY_CHECK_REQUIRED",
+    "AUDIO.CAPACITY_PASSED": "AUDIO.CAPACITY_PASSED",
+    "AUDIO.CAPACITY_EXCEPTION": "AUDIO.CAPACITY_EXCEPTION"
   },
   "founder_notifications": [
     {
@@ -387,6 +427,16 @@
       "type": "CUSTOMER_SUPPORT_EXCEPTION",
       "title": "Customer support report",
       "required_action": "Open the order and review the customer's report."
+    },
+    {
+      "type": "CREATIVE_EXCEPTION",
+      "title": "Creative production exception",
+      "required_action": "Open the order's Creative Factory panel: a song needs a person (retry limit reached or escalated)."
+    },
+    {
+      "type": "AUDIO_CAPACITY_EXCEPTION",
+      "title": "Audio capacity exception",
+      "required_action": "Open the order: the finished programme does not fit the verified record capacity. Nothing is shortened automatically."
     },
     {
       "type": "PRODUCT_SALES_SUSPENDED",
@@ -446,6 +496,14 @@
     "NOTIFICATION_FAILED": {
       "label": "Founder notification not delivered",
       "priority": 1
+    },
+    "CREATIVE_EXCEPTION": {
+      "label": "Creative production exception",
+      "priority": 1
+    },
+    "CREATIVE_ACTION": {
+      "label": "Creative Factory step waiting",
+      "priority": 2
     },
     "FULFILMENT_READY": {
       "label": "Fulfilment approval required",

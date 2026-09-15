@@ -190,6 +190,25 @@ return [
         'max_output_bytes' => 10485760,
     ],
 
+    // ---- Creative Factory -----------------------------------------------
+    // No music-generation provider is selected (DEFERRED). There are no
+    // provider keys here and none belong here until the Founders choose one.
+    'creative' => [
+        // ADVISORY: unfinished factory work is reported at MCB's quality check.
+        // REQUIRED: masters, album QC and verified capacity must pass first.
+        'enforcement' => 'ADVISORY',
+        // Generation attempts per song before it becomes a creative exception.
+        'max_generation_attempts' => 3,
+        // Optional preferred finished-song window (seconds). Not set: only the
+        // 300-second ceiling rejects; deviation from 195 s is recorded.
+        // 'duration' => ['preferred_min_seconds' => null, 'preferred_max_seconds' => null],
+        'min_sample_rate_hz' => 44100,
+        'max_audio_bytes' => 209715200,
+        // Phrases MCB never allows in lyrics, in addition to each ledger's exclusions.
+        'prohibited_phrases' => [],
+        // Retention of creative material: NOT SET — awaiting legal review.
+    ],
+
     // ---- Reviews ------------------------------------------------------
     // Where a customer is sent to say what their memory meant to them.
     //

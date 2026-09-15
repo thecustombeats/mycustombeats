@@ -249,6 +249,27 @@ export const AUTOMATION_EVENTS: readonly string[] = [
   "REVIEW.REQUESTED",
   "MCB_LIVE.ENQUIRY_RECEIVED",
   "BESPOKE.ENQUIRY_RECEIVED",
+  // Creative Factory (provider-independent)
+  "CREATIVE.JOB_READY",
+  "CREATIVE.FACT_LEDGER_READY",
+  "CREATIVE.STORY_MAP_READY",
+  "CREATIVE.LYRICS_REQUIRED",
+  "CREATIVE.LYRICS_READY",
+  "CREATIVE.PLAN_READY",
+  "CREATIVE.GENERATION_REQUIRED",
+  "CREATIVE.GENERATION_STARTED",
+  "CREATIVE.CANDIDATE_READY",
+  "CREATIVE.TECHNICAL_QC_PASSED",
+  "CREATIVE.FACT_QC_PASSED",
+  "CREATIVE.CREATIVE_QC_REQUIRED",
+  "CREATIVE.CREATIVE_QC_PASSED",
+  "CREATIVE.MASTER_READY",
+  "CREATIVE.ALBUM_QC_REQUIRED",
+  "CREATIVE.ALBUM_READY",
+  "CREATIVE.EXCEPTION",
+  "AUDIO.CAPACITY_CHECK_REQUIRED",
+  "AUDIO.CAPACITY_PASSED",
+  "AUDIO.CAPACITY_EXCEPTION",
 ];
 
 /**
@@ -282,6 +303,28 @@ export const EVENT_MODEL: Readonly<Record<string, string>> = {
   "FOLLOW_UP.DUE": "FOLLOW_UP.DUE",
   "FOLLOW_UP.SENT": "FOLLOW_UP.SENT",
   "REVIEW.REQUESTED": "REVIEW.REQUESTED",
+  // Creative Factory: CREATIVE.READY stays the existing QUALITY_CHECK.READY; the
+  // factory's own milestones are new names with no earlier equivalent.
+  "CREATIVE.JOB_READY": "CREATIVE.JOB_READY",
+  "CREATIVE.FACT_LEDGER_READY": "CREATIVE.FACT_LEDGER_READY",
+  "CREATIVE.STORY_MAP_READY": "CREATIVE.STORY_MAP_READY",
+  "CREATIVE.LYRICS_REQUIRED": "CREATIVE.LYRICS_REQUIRED",
+  "CREATIVE.LYRICS_READY": "CREATIVE.LYRICS_READY",
+  "CREATIVE.PLAN_READY": "CREATIVE.PLAN_READY",
+  "CREATIVE.GENERATION_REQUIRED": "CREATIVE.GENERATION_REQUIRED",
+  "CREATIVE.GENERATION_STARTED": "CREATIVE.GENERATION_STARTED",
+  "CREATIVE.CANDIDATE_READY": "CREATIVE.CANDIDATE_READY",
+  "CREATIVE.TECHNICAL_QC_PASSED": "CREATIVE.TECHNICAL_QC_PASSED",
+  "CREATIVE.FACT_QC_PASSED": "CREATIVE.FACT_QC_PASSED",
+  "CREATIVE.CREATIVE_QC_REQUIRED": "CREATIVE.CREATIVE_QC_REQUIRED",
+  "CREATIVE.CREATIVE_QC_PASSED": "CREATIVE.CREATIVE_QC_PASSED",
+  "CREATIVE.MASTER_READY": "CREATIVE.MASTER_READY",
+  "CREATIVE.ALBUM_QC_REQUIRED": "CREATIVE.ALBUM_QC_REQUIRED",
+  "CREATIVE.ALBUM_READY": "CREATIVE.ALBUM_READY",
+  "CREATIVE.EXCEPTION": "CREATIVE.EXCEPTION",
+  "AUDIO.CAPACITY_CHECK_REQUIRED": "AUDIO.CAPACITY_CHECK_REQUIRED",
+  "AUDIO.CAPACITY_PASSED": "AUDIO.CAPACITY_PASSED",
+  "AUDIO.CAPACITY_EXCEPTION": "AUDIO.CAPACITY_EXCEPTION",
 };
 
 /* ------------------------------------------------------------------ */
@@ -295,7 +338,9 @@ export type FounderNotificationType =
   | "ARTWORK_EXCEPTION"
   | "FULFILMENT_EXCEPTION"
   | "CUSTOMER_SUPPORT_EXCEPTION"
-  | "PRODUCT_SALES_SUSPENDED";
+  | "PRODUCT_SALES_SUSPENDED"
+  | "CREATIVE_EXCEPTION"
+  | "AUDIO_CAPACITY_EXCEPTION";
 
 /**
  * What interrupts the Founders. Exceptions and decisions only — plus every
@@ -309,6 +354,8 @@ export const FOUNDER_NOTIFICATIONS: readonly { readonly type: FounderNotificatio
   { type: "ARTWORK_EXCEPTION", title: "Artwork needs attention", requiredAction: "Open the order and review the production artwork." },
   { type: "FULFILMENT_EXCEPTION", title: "Fulfilment exception", requiredAction: "Open the order and resolve what is holding fulfilment or delivery." },
   { type: "CUSTOMER_SUPPORT_EXCEPTION", title: "Customer support report", requiredAction: "Open the order and review the customer's report." },
+  { type: "CREATIVE_EXCEPTION", title: "Creative production exception", requiredAction: "Open the order's Creative Factory panel: a song needs a person (retry limit reached or escalated)." },
+  { type: "AUDIO_CAPACITY_EXCEPTION", title: "Audio capacity exception", requiredAction: "Open the order: the finished programme does not fit the verified record capacity. Nothing is shortened automatically." },
   { type: "PRODUCT_SALES_SUSPENDED", title: "New sales suspended", requiredAction: "Review the product's availability. Existing paid orders are unaffected." },
 ];
 
@@ -332,6 +379,8 @@ export type QueueKind =
   | "SUPPLIER_ACTION"
   | "ARTWORK_EXCEPTION"
   | "NOTIFICATION_FAILED"
+  | "CREATIVE_EXCEPTION"
+  | "CREATIVE_ACTION"
   | "DELIVERY_DELAY"
   | "REPLACEMENT_REQUEST"
   | "SUPPORT"
@@ -354,6 +403,8 @@ export const QUEUE_KINDS: Readonly<Record<QueueKind, { readonly label: string; r
   REVEAL_READY: { label: "Ready to reveal", priority: 2 },
   ARTWORK_EXCEPTION: { label: "Artwork needs attention", priority: 1 },
   NOTIFICATION_FAILED: { label: "Founder notification not delivered", priority: 1 },
+  CREATIVE_EXCEPTION: { label: "Creative production exception", priority: 1 },
+  CREATIVE_ACTION: { label: "Creative Factory step waiting", priority: 2 },
   FULFILMENT_READY: { label: "Fulfilment approval required", priority: 2 },
   SUPPLIER_ORDER_REQUIRED: { label: "Authorised: place supplier order", priority: 2 },
   SUPPLIER_ACTION: { label: "Waiting to dispatch", priority: 2 },

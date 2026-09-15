@@ -365,6 +365,8 @@ Full runbook: `docs/OPERATIONS-RUNBOOK.md`. All CRM endpoints need `Authorizatio
 | `GET /api/crm/artwork?order_id=41` · `POST` (multipart) · `GET ?artwork_id=&download=1` | Production artwork plan with template metadata; register an output (automated technical QC); download it |
 | `GET/POST /api/crm/notifications` | Founder notification outbox: list, `?view=health`, `CLAIM`, `ACK`, `REQUEUE` (worker key or CRM key; `REQUEUE` CRM only) |
 | `GET/POST /api/crm/product-sales` | Suspend / resume NEW sales of a SKU or product |
+| `GET/POST /api/crm/creative` | Creative Factory: jobs, versioned documents, QC actions, masters, album and capacity QC, `?view=metrics`, `?view=providers` (`staff` required on reads; access logged) |
+| `GET/POST /api/crm/creative-file` | Register a manual candidate or a derived master (multipart); download audio (audited) |
 
 Public (same-origin, rate-limited, token in body):
 

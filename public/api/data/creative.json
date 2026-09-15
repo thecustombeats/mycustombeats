@@ -1,0 +1,499 @@
+{
+  "_generated": "Do not edit. INTERNAL. Generated from src/data/production/creative.ts by scripts/generate-catalogue-json.mjs",
+  "duration": {
+    "target_seconds": 195,
+    "max_seconds": 300,
+    "plan_tolerance_percent": 10,
+    "preferred_min_seconds": null,
+    "preferred_max_seconds": null
+  },
+  "capacity_profiles": [
+    {
+      "sku": "keepsake-12-picture-disc",
+      "format": "12-inch picture disc",
+      "disc_count": 1,
+      "side_count": 2,
+      "song_count": 4,
+      "verified_total_capacity_seconds": null,
+      "verified_per_side_seconds": null,
+      "preferred_programme_seconds": null,
+      "hard_manufacturing_maximum_seconds": null,
+      "source": null,
+      "version": 1,
+      "status": "UNVERIFIED",
+      "mastering_notes": [],
+      "supplier_restrictions": [],
+      "last_verified_date": null
+    },
+    {
+      "sku": "keepsake-10-picture-disc",
+      "format": "10-inch picture disc",
+      "disc_count": 1,
+      "side_count": 2,
+      "song_count": 3,
+      "verified_total_capacity_seconds": null,
+      "verified_per_side_seconds": null,
+      "preferred_programme_seconds": null,
+      "hard_manufacturing_maximum_seconds": null,
+      "source": null,
+      "version": 1,
+      "status": "UNVERIFIED",
+      "mastering_notes": [],
+      "supplier_restrictions": [],
+      "last_verified_date": null
+    },
+    {
+      "sku": "keepsake-10-heart-picture-disc",
+      "format": "10-inch picture disc (heart)",
+      "disc_count": 1,
+      "side_count": 2,
+      "song_count": 1,
+      "verified_total_capacity_seconds": null,
+      "verified_per_side_seconds": null,
+      "preferred_programme_seconds": null,
+      "hard_manufacturing_maximum_seconds": null,
+      "source": null,
+      "version": 1,
+      "status": "UNVERIFIED",
+      "mastering_notes": [],
+      "supplier_restrictions": [],
+      "last_verified_date": null
+    },
+    {
+      "sku": "keepsake-7-picture-disc",
+      "format": "7-inch picture disc",
+      "disc_count": 1,
+      "side_count": 2,
+      "song_count": 1,
+      "verified_total_capacity_seconds": null,
+      "verified_per_side_seconds": null,
+      "preferred_programme_seconds": null,
+      "hard_manufacturing_maximum_seconds": null,
+      "source": null,
+      "version": 1,
+      "status": "UNVERIFIED",
+      "mastering_notes": [],
+      "supplier_restrictions": [],
+      "last_verified_date": null
+    },
+    {
+      "sku": "journey-6",
+      "format": "12-inch standard vinyl",
+      "disc_count": 1,
+      "side_count": 2,
+      "song_count": 6,
+      "verified_total_capacity_seconds": null,
+      "verified_per_side_seconds": null,
+      "preferred_programme_seconds": null,
+      "hard_manufacturing_maximum_seconds": null,
+      "source": null,
+      "version": 1,
+      "status": "UNVERIFIED",
+      "mastering_notes": [],
+      "supplier_restrictions": [],
+      "last_verified_date": null
+    },
+    {
+      "sku": "journey-12",
+      "format": "12-inch standard vinyl gatefold",
+      "disc_count": 2,
+      "side_count": 4,
+      "song_count": 12,
+      "verified_total_capacity_seconds": null,
+      "verified_per_side_seconds": null,
+      "preferred_programme_seconds": null,
+      "hard_manufacturing_maximum_seconds": null,
+      "source": null,
+      "version": 1,
+      "status": "UNVERIFIED",
+      "mastering_notes": [],
+      "supplier_restrictions": [],
+      "last_verified_date": null
+    }
+  ],
+  "fact_types": [
+    "NAME",
+    "RELATIONSHIP",
+    "DATE",
+    "YEAR",
+    "PLACE",
+    "OCCASION",
+    "MILESTONE",
+    "MEMORY",
+    "TRAVEL_MEMORY",
+    "REQUESTED_PHRASE",
+    "MUSIC_DIRECTION",
+    "MOOD",
+    "EXCLUSION",
+    "OTHER"
+  ],
+  "fact_classifications": [
+    "EXACT",
+    "SEMANTIC",
+    "CREATIVE_GUIDANCE"
+  ],
+  "fact_importance": [
+    "CRITICAL",
+    "HIGH",
+    "NORMAL"
+  ],
+  "fact_verification": [
+    "CUSTOMER_SUPPLIED",
+    "STAFF_VERIFIED",
+    "UNVERIFIED"
+  ],
+  "story_sections": [
+    "OPENING",
+    "PROGRESSION",
+    "IMPORTANT_MEMORIES",
+    "EMOTIONAL_BUILD",
+    "CENTRAL_STATEMENT",
+    "CLIMAX",
+    "RESOLUTION"
+  ],
+  "album_narrative_roles": [
+    "OPENING",
+    "CHAPTER",
+    "TURNING_POINT",
+    "REFLECTION",
+    "CELEBRATION",
+    "CLOSING"
+  ],
+  "lyric_section_types": [
+    "INTRO",
+    "VERSE",
+    "PRE_CHORUS",
+    "CHORUS",
+    "BRIDGE",
+    "OUTRO",
+    "INSTRUMENTAL",
+    "SPOKEN"
+  ],
+  "composition_section_types": [
+    "INTRO",
+    "VERSE",
+    "PRE_CHORUS",
+    "CHORUS",
+    "BRIDGE",
+    "OUTRO",
+    "INSTRUMENTAL",
+    "SPOKEN"
+  ],
+  "adherence_importance": [
+    "STRICT",
+    "HIGH",
+    "FLEXIBLE"
+  ],
+  "genre_families": [
+    "pop",
+    "rock",
+    "country",
+    "dance",
+    "ballad",
+    "jazz",
+    "swing",
+    "ballroom",
+    "waltz",
+    "soul",
+    "folk",
+    "acoustic",
+    "classical",
+    "electronic",
+    "latin",
+    "reggae",
+    "blues",
+    "gospel",
+    "r&b",
+    "hip-hop",
+    "indie",
+    "funk",
+    "disco",
+    "orchestral"
+  ],
+  "style_to_direction": {
+    "1950s": {
+      "genre": "rock",
+      "era": "1950s"
+    },
+    "1960s": {
+      "genre": "pop",
+      "era": "1960s"
+    },
+    "1970s": {
+      "genre": "soft rock",
+      "era": "1970s"
+    },
+    "1980s": {
+      "genre": "pop",
+      "era": "1980s"
+    },
+    "1990s": {
+      "genre": "pop",
+      "era": "1990s"
+    },
+    "Ballroom": {
+      "genre": "ballroom"
+    },
+    "Waltz": {
+      "genre": "waltz"
+    },
+    "Swing": {
+      "genre": "swing"
+    },
+    "Jazz": {
+      "genre": "jazz"
+    },
+    "Soul": {
+      "genre": "soul"
+    },
+    "Motown-inspired": {
+      "genre": "soul",
+      "era": "1960s"
+    },
+    "Disco": {
+      "genre": "disco"
+    },
+    "Funk": {
+      "genre": "funk"
+    },
+    "Blues": {
+      "genre": "blues"
+    },
+    "Gospel": {
+      "genre": "gospel"
+    },
+    "Classical": {
+      "genre": "classical"
+    },
+    "Orchestral": {
+      "genre": "orchestral"
+    },
+    "Pop": {
+      "genre": "pop"
+    },
+    "Rock": {
+      "genre": "rock"
+    },
+    "Soft Rock": {
+      "genre": "rock"
+    },
+    "Acoustic": {
+      "genre": "acoustic"
+    },
+    "Folk": {
+      "genre": "folk"
+    },
+    "Country": {
+      "genre": "country"
+    },
+    "R&B": {
+      "genre": "r&b"
+    },
+    "Hip-Hop": {
+      "genre": "hip-hop"
+    },
+    "Trap": {
+      "genre": "hip-hop"
+    },
+    "Drill": {
+      "genre": "hip-hop"
+    },
+    "Indie": {
+      "genre": "indie"
+    },
+    "Alternative": {
+      "genre": "rock"
+    },
+    "House": {
+      "genre": "dance"
+    },
+    "Dance": {
+      "genre": "dance"
+    },
+    "Electronic": {
+      "genre": "electronic"
+    },
+    "Drum & Bass": {
+      "genre": "electronic"
+    },
+    "Reggae": {
+      "genre": "reggae"
+    },
+    "Latin": {
+      "genre": "latin"
+    },
+    "Afrobeats": {
+      "genre": "dance"
+    }
+  },
+  "music_direction_fields": [
+    "genre",
+    "subgenre",
+    "era_influence",
+    "bpm_min",
+    "bpm_max",
+    "key",
+    "mode",
+    "time_signature",
+    "instrumentation",
+    "vocal_presentation",
+    "vocal_intensity",
+    "mood",
+    "energy",
+    "production_character",
+    "language",
+    "positive_directions",
+    "negative_directions",
+    "target_duration_seconds",
+    "max_duration_seconds"
+  ],
+  "provider_decision_status": "DEFERRED",
+  "provider_roles": [
+    "PRIMARY",
+    "FALLBACK",
+    "MANUAL",
+    "DISABLED"
+  ],
+  "provider_capability_fields": [
+    "supplied_lyrics",
+    "structured_composition_plans",
+    "duration_maximum_seconds",
+    "downloadable_audio_formats",
+    "lossless_output",
+    "stems",
+    "reference_audio",
+    "editing_inpainting",
+    "asynchronous_jobs",
+    "multilingual",
+    "pronunciation_control",
+    "seed_reproducibility",
+    "metadata",
+    "commercial_use_review",
+    "privacy_review",
+    "api_availability",
+    "cost_model"
+  ],
+  "providers": [
+    {
+      "id": "manual",
+      "label": "Manual generation (staff-registered audio)",
+      "kind": "MANUAL",
+      "role": "MANUAL",
+      "adapter": "MANUAL",
+      "capabilities": {
+        "supplied_lyrics": "NOT_APPLICABLE",
+        "structured_composition_plans": "NOT_APPLICABLE",
+        "duration_maximum_seconds": "NOT_APPLICABLE",
+        "downloadable_audio_formats": "NOT_APPLICABLE",
+        "lossless_output": "NOT_APPLICABLE",
+        "stems": "NOT_APPLICABLE",
+        "reference_audio": "NOT_APPLICABLE",
+        "editing_inpainting": "NOT_APPLICABLE",
+        "asynchronous_jobs": "NOT_APPLICABLE",
+        "multilingual": "NOT_APPLICABLE",
+        "pronunciation_control": "NOT_APPLICABLE",
+        "seed_reproducibility": "NOT_APPLICABLE",
+        "metadata": "NOT_APPLICABLE",
+        "commercial_use_review": "NOT_APPLICABLE",
+        "privacy_review": "NOT_APPLICABLE",
+        "api_availability": "NOT_APPLICABLE",
+        "cost_model": "NOT_APPLICABLE"
+      }
+    },
+    {
+      "id": "candidate-eleven-music",
+      "label": "Eleven Music (candidate, not evaluated)",
+      "kind": "CANDIDATE",
+      "role": "DISABLED",
+      "adapter": null,
+      "capabilities": {
+        "supplied_lyrics": "UNKNOWN",
+        "structured_composition_plans": "UNKNOWN",
+        "duration_maximum_seconds": "UNKNOWN",
+        "downloadable_audio_formats": "UNKNOWN",
+        "lossless_output": "UNKNOWN",
+        "stems": "UNKNOWN",
+        "reference_audio": "UNKNOWN",
+        "editing_inpainting": "UNKNOWN",
+        "asynchronous_jobs": "UNKNOWN",
+        "multilingual": "UNKNOWN",
+        "pronunciation_control": "UNKNOWN",
+        "seed_reproducibility": "UNKNOWN",
+        "metadata": "UNKNOWN",
+        "commercial_use_review": "UNKNOWN",
+        "privacy_review": "UNKNOWN",
+        "api_availability": "UNKNOWN",
+        "cost_model": "UNKNOWN"
+      }
+    },
+    {
+      "id": "candidate-mozart-ai",
+      "label": "Mozart AI (candidate, not evaluated)",
+      "kind": "CANDIDATE",
+      "role": "DISABLED",
+      "adapter": null,
+      "capabilities": {
+        "supplied_lyrics": "UNKNOWN",
+        "structured_composition_plans": "UNKNOWN",
+        "duration_maximum_seconds": "UNKNOWN",
+        "downloadable_audio_formats": "UNKNOWN",
+        "lossless_output": "UNKNOWN",
+        "stems": "UNKNOWN",
+        "reference_audio": "UNKNOWN",
+        "editing_inpainting": "UNKNOWN",
+        "asynchronous_jobs": "UNKNOWN",
+        "multilingual": "UNKNOWN",
+        "pronunciation_control": "UNKNOWN",
+        "seed_reproducibility": "UNKNOWN",
+        "metadata": "UNKNOWN",
+        "commercial_use_review": "UNKNOWN",
+        "privacy_review": "UNKNOWN",
+        "api_availability": "UNKNOWN",
+        "cost_model": "UNKNOWN"
+      }
+    }
+  ],
+  "default_max_generation_attempts": 3,
+  "attempt_outcomes": [
+    "PROVIDER_FAIL",
+    "TECHNICAL_FAIL",
+    "FACT_FAIL",
+    "CREATIVE_FAIL",
+    "PASS"
+  ],
+  "creative_qc_criteria": [
+    "emotional_impact",
+    "lyric_quality",
+    "vocal_quality",
+    "musical_quality",
+    "production_quality",
+    "genre_fit",
+    "story_fit",
+    "memorability",
+    "pronunciation",
+    "premium_standard"
+  ],
+  "creative_qc_outcomes": [
+    "PASS",
+    "REGENERATE",
+    "ESCALATE"
+  ],
+  "album_review_criteria": [
+    "narrative_progression",
+    "musical_cohesion",
+    "deliberate_variation"
+  ],
+  "master_kinds": [
+    "PRODUCTION_MASTER",
+    "CUSTOMER_LISTENING_COPY",
+    "PHYSICAL_MEDIA_MASTER"
+  ],
+  "audio_containers": [
+    "WAV",
+    "FLAC",
+    "AIFF",
+    "MP3"
+  ],
+  "default_min_sample_rate_hz": 44100,
+  "lyric_duplication_threshold": 0.6
+}

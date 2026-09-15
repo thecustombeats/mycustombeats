@@ -448,6 +448,12 @@ if ($outcome === 'recorded' || $outcome === 'already_paid' || $outcome === 'dupl
     } catch (Throwable $e) {
         error_log('MCB artwork: could not plan artwork for order ' . $orderId . ': ' . $e->getMessage());
     }
+    // Creative Factory jobs: one per song, idempotent. Retried on the staff console if this fails.
+    try {
+        db_transaction(fn (PDO $pdo): array => ensure_creative_jobs($pdo, $orderId));
+    } catch (Throwable $e) {
+        error_log('MCB creative: could not create creative jobs for order ' . $orderId . ': ' . $e->getMessage());
+    }
 }
 
 // Close the snapshot, for operators reading the checkout history. Purely a

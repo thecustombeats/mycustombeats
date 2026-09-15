@@ -1,6 +1,6 @@
 # CRM API acceptance tests
 
-Eleven suites, over 1,700 assertions, against a live PHP + MariaDB stack. Everything
+Twelve suites, over 1,850 assertions, against a live PHP + MariaDB stack. Everything
 runs in throwaway containers — no local PHP or MySQL install, nothing left
 behind. Each suite expects a FRESH database loaded from `db/schema.sql`.
 
@@ -43,7 +43,7 @@ docker run -d --name mcb-api --link mcb-db \
   -p 8080:80 php:8.2-apache \
   sh -c "docker-php-ext-install pdo_mysql; a2enmod rewrite; apache2-foreground"
 
-for s in api automation checkout delivery full-package hardening legal lifecycle operations release transaction; do
+for s in api automation checkout creative delivery full-package hardening legal lifecycle operations release transaction; do
   # reset: DROP/CREATE mcb_crm, reload db/schema.sql, clear /tmp/*-stub.log
   bash tests/$s-acceptance.sh
 done
@@ -84,6 +84,7 @@ the authorised price table, once. Every order POST sends a fresh
 | legal | Consent as evidence, versions, production lock, banned phrases absent from all `src/`, no revision entitlements, Creative Authority consent, Bespoke enquiry is not a purchase, cruise field, review states, register not imported |
 | transaction | Sprint 4, end to end: server says whether checkout is open and in which mode; the £15 Moment golden path (server quote, per-memory persistence, TEST session with minimal metadata and no customer text, double-click reuse, bad signature, signed payment → PAID, one reference, audit trail, one confirmation without story text, duplicate webhook harmless); under/over/wrong-currency → PAYMENT_REVIEW; live-mode or mode-less events filed MODE_MISMATCH; Keepsake 7"/heart/10"/12" memory counts and format snapshots; two Keepsakes independent; Priority Replacement per Keepsake only; delivery quoted by the server (TEST_ONLY fixture, UNAVAILABLE without rates, refused with a live key); physical Keepsake with photo, Priority Replacement, delivery and payment; staff production brief; Journey 6/12 chapters on standard vinyl with per-chapter styles; plaque/frame/player personalisation; 300-character and other limits refused, never truncated; uploads (types, polyglot, SVG, size, near-limit, traversal, private storage, CRM retrieval, replacement, wrong token); forged prices/variants/add-ons; stale and foreign tokens; live payment cannot switch itself on; test-mode email never reaches a customer; retired products |
 | automation | Automation Foundation: the production artwork specification (sleeve front 3756 × 3827 / back 3756 × 3756 with bleed and spine; discs 302/250/174 mm, 12-inch hole 7.23 mm vs the 1.5-inch creative exclusion; Heart and gatefold TEMPLATE_REQUIRED); migration equivalence; paid order → ready event + founder notification, idempotent under webhook replay; completion independent of follow-up and review; artwork planning and technical QC (dimensions, shape, type, order/source association, template version, cross-order refusal); QC gates fulfilment; deep link opens and never approves; explicit Bella/Lewis authorisation (codes, refusals, lockout, audit); exceptions and their notifications; the outbox worker contract (claim, ack, retry, abandon, requeue, stale claims, health); safe payloads; sales suspension; event model and sources; no provider, purchase or refund path |
+| creative | Creative Factory core: duration (195 s target, 300 s ceiling, 4 × 195 = 780 s) and UNVERIFIED capacity policies; DEFERRED provider route with no provider code; migration equivalence; one job per song under payment replay; data minimisation; versioned Fact Ledger (customer facts protected, EXACT/SEMANTIC/GUIDANCE); lyric fact QC (misspelt exact name, unreferenced memory, exclusion, unallocated fact, contamination, duplication); semantic review; provider-neutral plan (ceiling, tolerance); artist imitation refused; manual candidates with technical QC (non-audio, 301 s, sample rate, stale attempt, wrong reference), shorter song accepted, transcript fact failure; immutable attempts, retry cap, exception and one-more authorisation; Creative QC; masters, versions, lineage; album map first, album QC with a missing track, review; side allocation and CAPACITY_UNVERIFIED; VERIFIED capacity exceeded → AUDIO_CAPACITY_EXCEPTION without touching audio; gates in ADVISORY and REQUIRED; metrics; privacy and cross-order isolation |
 | lifecycle | Customer referral vs affiliate, eligibility on verified payment, attribution/confirmation, precedence, completion and review request, provider failure isolation, public code privacy, CRM customer view (gross paid equals saved totals) |
 
 ## A bug these tests caught

@@ -193,6 +193,30 @@ function operations_queue(PDO $pdo, ?int $now = null): array
                 : 'Artwork exception (' . strtolower(str_replace('_', ' ', (string) $r['exception_reason'])) . '): review internally. No extra charge is made automatically.');
     }
 
+    // ---- Creative Factory ----------------------------------------------------------
+    foreach ($pdo->query(
+        "SELECT j.order_id, o.mcb_reference, o.fulfilment_type,
+                SUM(j.status = 'EXCEPTION') AS exceptions,
+                SUM(j.status IN ('LYRICS_REQUIRED','LYRICS_QC_FAILED','LYRICS_REVIEW_REQUIRED','PLAN_REQUIRED','GENERATION_REQUIRED','FACT_REVIEW_REQUIRED','CREATIVE_QC_REQUIRED','MASTER_REQUIRED')) AS waiting,
+                GROUP_CONCAT(DISTINCT j.status ORDER BY j.status) AS statuses, MAX(j.updated_at) AS since,
+                (SELECT GROUP_CONCAT(DISTINCT CONCAT(a.album_qc_status, '/', a.capacity_status)) FROM creative_albums a WHERE a.order_id = j.order_id) AS albums
+           FROM creative_jobs j JOIN orders o ON o.id = j.order_id
+           LEFT JOIN order_production p ON p.order_id = o.id
+          WHERE o.status = 'PAID' AND (p.stage IS NULL OR p.stage IN ('CREATIVE','QUALITY_CHECK'))
+          GROUP BY j.order_id, o.mcb_reference, o.fulfilment_type
+          LIMIT 500"
+    )->fetchAll() as $r) {
+        $subject = ['type' => 'ORDER', 'order_id' => (int) $r['order_id'], 'reference' => $r['mcb_reference'], 'workflow' => $r['fulfilment_type']];
+        $capacityException = str_contains((string) $r['albums'], 'AUDIO_CAPACITY_EXCEPTION');
+        if ((int) $r['exceptions'] > 0 || $capacityException) {
+            $items[] = queue_item("CREATIVE:{$r['order_id']}:EXCEPTION:" . substr(md5((string) $r['statuses'] . $r['albums']), 0, 8), 'CREATIVE_EXCEPTION', $subject, $r['since'],
+                $capacityException ? 'The finished programme exceeds the verified record capacity. Nothing is shortened automatically.' : 'A song needs a person: retry limit reached or escalated in Creative QC.');
+        } elseif ((int) $r['waiting'] > 0 || str_contains((string) $r['albums'], 'REVIEW_REQUIRED')) {
+            $items[] = queue_item("CREATIVE:{$r['order_id']}:ACTION:" . substr(md5((string) $r['statuses'] . $r['albums']), 0, 8), 'CREATIVE_ACTION', $subject, $r['since'],
+                'Creative Factory: ' . strtolower(str_replace('_', ' ', (string) $r['statuses'])) . '. Generation provider: deferred (manual generation available).');
+        }
+    }
+
     // ---- Founder notifications that could not be delivered ---------------------
     foreach ($pdo->query(
         "SELECT id, notification_type, subject_reference, order_id, attempts, last_error, updated_at

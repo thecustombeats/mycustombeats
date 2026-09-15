@@ -42,6 +42,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/legal.php';
 require_once __DIR__ . '/founder-notifications.php';
 require_once __DIR__ . '/artwork.php';
+require_once __DIR__ . '/creative-factory.php';
 
 final class OperationsException extends RuntimeException
 {
@@ -706,6 +707,17 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                         )) . '. Register each output on the artwork panel first.');
                     }
                 }
+                // The Creative Factory: masters, album QC and (for a record) verified capacity.
+                $creative = creative_fulfilment_gate($pdo, $row);
+                if ($creative['blocked']) {
+                    throw new OperationsException($creative['capacity_exception'] ? 'audio_capacity_exception' : 'creative_not_ready',
+                        ($creative['capacity_exception']
+                            ? 'The finished programme exceeds the verified record capacity. Nothing is shortened or compressed automatically; resolve it first.'
+                            : 'The Creative Factory is not complete: ') . ' (' . strtolower(str_replace('_', ' ', implode(', ', $creative['reasons']))) . ').');
+                }
+                if ($creative['reasons'] !== []) {
+                    $result['warning'] = 'Creative Factory (advisory): ' . strtolower(str_replace('_', ' ', implode(', ', $creative['reasons']))) . '.';
+                }
                 $revealUrl = null;
                 if (!$physical) {
                     $revealUrl = operations_https_url($in['reveal_url'] ?? null);
@@ -817,6 +829,9 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 }
                 if (fulfilment_review_pending($pdo, $orderId)) {
                     $refuse('Confirm availability, the destination and the actual delivery cost with the partner before authorising the purchase.');
+                }
+                if (creative_fulfilment_gate($pdo, $row)['capacity_exception']) {
+                    throw new OperationsException('audio_capacity_exception', 'The finished programme exceeds the verified record capacity. It cannot be purchased for manufacture until that is resolved.');
                 }
                 if ($row['supplier_purchase_authorised_at'] !== null) {
                     $result['outcome'] = 'unchanged';

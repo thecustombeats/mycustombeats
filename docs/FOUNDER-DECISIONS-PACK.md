@@ -116,3 +116,13 @@ Each line is an exact mismatch between current wording and actual site behaviour
 | 23 | Artwork Preparation Service: more than one unready photograph in an order is routed to an internal exception (no automatic extra charge) — confirm the threshold of one. | F |
 | 24 | Largest production file size to register (currently 10 MB, the PHP upload limit) — raise the server limits if print files are larger. | F |
 
+## 7. Creative Factory (15 September 2026) — items for the Founders
+
+| # | Item | Class |
+|---|---|---|
+| 25 | Music-generation provider: DEFERRED. Choosing one needs commercial-use, privacy and cost review, then an adapter. No key or account exists. | F + L |
+| 26 | Manufacturer-verified programme capacity per record format (per side and/or total, hard maximum, source, date). Until supplied every record is CAPACITY_UNVERIFIED. | F |
+| 27 | When to switch `creative.enforcement` from ADVISORY to REQUIRED (then songs must be mastered in the factory, album QC passed and capacity verified before MCB's quality check). | F |
+| 28 | Generation attempts per song before a creative exception (default 3), and an optional preferred finished-song window around 195 s. | F |
+| 29 | Retention period for creative material (ledgers, lyrics, candidates, masters, access logs). NOT SET pending legal review. | F + L |
+| 30 | Minimum production sample rate (default 44.1 kHz) and the archival master format (no format is mandated). | F |
