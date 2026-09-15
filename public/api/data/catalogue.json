@@ -1,6 +1,6 @@
 {
   "_generated": "Do not edit. Generated from src/data/catalogue/ by scripts/generate-catalogue-json.mjs",
-  "catalogue_hash": "c356d8d5742c670eb6c39b24d34888ab25e5cac8da80e0b5eeba7971fd40a7cc",
+  "catalogue_hash": "095597e5b69bc0cb682b716c0bca33119681a40f49520eb078fc9429b9fabe54",
   "schema_version": 2,
   "currency": "GBP",
   "rules": {
@@ -206,6 +206,7 @@
       "orderable": true,
       "category": "SONG_EXPERIENCE",
       "fulfilment": "DIGITAL",
+      "delivery_class": null,
       "song_count": 1,
       "vinyl": null,
       "priority_replacement_eligible": false
@@ -218,6 +219,7 @@
       "orderable": true,
       "category": "SONG_EXPERIENCE",
       "fulfilment": "PHYSICAL",
+      "delivery_class": "VINYL",
       "song_count": 4,
       "vinyl": {
         "picture_disc": true,
@@ -236,6 +238,7 @@
       "orderable": true,
       "category": "SONG_EXPERIENCE",
       "fulfilment": "PHYSICAL",
+      "delivery_class": "VINYL",
       "song_count": 3,
       "vinyl": {
         "picture_disc": true,
@@ -249,11 +252,12 @@
     "keepsake-10-heart-picture-disc": {
       "product_id": "keepsake",
       "name": "Heart-Shaped Picture Disc Keepsake",
-      "price_minor": 11999,
+      "price_minor": 12999,
       "currency": "GBP",
       "orderable": true,
       "category": "SONG_EXPERIENCE",
       "fulfilment": "PHYSICAL",
+      "delivery_class": "VINYL",
       "song_count": 1,
       "vinyl": {
         "picture_disc": true,
@@ -272,6 +276,7 @@
       "orderable": true,
       "category": "SONG_EXPERIENCE",
       "fulfilment": "PHYSICAL",
+      "delivery_class": "VINYL",
       "song_count": 1,
       "vinyl": {
         "picture_disc": true,
@@ -290,6 +295,7 @@
       "orderable": true,
       "category": "SONG_EXPERIENCE",
       "fulfilment": "PHYSICAL",
+      "delivery_class": "VINYL",
       "song_count": 6,
       "vinyl": {
         "picture_disc": false,
@@ -308,6 +314,7 @@
       "orderable": true,
       "category": "SONG_EXPERIENCE",
       "fulfilment": "PHYSICAL",
+      "delivery_class": "VINYL",
       "song_count": 12,
       "vinyl": {
         "picture_disc": false,
@@ -326,6 +333,7 @@
       "orderable": true,
       "category": "PERSONALISED_DECOR",
       "fulfilment": "PHYSICAL",
+      "delivery_class": "PLAQUE",
       "song_count": null,
       "vinyl": null,
       "priority_replacement_eligible": false
@@ -338,6 +346,7 @@
       "orderable": true,
       "category": "PERSONALISED_DECOR",
       "fulfilment": "PHYSICAL",
+      "delivery_class": "FRAME",
       "song_count": null,
       "vinyl": null,
       "priority_replacement_eligible": false
@@ -350,6 +359,7 @@
       "orderable": true,
       "category": "PERSONALISED_DECOR",
       "fulfilment": "PHYSICAL",
+      "delivery_class": "FRAME",
       "song_count": null,
       "vinyl": null,
       "priority_replacement_eligible": false
@@ -362,6 +372,7 @@
       "orderable": true,
       "category": "PERSONALISED_DECOR",
       "fulfilment": "PHYSICAL",
+      "delivery_class": "FRAME",
       "song_count": null,
       "vinyl": null,
       "priority_replacement_eligible": false
@@ -374,6 +385,7 @@
       "orderable": true,
       "category": "PERSONALISED_DECOR",
       "fulfilment": "PHYSICAL",
+      "delivery_class": "FRAME",
       "song_count": null,
       "vinyl": null,
       "priority_replacement_eligible": false
@@ -386,6 +398,7 @@
       "orderable": true,
       "category": "PERSONALISED_DECOR",
       "fulfilment": "PHYSICAL",
+      "delivery_class": "FRAME",
       "song_count": null,
       "vinyl": null,
       "priority_replacement_eligible": false
@@ -398,6 +411,7 @@
       "orderable": true,
       "category": "PLAYER",
       "fulfilment": "PHYSICAL",
+      "delivery_class": "PLAYER",
       "song_count": null,
       "vinyl": null,
       "priority_replacement_eligible": false
@@ -410,6 +424,7 @@
       "orderable": true,
       "category": "PLAYER",
       "fulfilment": "PHYSICAL",
+      "delivery_class": "PLAYER",
       "song_count": null,
       "vinyl": null,
       "priority_replacement_eligible": false
@@ -422,6 +437,7 @@
       "orderable": true,
       "category": "PLAYER",
       "fulfilment": "PHYSICAL",
+      "delivery_class": "PLAYER",
       "song_count": null,
       "vinyl": null,
       "priority_replacement_eligible": false
@@ -434,6 +450,7 @@
       "orderable": true,
       "category": "PROTECTION",
       "fulfilment": "SERVICE",
+      "delivery_class": null,
       "song_count": null,
       "vinyl": null,
       "priority_replacement_eligible": false
@@ -446,6 +463,7 @@
       "orderable": false,
       "category": "EDUCATION",
       "fulfilment": "UNCONFIRMED",
+      "delivery_class": null,
       "song_count": null,
       "vinyl": null,
       "priority_replacement_eligible": false
@@ -458,6 +476,7 @@
       "orderable": false,
       "category": "EDUCATION",
       "fulfilment": "UNCONFIRMED",
+      "delivery_class": null,
       "song_count": null,
       "vinyl": null,
       "priority_replacement_eligible": false
@@ -470,6 +489,7 @@
       "orderable": false,
       "category": "EDUCATION",
       "fulfilment": "UNCONFIRMED",
+      "delivery_class": null,
       "song_count": null,
       "vinyl": null,
       "priority_replacement_eligible": false

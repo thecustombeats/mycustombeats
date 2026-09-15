@@ -124,7 +124,7 @@ export const PRODUCTION_STAGES: readonly StageDefinition[] = [
     internal:
       "Irreversible manufacture has begun — pressing, printing, engraving, assembly.",
     customer:
-      "Your order is in production. It can no longer be changed, but if anything is wrong with what arrives, that is ours to put right.",
+      "Your order is in production with our specialist partner. It can no longer be changed, but if anything is wrong with what arrives, contact MCB and we'll deal with it for you.",
     revisionsOpen: false,
   },
   {

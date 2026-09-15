@@ -65,7 +65,7 @@ crmp() { curl -s -o /tmp/lg.json -w '%{http_code}' -X POST "$BASE/$1" -H "Author
 # than a new date. Assertions 1 and 5 pin the CURRENT version; the superseded
 # one must still be recognised, which is asserted below and covered in depth by
 # tests/delivery-acceptance.sh.
-VER="2026-09-09.4"
+VER="2026-09-15"
 SUPERSEDED_VER="2026-09-09"
 # Orders now also require the cruise-companion field, so every payload that
 # is not specifically testing it carries one.
@@ -279,8 +279,10 @@ tc "59.  → and its limits are stated without making it meaningless" \
 # The Founder's clause 4 states the refinement position in its own words and
 # does not use SCOPE_CHANGE_TREATMENT. The constant still exists and is still
 # correct; it is simply no longer quoted in the Terms.
-tc "60b. the refinement clause is the Founder's own wording" \
-  "$(grep -q 'As soon as a song goes to Vinyl pressing, no refinements can be made' src/data/legal/terms.ts && echo 1 || echo 0)"
+# Launch closure 2026-09-15: clause 4 now closes refinements at approval, as
+# clause 6 and the approval flow already did.
+tc "60b. the refinement clause closes refinements at approval" \
+  "$(grep -q 'Once you have approved a song, no further refinements can be made' src/data/legal/terms.ts && ! grep -q 'As soon as a song goes to Vinyl pressing, no refinements can be made' src/data/legal/terms.ts && echo 1 || echo 0)"
 tc "61. customer-supplied material is covered" \
   "$(grep -q 'materials-you-give-us' src/data/legal/terms.ts && echo 1 || echo 0)"
 tc "62.  → the customer keeps ownership of it" \
@@ -295,8 +297,10 @@ tc "66. rights in MCB's work are stated once, without contradiction" \
   "$(grep -q 'rights-in-the-work' src/data/legal/terms.ts && prose $LEGAL_PROSE | grep -qi 'exclusive ownership' && echo 0 || echo 1)"
 # 67-70 asserted protections the Founder's clause set removes. Their removal
 # is guarded above (53-70), in the register, rather than here.
-tc "67b. the courier-damage position is the Founder's own wording" \
-  "$(grep -q 'do not take any responsibility for courier damages' src/data/legal/terms.ts && echo 1 || echo 0)"
+# Launch closure 2026-09-15: the courier disclaimer is replaced by the
+# Founder-approved fulfilment position and damage guidance.
+tc "67b. the courier-damage disclaimer is replaced by the Founder-approved position" \
+  "$(! grep -q 'do not take any responsibility for courier damages' src/data/legal/terms.ts && grep -q '...FULFILMENT_POSITION' src/data/legal/terms.ts && grep -q 'DAMAGE_GUIDANCE' src/data/legal/terms.ts && echo 1 || echo 0)"
 tc "68b. the consent checkbox no longer describes a cancellation route the Terms deny" \
   "$(grep -q 'we can charge you for the work already done' src/data/legal/consent.ts && echo 0 || echo 1)"
 tc "69b.  → but the early-start ACT is still asked and still recorded separately" \

@@ -32,9 +32,10 @@ const ACTION_FIELDS: Record<string, { name: string; label: string; type?: "text"
   REQUEST_APPROVAL: [{ name: "preview_url", label: "Private listening link (https)", type: "url" }, { name: "send_email", label: "Email the customer the approval link", type: "checkbox" }],
   RECORD_APPROVAL: [{ name: "channel", label: "How they approved", type: "select", options: ["EMAIL", "WHATSAPP", "PHONE", "IN_PERSON"] }, { name: "reference", label: "Where to find it (optional)" }],
   RECORD_CHANGES_REQUEST: [{ name: "channel", label: "How they asked", type: "select", options: ["EMAIL", "WHATSAPP", "PHONE", "IN_PERSON"] }, { name: "summary", label: "What they asked for", type: "textarea" }],
+  CONFIRM_FULFILMENT_REVIEW: [{ name: "confirmed", label: "I have confirmed availability, the destination and the actual delivery cost with the partner", type: "checkbox" }, { name: "note", label: "What was confirmed (no card or account details)", type: "textarea" }],
   CONFIRM_FULFILMENT: [{ name: "fulfilment_reference", label: "Your order reference with the supplier (optional)" }],
-  MARK_DISPATCHED: [{ name: "carrier", label: "Carrier" }, { name: "tracking_reference", label: "Tracking reference (optional)" }, { name: "tracking_url", label: "Tracking link, https (optional)", type: "url" }, { name: "dispatched_on", label: "Dispatched on", type: "date" }, { name: "send_email", label: "Email the customer", type: "checkbox" }],
-  UPDATE_TRACKING: [{ name: "carrier", label: "Carrier" }, { name: "tracking_reference", label: "Tracking reference (optional)" }, { name: "tracking_url", label: "Tracking link, https (optional)", type: "url" }, { name: "dispatched_on", label: "Dispatched on", type: "date" }],
+  MARK_DISPATCHED: [{ name: "carrier", label: "Carrier" }, { name: "tracking_reference", label: "Tracking reference(s) — separate several parcels with commas (optional)" }, { name: "tracking_url", label: "Tracking link, https (optional)", type: "url" }, { name: "dispatched_on", label: "Dispatched on", type: "date" }, { name: "send_email", label: "Email the customer", type: "checkbox" }],
+  UPDATE_TRACKING: [{ name: "carrier", label: "Carrier" }, { name: "tracking_reference", label: "Tracking reference(s) — separate several parcels with commas (optional)" }, { name: "tracking_url", label: "Tracking link, https (optional)", type: "url" }, { name: "dispatched_on", label: "Dispatched on", type: "date" }],
   MARK_DELIVERED: [{ name: "delivered_on", label: "Delivered on", type: "date" }],
   RECORD_FOLLOW_UP: [{ name: "send_email", label: "Send the check-in email", type: "checkbox" }],
   REOPEN: [{ name: "reason", label: "Reason", type: "select", options: ["CUSTOMER_REQUEST", "MCB_CORRECTION", "REPLACEMENT", "OTHER"] }],
@@ -308,6 +309,13 @@ const Operations = () => {
                     </ul>
                     <p className="mt-2">Revisions: {order.operations.revisions.used} used of {order.operations.revisions.included ?? "no numeric allowance — decide"}</p>
                     <p>Fulfilment: {humanise(order.operations.fulfilment.state)}{order.operations.fulfilment.pending_reason ? ` (waiting on ${humanise(order.operations.fulfilment.pending_reason)})` : ""}</p>
+                    {order.operations.fulfilment.review_required && (
+                      <p className={order.operations.fulfilment.review_confirmed ? "" : "font-semibold text-red-800"}>
+                        {order.operations.fulfilment.review_confirmed
+                          ? "Availability and delivery confirmed with the partner."
+                          : "Before placing this order: confirm availability, the destination and the actual delivery cost with the partner. Nothing is bought automatically."}
+                      </p>
+                    )}
                     {order.operations.delivery.carrier && <p>Delivery: {order.operations.delivery.carrier} {order.operations.delivery.tracking_reference ?? ""} · sent {order.operations.delivery.dispatched_on ?? "—"} · delivered {order.operations.delivery.delivered_on ?? "not recorded"}</p>}
                   </Section>
 

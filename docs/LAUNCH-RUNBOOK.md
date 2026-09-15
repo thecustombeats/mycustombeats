@@ -16,7 +16,7 @@ The emergency control throughout is **`stripe.live_checkout_approved => false`**
 | 6 | **Remove obsolete files** | On the server: `api/stripe/webhook-test.php` must not exist; remove any `api/config.php` left inside the web root once `mcb-config.php` is in place; remove stale `assets/` chunks after upload. Keep `/luxury/` (non-indexed, unlinked) per Founder decision. | OFF |
 | 7 | **Upload** | Upload `dist/` contents to `public_html` (replace). Do not upload `tests/`, `docs/`, `db/`, `src/` or any `_test-*` stub. | OFF |
 | 8 | **Stripe live webhook** | Stripe Dashboard (live): endpoint `https://www.mycustombeats.com/api/stripe/webhook`, events `checkout.session.completed` and `checkout.session.async_payment_succeeded`. Put its signing secret in `stripe.webhook_secret`. | OFF |
-| 9 | **Delivery rates** | Physical products only: upload `api/data/delivery-rates.json` built from the Founder's approved table (`docs/FOUNDER-DECISIONS-PACK.md` §2). Without it, physical orders are quoted "unavailable" and cannot be paid; a Moment can. | OFF |
+| 9 | **Delivery rates** | Physical products only: upload `api/data/delivery-rates.json` built from the Founder's approved table (`docs/FOUNDER-DECISIONS-PACK.md` §2). Without it, physical orders are quoted "unavailable" and cannot be paid; a Moment can. Rates carry `classes`; a rate without classes prices vinyl only. Plaques, players and pop-up cards stay "MCB confirms delivery before payment" unless the table's `pricing` promotes them. Never enter internal shipping allowances (£8/£10/£20) as rates. | OFF |
 | 10 | **Resend** | Verify the sending domain in Resend; send a test to a staff inbox via a TEST-mode rehearsal (never a customer). | OFF |
 | 11 | **Preflight** | `curl -s https://www.mycustombeats.com/api/crm/preflight -H "Authorization: Bearer <crm key>"`. Every check PASS except `checkout_sessions_enabled`/`live_checkout_approved` (WARN until step 16) and `delivery_rate_table` (WARN if no table). | OFF |
 | 12 | **Browser console check** | With DevTools open: `/`, `/keepsake`, `/create` to Review, `/blog`, `/partners`, `/affiliate`, `/artists/apply`, `/luxury/`. No Content-Security-Policy errors except Google's regional `ga-audiences` pixel (blocked by design). Accept analytics once and confirm GA collect requests succeed. | OFF |
@@ -54,7 +54,7 @@ Lowest risk: **one Moment, £15**, paid by a founder with a real card, to a foun
 10. Confirm nothing sensitive leaked: Stripe payment metadata holds only `mcb_order_id`, `mcb_basket_hash`, `mcb_checkout`; server error log has no story/email text.
 11. Decide whether to refund the founder test via the Stripe Dashboard (a manual Founder action; the site has no refund automation).
 
-Physical products: only after `delivery-rates.json` is in place, repeat with a 7-inch Keepsake to a founder address, then run Confirm fulfilment → Dispatched → Delivered in `/operations`.
+Physical products: only after `delivery-rates.json` is in place, repeat with a 7-inch Keepsake to a founder address, then run Confirm fulfilment → Dispatched → Delivered in `/operations`. Any partner purchase is placed and paid by hand by an authorised Founder; nothing is ordered automatically. For a plaque or player (if promoted to online pricing), staff record **Confirm availability and delivery** before the partner order can be confirmed; if the partner cannot supply, contact the customer and decide any refund manually in Stripe (Founder financial decision).
 
 ## 4. First 24 hours — concise checklist
 

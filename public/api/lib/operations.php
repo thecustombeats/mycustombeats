@@ -409,7 +409,14 @@ function follow_up_delay_days(): int
     return max(0, min((int) mcb_setting('operations.follow_up_delay_days', 0), 90));
 }
 
-/** Why a physical order cannot yet be made, or null when nothing is missing. */
+/**
+ * Why a physical order cannot yet be made, or null when nothing is missing.
+ *
+ * FULFILMENT_REVIEW: the order holds an item (a player, a plaque, a pop-up
+ * card) whose availability, destination and actual delivery cost staff must
+ * confirm with the partner first. It is stored in the existing column as
+ * OTHER — see fulfilment_pending_column() — so no schema change is needed.
+ */
 function fulfilment_blocker(PDO $pdo, array $row): ?string
 {
     if (($row['personalisation_status'] ?? '') !== 'COMPLETE') {
@@ -417,7 +424,37 @@ function fulfilment_blocker(PDO $pdo, array $row): ?string
     }
     $stmt = $pdo->prepare('SELECT COUNT(*) FROM delivery_addresses WHERE order_id = :id');
     $stmt->execute([':id' => (int) $row['id']]);
-    return (int) $stmt->fetchColumn() === 0 ? 'DELIVERY_ADDRESS' : null;
+    if ((int) $stmt->fetchColumn() === 0) {
+        return 'DELIVERY_ADDRESS';
+    }
+    return fulfilment_review_pending($pdo, (int) $row['id']) ? 'FULFILMENT_REVIEW' : null;
+}
+
+/** Whether staff still owe the partner availability/delivery confirmation. */
+function fulfilment_review_pending(PDO $pdo, int $orderId): bool
+{
+    return order_requires_fulfilment_review($pdo, $orderId) && !fulfilment_review_confirmed($pdo, $orderId);
+}
+
+function fulfilment_review_confirmed(PDO $pdo, int $orderId): bool
+{
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM order_events WHERE order_id = :id AND event_type = 'FULFILMENT.REVIEW_CONFIRMED'");
+    $stmt->execute([':id' => $orderId]);
+    return (int) $stmt->fetchColumn() > 0;
+}
+
+/** Staff wording for a blocker. */
+function fulfilment_blocker_text(string $blocker): string
+{
+    return $blocker === 'FULFILMENT_REVIEW'
+        ? 'availability, destination and actual delivery cost confirmed with the partner'
+        : strtolower(str_replace('_', ' ', $blocker));
+}
+
+/** The value a blocker is stored as in `order_production.fulfilment_pending_reason`. */
+function fulfilment_pending_column(string $blocker): string
+{
+    return in_array($blocker, ['DELIVERY_ADDRESS', 'PERSONALISATION', 'CUSTOMER_CONTACT'], true) ? $blocker : 'OTHER';
 }
 
 /**
@@ -462,7 +499,7 @@ function approve_work(PDO $pdo, array $row, string $channel, string $approvedBy,
         } else {
             $pdo->prepare(
                 "UPDATE order_production SET fulfilment_state = 'PENDING', fulfilment_pending_reason = :reason WHERE order_id = :oid"
-            )->execute([':reason' => $blocker, ':oid' => $orderId]);
+            )->execute([':reason' => fulfilment_pending_column($blocker), ':oid' => $orderId]);
             record_order_event($pdo, $orderId, 'FULFILMENT.PENDING', ['reason' => $blocker]);
         }
     }
@@ -524,7 +561,7 @@ function record_changes(PDO $pdo, array $row, string $channel, ?string $feedback
 const MCB_STAFF_ACTIONS = [
     'START_CREATIVE', 'MARK_CREATIVE_READY', 'REQUEST_APPROVAL', 'REISSUE_APPROVAL_LINK',
     'RECORD_APPROVAL', 'RECORD_CHANGES_REQUEST', 'SET_FULFILMENT_READY', 'CONFIRM_FULFILMENT',
-    'MARK_DISPATCHED', 'UPDATE_TRACKING', 'MARK_DELIVERY_DELAYED', 'MARK_DELIVERED',
+    'CONFIRM_FULFILMENT_REVIEW', 'MARK_DISPATCHED', 'UPDATE_TRACKING', 'MARK_DELIVERY_DELAYED', 'MARK_DELIVERED',
     'RECORD_FOLLOW_UP', 'MARK_COMPLETED', 'REOPEN', 'ISSUE_STATUS_LINK', 'REVOKE_LINKS',
     'ADD_NOTE', 'UPDATE_SERVICE_REQUEST',
 ];
@@ -657,16 +694,47 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 }
                 $blocker = fulfilment_blocker($pdo, $row);
                 if ($blocker !== null) {
-                    $update('fulfilment_pending_reason = :r', [':r' => $blocker]);
-                    throw new OperationsException('fulfilment_blocked', 'Still missing: ' . strtolower(str_replace('_', ' ', $blocker)) . '.');
+                    $update('fulfilment_pending_reason = :r', [':r' => fulfilment_pending_column($blocker)]);
+                    throw new OperationsException('fulfilment_blocked', 'Still missing: ' . fulfilment_blocker_text($blocker) . '.');
                 }
                 $update("fulfilment_state = 'READY', fulfilment_pending_reason = NULL, fulfilment_ready_at = UTC_TIMESTAMP()");
                 record_order_event($pdo, $orderId, 'FULFILMENT.READY', ['by' => $staff], "fulfilment-ready:{$reopen}");
                 break;
 
+            case 'CONFIRM_FULFILMENT_REVIEW':
+                if (!$physical || in_array($fulfil, ['CONFIRMED', 'DISPATCHED', 'DELIVERED'], true)) {
+                    $refuse('Availability and delivery can only be confirmed on a physical order that has not been placed with the partner.');
+                }
+                if (!order_requires_fulfilment_review($pdo, $orderId)) {
+                    $refuse('Nothing in this order needs availability or delivery confirming with a partner.');
+                }
+                if (($in['confirmed'] ?? null) !== true) {
+                    throw new OperationsException('confirmation_required', 'Tick to confirm you have checked availability, the destination and the actual delivery cost with the partner.', 422);
+                }
+                $summary = operations_text($in['note'] ?? null, 2000);
+                if ($summary === null) {
+                    throw new OperationsException('invalid_note', 'Note what was confirmed (availability, destination, delivery cost), without any card or account details.', 422);
+                }
+                if (fulfilment_review_confirmed($pdo, $orderId)) {
+                    $result['outcome'] = 'unchanged';
+                    break;
+                }
+                $pdo->prepare('INSERT INTO order_staff_notes (order_id, note, staff, created_at) VALUES (:oid, :note, :staff, UTC_TIMESTAMP())')
+                    ->execute([':oid' => $orderId, ':note' => 'Availability and delivery confirmed: ' . $summary, ':staff' => $staff]);
+                record_order_event($pdo, $orderId, 'FULFILMENT.REVIEW_CONFIRMED', ['by' => $staff], "fulfilment-review:{$reopen}");
+                // An approved order waiting only on this moves on by itself.
+                if ($stage === 'APPROVED' && $fulfil === 'PENDING' && fulfilment_blocker($pdo, $row) === null) {
+                    $update("fulfilment_state = 'READY', fulfilment_pending_reason = NULL, fulfilment_ready_at = UTC_TIMESTAMP()");
+                    record_order_event($pdo, $orderId, 'FULFILMENT.READY', ['by' => $staff], "fulfilment-ready:{$reopen}");
+                }
+                break;
+
             case 'CONFIRM_FULFILMENT':
                 if (!$physical || $stage !== 'APPROVED' || $fulfil !== 'READY') {
                     $refuse('Confirm the physical order only once the music is approved and fulfilment is ready.');
+                }
+                if (fulfilment_review_pending($pdo, $orderId)) {
+                    $refuse('Confirm availability, the destination and the actual delivery cost with the partner before placing this order.');
                 }
                 $update(
                     "stage = 'PRODUCTION_LOCKED', production_locked_at = COALESCE(production_locked_at, UTC_TIMESTAMP()),

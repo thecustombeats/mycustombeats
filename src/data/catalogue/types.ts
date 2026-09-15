@@ -46,6 +46,15 @@ export type Category =
  */
 export type Fulfilment = "DIGITAL" | "PHYSICAL" | "SERVICE" | "UNCONFIRMED";
 
+/**
+ * What kind of parcel a physical product travels as.
+ *
+ * Only the class is public knowledge. Which specialist partner makes it, how
+ * its delivery is priced and whether availability must be confirmed first
+ * live on the server (`api/lib/delivery.php`), never in this bundle.
+ */
+export type DeliveryClass = "VINYL" | "FRAME" | "PLAQUE" | "PLAYER" | "CARD";
+
 export type SchemaType = "Product" | "ProductGroup" | "Service";
 
 export type VinylSize = 7 | 10 | 12;
@@ -133,6 +142,8 @@ export interface Product {
   readonly requiresPersonalisation: boolean;
   /** Canonical public path, or null when the product has no page of its own. */
   readonly route: string | null;
+  /** Set on every product with a physical variant; null otherwise. */
+  readonly deliveryClass: DeliveryClass | null;
   /** The customer-facing timing line, or null when none is approved. */
   readonly turnaround: { readonly basis: DeliveryBasis; readonly label: string } | null;
   readonly revisions: string | null;

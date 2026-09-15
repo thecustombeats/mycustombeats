@@ -48,7 +48,7 @@ test("Keepsake is exactly four picture-disc variants with the authorised songs, 
     [
       ["keepsake-12-picture-disc", 4, 12, "ROUND", 14999],
       ["keepsake-10-picture-disc", 3, 10, "ROUND", 13999],
-      ["keepsake-10-heart-picture-disc", 1, 10, "HEART", 11999],
+      ["keepsake-10-heart-picture-disc", 1, 10, "HEART", 12999],
       ["keepsake-7-picture-disc", 1, 7, "ROUND", 9900],
     ]
   );
@@ -143,11 +143,13 @@ test("retired products and prices do not exist in the catalogue", () => {
   const ids = PRODUCTS.map((p) => p.id);
   const skus = allSkus();
   const text = JSON.stringify(PRODUCTS).toLowerCase();
+  // Pop-up cards are authorised again (launch closure, 15 September 2026) but not
+  // yet defined; the retired 10-design card set must not come back by its old SKUs.
   for (const retired of ["heirloom", "cd", "music-box", "music-box-experience", "plaque", "engraved", "vinyl-frame", "frame", "gift-pop-up-card", "additional-vinyl-copy", "digital-player", "vinyl-12"]) {
     assert.ok(!ids.includes(retired), `product ${retired}`);
     assert.ok(!skus.some((sku) => sku === retired || sku.startsWith(`${retired}-`) && retired !== "plaque"), `sku ${retired}`);
   }
-  for (const phrase of ["heirloom", "compact disc", "music box", "engraved", "vinyl frame", "pop-up card", "additional vinyl copy", "full package", "12-inch only"]) {
+  for (const phrase of ["heirloom", "compact disc", "music box", "engraved", "vinyl frame", "gift pop-up card", "additional vinyl copy", "full package", "12-inch only"]) {
     assert.ok(!text.includes(phrase), phrase);
   }
   assert.equal(skus.some((sku) => /\bcd\b/.test(sku)), false);

@@ -32,6 +32,13 @@ export interface DeliveryView {
   minor: number;
   label: string | null;
   testOnly: boolean;
+  /**
+   * Why delivery is unavailable: MCB confirms delivery for some items before
+   * payment, or there is no authorised rate for the destination yet.
+   */
+  reason: "MCB_CONFIRMS_DELIVERY" | "NO_DELIVERY_RATE" | null;
+  /** Product names MCB must confirm delivery for. */
+  reviewItems: string[];
 }
 
 export interface ServerLine {
@@ -119,6 +126,8 @@ const parseDelivery = (raw: unknown): DeliveryView | null => {
     minor: isMinor(raw.minor) ? raw.minor : 0,
     label: typeof raw.label === "string" ? raw.label : null,
     testOnly: raw.test_only === true,
+    reason: raw.reason === "MCB_CONFIRMS_DELIVERY" || raw.reason === "NO_DELIVERY_RATE" ? raw.reason : null,
+    reviewItems: Array.isArray(raw.review_items) ? raw.review_items.filter((item): item is string => typeof item === "string").slice(0, 10) : [],
   };
 };
 
@@ -285,7 +294,7 @@ export const blockerMessage = (blocker: string | null): string | null => {
     case "awaiting_uploads":
       return "We're still waiting for a photo you chose to add. Please add it again and try once more.";
     case "delivery_unavailable":
-      return "We can't take payment online for delivery to this address yet. Please contact MCB and we'll help you complete your order.";
+      return "We need to confirm delivery for this order before you pay, so it can't be paid online yet. Please contact MCB and we'll help you complete your order.";
     case "not_payable":
       return "This order isn't waiting for payment any more.";
     case "checkout_unavailable":

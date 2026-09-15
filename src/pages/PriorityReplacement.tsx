@@ -6,6 +6,7 @@ import {
   PRIORITY_REPLACEMENT_CLAIM_WINDOW_DAYS,
   formatMoney,
 } from "../data/catalogue";
+import { DAMAGE_GUIDANCE, DAMAGE_GUIDANCE_NOT_A_CONDITION } from "../data/legal/delivery";
 import { productPageStructuredData } from "../lib/seo";
 import { McbButtonLink } from "../components/mcb/McbButton";
 
@@ -103,8 +104,10 @@ const PriorityReplacement = () => {
             <section className="py-6">
               <h3 className="font-serif text-2xl leading-snug text-ink">When should I contact MCB?</h3>
               <p className="mt-2 text-base leading-relaxed text-espresso/80 md:text-lg">
+                {DAMAGE_GUIDANCE}{" "}
                 {`Please tell us as soon as reasonably possible after you discover arrival damage. If you chose ${PRIORITY_REPLACEMENT.name} for that item, request it within ${PRIORITY_REPLACEMENT_CLAIM_WINDOW_DAYS} days of confirmed delivery. After that, you can still contact us about a damaged or faulty item under your normal rights.`}
               </p>
+              <p className="mt-2 text-base leading-relaxed text-espresso/80">{DAMAGE_GUIDANCE_NOT_A_CONDITION}</p>
             </section>
             {QUESTIONS.map((item) => (
               <section key={item.question} className="py-6">

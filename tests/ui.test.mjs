@@ -49,7 +49,7 @@ test("Keepsake selector shows exactly the four authorised picture discs and pric
   const html = render(UI.StepChoose, { draft: P.chooseProduct(P.emptyDraft(), "keepsake"), setDraft: noop, showErrors: false, onProduct: noop, onVariant: noop });
   const t = text(html);
   assert.equal(count(html, /type="radio"[^>]*value="keepsake-/g), 4);
-  for (const price of ["£99", "£119.99", "£139.99", "£149.99"]) assert.ok(t.includes(price), price);
+  for (const price of ["£99", "£129.99", "£139.99", "£149.99"]) assert.ok(t.includes(price), price);
   assert.ok(!t.includes("£79.99") && !/£79\b/.test(t), "no £79.99 variant");
   for (const phrase of ["7-inch picture disc", "heart-shaped picture disc", "10-inch heart-shaped picture disc", "10-inch picture disc", "12-inch picture disc"]) assert.ok(t.toLowerCase().includes(phrase), phrase);
   assert.ok(t.includes("4 songs") && t.includes("3 songs") && t.includes("1 song"));

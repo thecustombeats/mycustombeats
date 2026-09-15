@@ -138,6 +138,8 @@ for (const product of PRODUCTS) {
       orderable: product.active && product.onlineCheckout,
       category: product.category,
       fulfilment: variant.fulfilment,
+      // Server only: how the parcel is priced is decided in api/lib/delivery.php.
+      delivery_class: product.deliveryClass,
       song_count: variant.songCount,
       vinyl: variant.vinyl
         ? {
@@ -159,6 +161,7 @@ for (const [sku, entry] of Object.entries(skus)) {
   if (!Number.isSafeInteger(entry.price_minor) || entry.price_minor <= 0) fail(`invalid price for ${sku}`);
   if (entry.currency !== "GBP") fail(`missing currency for ${sku}`);
   if (entry.orderable && entry.fulfilment === "UNCONFIRMED") fail(`orderable ${sku} has no fulfilment`);
+  if (entry.fulfilment === "PHYSICAL" && !entry.delivery_class) fail(`physical ${sku} has no delivery class`);
 }
 for (const [id, product] of Object.entries(products)) {
   if (product.commercial_model === "QUOTED" && (product.skus.length > 0 || product.online_checkout)) {
@@ -202,6 +205,13 @@ const legalOut = {
   consents: Object.fromEntries(
     legal.CONSENTS.map((consent) => [consent.id, { applies_to: consent.appliesTo }])
   ),
+  // Founder-approved customer wording the server's emails reuse verbatim.
+  customer_copy: {
+    fulfilment_position: [...legal.FULFILMENT_POSITION],
+    damage_guidance: legal.DAMAGE_GUIDANCE,
+    damage_guidance_not_a_condition: legal.DAMAGE_GUIDANCE_NOT_A_CONDITION,
+    separate_parcels: legal.SEPARATE_PARCELS_NOTE,
+  },
   production: {
     initial_stage: legal.INITIAL_STAGE,
     stages: legal.PRODUCTION_STAGES.map((stage) => ({
@@ -341,7 +351,7 @@ const publicCatalogueBody = {
     song_experience_required: "Every order includes at least one Moment, Keepsake or Journey.",
     priority_replacement: "At most one per eligible Keepsake in the same order.",
     max_lines: ORDER_LIMITS.maxLines,
-    delivery: "Physical items: delivery is quoted before payment for the destination; some destinations may not be available.",
+    delivery: "Physical items: the delivery charge for the destination is confirmed before payment. Where delivery for an item or destination cannot yet be confirmed online, MCB confirms it with the customer first and online payment is not offered for that order.",
   },
   products: feedProducts.map((product) => {
     const quoted = product.commercialModel === "QUOTED";
@@ -358,6 +368,10 @@ const publicCatalogueBody = {
       availability: orderable ? "ORDERABLE_ONLINE" : quoted ? "QUOTE_ONLY_BY_ENQUIRY" : "NOT_AVAILABLE_ONLINE",
       enquiry_url: quoted ? `${SITE}${product.route}` : null,
       timing: product.turnaround?.label ?? null,
+      // MCB holds no stock: a physical item that is not made to order is sourced per order.
+      availability_note: product.variants.some((v) => v.fulfilment === "PHYSICAL") && product.turnaround?.basis !== "MADE_TO_ORDER"
+        ? "Sourced for each order; MCB confirms availability and delivery with the partner. No stock level is claimed."
+        : null,
       included_revisions: product.revisions,
       disclosures: [...product.disclosures],
       requires_song_experience_in_order: orderable && product.category !== "SONG_EXPERIENCE",

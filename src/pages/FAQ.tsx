@@ -6,7 +6,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Helmet } from "react-helmet-async";
-import { REFINEMENT_DEFINITION, RECOMMENDED_PLANNING_DAYS } from '../data/legal';
+import { DELIVERY_CONFIRMED_FIRST_NOTE, REFINEMENT_DEFINITION, RECOMMENDED_PLANNING_DAYS } from '../data/legal';
 import {
   BESPOKE,
   JOURNEY,
@@ -25,7 +25,7 @@ import {
 } from '../data/catalogue';
 import { faqPageStructuredData } from '../lib/seo';
 import { refinementOrRemake } from '../lib/productDetail';
-import { AFTER_YOU_ORDER, HOW_APPROVAL_WORKS, JOURNEY_NOT_PICTURE_DISC, KEEPSAKE_SONG_CAPACITY, PLAQUE_PLAYS_MUSIC, WHAT_IS_A_PICTURE_DISC_KEEPSAKE } from '../lib/productAnswers';
+import { AFTER_YOU_ORDER, HOW_APPROVAL_WORKS, IF_IT_ARRIVES_DAMAGED, JOURNEY_NOT_PICTURE_DISC, KEEPSAKE_SONG_CAPACITY, PLAQUE_PLAYS_MUSIC, WHAT_IS_A_PICTURE_DISC_KEEPSAKE, WHO_MAKES_AND_DELIVERS } from '../lib/productAnswers';
 
 /* ------------------------------------------------------------------ */
 /* Catalogue phrasing                                                  */
@@ -208,12 +208,14 @@ const faqs: { question: string; answer: string }[] = [
   },
   {
     question: 'Is delivery included?',
-    answer: `Delivery is calculated separately before payment, so you see it before you pay. That applies to physical items: ${KEEPSAKE.name}, ${JOURNEY.name}, frames, plaques and players. ${MOMENT.name} is delivered digitally, with nothing to post.`,
+    answer: `Delivery is calculated separately and confirmed before payment, so you see it before you pay. That applies to physical items: ${KEEPSAKE.name}, ${JOURNEY.name}, frames, plaques and players. ${DELIVERY_CONFIRMED_FIRST_NOTE} ${MOMENT.name} is delivered digitally, with nothing to post.`,
   },
+  WHO_MAKES_AND_DELIVERS,
+  IF_IT_ARRIVES_DAMAGED,
   {
     question: 'When can I no longer change my order?',
     answer:
-      'Once you have approved your work and we have started anything irreversible — pressing a record or printing — your order is locked and the included refinements are closed. That is about changes of mind. If something is wrong with what we made, that is ours to put right whether the order is locked or not.',
+      'Once you have approved your work and we have started anything irreversible — pressing a record or printing — your order is locked and the included refinements are closed. That is about changes of mind. If something arrives damaged, faulty or not as described, contact MCB — we\'ll deal with it for you whether the order is locked or not, and your normal consumer rights are not affected.',
   },
   {
     question: 'Can I upload photos for album artwork?',
@@ -228,7 +230,7 @@ const faqs: { question: string; answer: string }[] = [
      * described a cancellation route the contract no longer offers.
      */
     answer:
-      'Please read clause 7 of our Terms before you order: there is no cancellation of the product service after payment, and a no refund policy. If an item arrives damaged, clause 17 explains what to do and what we can offer.',
+      'Please read clause 7 of our Terms before you order: there is no cancellation of the product service after payment, and a no refund policy for a change of mind. That does not affect your rights if an item arrives damaged, faulty or not as described — clauses 8 and 17 explain what to do, and we\'ll handle it for you.',
   },
 
   {

@@ -400,19 +400,25 @@ const productDescription = (product: Product): string =>
  * Made-to-order products are declared `MadeToOrder`, a real ItemAvailability
  * member that Google supports. Declaring `InStock` for a record pressed after
  * the order is placed would imply stock that does not exist. Digital work and
- * finished goods with no made-to-order basis are `InStock`.
+ * services are `InStock`.
+ *
+ * MCB holds no inventory. A physical product that is not made to order (a
+ * player) is sourced for each order and its availability is confirmed then,
+ * so no availability is declared for it at all rather than an invented one.
  */
-const availabilityFor = (product: Product): string =>
+const availabilityFor = (product: Product): string | null =>
   product.turnaround?.basis === "MADE_TO_ORDER"
     ? "https://schema.org/MadeToOrder"
-    : "https://schema.org/InStock";
+    : product.variants.some((v) => v.fulfilment === "PHYSICAL")
+      ? null
+      : "https://schema.org/InStock";
 
 /** One GBP Offer for one variant, at its exact catalogue price. */
 const offerFor = (product: Product, variant: Variant): Node => ({
   "@type": "Offer",
   price: minorToDecimal(variant.price.minor),
   priceCurrency: variant.price.currency,
-  availability: availabilityFor(product),
+  ...(availabilityFor(product) ? { availability: availabilityFor(product) } : {}),
   url: canonical(productPagePath(product)),
   seller: ref(ENTITY.organization),
 });

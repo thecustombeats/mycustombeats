@@ -15,6 +15,7 @@ import {
   STANDARD_VINYL_NOT_PICTURE_DISC,
   type Variant,
 } from "../data/catalogue";
+import { DAMAGE_GUIDANCE, DAMAGE_GUIDANCE_NOT_A_CONDITION, FULFILMENT_POSITION, MADE_TO_ORDER_NOTE, SEPARATE_PARCELS_NOTE } from "../data/legal/delivery";
 
 export interface Answer {
   question: string;
@@ -45,6 +46,17 @@ export const HOW_APPROVAL_WORKS: Answer = {
   question: "How does approval work?",
   answer:
     "When your music is ready we email you a private link. On that page you listen, then choose \"I'm happy — approve it\" or \"I'd like some changes\" and tell us what to adjust. Nothing is treated as approved until you say so. For a record, approval is the point after which we begin making it, so the music can no longer be changed. If anything arrives damaged or faulty, tell us — your normal consumer rights are not affected.",
+};
+
+/** Founder-approved: MCB is the seller and the only contact. */
+export const WHO_MAKES_AND_DELIVERS: Answer = {
+  question: "Who makes and delivers my keepsake?",
+  answer: `${FULFILMENT_POSITION.join(" ")} ${MADE_TO_ORDER_NOTE} ${SEPARATE_PARCELS_NOTE}`,
+};
+
+export const IF_IT_ARRIVES_DAMAGED: Answer = {
+  question: "What if my keepsake arrives damaged?",
+  answer: `${DAMAGE_GUIDANCE} ${DAMAGE_GUIDANCE_NOT_A_CONDITION}`,
 };
 
 export const KEEPSAKE_SONG_CAPACITY: Answer = {
@@ -84,11 +96,11 @@ export const PRODUCT_PAGE_ANSWERS: Readonly<Record<"moment" | "keepsake" | "jour
     article: { slug: "turn-a-special-memory-into-a-personalised-song", title: "How to turn a special memory into a personalised song" },
   },
   keepsake: {
-    answers: [WHAT_IS_A_PICTURE_DISC_KEEPSAKE, KEEPSAKE_SONG_CAPACITY, KEEPSAKE_VS_JOURNEY, HOW_APPROVAL_WORKS],
+    answers: [WHAT_IS_A_PICTURE_DISC_KEEPSAKE, KEEPSAKE_SONG_CAPACITY, KEEPSAKE_VS_JOURNEY, HOW_APPROVAL_WORKS, WHO_MAKES_AND_DELIVERS, IF_IT_ARRIVES_DAMAGED],
     article: { slug: "picture-disc-keepsakes-music-and-memories-you-can-hold", title: "Picture disc keepsakes: music and memories you can hold" },
   },
   journey: {
-    answers: [JOURNEY_NOT_PICTURE_DISC, KEEPSAKE_VS_JOURNEY, AFTER_YOU_ORDER],
+    answers: [JOURNEY_NOT_PICTURE_DISC, KEEPSAKE_VS_JOURNEY, AFTER_YOU_ORDER, WHO_MAKES_AND_DELIVERS, IF_IT_ARRIVES_DAMAGED],
     article: { slug: "preserve-cruise-memories-after-you-return-home", title: "How to preserve the memories of a cruise long after you return home" },
   },
 };

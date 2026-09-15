@@ -92,7 +92,7 @@ if ($blocker !== null) {
     }
     [$status, $code, $message] = match ($blocker) {
         'awaiting_uploads'     => [409, 'awaiting_uploads', 'We are still waiting for a photo you chose to add. Please add it and try again.'],
-        'delivery_unavailable' => [409, 'delivery_unavailable', "We can't take payment for delivery to this address online yet. Please contact MCB and we'll help."],
+        'delivery_unavailable' => [409, 'delivery_unavailable', "We need to confirm delivery for this order before you pay, so it can't be paid online yet. Please contact MCB and we'll help."],
         'delivery_test_only'   => [409, 'order_not_payable_online', 'This order cannot be paid online. Please contact MCB.'],
         default                => [409, 'order_not_ready', 'This order is missing the details we need to make your songs. Please place it again from the order page.'],
     };

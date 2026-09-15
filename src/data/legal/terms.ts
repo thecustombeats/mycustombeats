@@ -38,6 +38,7 @@
  * would be editing the Founder's decision into other pages, which it is not.
  */
 import { PRODUCTS } from "../catalogue/products";
+import { DAMAGE_GUIDANCE, DAMAGE_GUIDANCE_NOT_A_CONDITION, FULFILMENT_POSITION, SEPARATE_PARCELS_NOTE } from "./delivery";
 import type { Product } from "../catalogue/types";
 
 /* ------------------------------------------------------------------ */
@@ -106,6 +107,17 @@ export const TERMS_INTRO =
  * implementation report. Where a sentence had more than one possible reading
  * it was left exactly as supplied rather than guessed at.
  *
+ * LAUNCH CLOSURE EDITION 2026-09-15. The Founders asked for the clear
+ * internal contradictions to be corrected without inventing legal rights, and
+ * approved the fulfilment and damage wording used in clauses 8 and 17. Only
+ * these changed: clause 4 (refinements close at approval, as clause 6 and the
+ * site already say), clause 7 (a carve-out pointing to clauses 8 and 17),
+ * clause 8 (the courier disclaimer replaced by the Founder-approved position),
+ * clause 17 (the 24-hour condition removed: partner claim windows are MCB's
+ * operational deadline, not the customer's) and clause 23 (prospective only,
+ * as clauses 2 and 25 already promise). Clauses 18 and 20 are unchanged and
+ * remain with the Founders and legal review (`review.ts`).
+ *
  * THIS WORDING HAS NOT BEEN REVIEWED BY A SOLICITOR, and several clauses are
  * recorded in `review.ts` as attempting exclusions that consumer law does not
  * permit a trader to make. That is the Founder's decision to take; it is
@@ -139,7 +151,7 @@ export const TERMS_CLAUSES: readonly Clause[] = [
     id: "refinements",
     heading: "4. Refinements",
     body: [
-      "As soon as a song goes to Vinyl pressing, no refinements can be made.",
+      "Once you have approved a song, no further refinements can be made — and none can be made once a song goes to vinyl pressing.",
     ],
   },
   {
@@ -163,14 +175,18 @@ export const TERMS_CLAUSES: readonly Clause[] = [
     heading: "7. Cancelling",
     body: [
       "There is no cancellation of the product service after payment.",
-      "There is a no refund policy.",
+      "There is a no refund policy for a change of mind.",
+      "This does not affect your rights if an item arrives damaged, faulty or not as described. Clauses 8 and 17 explain what to do.",
     ],
   },
   {
     id: "if-we-get-it-wrong",
     heading: "8. What if my item arrives faulty or damaged",
     body: [
-      "We at MCB do not take any responsibility for courier damages. If your products arrive damaged you will need to take this up with the courier service. For the guest in these circumstances you may send us photos and we can arrange a reasonable customer service price for your items to be resent to you.",
+      ...FULFILMENT_POSITION,
+      SEPARATE_PARCELS_NOTE,
+      DAMAGE_GUIDANCE,
+      `${DAMAGE_GUIDANCE_NOT_A_CONDITION} You do not need to take anything up with a courier or a production partner yourself.`,
     ],
   },
   {
@@ -229,8 +245,8 @@ export const TERMS_CLAUSES: readonly Clause[] = [
     heading: "17. If something arrives damaged",
     body: [
       "If an item reaches you cracked, chipped, shattered, broken or otherwise structurally damaged, please stop using it. A broken frame or a cracked record is not something to handle carefully — it is something to put down.",
-      "Then tell us as soon as you reasonably can, and please send a photograph if you are able to. It usually settles the matter in one message, and carriers keep their records for a limited time, so getting in touch early genuinely helps.",
-      "We will then repair, replace, remake or refund as appropriate as a reasonable discount price if done within 24 hours of delivery date. You must keep a copy of delivery date with your claim.",
+      "Then tell us as soon as you reasonably can, and please send a photograph if you are able to. It usually settles the matter in one message, and carriers and our production partners keep their records and accept claims for a limited time, so getting in touch early genuinely helps.",
+      "We will then repair, replace, remake or refund as appropriate. Those partner and carrier time limits are ours to manage on your behalf; they are not a deadline on your rights.",
     ],
   },
   {
@@ -264,7 +280,7 @@ export const TERMS_CLAUSES: readonly Clause[] = [
     id: "changes",
     heading: "23. Changes to these terms",
     body: [
-      "We may update these terms from time to time. Any change applies to orders placed before and after the new versions take effect.",
+      "We may update these terms from time to time. Any change applies to orders placed after the new version takes effect. An order you have already placed stays governed by the version you accepted.",
     ],
   },
   {

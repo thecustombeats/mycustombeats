@@ -56,6 +56,7 @@ function lifecycle_message_content(string $type, array $c): array
 {
     $physical = $c['workflow'] === 'PHYSICAL';
     $ref      = $c['reference'];
+    $copy     = legal_data()['customer_copy'] ?? [];
     $music    = $physical ? 'your music' : 'your song';
 
     [$subject, $paragraphs, $button] = match ($type) {
@@ -81,10 +82,11 @@ function lifecycle_message_content(string $type, array $c): array
         'APPROVAL_CONFIRMED' => [
             "Thank you for approving " . ($physical ? 'your music' : 'your song') . " — {$ref}",
             $physical
-                ? [
+                ? array_values(array_filter([
                     "Thank you — you have approved your music.",
-                    "We'll now begin making your keepsake, and we'll email you when it has been sent.",
-                ]
+                    "We'll now place your keepsake into production and email you when it has been sent.",
+                    $copy['separate_parcels'] ?? null,
+                ]))
                 : [
                     "Thank you — you have approved your song.",
                     "We hope it brings back every bit of that memory. If anything is not right, just reply to this email.",
@@ -97,7 +99,9 @@ function lifecycle_message_content(string $type, array $c): array
                 "Good news — your order has been sent.",
                 $c['carrier'] !== null ? 'Carrier: ' . $c['carrier'] : null,
                 $c['tracking_reference'] !== null ? 'Tracking reference: ' . $c['tracking_reference'] : null,
-                "If anything arrives damaged or isn't right, please tell us through your order page.",
+                $copy['separate_parcels'] ?? null,
+                $copy['damage_guidance'] ?? null,
+                "You can reply to this email or use your order page. " . ($copy['damage_guidance_not_a_condition'] ?? 'Your normal consumer rights are not affected.'),
             ])),
             $c['tracking_url'] !== null ? ['Track your delivery', $c['tracking_url']] : ['See your order', $c['status_link']],
         ],

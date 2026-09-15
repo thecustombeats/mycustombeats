@@ -1,11 +1,12 @@
 {
   "_generated": "Do not edit. Generated from src/data/legal/ by scripts/generate-catalogue-json.mjs",
   "versions": {
-    "terms": "2026-09-09.4",
-    "refund_policy": "2026-09-14",
+    "terms": "2026-09-15",
+    "refund_policy": "2026-09-15",
     "privacy_policy": "2026-09-14",
-    "terms_effective_date": "2026-09-09",
+    "terms_effective_date": "2026-09-15",
     "known_terms_versions": [
+      "2026-09-15",
       "2026-09-09.4",
       "2026-09-09.2",
       "2026-09-09"
@@ -21,6 +22,15 @@
     "DIGITAL_CONTENT": {
       "applies_to": "DIGITAL_DELIVERY"
     }
+  },
+  "customer_copy": {
+    "fulfilment_position": [
+      "MCB manages your order from memory to delivery.",
+      "Some physical keepsakes are made for us by specialist production partners. Where a physical product is included, we'll coordinate production, delivery and tracking on your behalf. Delivery costs and estimates are confirmed before payment where applicable. If there is a problem with your order, contact MCB — we'll deal with the production partner for you."
+    ],
+    "damage_guidance": "As this is a personalised item, we recommend taking a quick photo of the parcel on arrival and recording the opening. If anything has been damaged in transit, please contact MCB as soon as possible and we'll handle it for you.",
+    "damage_guidance_not_a_condition": "This is a recommendation to help us put things right quickly, not a condition of getting help. Your normal consumer rights are not affected.",
+    "separate_parcels": "If your order includes more than one physical item, they may be made by different specialist partners and arrive in separate parcels, on different days, each with its own tracking where the carrier provides it. That's expected — your order page shows what has been sent."
   },
   "production": {
     "initial_stage": "CREATIVE",

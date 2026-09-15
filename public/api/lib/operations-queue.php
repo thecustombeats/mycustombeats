@@ -134,11 +134,13 @@ function operations_queue(PDO $pdo, ?int $now = null): array
                 break;
             case 'FULFILMENT.PENDING':
                 $items[] = queue_item("ORDER:{$id}:MISSING_INFORMATION:fulfilment:{$reopen}", 'MISSING_INFORMATION', $subject, $r['approved_at'],
-                    'Approved, but fulfilment is waiting on: ' . strtolower(str_replace('_', ' ', (string) ($r['fulfilment_pending_reason'] ?? 'something'))) . '.');
+                    'Approved, but fulfilment is waiting on: ' . (fulfilment_review_pending($pdo, $id)
+                        ? fulfilment_blocker_text('FULFILMENT_REVIEW')
+                        : strtolower(str_replace('_', ' ', (string) ($r['fulfilment_pending_reason'] ?? 'something')))) . '.');
                 break;
             case 'FULFILMENT.READY':
                 $items[] = queue_item("ORDER:{$id}:FULFILMENT_READY:{$reopen}", 'FULFILMENT_READY', $subject, $r['fulfilment_ready_at'],
-                    'Place the supplier order by hand, then confirm it here. Nothing is ordered automatically.');
+                    'Place the supplier order by hand, then confirm it here. Nothing is ordered automatically. Items may come from different partners and be sent separately.');
                 break;
             case 'FULFILMENT.CONFIRMED':
                 $items[] = queue_item("ORDER:{$id}:SUPPLIER_ACTION:{$reopen}", 'SUPPLIER_ACTION', $subject, $r['fulfilment_confirmed_at'],

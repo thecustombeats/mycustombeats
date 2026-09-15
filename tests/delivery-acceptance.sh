@@ -23,8 +23,8 @@ tc() { local name="$1" ok="$2"
   if [ "$ok" = "1" ]; then printf "  PASS  %-64s\n" "$name"; PASS=$((PASS+1));
   else printf "  FAIL  %-64s\n" "$name"; FAIL=$((FAIL+1)); FAILED+=("$name"); fi }
 
-NEW="2026-09-09.4"
-OLD="2026-09-09.2"
+NEW="2026-09-15"
+OLD="2026-09-09.4"
 CRUISE='"cruiseCompanions":"My husband David"'
 CN='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"'"$NEW"'",'"$CRUISE"
 CO='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"'"$OLD"'",'"$CRUISE"
@@ -92,11 +92,11 @@ tc "4. both versions are known to the server" \
 # tracked deploys rather than content would tell customers nothing.
 tc "5. the privacy version moves independently of Terms, and only on content change" \
   "$(grep -q 'PRIVACY_POLICY_VERSION = "2026-09-14"' src/data/legal/versions.ts \
-     && grep -q 'TERMS_VERSION = "2026-09-09.4"' src/data/legal/versions.ts && echo 1 || echo 0)"
+     && grep -q 'TERMS_VERSION = "2026-09-15"' src/data/legal/versions.ts && echo 1 || echo 0)"
 tc "5b.  → and the server carries all three versions distinctly" \
-  "$(grep -q '"terms": "2026-09-09.4"' public/api/data/legal.json \
+  "$(grep -q '"terms": "2026-09-15"' public/api/data/legal.json \
      && grep -q '"privacy_policy": "2026-09-14"' public/api/data/legal.json \
-     && grep -q '"refund_policy": "2026-09-14"' public/api/data/legal.json && echo 1 || echo 0)"
+     && grep -q '"refund_policy": "2026-09-15"' public/api/data/legal.json && echo 1 || echo 0)"
 
 t "6. a new order snapshots the new version" 201 \
   "$(post order '{'"$CN"',"firstName":"New","lastName":"N","email":"dl-new@example.com",'"$MOMENT_LINE"',"story":"x"}')"
@@ -212,8 +212,8 @@ tc "46. the events-outside-control clause was removed by the Founder" \
   "$(grep -q 'id: "how-we-fulfil"' src/data/legal/terms.ts && echo 0 || echo 1)"
 tc "47.  → and its removal is recorded" \
   "$(grep -q 'HISTORICAL (superseded) — delivery estimates' src/data/legal/review.ts && echo 1 || echo 0)"
-tc "48. the Founder's clause 8 states the courier position instead" \
-  "$(grep -q 'do not take any responsibility for courier damages' src/data/legal/terms.ts && echo 1 || echo 0)"
+tc "48. clause 8 keeps MCB as the customer's contact, never the courier (launch closure)" \
+  "$(! grep -q 'do not take any responsibility for courier damages' src/data/legal/terms.ts && grep -q "we'll deal with the production partner for you" src/data/legal/delivery.ts && echo 1 || echo 0)"
 tc "49.  → and the register flags it as likely unenforceable" \
   "$(grep -q 'goods remain the trader' src/data/legal/review.ts && echo 1 || echo 0)"
 tc "50. no clause says MCB stops being responsible once a third party has it" \
@@ -234,8 +234,8 @@ tc "55. damaged products: stop using it, then tell us" \
      && grep -q 'please stop using it' src/data/legal/terms.ts && echo 1 || echo 0)"
 tc "56.  → photographs are requested, not required as a condition" \
   "$(grep -q 'please send a photograph if you are able to' src/data/legal/terms.ts && echo 1 || echo 0)"
-tc "57. the Founder's clause 17 sets a 24-hour claim window" \
-  "$(grep -q 'within 24 hours of delivery date' src/data/legal/terms.ts && echo 1 || echo 0)"
+tc "57. clause 17 no longer sets a 24-hour condition on the customer (launch closure)" \
+  "$(! grep -q 'within 24 hours of delivery date' src/data/legal/terms.ts && grep -q 'not a deadline on your rights' src/data/legal/terms.ts && echo 1 || echo 0)"
 tc "57b.  → and the register flags that statutory rights do not expire in 24 hours" \
   "$(grep -q 'statutory rights do not expire in 24 hours' src/data/legal/review.ts && echo 1 || echo 0)"
 tc "58. the removed 48-hour cutoff is NOT reintroduced" \

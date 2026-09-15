@@ -252,6 +252,14 @@ $referralRow = $referral->fetch();
 
 $units = customer_order_items($pdo, $orderId);
 
+$actions = available_staff_actions($row);
+$reviewRequired = order_workflow($row) === 'PHYSICAL' && order_requires_fulfilment_review($pdo, $orderId);
+$reviewConfirmed = $reviewRequired && fulfilment_review_confirmed($pdo, $orderId);
+if ($reviewRequired && !$reviewConfirmed && ($row['status'] ?? '') === 'PAID'
+    && !in_array(effective_fulfilment_state($row), ['CONFIRMED', 'DISPATCHED', 'DELIVERED'], true)) {
+    array_unshift($actions, 'CONFIRM_FULFILMENT_REVIEW');
+}
+
 json_response(200, [
     'order_id'       => $orderId,
     'reference'      => $row['mcb_reference'],
@@ -271,7 +279,7 @@ json_response(200, [
     'operations'     => [
         'state'             => $state,
         'next_action'       => next_action_for($state),
-        'available_actions' => available_staff_actions($row),
+        'available_actions' => $actions,
         'stage'             => $row['stage'],
         'personalisation'   => $row['personalisation_status'],
         'creative'          => ['started_at' => $row['creative_started_at'], 'ready_at' => $row['creative_ready_at']],
@@ -293,6 +301,9 @@ json_response(200, [
             'ready_at'       => $row['fulfilment_ready_at'],
             'confirmed_at'   => $row['fulfilment_confirmed_at'],
             'reference'      => $row['fulfilment_reference'],
+            // Availability, destination and delivery cost confirmed with the partner.
+            'review_required'  => $reviewRequired,
+            'review_confirmed' => $reviewConfirmed,
         ],
         'delivery'          => [
             'carrier'            => $row['carrier'],

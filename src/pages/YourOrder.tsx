@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useLocation } from "react-router-dom";
 import { Check } from "lucide-react";
+import { DAMAGE_GUIDANCE, DAMAGE_GUIDANCE_NOT_A_CONDITION, SEPARATE_PARCELS_NOTE } from "../data/legal/delivery";
 import { CUSTOMER_STAGES } from "../data/operations";
 import {
   LinkError,
@@ -248,6 +249,15 @@ const YourOrder = () => {
                     Track your delivery<span className="sr-only"> (opens in a new window)</span>
                   </a>
                 )}
+              </section>
+            )}
+
+            {progress.workflow === "PHYSICAL" && (
+              <section className={card} aria-labelledby="order-parcels">
+                <h2 id="order-parcels" className="font-serif text-2xl text-ink">When your parcel arrives</h2>
+                <p className="mt-3 text-lg leading-relaxed">{DAMAGE_GUIDANCE}</p>
+                <p className="mt-3 text-base leading-relaxed text-espresso/80">{DAMAGE_GUIDANCE_NOT_A_CONDITION}</p>
+                <p className="mt-3 text-base leading-relaxed text-espresso/80">{SEPARATE_PARCELS_NOTE}</p>
               </section>
             )}
 

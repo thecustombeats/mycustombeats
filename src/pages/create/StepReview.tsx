@@ -2,7 +2,7 @@ import { Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PRIORITY_REPLACEMENT, formatMinor, getProduct, getVariant, type OrderPreview } from "../../data/catalogue";
 import { getCountry } from "../../data/countries";
-import { CONSENTS, TERMS_VERSION, getConsent, requiredConsents, type ConsentId } from "../../data/legal";
+import { CONSENTS, DELIVERY_CONFIRMED_FIRST_NOTE, FULFILMENT_POSITION, SEPARATE_PARCELS_NOTE, TERMS_VERSION, getConsent, requiredConsents, type ConsentId } from "../../data/legal";
 import { OCCASIONS, type OccasionId } from "../../data/occasions";
 import { hasDigitalDelivery, type ContactDetails, type StepId } from "../../lib/createFlow";
 import type { Quote } from "../../lib/orderApi";
@@ -26,6 +26,10 @@ interface StepReviewProps {
   quote: QuoteState;
   onRetryQuote: () => void;
 }
+
+/** "Personalised Music Plaque and Antique Brass Gramophone" */
+const listNames = (names: readonly string[]): string =>
+  names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 
 const EditLink = ({ onClick, label }: { onClick: () => void; label: string }) => (
   <button type="button" onClick={onClick} className="min-h-11 text-base font-medium text-gold-deep underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep">
@@ -124,6 +128,12 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
           </p>
         )}
         {product.turnaround && <p className="mt-2 text-sm text-espresso/70">{product.turnaround.label}</p>}
+        {preview.requiresShipping && (
+          <div className="mt-4 space-y-2 rounded-xl bg-ivory p-4 text-sm leading-relaxed text-espresso/80">
+            {FULFILMENT_POSITION.map((line) => <p key={line}>{line}</p>)}
+            <p>{DELIVERY_CONFIRMED_FIRST_NOTE}</p>
+          </div>
+        )}
       </section>
 
       {/* ---- Price: the server's figures, never this page's arithmetic ---- */}
@@ -170,9 +180,21 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
               </div>
             </dl>
             {!quote.quote.payable && (
-              <p role="alert" className="mt-4 rounded-xl border border-ink/20 bg-white p-4 text-base leading-relaxed text-ink">
-                We can't take payment online for delivery to {country ?? "this address"} yet. Your details are safe to review — please contact MCB and we'll help you complete your order.
-              </p>
+              <div role="alert" className="mt-4 rounded-xl border border-ink/20 bg-white p-4 text-base leading-relaxed text-ink">
+                <p>
+                  {quote.quote.delivery.reason === "MCB_CONFIRMS_DELIVERY" && quote.quote.delivery.reviewItems.length > 0
+                    ? `We confirm availability and delivery for your ${listNames(quote.quote.delivery.reviewItems)} personally before you pay, so this order can't be paid online yet.`
+                    : `We can't confirm a delivery charge to ${country ?? "this address"} online yet, so this order can't be paid online.`}{" "}
+                  Nothing has been charged. Contact MCB and we'll confirm everything with you{draft.plaques.length + draft.frames.length + draft.players.length > 0 ? ", or remove that item to continue" : ""}.
+                </p>
+                <p className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+                  <a href="mailto:hello@mycustombeats.com?subject=Please%20confirm%20delivery%20for%20my%20order" className="min-h-11 font-semibold text-ink underline underline-offset-4">Email hello@mycustombeats.com</a>
+                  <a href="https://wa.me/447340742009?text=Hello%20MCB%2C%20please%20could%20you%20confirm%20delivery%20for%20my%20order%20before%20I%20pay%3F" target="_blank" rel="noopener noreferrer" className="min-h-11 font-semibold text-ink underline underline-offset-4">WhatsApp +44 7340 742009<span className="sr-only"> (opens in a new window)</span></a>
+                </p>
+              </div>
+            )}
+            {preview.requiresShipping && quote.quote.payable && (
+              <p className="mt-3 text-sm leading-relaxed text-espresso/70">{SEPARATE_PARCELS_NOTE}</p>
             )}
             {quote.quote.delivery.testOnly && (
               <p className="mt-3 text-sm text-espresso/70">This is a test delivery rate for rehearsing checkout. It is not a real price.</p>

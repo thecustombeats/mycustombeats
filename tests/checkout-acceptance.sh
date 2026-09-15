@@ -174,7 +174,7 @@ skus = d["skus"]
 authorised = {
     "moment": 1500,
     "keepsake-12-picture-disc": 14999, "keepsake-10-picture-disc": 13999,
-    "keepsake-10-heart-picture-disc": 11999, "keepsake-7-picture-disc": 9900,
+    "keepsake-10-heart-picture-disc": 12999, "keepsake-7-picture-disc": 9900,
     "journey-6": 19900, "journey-12": 34900,
     "personalised-music-plaque": 4999,
     "lyrics-frame-10x15": 4999, "lyrics-frame-12x18": 6999, "lyrics-frame-14x21": 7999,
@@ -228,7 +228,7 @@ PY
 tc "  → catalogue.json is the generator's current output (--check)" \
   "$(node scripts/generate-catalogue-json.mjs --check >/dev/null 2>&1 && echo 1 || echo 0)"
 tc "  → PHP has no second price table (no literal prices in lib or endpoints)" \
-  "$(grep -rnE '\b(1500|14999|13999|11999|9900|19900|34900|1999)\b' public/api --include='*.php' 2>/dev/null | grep -v '_test-' | grep -q . && echo 0 || echo 1)"
+  "$(grep -rnE '\b(1500|14999|13999|12999|9900|19900|34900|1999)\b' public/api --include='*.php' 2>/dev/null | grep -v '_test-' | grep -q . && echo 0 || echo 1)"
 
 echo ""
 echo "================ 2. SERVER PRICES EVERY SONG EXPERIENCE ================"

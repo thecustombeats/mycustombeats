@@ -46,7 +46,7 @@ test("discloses budget mismatch and a lower-priced alternative instead of upsell
 });
 
 test("budget choices are the catalogue's own prices", () => {
-  assert.deepEqual(budgetChoicesMinor(), [1500, 9900, 11999, 13999, 14999, 19900, 34900]);
+  assert.deepEqual(budgetChoicesMinor(), [1500, 9900, 12999, 13999, 14999, 19900, 34900]);
 });
 
 /* ---- Guided questions ------------------------------------------------ */

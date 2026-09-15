@@ -314,11 +314,11 @@ tc "67. no browser switch can open checkout; the server decides and ships closed
 tc "68. dynamic checkout is still OFF in the config template" \
   "$(grep -q "'checkout_sessions_enabled' => false" public/api/config.example.php && echo 1 || echo 0)"
 
-tc "69. the Terms version is untouched" \
-  "$(grep -q 'TERMS_VERSION = "2026-09-09.4"' src/data/legal/versions.ts && echo 1 || echo 0)"
+tc "69. the Terms moved only for the launch closure edition, keeping the Founder's edition resolvable" \
+  "$(grep -q 'TERMS_VERSION = "2026-09-15"' src/data/legal/versions.ts && grep -q 'version: "2026-09-09.4"' src/data/legal/versions.ts && echo 1 || echo 0)"
 
-tc "70. the Refund and Privacy versions moved to the 14 September edition, Terms did not" \
-  "$(grep -q 'REFUND_POLICY_VERSION = "2026-09-14"' src/data/legal/versions.ts \
+tc "70. Refunds moved with the Terms (2026-09-15); Privacy stays at the 14 September edition" \
+  "$(grep -q 'REFUND_POLICY_VERSION = "2026-09-15"' src/data/legal/versions.ts \
      && grep -q 'PRIVACY_POLICY_VERSION = "2026-09-14"' src/data/legal/versions.ts && echo 1 || echo 0)"
 
 tc "71. the production stage lock is unchanged" \

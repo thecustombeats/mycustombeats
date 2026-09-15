@@ -55,7 +55,7 @@ function catalogue_product(string $productId): ?array
  * The result of pricing an order's lines.
  *
  * `lines` are in request order, each:
- *   sku, product_id, name, category, fulfilment, quantity, unit_minor, line_minor
+ *   sku, product_id, name, category, fulfilment, delivery_class, quantity, unit_minor, line_minor
  */
 final class OrderPricing
 {
@@ -187,6 +187,7 @@ function price_order_lines(mixed $requested): OrderPricing
             'name'       => (string) $item['name'],
             'category'   => (string) $item['category'],
             'fulfilment' => (string) $item['fulfilment'],
+            'delivery_class' => isset($item['delivery_class']) ? (string) $item['delivery_class'] : null,
             'quantity'   => $quantity,
             'unit_minor' => $unit,
             'line_minor' => $line,

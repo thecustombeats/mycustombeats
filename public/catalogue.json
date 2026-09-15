@@ -6,7 +6,7 @@
     "url": "https://www.mycustombeats.com"
   },
   "currency": "GBP",
-  "catalogue_hash": "c356d8d5742c670eb6c39b24d34888ab25e5cac8da80e0b5eeba7971fd40a7cc",
+  "catalogue_hash": "095597e5b69bc0cb682b716c0bca33119681a40f49520eb078fc9429b9fabe54",
   "how_to_order": "https://www.mycustombeats.com/create",
   "ordering_rules": {
     "automated_ordering": false,
@@ -14,7 +14,7 @@
     "song_experience_required": "Every order includes at least one Moment, Keepsake or Journey.",
     "priority_replacement": "At most one per eligible Keepsake in the same order.",
     "max_lines": 20,
-    "delivery": "Physical items: delivery is quoted before payment for the destination; some destinations may not be available."
+    "delivery": "Physical items: the delivery charge for the destination is confirmed before payment. Where delivery for an item or destination cannot yet be confirmed online, MCB confirms it with the customer first and online payment is not offered for that order."
   },
   "products": [
     {
@@ -29,6 +29,7 @@
       "availability": "ORDERABLE_ONLINE",
       "enquiry_url": null,
       "timing": "Target delivery within 1 hour",
+      "availability_note": null,
       "included_revisions": "1 revision",
       "disclosures": [],
       "requires_song_experience_in_order": false,
@@ -87,6 +88,7 @@
       "availability": "ORDERABLE_ONLINE",
       "enquiry_url": null,
       "timing": "Allow at least 15 working days for personalised production and delivery",
+      "availability_note": null,
       "included_revisions": "1 refinement per song",
       "disclosures": [],
       "requires_song_experience_in_order": false,
@@ -180,8 +182,8 @@
           "name": "Heart-Shaped Picture Disc Keepsake",
           "label": "Heart-Shaped Picture Disc",
           "price": {
-            "amount": "119.99",
-            "minor_units": 11999,
+            "amount": "129.99",
+            "minor_units": 12999,
             "currency": "GBP"
           },
           "orderable_online": true,
@@ -273,6 +275,7 @@
       "availability": "ORDERABLE_ONLINE",
       "enquiry_url": null,
       "timing": "Allow at least 15 working days for personalised production and delivery",
+      "availability_note": null,
       "included_revisions": "1 refinement per song",
       "disclosures": [
         "Standard vinyl — not a Picture Disc"
@@ -381,6 +384,7 @@
       "availability": "QUOTE_ONLY_BY_ENQUIRY",
       "enquiry_url": "https://www.mycustombeats.com/bespoke",
       "timing": "Timeline agreed with you during the consultation",
+      "availability_note": null,
       "included_revisions": "Refinement continues until the agreed scope is met",
       "disclosures": [
         "Individually quoted"
@@ -400,6 +404,7 @@
       "availability": "QUOTE_ONLY_BY_ENQUIRY",
       "enquiry_url": "https://www.mycustombeats.com/mcb-live",
       "timing": null,
+      "availability_note": null,
       "included_revisions": null,
       "disclosures": [
         "Individually quoted"
@@ -419,6 +424,7 @@
       "availability": "ORDERABLE_ONLINE",
       "enquiry_url": null,
       "timing": "Allow at least 15 working days for personalised production and delivery",
+      "availability_note": null,
       "included_revisions": null,
       "disclosures": [
         "This plaque does not play music.",
@@ -474,6 +480,7 @@
       "availability": "ORDERABLE_ONLINE",
       "enquiry_url": null,
       "timing": "Allow at least 15 working days for personalised production and delivery",
+      "availability_note": null,
       "included_revisions": null,
       "disclosures": [],
       "requires_song_experience_in_order": true,
@@ -652,6 +659,7 @@
       "availability": "ORDERABLE_ONLINE",
       "enquiry_url": null,
       "timing": null,
+      "availability_note": "Sourced for each order; MCB confirms availability and delivery with the partner. No stock level is claimed.",
       "included_revisions": null,
       "disclosures": [],
       "requires_song_experience_in_order": true,
@@ -696,6 +704,7 @@
       "availability": "ORDERABLE_ONLINE",
       "enquiry_url": null,
       "timing": null,
+      "availability_note": "Sourced for each order; MCB confirms availability and delivery with the partner. No stock level is claimed.",
       "included_revisions": null,
       "disclosures": [],
       "requires_song_experience_in_order": true,
@@ -740,6 +749,7 @@
       "availability": "ORDERABLE_ONLINE",
       "enquiry_url": null,
       "timing": null,
+      "availability_note": "Sourced for each order; MCB confirms availability and delivery with the partner. No stock level is claimed.",
       "included_revisions": null,
       "disclosures": [],
       "requires_song_experience_in_order": true,
@@ -784,6 +794,7 @@
       "availability": "ORDERABLE_ONLINE",
       "enquiry_url": null,
       "timing": null,
+      "availability_note": null,
       "included_revisions": null,
       "disclosures": [
         "Your normal consumer rights are not affected. You do not need to buy MCB Priority Replacement to exercise any rights you already have for faulty, damaged or misdescribed goods.",

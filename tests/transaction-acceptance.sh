@@ -383,7 +383,11 @@ tc "  → the plaque keeps its song title and artist" "$([ "$(q "SELECT CONCAT(p
 tc "  → the frame points at song 2 of Keepsake 1, with its heading" "$([ "$(q "SELECT CONCAT(m.sequence,'|',f.frame_heading) FROM order_units f JOIN order_memories m ON m.id=f.frame_memory_id WHERE f.order_id=$AOID AND f.kind='FRAME'")" = "2|Our Song" ] && echo 1 || echo 0)"
 tc "  → the plaque photo is required before payment" "$([ "$(jget missing_uploads /tmp/order.json)" = '["plaque:1"]' ] && [ "$(session $AOID $ATOK)" = "409" ] && echo 1 || echo 0)"
 t "  → plaque photo uploaded" 201 "$(upload $AOID $ATOK plaque:1 $FIX/photo-8x8.png photo.png)"
-tc "  → then it is ready" "$([ "$(jget checkout_blocker)" = "null" ] && echo 1 || echo 0)"
+tc "  → the photo is in, but MCB confirms plaque and gramophone delivery before payment" "$([ "$(jget checkout_blocker)" = "delivery_unavailable" ] && [ "$(q "SELECT delivery_status FROM orders WHERE id=$AOID")" = "UNAVAILABLE" ] && echo 1 || echo 0)"
+t "  → so checkout refuses it" 409 "$(session $AOID $ATOK)"
+order '{"sku":"keepsake-12-picture-disc","email":"addons-frame@example.com","frames":[["lyrics-frame-12x18",1,2,"Our Song"]]}'
+FOID=$OID; FTOK=$TOK
+tc "a Keepsake with a frame is quoted with a separate TEST frame rate and is ready" "$([ "$CODE" = "201" ] && [ "$(jget checkout_blocker /tmp/order.json)" = "null" ] && [ "$(q "SELECT delivery_rate_id FROM orders WHERE id=$FOID")" = "TEST_ONLY_UK+TEST_ONLY_FRAME" ] && [ "$(q "SELECT delivery_minor FROM orders WHERE id=$FOID")" = "1190" ] && echo 1 || echo 0)"
 tc "the plaque is never described as playing music" "$(grep -rqiE 'plays (your|the) (song|music)' src/data/catalogue/products.ts && echo 0 || echo 1)"
 release_limits
 S=$(post_json order "$(build_order '{"sku":"keepsake-7-picture-disc","frames":[["lyrics-frame-10x15",1,2]]}')")
@@ -538,7 +542,7 @@ t "an unrecognised key: session refused" 503 "$(session "$OID" "$TOK")"
 with_config "\$c['stripe']['secret_key'] = 'sk_live_' . 'notreal000000000000000000'; \$c['stripe']['live_checkout_approved'] = 'yes';"
 t "approval must be exactly true, not a truthy string" 503 "$(session "$OID" "$TOK")"
 with_config "\$c['stripe']['secret_key'] = 'sk_live_' . 'notreal000000000000000000'; \$c['stripe']['live_checkout_approved'] = true; \$c['uploads'] = ['path' => '/srv/mcb-uploads'];"
-t "a TEST_ONLY-quoted order is refused in approved live mode" 409 "$(session "$AOID" "$ATOK")"
+t "a TEST_ONLY-quoted order is refused in approved live mode" 409 "$(session "$FOID" "$FTOK")"
 tc "  → as not payable online" "$(body | grep -q 'order_not_payable_online' && echo 1 || echo 0)"
 hook "$(pay_event evt_live_on_test_order cs_test_live_crossover_0001 "$GOID" 1500 gbp false)" >/dev/null
 tc "a TEST event reaching a LIVE server is filed, never paid" "$([ "$(q "SELECT reason FROM unreconciled_payments WHERE stripe_session_id='cs_test_live_crossover_0001'")" = "MODE_MISMATCH" ] && echo 1 || echo 0)"

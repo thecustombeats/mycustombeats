@@ -12,6 +12,7 @@ import {
   publicProducts,
 } from "../../data/catalogue";
 import { PRODUCT_IMAGERY } from "../../data/imagery";
+import { DELIVERY_CONFIRMED_FIRST_NOTE } from "../../data/legal/delivery";
 import {
   ARTIST_MAX,
   FRAME_HEADING_MAX,
@@ -76,6 +77,7 @@ const StepExtras = ({ draft, setDraft, photos, setPhoto, showErrors, onAdd }: St
         <p className="mt-3 text-base leading-relaxed text-espresso/80">{PERSONALISED_MUSIC_PLAQUE.shortDescription}</p>
         <ul className="mt-3 space-y-1 text-base text-espresso/80">
           {PERSONALISED_MUSIC_PLAQUE.disclosures.map((d) => <li key={d}>{d}</li>)}
+          <li>{DELIVERY_CONFIRMED_FIRST_NOTE}</li>
         </ul>
 
         {draft.plaques.map((plaque, i) => (
@@ -202,6 +204,7 @@ const StepExtras = ({ draft, setDraft, photos, setPhoto, showErrors, onAdd }: St
       {/* ---- Players ---- */}
       <section aria-labelledby={`${uid}-players`} className="rounded-2xl bg-white p-5 sm:p-7">
         <h2 id={`${uid}-players`} className="!text-3xl text-ink">Play it at home</h2>
+        <p className="mt-3 text-base leading-relaxed text-espresso/80">{DELIVERY_CONFIRMED_FIRST_NOTE} You'll see which at Review, before anything is charged.</p>
         <ul className="mt-6 grid list-none gap-5 p-0 sm:grid-cols-3">
           {PLAYERS.map((player) => {
             const sku = player.variants[0].sku;

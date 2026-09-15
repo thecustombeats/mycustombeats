@@ -50,3 +50,21 @@ Supplier cost and margin data is internal only and must never enter this reposit
 Heirloom; MCB CDs; old Engraved Music Plaques; MCB Music Box Experience; standard Frames (including the Vinyl Frame); any separate unnamed £79.99 7-inch product.
 
 Heirloom must not appear in navigation, homepage, package or product data, structured data, checkout, analytics, SEO, Memory Concierge, tests or copy.
+
+## Launch closure update — 15 September 2026
+
+**Source:** Bella and Lewis, launch closure patch brief. Supersedes the table above where they differ.
+
+| Change | Before | Now |
+|---|---|---|
+| Keepsake — Heart Picture Disc (1 song) | £119.99 | **£129.99** |
+
+Unchanged and confirmed: Journey double 12-inch gatefold (12 songs) £349; Journey 12-inch (6 songs) £199; Keepsake 12-inch Picture Disc (4) £149.99; 10-inch Picture Disc (3) £139.99; 7-inch Picture Disc (1) £99. Heirloom stays removed.
+
+Current physical catalogue per the Founders: Vinyl 6, Vinyl Frames / Wall Art 5, Pop-Up Cards 18, Gramophones / Record Players 3, Plaque 1.
+
+- **Fulfilment model:** zero inventory; specialist production partners; supplier purchase is always a human-authorised action. Prodigi and Kunaki are not launch suppliers. No supplier name, URL, purchase price, shipping allowance or margin may enter this repository.
+- **Internal shipping estimates (£8 / £10 / £20) are not customer prices** and are not in the code.
+- **Pop-Up Cards (18):** authorised for standalone and add-on purchase. **Not implemented** — ACTION REQUIRED: Bella / Lewis to supply each card's customer-facing name, customer price, approved image and whether any personalisation is included. An older, unrelated 10-design £50 card set exists only on a different branch and was not resurrected.
+- **Vinyl Frames / Wall Art (5):** the release candidate sells five **Lyrics Frames** (10×15 £49.99 … 20×30 £99.99), authorised on 14 September, when "Vinyl Frame" was removed. ACTION REQUIRED: Bella / Lewis to confirm whether the five current configurations are these Lyrics Frames (keep) or a different framed-vinyl product (supply names, sizes, prices). Nothing was renamed.
+- **Gramophones (3) and Plaque (1):** prices unchanged (£100, £200, £1,000; plaque £49.99). Their delivery is confirmed by MCB before payment by default.

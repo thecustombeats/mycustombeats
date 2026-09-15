@@ -170,3 +170,43 @@ export const DELIVERY_BASIS_NOTE: Readonly<Record<DeliveryBasis, string>> = {
   AGREED_IN_PROPOSAL:
     "Timing is agreed with you in the written proposal for your commission.",
 };
+
+/* ------------------------------------------------------------------ */
+/* Who makes it and who the customer deals with                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * FOUNDER-APPROVED (launch closure, 15 September 2026). MCB is the seller and
+ * the customer's only contact; specialist partners make some keepsakes.
+ * Partners are never named, and customers are never sent to one.
+ */
+export const FULFILMENT_POSITION: readonly string[] = [
+  "MCB manages your order from memory to delivery.",
+  "Some physical keepsakes are made for us by specialist production partners. Where a physical product is included, we'll coordinate production, delivery and tracking on your behalf. Delivery costs and estimates are confirmed before payment where applicable. If there is a problem with your order, contact MCB — we'll deal with the production partner for you.",
+];
+
+/**
+ * FOUNDER-APPROVED damage guidance. Evidence-preservation advice only: it is
+ * never a condition of help and never limits a customer's rights, which is
+ * why it always travels with DAMAGE_GUIDANCE_NOT_A_CONDITION.
+ */
+export const DAMAGE_GUIDANCE =
+  "As this is a personalised item, we recommend taking a quick photo of the parcel on arrival and recording the opening. If anything has been damaged in transit, please contact MCB as soon as possible and we'll handle it for you.";
+
+export const DAMAGE_GUIDANCE_NOT_A_CONDITION =
+  "This is a recommendation to help us put things right quickly, not a condition of getting help. Your normal consumer rights are not affected.";
+
+/** Several physical items may come from different partners. */
+export const SEPARATE_PARCELS_NOTE =
+  "If your order includes more than one physical item, they may be made by different specialist partners and arrive in separate parcels, on different days, each with its own tracking where the carrier provides it. That's expected — your order page shows what has been sent.";
+
+/** Personalised keepsakes enter production after approval. */
+export const MADE_TO_ORDER_NOTE =
+  "Personalised keepsakes are made to order. Once you approve your music, we place your keepsake into production, and after that it can no longer be changed. This does not affect your rights if anything arrives damaged, faulty or not as described.";
+
+/**
+ * Where MCB must confirm delivery before payment (availability-sensitive
+ * items, or a destination without an authorised rate).
+ */
+export const DELIVERY_CONFIRMED_FIRST_NOTE =
+  "For some items and destinations we confirm availability and the delivery cost with you personally before you pay, rather than guess at a charge.";

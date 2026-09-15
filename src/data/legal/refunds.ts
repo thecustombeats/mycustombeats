@@ -38,6 +38,15 @@
  * enquiry is not a purchase. Each still names the clause it comes from.
  */
 
+import { DAMAGE_GUIDANCE, DAMAGE_GUIDANCE_NOT_A_CONDITION, FULFILMENT_POSITION, SEPARATE_PARCELS_NOTE } from "./delivery";
+
+/*
+ * LAUNCH CLOSURE EDITION 2026-09-15: the damage section follows the Terms'
+ * corrected clauses 8 and 17 (no 24-hour condition, no "matter for the
+ * courier"), cancelling points to the clause 7 carve-out, and the
+ * Founder-approved delivery wording is added. No new remedy is promised.
+ */
+
 export interface RefundSection {
   heading: string;
   /** The question a customer would actually ask. */
@@ -56,7 +65,8 @@ export const REFUND_SECTIONS: readonly RefundSection[] = [
     heading: "Cancelling",
     question: "Can I cancel after paying?",
     body: [
-      "No. There is no cancellation of the product service after payment, and there is a no refund policy. This is set out in clause 7 of our Terms.",
+      "No. There is no cancellation of the product service after payment, and there is a no refund policy for a change of mind. This is set out in clause 7 of our Terms.",
+      "That does not affect your rights if an item arrives damaged, faulty or not as described — see below.",
       "Because of that, please make sure you are happy with what you are ordering — and with the timing — before you pay. If you are unsure about anything, ask us first.",
     ],
     clause: "cancellation",
@@ -75,10 +85,17 @@ export const REFUND_SECTIONS: readonly RefundSection[] = [
     question: "The frame is cracked / the record is chipped.",
     body: [
       "Stop using it — a cracked frame is something to put down rather than handle carefully — and send us a photograph.",
-      "Tell us as soon as you reasonably can. We will then repair, replace, remake or refund as appropriate at a reasonable discount price if done within 24 hours of the delivery date, and you will need to keep a copy of the delivery date with your claim.",
-      "Damage caused in transit is a matter for the courier: clause 8 of our Terms explains that we do not take responsibility for courier damage, and what we can do to help.",
+      DAMAGE_GUIDANCE,
+      "Tell us as soon as you reasonably can. We will then repair, replace, remake or refund as appropriate. Our production partners and carriers have their own time limits for claims; those are ours to manage for you, not a deadline on your rights.",
+      DAMAGE_GUIDANCE_NOT_A_CONDITION,
     ],
     clause: "damaged-products",
+  },
+  {
+    heading: "Delivery and separate parcels",
+    question: "Who do I contact if something goes wrong with delivery?",
+    body: [...FULFILMENT_POSITION, SEPARATE_PARCELS_NOTE],
+    clause: "if-we-get-it-wrong",
   },
   {
     heading: "Bespoke",

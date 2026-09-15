@@ -94,7 +94,7 @@ if pr: lines.append({"sku": "priority-replacement", "quantity": pr})
 body = {
     "firstName": "Tx", "lastName": "Customer", "email": spec.get("email", "tx@example.com"),
     "whatsapp": "+447000000456",
-    "consents": {"TERMS": True, "SERVICE_START": True, "DIGITAL_CONTENT": True}, "termsVersion": "2026-09-09.4",
+    "consents": {"TERMS": True, "SERVICE_START": True, "DIGITAL_CONTENT": True}, "termsVersion": "2026-09-15",
     "lines": spec.get("lines_override", lines),
     "personalisation": spec.get("personalisation_override", {"units": units, "plaques": plaques, "frames": frames}),
 }
@@ -548,6 +548,63 @@ tc "  → every named event occurred and is listed" "$(python3 -c 'import json;d
 tc "  → only those events, and no personal data" "$(python3 -c 'import json;d=json.load(open("/tmp/tx.json"));allowed=set(json.load(open("public/api/data/operations.json"))["automation_events"]);print(1 if all(e["event"] in allowed for e in d["order_events"]+d["enquiry_events"]) else 0)')$(grep -qiE '@example|lanterns|Canberra|Harbour' /tmp/tx.json && echo X || echo '')"
 tc "no audit event anywhere holds an email address, story, feedback or note text" "$([ "$(q "SELECT COUNT(*) FROM order_events WHERE detail LIKE '%@%' OR detail LIKE '%lanterns%' OR detail LIKE '%chorus%' OR detail LIKE '%prefers%' OR detail LIKE '%cracked%'")" = 0 ] && echo 1 || echo 0)"
 tc "no supplier ordering or payment code path exists in operations" "$(grep -nE 'stripe_|curl_init|refund' public/api/lib/operations.php public/api/lib/operations-queue.php public/api/crm/order-action.php public/api/order-approval.php public/api/order-support.php public/api/live/enquiry.php | grep -v 'stripe_livemode' | grep -vE '^[^:]+:[0-9]+:\s*(\*|//|/\*\*)' | grep -q . && echo 0 || echo 1)"
+
+# ===========================================================================
+section "12. LAUNCH CLOSURE — DELIVERY CLASSES, MCB CONFIRMS, HUMAN FULFILMENT REVIEW"
+RATES=public/api/data/delivery-rates.json
+trap 'restore_config; rm -f public/api/_test-config-base.php "$RATES"' EXIT
+quote() { release_limits; post_json order-quote "{\"lines\":$1${2:+,\"shippingCountryCode\":\"$2\"}}" >/dev/null; }
+# Fixtures (no rate table): plaques and players are confirmed by MCB, never estimated.
+quote '[{"sku":"keepsake-7-picture-disc","quantity":1},{"sku":"personalised-music-plaque","quantity":1},{"sku":"antique-brass-gramophone","quantity":1}]' GB
+tc "a plaque or player is not priced: UNAVAILABLE, MCB_CONFIRMS_DELIVERY, not payable, £0 delivery" "$([ "$(jget delivery.status)" = UNAVAILABLE ] && [ "$(jget delivery.reason)" = MCB_CONFIRMS_DELIVERY ] && [ "$(jget payable)" = false ] && [ "$(jget delivery.minor)" = 0 ] && echo 1 || echo 0)"
+tc "  → the customer is told which items, by product name only" "$([ "$(jget delivery.review_items)" = '["Personalised Music Plaque","Antique Brass Gramophone"]' ] && echo 1 || echo 0)"
+tc "  → the response carries no pricing state, class, partner or rate internals" "$(grep -qE 'LISTING_DEPENDENT|MANUAL_REVIEW|DESTINATION_CALCULATED|PLAYER|PLAQUE|classes|first_item' /tmp/tx.json && echo 0 || echo 1)"
+quote '[{"sku":"moment","quantity":1}]'
+tc "a Moment needs no delivery, no country, and stays payable" "$([ "$(jget delivery.status)" = NOT_REQUIRED ] && [ "$(jget payable)" = true ] && [ "$(jget total_minor)" = "$(price moment)" ] && echo 1 || echo 0)"
+quote '[{"sku":"keepsake-7-picture-disc","quantity":2},{"sku":"lyrics-frame-10x15","quantity":1}]' GB
+tc "vinyl and frames are charged separately and added (split partners), from TEST rates" "$([ "$(jget delivery.status)" = QUOTED ] && [ "$(jget delivery.minor)" = $((495 + 105 + 695)) ] && [ "$(jget delivery.test_only)" = true ] && echo 1 || echo 0)"
+
+# A Founder rate table that promotes players, with a general (vinyl) rate only.
+printf '%s' '{"currency":"GBP","pricing":{"PLAYER":"DESTINATION_CALCULATED","PLAQUE":"NOT_A_STATE"},"rates":[{"id":"T_UK","label":"UK delivery (test table)","countries":["GB"],"first_item_minor":400,"additional_item_minor":100}]}' > "$RATES"; settle
+quote '[{"sku":"keepsake-7-picture-disc","quantity":1},{"sku":"vintage-smartphone-gramophone","quantity":1}]' GB
+tc "a general rate never prices a gramophone, even when players are promoted" "$([ "$(jget delivery.status)" = UNAVAILABLE ] && [ "$(jget delivery.reason)" = NO_DELIVERY_RATE ] && [ "$(jget delivery.review_items)" = '["Vintage Smartphone Gramophone"]' ] && echo 1 || echo 0)"
+quote '[{"sku":"keepsake-7-picture-disc","quantity":1},{"sku":"personalised-music-plaque","quantity":1}]' GB
+tc "an unknown pricing value is ignored: the plaque is still confirmed by MCB" "$([ "$(jget delivery.reason)" = MCB_CONFIRMS_DELIVERY ] && echo 1 || echo 0)"
+quote '[{"sku":"keepsake-7-picture-disc","quantity":1},{"sku":"lyrics-frame-10x15","quantity":1}]' GB
+tc "a frame needs a rate naming FRAME; with a table present, TEST fixtures are not used" "$([ "$(jget delivery.status)" = UNAVAILABLE ] && [ "$(jget delivery.test_only)" = false ] && echo 1 || echo 0)"
+
+printf '%s' '{"currency":"GBP","pricing":{"PLAYER":"DESTINATION_CALCULATED"},"rates":[{"id":"T_UK","label":"UK delivery (test table)","countries":["GB"],"first_item_minor":400,"additional_item_minor":100},{"id":"T_UK_PLAYER","label":"Player delivery (test table)","countries":["GB"],"classes":["PLAYER"],"first_item_minor":1200,"additional_item_minor":900}]}' > "$RATES"; settle
+quote '[{"sku":"keepsake-7-picture-disc","quantity":1},{"sku":"vintage-smartphone-gramophone","quantity":1}]' GB
+tc "with a rate naming PLAYER for the destination, the order is quoted from the table" "$([ "$(jget delivery.status)" = QUOTED ] && [ "$(jget delivery.minor)" = 1600 ] && [ "$(jget delivery.test_only)" = false ] && [ "$(jget payable)" = true ] && echo 1 || echo 0)"
+quote '[{"sku":"keepsake-7-picture-disc","quantity":1},{"sku":"vintage-smartphone-gramophone","quantity":1}]' US
+tc "  → a destination the table does not cover is refused, never estimated" "$([ "$(jget delivery.status)" = UNAVAILABLE ] && [ "$(jget payable)" = false ] && echo 1 || echo 0)"
+
+stub_reset
+paid_order '{"sku":"keepsake-7-picture-disc","email":"ops-player@example.com","players":[["vintage-smartphone-gramophone",1]]}'
+PO=$OID
+tc "the order is paid and records both rates and the table source" "$([ "$(q "SELECT CONCAT_WS('|',status,delivery_rate_source,delivery_rate_id,delivery_minor) FROM orders WHERE id=$PO")" = "PAID|RATE_TABLE|T_UK+T_UK_PLAYER|1600" ] && echo 1 || echo 0)"
+crm "crm/operations?order=$PO" >/dev/null
+tc "  → staff see that availability and delivery must be confirmed, and the action is offered" "$([ "$(jget operations.fulfilment.review_required)" = true ] && [ "$(jget operations.fulfilment.review_confirmed)" = false ] && jget operations.available_actions | grep -q CONFIRM_FULFILMENT_REVIEW && echo 1 || echo 0)"
+act $PO START_CREATIVE >/dev/null; act $PO MARK_CREATIVE_READY >/dev/null; act $PO RECORD_APPROVAL '"channel":"EMAIL"' >/dev/null
+t "  → after approval it waits, instead of becoming fulfilment-ready" "FULFILMENT.PENDING" "$(state_of $PO)"
+tc "  → the queue says what it is waiting on" "$(crm 'crm/operations?view=queue' >/dev/null; python3 -c 'import json,sys;d=json.load(open("/tmp/tx.json"))["items"];i=[x for x in d if x["key"].startswith("ORDER:%s:MISSING_INFORMATION:fulfilment" % sys.argv[1])];print(1 if i and "availability" in i[0]["detail"] else 0)' "$PO")"
+t "  → it cannot be marked ready" 409 "$(act $PO SET_FULFILMENT_READY)"
+t "  → confirming needs the explicit tick" 422 "$(act $PO CONFIRM_FULFILMENT_REVIEW '"note":"Partner confirmed stock and UK delivery cost"')"
+t "  → and a note of what was confirmed" 422 "$(act $PO CONFIRM_FULFILMENT_REVIEW '"confirmed":true')"
+t "  → confirmed by a person" 200 "$(act $PO CONFIRM_FULFILMENT_REVIEW '"confirmed":true,"note":"Partner confirmed stock and UK delivery cost"')"
+t "  → which moves it to fulfilment-ready by itself" "FULFILMENT.READY" "$(state_of $PO)"
+tc "  → recorded as an event without the note text, and the note kept internally" "$([ "$(q "SELECT COUNT(*) FROM order_events WHERE order_id=$PO AND event_type='FULFILMENT.REVIEW_CONFIRMED' AND detail NOT LIKE '%stock%'")" = 1 ] && [ "$(q "SELECT COUNT(*) FROM order_staff_notes WHERE order_id=$PO AND note LIKE 'Availability and delivery confirmed:%'")" = 1 ] && echo 1 || echo 0)"
+t "  → a second confirmation changes nothing" "unchanged" "$(act $PO CONFIRM_FULFILMENT_REVIEW '"confirmed":true,"note":"again"' >/dev/null; jget outcome)"
+t "  → the partner order is then confirmed by hand" 200 "$(act $PO CONFIRM_FULFILMENT '"fulfilment_reference":"HAND-PLACED-1"')"
+t "  → dispatched with two parcels' tracking" 200 "$(act $PO MARK_DISPATCHED "\"carrier\":\"Royal Mail\",\"tracking_reference\":\"RM1GB, DPD22\",\"dispatched_on\":\"$TODAY\",\"send_email\":true")"
+tc "  → the dispatch email explains separate parcels and the approved damage guidance" "$(mail_log | grep -q 'RM1GB, DPD22' && mail_log | grep -q 'arrive in separate parcels' && mail_log | grep -q 'recording the opening' && mail_log | grep -q 'not a condition of getting help' && echo 1 || echo 0)"
+tc "  → and never names a partner or tells the customer to contact the courier" "$(mail_log | grep -qiE 'courier service|contact the (courier|supplier)|HAND-PLACED' && echo 0 || echo 1)"
+rm -f "$RATES"; settle
+paid_order '{"sku":"keepsake-7-picture-disc","email":"ops-vinyl-only@example.com"}'
+crm "crm/operations?order=$OID" >/dev/null
+tc "a vinyl-only order needs no availability review" "$([ "$(jget operations.fulfilment.review_required)" = false ] && ! jget operations.available_actions | grep -q CONFIRM_FULFILMENT_REVIEW && echo 1 || echo 0)"
+t "  → and the review action is refused for it" 409 "$(act $OID CONFIRM_FULFILMENT_REVIEW '"confirmed":true,"note":"n/a"')"
+tc "no automatic supplier purchase path was added" "$(grep -nE 'curl_init|file_get_contents\(.https?:' public/api/lib/delivery.php public/api/lib/operations.php | grep -q . && echo 0 || echo 1)"
 
 echo ""
 echo "======================================================================"

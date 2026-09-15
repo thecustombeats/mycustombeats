@@ -69,6 +69,9 @@ export const validateCatalogue = (products: readonly Product[]): string[] => {
       errors.push(`${at}: only STORED_VALUE products carry stored-value rules`);
     }
     if (product.onlineCheckout && !product.active) errors.push(`${at}: inactive product offered online`);
+    const physical = product.variants.some((v) => v.fulfilment === "PHYSICAL");
+    if (physical && product.deliveryClass === null) errors.push(`${at}: a physical product needs a delivery class`);
+    if (!physical && product.deliveryClass !== null) errors.push(`${at}: only physical products carry a delivery class`);
   }
 
   const priority = products.find((p) => p.id === "priority-replacement");

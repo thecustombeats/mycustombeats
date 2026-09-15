@@ -23,34 +23,50 @@ After deciding: update the Privacy Policy "How long we keep it" section, then co
 
 ## 2. Shipping data required to activate physical commerce
 
-Today no production delivery rate exists, so every physical order (Keepsake, Journey, plaque, frames, players) is quoted "unavailable" and **cannot be paid live**; TEST-only rates are refused with a live key. A Moment needs no shipping.
+*Updated for the launch closure patch, 15 September 2026.*
 
-The software reads `api/data/delivery-rates.json`. **Minimum table for launch:**
+Today no production delivery rate exists, so every physical order is quoted "unavailable" and **cannot be paid live**; TEST-only rates are refused with a live key. A Moment needs no shipping and is unaffected.
+
+**Internal shipping estimates (£8 / £10 / £20 and similar) are planning allowances, not customer prices. Never put them in this file.** Only a delivery charge the Founders have decided to show customers belongs here.
+
+### How each kind of item is priced (server-side, never shown to customers)
+
+| Delivery class | Products | Default state | Priced online when | Staff must confirm availability, destination and real delivery cost before placing the partner order |
+|---|---|---|---|---|
+| VINYL | Keepsake (4), Journey (2) | Destination-calculated | A rate covers the destination (a general rate or one naming `VINYL`) | No |
+| FRAME | Lyrics Frames (5) | Destination-calculated | A rate **naming `FRAME`** covers the destination | No |
+| PLAQUE | Personalised Music Plaque | **MCB confirms delivery before payment** (manual review) | Only if the table sets `"pricing": {"PLAQUE": "DESTINATION_CALCULATED"}` **and** a rate naming `PLAQUE` covers the destination | Yes |
+| PLAYER | 3 gramophones / record players | **MCB confirms before payment** (listing-dependent) | Only with a `pricing` promotion **and** a rate naming `PLAYER` | Yes |
+| CARD | Pop-up cards (not yet in the catalogue) | **MCB confirms before payment** (listing-dependent) | Only with a `pricing` promotion **and** a rate naming `CARD` | Yes |
+
+When an order holds an item MCB must confirm, the Review page names the item, says nothing has been charged, and offers email and WhatsApp (+44 7340 742009). The customer can remove the item and pay for the rest. Nothing is estimated.
+
+### Rate table (`api/data/delivery-rates.json`, uploaded to the server only)
 
 ```json
 {
   "currency": "GBP",
+  "pricing": { "PLAQUE": "DESTINATION_CALCULATED" },
   "rates": [
-    { "id": "UK_STANDARD", "label": "UK delivery", "countries": ["GB"], "first_item_minor": 0, "additional_item_minor": 0 },
-    { "id": "EUROPE", "label": "Europe delivery", "countries": ["IE", "FR", "DE"], "first_item_minor": 0, "additional_item_minor": 0 },
-    { "id": "REST_OF_WORLD", "label": "International delivery", "countries": "*", "first_item_minor": 0, "additional_item_minor": 0 }
+    { "id": "UK_VINYL",     "label": "UK tracked delivery",  "countries": ["GB"], "classes": ["VINYL"],  "first_item_minor": 0, "additional_item_minor": 0 },
+    { "id": "UK_FRAME",     "label": "UK frame delivery",    "countries": ["GB"], "classes": ["FRAME"],  "first_item_minor": 0, "additional_item_minor": 0 },
+    { "id": "IN_PLAQUE",    "label": "Plaque delivery",      "countries": ["IN"], "classes": ["PLAQUE"], "first_item_minor": 0, "additional_item_minor": 0 }
   ]
 }
 ```
 
-(The zeros are placeholders, not proposed prices.) For each row the Founders must supply:
+(The zeros and countries are placeholders, not proposals. `pricing` is optional; leave a class out to keep "MCB confirms".)
 
 | Field | Meaning |
 |---|---|
-| Destination | ISO country codes, or `*` for "everywhere else". Omit a region entirely to refuse delivery there. |
-| Label | What the customer sees at Review (e.g. "UK tracked delivery"). |
-| First item charge | Pence, GBP, for the first physical item in the order. |
-| Each additional item | Pence, GBP, for every further physical item. |
-| Service | Optional wording inside the label (carrier/service), only if accurate. |
+| `countries` | ISO country codes, or `"*"` for everywhere else. Leave a destination out to have MCB confirm delivery there instead of charging. |
+| `classes` | Which delivery classes the rate applies to. A rate without `classes` applies to **vinyl only**. |
+| `label` | What the customer sees at Review. Do not name a partner. |
+| `first_item_minor` / `additional_item_minor` | Pence, GBP. `0` means verified free delivery. |
 
-**Limitation to decide on:** the current model charges per physical item, the same for every product. If a gramophone or a Journey costs materially more to send than a 7-inch Keepsake, either (a) set rates that are fair across products, (b) keep players off the online order until priced separately, or (c) commission a small extension for per-product rates. That is a Founder choice; the software does not guess.
+Different classes are charged separately and added together (they may come from different partners in separate parcels). If any physical item in an order has no rate for the destination, the whole order waits for MCB to confirm delivery.
 
-Also needed from suppliers before physical launch (operations, not code): who fulfils each physical product, and how staff place and confirm those orders manually.
+Also needed before physical launch (operations, not code): which partner fulfils each physical product, and how staff place, confirm and pay for those orders by hand.
 
 ## 3. Legal / policy gap inventory
 
@@ -58,10 +74,10 @@ Each line is an exact mismatch between current wording and actual site behaviour
 
 | # | Where | Mismatch | Class |
 |---|---|---|---|
-| 1 | Terms §8 "We at MCB do not take any responsibility for courier damages…" | Priority Replacement page and production-stage copy (`legal/production.ts`: "if anything is wrong with what arrives, that is ours to put right") say MCB helps; UK consumer law generally places transit risk on the trader until delivery. Already BLOCKING in `review.ts`. | L + F |
-| 2 | Refunds "within 24 hours of the delivery date … at a reasonable discount price" | Priority Replacement offers a 7-day request window; statutory rights do not expire in 24 hours. | L + F |
-| 3 | Terms §7 "There is a no refund policy" | No carve-out for faulty or misdescribed goods (already listed in `review.ts`). | L |
-| 4 | Terms §4 "As soon as a song goes to Vinyl pressing, no refinements can be made" | The system (and product pages) close refinements at **approval**, and a Moment is never pressed. | F |
+| 1 | Terms §8 "We at MCB do not take any responsibility for courier damages…" | **Corrected in the launch closure edition 2026-09-15** with the Founder-approved fulfilment and damage wording. Legal review of the new wording still required. | T (done) + L |
+| 2 | Refunds / Terms §17 "within 24 hours of the delivery date … at a reasonable discount price" | **Corrected 2026-09-15**: no 24-hour condition; partner claim windows are MCB's to manage. Founders to confirm removing "a reasonable discount price". | T (done) + F + L |
+| 3 | Terms §7 "There is a no refund policy" | **Corrected 2026-09-15**: "for a change of mind" plus a damaged/faulty/not-as-described carve-out. Legal review still required. | T (done) + L |
+| 4 | Terms §4 "As soon as a song goes to Vinyl pressing, no refinements can be made" | **Corrected 2026-09-15**: refinements close at approval. | T (done) |
 | 5 | Terms §5 "When your work is ready we send it to you" | Accurate, but does not mention the private approval link or that approval locks physical orders (the approval page says so). | F (optional wording) |
 | 6 | Privacy "How long we keep it" | No periods stated; see §1. | F + L |
 | 7 | Privacy cookies | **T — fixed in Sprint 7:** analytics now loads only after consent; the policy text, storage list (stale keys removed; consent key added) and processor list (reCAPTCHA added) now match the code. Whether analytics may run without consent under current UK law (including the Data (Use and Access) Act 2025 changes) is a legal question; the site now takes the conservative route. | T (done) + L |
@@ -69,6 +85,8 @@ Each line is an exact mismatch between current wording and actual site behaviour
 | 9 | Unsupported marketing claims (Press "collaborates with media outlets…", Artists "global network", "professional musicians") | **T — fixed in Sprint 7:** softened to factual wording. | T (done) |
 | 10 | 2026-09-14 Privacy/Refunds edition | Not yet approved by the Founders or reviewed (`review.ts`). | F + L |
 | 11 | Cancellation classification / digital-content consent | Existing BLOCKING review items; no software mismatch found (consents are recorded as designed). | L |
+| 12 | Terms §23 "Any change applies to orders placed before and after" | Contradicted clauses 2 and 25. **Corrected 2026-09-15**: future orders only. | T (done) + L |
+| 13 | Terms §18 "MCB has no responsibility for death or personal injury caused by neglect or defective products" and §20 "full responsibility if anything happens regarding a legal case" | Substantive liability terms, left exactly as the Founder wrote them. | F + L |
 
 ## 4. Other Founder account actions
 

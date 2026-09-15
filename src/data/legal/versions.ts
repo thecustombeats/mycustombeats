@@ -60,7 +60,7 @@
  * correctly, it reads unambiguously, and it does not require anyone to learn
  * a versioning convention to understand which came first.
  */
-export const TERMS_VERSION = "2026-09-09.4";
+export const TERMS_VERSION = "2026-09-15";
 
 /**
  * MOVED to `2026-09-14`, separately from the Terms.
@@ -74,7 +74,11 @@ export const TERMS_VERSION = "2026-09-09.4";
  * FOUNDER AND LEGAL REVIEW OF THIS WORDING IS REQUIRED BEFORE PRODUCTION
  * DEPLOYMENT. See the internal register (`review.ts`).
  */
-export const REFUND_POLICY_VERSION = "2026-09-14";
+/**
+ * MOVED to `2026-09-15` with the Terms (launch closure): its damage and
+ * cancelling sections restate the corrected clauses 7, 8 and 17.
+ */
+export const REFUND_POLICY_VERSION = "2026-09-15";
 
 /**
  * MOVED to `2026-09-14`, because the Privacy Policy content changed again.
@@ -98,10 +102,10 @@ export const PRIVACY_POLICY_VERSION = "2026-09-14";
  * the customer's timezone and could render as the previous day west of
  * Greenwich, which is a silly way to be wrong about a contractual date.
  */
-export const TERMS_EFFECTIVE_DATE = "2026-09-09";
+export const TERMS_EFFECTIVE_DATE = "2026-09-15";
 
 /** Human-readable form of the effective date, for the page furniture. */
-export const TERMS_EFFECTIVE_DATE_DISPLAY = "9 September 2026";
+export const TERMS_EFFECTIVE_DATE_DISPLAY = "15 September 2026";
 
 /**
  * The Privacy Policy and the Refunds page carry their own effective dates.
@@ -114,8 +118,8 @@ export const TERMS_EFFECTIVE_DATE_DISPLAY = "9 September 2026";
  */
 export const PRIVACY_EFFECTIVE_DATE = "2026-09-14";
 export const PRIVACY_EFFECTIVE_DATE_DISPLAY = "14 September 2026";
-export const REFUND_EFFECTIVE_DATE = "2026-09-14";
-export const REFUND_EFFECTIVE_DATE_DISPLAY = "14 September 2026";
+export const REFUND_EFFECTIVE_DATE = "2026-09-15";
+export const REFUND_EFFECTIVE_DATE_DISPLAY = "15 September 2026";
 
 /**
  * Superseded Privacy Policy and Refunds editions, for identifying the version
@@ -134,6 +138,13 @@ export const SUPERSEDED_POLICY_VERSIONS: readonly {
     superseded: "2026-09-14",
     summary:
       "The edition written from the verified data-flow inventory. Superseded by 2026-09-14, whose wording changed in release-candidate Sprint 2. Orders placed under this version recorded it.",
+  },
+  {
+    document: "REFUND",
+    version: "2026-09-14",
+    superseded: "2026-09-15",
+    summary:
+      "The edition that renamed Full Package to Bespoke. Superseded by 2026-09-15, which follows the launch-closure Terms: no 24-hour damage condition, no 'matter for the courier', a change-of-mind carve-out pointer and the Founder-approved delivery wording. Orders placed under this version recorded it.",
   },
   {
     document: "REFUND",
@@ -160,6 +171,13 @@ export const SUPERSEDED_VERSIONS: readonly {
   superseded: string;
   summary: string;
 }[] = [
+  {
+    version: "2026-09-09.4",
+    effective: "2026-09-09",
+    superseded: "2026-09-15",
+    summary:
+      "The Founder-replaced clause set. Superseded by 2026-09-15 (launch closure), which corrected internal contradictions only: refinements close at approval (clause 4), a damaged/faulty/misdescribed carve-out (clause 7), the courier-damage disclaimer replaced by the Founder-approved fulfilment and damage wording (clause 8), the 24-hour condition removed (clause 17) and changes made prospective (clause 23). Orders accepted under this version remain governed by it.",
+  },
   {
     version: "2026-09-09.2",
     effective: "2026-09-09",
