@@ -1,0 +1,227 @@
+{
+  "_generated": "Do not edit. INTERNAL. Generated from src/data/production/business.ts by scripts/generate-catalogue-json.mjs",
+  "definitions": [
+    {
+      "term": "Revenue",
+      "meaning": "Money recorded as successfully paid (live payments only; TEST payments are rehearsals and never revenue)."
+    },
+    {
+      "term": "Net paid revenue",
+      "meaning": "Paid revenue minus the full and partial refunds MCB has recorded."
+    },
+    {
+      "term": "Expected fulfilment cost",
+      "meaning": "Known or entered expected supplier and fulfilment costs, including the internal allowances set on the supplier route."
+    },
+    {
+      "term": "Actual fulfilment cost",
+      "meaning": "Actual recorded supplier and fulfilment expenditure."
+    },
+    {
+      "term": "Gross contribution",
+      "meaning": "Net paid revenue minus the included known direct costs. It is not net profit, profit after tax, EBITDA or accounting profit: overheads, tax, creative time and marketing are not included."
+    }
+  ],
+  "forbidden_profit_terms": [
+    "net profit",
+    "profit after tax",
+    "ebitda",
+    "accounting profit"
+  ],
+  "cost_categories": [
+    {
+      "category": "SUPPLIER_PRODUCT_COST",
+      "expected": "ORDER_ECONOMICS_EXPECTED",
+      "actual": "SUPPLIER_ORDER",
+      "entry": [],
+      "record_at": "Record the supplier order (actual purchase cost) in the staff console."
+    },
+    {
+      "category": "SUPPLIER_SHIPPING",
+      "expected": "ORDER_ECONOMICS_EXPECTED",
+      "actual": "SUPPLIER_ORDER",
+      "entry": [],
+      "record_at": "Record the supplier order (actual shipping cost) in the staff console."
+    },
+    {
+      "category": "SHIPPING_CONTINGENCY",
+      "expected": "ORDER_ECONOMICS_EXPECTED",
+      "actual": null,
+      "entry": [],
+      "record_at": "An internal allowance on the supplier route; it is never an actual cost."
+    },
+    {
+      "category": "MCB_FULFILMENT_HANDLING_ALLOWANCE",
+      "expected": "ORDER_ECONOMICS_EXPECTED",
+      "actual": null,
+      "entry": [],
+      "record_at": "An internal allowance on the supplier route; it is never an actual cost."
+    },
+    {
+      "category": "PAYMENT_PROCESSING_FEE",
+      "expected": "PAYMENT_FEE_MODEL_OR_ENTRY",
+      "actual": "ENTRY",
+      "entry": [
+        "EXPECTED",
+        "ACTUAL"
+      ],
+      "record_at": "Record the payment provider's fee for the order."
+    },
+    {
+      "category": "VIDEO_PRODUCTION_COST",
+      "expected": "ENTRY",
+      "actual": "VIDEO_JOB",
+      "entry": [
+        "EXPECTED"
+      ],
+      "record_at": "Record the actual cost on the video job (Memory Music Video panel)."
+    },
+    {
+      "category": "REPLACEMENT_COST",
+      "expected": "ENTRY",
+      "actual": "ENTRY",
+      "entry": [
+        "EXPECTED",
+        "ACTUAL"
+      ],
+      "record_at": "Record against the authorised replacement or reproduction remedy."
+    },
+    {
+      "category": "REFUND_VALUE",
+      "expected": "REFUND_REVIEW",
+      "actual": "REFUND_REVIEW",
+      "entry": [],
+      "record_at": "Refunds are recorded in Customer Care (refund review)."
+    },
+    {
+      "category": "OTHER_DIRECT_COST",
+      "expected": "ENTRY",
+      "actual": "ENTRY",
+      "entry": [
+        "EXPECTED",
+        "ACTUAL"
+      ],
+      "record_at": "Record with a note saying what it is."
+    }
+  ],
+  "internal_allowance_note": "Shipping contingency and handling allowances are internal planning estimates from the supplier route. They are not customer delivery charges, verified supplier quotes or universal shipping rates, and they are never shown publicly.",
+  "alerts": [
+    {
+      "type": "NEGATIVE_CONTRIBUTION",
+      "threshold_key": null,
+      "meaning": "An order's known expected or actual gross contribution is below zero."
+    },
+    {
+      "type": "LOW_CONTRIBUTION",
+      "threshold_key": "low_contribution_percent",
+      "meaning": "Gross contribution % below the Founders' threshold."
+    },
+    {
+      "type": "COST_VARIANCE_HIGH",
+      "threshold_key": "cost_variance_percent",
+      "meaning": "An actual partner purchase and shipping cost differs from expected by more than the threshold."
+    },
+    {
+      "type": "REFUND_RATE_ELEVATED",
+      "threshold_key": "refund_rate_percent",
+      "meaning": "A product's refund rate is above the threshold."
+    },
+    {
+      "type": "REPLACEMENT_RATE_ELEVATED",
+      "threshold_key": "replacement_rate_percent",
+      "meaning": "A product's replacement rate is above the threshold."
+    },
+    {
+      "type": "SUPPLIER_EXCEPTION_ELEVATED",
+      "threshold_key": "supplier_exception_rate_percent",
+      "meaning": "A supplier route's exception rate is above the threshold."
+    },
+    {
+      "type": "VIDEO_CAPACITY_LOW",
+      "threshold_key": "VIDEO_POLICY",
+      "meaning": "Memory Music Video capacity is low or full (the video policy's low-capacity figure; planning capacity pending verification)."
+    },
+    {
+      "type": "DATA_COMPLETENESS_LOW",
+      "threshold_key": "data_completeness_percent",
+      "meaning": "The share of paid orders with complete actual cost data is below the threshold."
+    }
+  ],
+  "early_data_below_orders": 30,
+  "recommendation_kinds": [
+    "INSIGHT",
+    "COMPLETE_DATA",
+    "REVIEW_PRICING",
+    "REVIEW_PRODUCT_ECONOMICS",
+    "REVIEW_SUPPLIER_ROUTE"
+  ],
+  "forbidden_recommendation_words": [
+    "raise price",
+    "lower price",
+    "drop supplier",
+    "switch supplier",
+    "stop product",
+    "best product",
+    "best supplier",
+    "winner"
+  ],
+  "video_price_points_under_review_minor": [
+    4900,
+    5900,
+    6900
+  ],
+  "funnel_stages": [
+    {
+      "stage": "PRODUCT_VIEWED",
+      "source": "ANALYTICS_ONLY"
+    },
+    {
+      "stage": "PERSONALISATION_STARTED",
+      "source": "ANALYTICS_ONLY"
+    },
+    {
+      "stage": "ORDER_CREATED",
+      "source": "DATABASE"
+    },
+    {
+      "stage": "ENHANCEMENT_VIEWED",
+      "source": "DATABASE_VIDEO_OFFER_ONLY"
+    },
+    {
+      "stage": "ENHANCEMENT_SELECTED",
+      "source": "DATABASE_VIDEO_OFFER_ONLY"
+    },
+    {
+      "stage": "CHECKOUT_STARTED",
+      "source": "DATABASE"
+    },
+    {
+      "stage": "PAYMENT_COMPLETED",
+      "source": "DATABASE"
+    }
+  ],
+  "export_datasets": [
+    "products",
+    "supplier_routes",
+    "refunds",
+    "alerts",
+    "root_causes",
+    "geography",
+    "data_quality"
+  ],
+  "occasions": {
+    "anniversary": "Anniversary",
+    "birthday": "Birthday",
+    "wedding": "Wedding",
+    "mothers-day": "Mother's Day",
+    "christmas": "Christmas",
+    "easter": "Easter",
+    "thank-you": "Thank You",
+    "congratulations": "Congratulations",
+    "valentines-day": "Valentine's Day",
+    "cruise": "Cruise / Voyage",
+    "new-year": "New Year",
+    "fourth-of-july": "Fourth of July"
+  },
+  "catalogue_hash": "ee5c02eddb389a443a30ae51d2cfe81a4529e8135f985e5f38883308ec501271"
+}

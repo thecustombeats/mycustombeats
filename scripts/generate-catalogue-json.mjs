@@ -38,6 +38,7 @@ const TARGETS = {
   fulfilment: join(root, "public/api/data/fulfilment.json"),
   video: join(root, "public/api/data/video.json"),
   customerCare: join(root, "public/api/data/customer-care.json"),
+  business: join(root, "public/api/data/business.json"),
 };
 
 const fail = (message) => {
@@ -70,6 +71,7 @@ try {
       join(root, "src/data/production/fulfilment.ts"),
       join(root, "src/data/production/video.ts"),
       join(root, "src/data/production/customer-care.ts"),
+      join(root, "src/data/production/business.ts"),
       "--outDir", tmp,
       "--rootDir", join(root, "src/data"),
       "--module", "esnext",
@@ -115,6 +117,7 @@ const creative = await import(pathToFileURL(join(tmp, "production/creative.js"))
 const fulfilment = await import(pathToFileURL(join(tmp, "production/fulfilment.js")).href);
 const video = await import(pathToFileURL(join(tmp, "production/video.js")).href);
 const care = await import(pathToFileURL(join(tmp, "production/customer-care.js")).href);
+const business = await import(pathToFileURL(join(tmp, "production/business.js")).href);
 rmSync(tmp, { recursive: true, force: true });
 
 const { PRODUCTS, ORDER_LIMITS, PRIORITY_REPLACEMENT_SKU, validateCatalogue } = catalogue;
@@ -636,6 +639,40 @@ const customerCareOut = {
   templates: care.SUPPORT_TEMPLATES.map((t) => ({ key: t.key, title: t.title, body: t.body })),
 };
 
+// ---- Business & Profit Intelligence ------------------------------------------
+const costNames = business.COST_CATEGORIES.map((c) => c.category);
+const requiredCosts = ["SUPPLIER_PRODUCT_COST", "SUPPLIER_SHIPPING", "SHIPPING_CONTINGENCY", "MCB_FULFILMENT_HANDLING_ALLOWANCE", "PAYMENT_PROCESSING_FEE", "VIDEO_PRODUCTION_COST", "REPLACEMENT_COST", "REFUND_VALUE", "OTHER_DIRECT_COST"];
+if (JSON.stringify(costNames) !== JSON.stringify(requiredCosts)) fail("business: the canonical cost categories changed");
+for (const c of business.COST_CATEGORIES) {
+  // A category recorded elsewhere can never also be entered by hand (no double counting).
+  const owned = [c.expected, c.actual].filter((s) => s !== null && s !== "ENTRY" && s !== "PAYMENT_FEE_MODEL_OR_ENTRY");
+  for (const basis of c.entry) {
+    if ((basis === "ACTUAL" ? c.actual : c.expected) !== "ENTRY" && !(basis === "EXPECTED" && c.expected === "PAYMENT_FEE_MODEL_OR_ENTRY")) fail(`business: ${c.category} ${basis} is recorded elsewhere and cannot be entered`);
+  }
+  if (owned.length === 0 && c.entry.length === 0) fail(`business: ${c.category} has no home`);
+}
+for (const d of business.FINANCIAL_DEFINITIONS) {
+  if (d.term !== "Gross contribution" && business.FORBIDDEN_PROFIT_TERMS.some((w) => d.meaning.toLowerCase().includes(w))) fail(`business: ${d.term} uses a profit term`);
+}
+if (business.VIDEO_PRICE_POINTS_UNDER_REVIEW_MINOR[0] !== skus["memory-music-video"].price_minor) fail("business: the current video price must be the catalogue price");
+if (skus.moment.price_minor !== 1500) fail("business: Moment is £15");
+const businessOut = {
+  _generated: "Do not edit. INTERNAL. Generated from src/data/production/business.ts by scripts/generate-catalogue-json.mjs",
+  definitions: business.FINANCIAL_DEFINITIONS.map((d) => ({ term: d.term, meaning: d.meaning })),
+  forbidden_profit_terms: [...business.FORBIDDEN_PROFIT_TERMS],
+  cost_categories: business.COST_CATEGORIES.map((c) => ({ category: c.category, expected: c.expected, actual: c.actual, entry: [...c.entry], record_at: c.recordAt })),
+  internal_allowance_note: business.INTERNAL_ALLOWANCE_NOTE,
+  alerts: business.COMMERCIAL_ALERTS.map((a) => ({ type: a.type, threshold_key: a.thresholdKey, meaning: a.meaning })),
+  early_data_below_orders: business.EARLY_DATA_BELOW_ORDERS,
+  recommendation_kinds: [...business.RECOMMENDATION_KINDS],
+  forbidden_recommendation_words: [...business.FORBIDDEN_RECOMMENDATION_WORDS],
+  video_price_points_under_review_minor: [...business.VIDEO_PRICE_POINTS_UNDER_REVIEW_MINOR],
+  funnel_stages: business.FUNNEL_STAGES.map((f) => ({ stage: f.stage, source: f.source })),
+  export_datasets: [...business.EXPORT_DATASETS],
+  occasions: Object.fromEntries(Object.values(occasions.OCCASIONS).map((o) => [o.id, o.label])),
+  catalogue_hash: catalogueOut.catalogue_hash,
+};
+
 const outputs = [
   [TARGETS.catalogue, JSON.stringify(catalogueOut, null, 2) + "\n"],
   [TARGETS.legal, JSON.stringify(legalOut, null, 2) + "\n"],
@@ -647,6 +684,7 @@ const outputs = [
   [TARGETS.fulfilment, JSON.stringify(fulfilmentOut, null, 2) + "\n"],
   [TARGETS.video, JSON.stringify(videoOut, null, 2) + "\n"],
   [TARGETS.customerCare, JSON.stringify(customerCareOut, null, 2) + "\n"],
+  [TARGETS.business, JSON.stringify(businessOut, null, 2) + "\n"],
 ];
 
 if (checkOnly) {

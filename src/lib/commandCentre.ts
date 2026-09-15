@@ -8,7 +8,7 @@
 
 export type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-export const VIEWS = ["today", "approvals", "orders", "videos", "customers", "health", "notifications", "search"] as const;
+export const VIEWS = ["today", "approvals", "orders", "videos", "customers", "business", "health", "notifications", "search"] as const;
 export type View = (typeof VIEWS)[number];
 export const OPEN_MODES = ["card", "quality", "approve", "decide", "advanced"] as const;
 export type OpenMode = (typeof OPEN_MODES)[number];
@@ -44,6 +44,29 @@ export const commandLink = (link: Partial<CommandLink>): string => {
 
 /** The customer care console for one case (or its list when the item has no case yet). Opening it performs nothing. */
 export const careCaseHref = (caseId: number | null | undefined): string => (caseId ? `/operations/customer-care#case=${caseId}` : "/operations/customer-care#filter=needs_mcb");
+
+/** BUSINESS sections (#view=business&section=…). Choosing one only changes what is shown. */
+export const BUSINESS_SECTIONS = [
+  ["overview", "Overview"],
+  ["products", "Products"],
+  ["videos", "Videos"],
+  ["customers", "Customers"],
+  ["suppliers", "Suppliers"],
+  ["support", "Support & recovery"],
+  ["data", "Data quality"],
+] as const;
+export type BusinessSection = (typeof BUSINESS_SECTIONS)[number][0];
+
+export const parseBusinessSection = (hash: string): BusinessSection => {
+  const section = new URLSearchParams(hash.replace(/^#/, "")).get("section");
+  return BUSINESS_SECTIONS.some(([s]) => s === section) ? (section as BusinessSection) : "overview";
+};
+
+export const businessLink = (section: BusinessSection): string => `#view=business&section=${section}`;
+
+/** 18.2%, or the plain truth when there is no denominator. */
+export const rateText = (rate: number | null | undefined): string =>
+  rate === null || rate === undefined ? "— Awaiting data" : `${Math.round(rate * 1000) / 10}%`;
 
 /** £149.99, or the plain truth when the figure is not known. */
 export const money = (minor: number | null | undefined, currency = "GBP"): string => {

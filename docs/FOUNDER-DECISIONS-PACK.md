@@ -179,3 +179,14 @@ Each line is an exact mismatch between current wording and actual site behaviour
 | 56 | Refunds are decided by Bella or Lewis in Customer Care and made in the payment provider's dashboard, then recorded. Confirm this manual flow (no refund API is connected). | F |
 | 57 | Recovery cooling period before any review request after a resolved problem (default 30 days, `support.review_cooling_days`). | F |
 | 58 | Cancellation and refund wording for personalised items, and when a creative preference could ever justify goodwill — NEEDS PROFESSIONAL LEGAL REVIEW. Nothing is offered automatically. | L |
+
+## 13. Business & Profit Intelligence (16 September 2026) — items for the Founders
+
+| # | Item | Class |
+|---|---|---|
+| 59 | Business timezone for days, weeks and months (`business.timezone`). Until then the Business views report in UTC. | F |
+| 60 | Payment fees: configure the expected fee model (`business.payment_fee_model`) and/or record actual fees per order. Until fees are known, no order's contribution is complete. | F |
+| 61 | Commercial alert thresholds (`business.thresholds`: low contribution %, cost variance %, refund rate %, replacement rate %, supplier exception rate %, data completeness %). Unset alerts show NOT CONFIGURED. | F |
+| 62 | The early-data line (default 30 orders, `business.early_data_below_orders`) — a presentation convention, not statistical confidence. | F |
+| 63 | How the production cost of a Memory Music Video is worked out (platform allowance share, time) once the platform is verified; until recorded it is UNKNOWN. | F + external |
+| 64 | Any Memory Music Video price test (£59 / £69): evidence is shown; nothing changes without explicit founder authorisation. | F |

@@ -633,6 +633,15 @@ function cc_readiness(PDO $pdo): array
 
     $out[] = $item('customer_care_mailbox', 'Customer care mailbox', 'NEEDS_FOUNDER_ACTION',
         'Replies to MCB emails go to ' . mcb_support_address() . '. Confirm it receives mail, and keep support@mycustombeats.com forwarding to it for replies to earlier emails.');
+    $tz = mcb_setting('business.timezone', null);
+    $out[] = $item('business_timezone', 'Business timezone', is_string($tz) && in_array($tz, DateTimeZone::listIdentifiers(), true) ? 'READY' : 'NEEDS_FOUNDER_ACTION',
+        is_string($tz) && in_array($tz, DateTimeZone::listIdentifiers(), true) ? "Business days, weeks and months use {$tz}." : 'No business timezone is configured, so business days, weeks and months are reported in UTC.');
+    $fee = mcb_setting('business.payment_fee_model', null);
+    $out[] = $item('payment_fee_model', 'Payment fee model', is_array($fee) ? 'READY' : 'NEEDS_FOUNDER_ACTION',
+        is_array($fee) ? 'Expected payment fees are calculated from the configured model; actual fees are recorded per order.' : 'No payment fee model is configured: expected payment fees are UNKNOWN until recorded, so contribution cannot yet be complete.');
+    $thresholds = mcb_setting('business.thresholds', null);
+    $out[] = $item('commercial_thresholds', 'Commercial alert thresholds', is_array($thresholds) && $thresholds !== [] ? 'PARTIAL' : 'NEEDS_FOUNDER_ACTION',
+        is_array($thresholds) && $thresholds !== [] ? 'Some commercial alert thresholds are configured; the rest are not evaluated.' : 'No commercial alert thresholds are configured; those alerts show NOT CONFIGURED.');
     $out[] = $item('support_retention', 'Support records retention', 'NEEDS_EXTERNAL_VERIFICATION',
         'Support messages, evidence, refund records and privacy reviews are kept until a retention policy is set (legal review required).');
 

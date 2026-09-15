@@ -76,6 +76,20 @@ return [
         // 'api_base' => '',
     ],
 
+    // MCB Business & Profit Intelligence (management figures, never accounts).
+    // Every value here is the Founders' decision; absent means NOT CONFIGURED,
+    // never a default. Figures are reported in UTC until 'timezone' is set.
+    // 'business' => [
+    //     'timezone' => 'Europe/London',
+    //     // Expected payment fee per order: basis points of the total + a fixed fee.
+    //     'payment_fee_model' => ['percent_basis_points' => 0, 'fixed_minor' => 0, 'currency' => 'GBP'],
+    //     'thresholds' => [
+    //         'low_contribution_percent' => 0, 'cost_variance_percent' => 0, 'refund_rate_percent' => 0,
+    //         'replacement_rate_percent' => 0, 'supplier_exception_rate_percent' => 0, 'data_completeness_percent' => 0,
+    //     ],
+    //     'early_data_below_orders' => 30,
+    // ],
+
     // MCB customer care. Replies to every MCB email go here, and it is the
     // address customers are shown. Defaults to hello@mycustombeats.com; the
     // mailbox must receive mail. Keep support@mycustombeats.com forwarding to it

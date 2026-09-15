@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Helmet } from "react-helmet-async";
 import { useLocation } from "react-router-dom";
-import { READINESS_LABELS, ago, commandLink, humanise, money, parseCommandLink, type Json, type View, careCaseHref } from "../lib/commandCentre";
+import { READINESS_LABELS, ago, commandLink, humanise, money, parseBusinessSection, parseCommandLink, type Json, type View, careCaseHref } from "../lib/commandCentre";
+import Business from "./command-centre/Business";
 import OrderView from "./command-centre/OrderView";
 import { ActionCard, OrderRow, Panel, Status, Tile } from "./command-centre/ui";
 import { card, eyebrow, field, primary, secondary } from "./command-centre/styles";
@@ -25,6 +26,7 @@ const NAV: { view: View; label: string }[] = [
   { view: "orders", label: "Orders" },
   { view: "videos", label: "Videos" },
   { view: "customers", label: "Customers" },
+  { view: "business", label: "Business" },
   { view: "health", label: "Health & readiness" },
   { view: "notifications", label: "Notifications" },
   { view: "search", label: "Search" },
@@ -339,6 +341,8 @@ const CommandCentre = () => {
                 <p>Every unresolved customer problem stays here until it is resolved, even when the order itself is complete. Replies and remedies are handled in <a className="font-semibold underline" href="/operations/customer-care">Customer Care</a>.</p>
                 {!data?.customers ? <p role="status">Loading…</p> : <>{data.summary && <CareSummary summary={data.summary} />}<CustomerList customers={data.customers} /></>}
               </>
+            ) : link.view === "business" ? (
+              <Business section={parseBusinessSection(hash)} api={api} fetchBlob={fetchBlob} staff={staff} />
             ) : link.view === "health" ? (
               <>
                 <h1 className="font-serif text-4xl text-ink">Health &amp; readiness</h1>

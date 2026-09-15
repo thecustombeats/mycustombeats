@@ -202,6 +202,16 @@ try {
     error_log('MCB preflight: database check failed: ' . $e->getMessage());
     $add('customer_care_migration_applied', 'FAIL', 'The database could not be checked.');
 }
+try {
+    $found = (int) db()->query(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('direct_cost_entries','business_audit_log')"
+    )->fetchColumn();
+    $add('business_intelligence_migration_applied', $found === 2 ? 'PASS' : 'FAIL',
+        'db/migrations/2026-09-16-business-intelligence.sql must be applied (after a backup).');
+} catch (PDOException $e) {
+    error_log('MCB preflight: database check failed: ' . $e->getMessage());
+    $add('business_intelligence_migration_applied', 'FAIL', 'The database could not be checked.');
+}
 $routes = supplier_routes();
 $verifiedRoutes = array_filter($routes, static fn (array $r): bool => $r['verification_status'] === 'VERIFIED');
 $add('supplier_routes', $routes !== [] && count($verifiedRoutes) === count($routes) ? 'PASS' : 'WARN', $routes === []

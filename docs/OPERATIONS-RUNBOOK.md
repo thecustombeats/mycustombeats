@@ -212,3 +212,12 @@ Full record: `docs/CUSTOMER-CARE-20260916.md`. Console: **/operations/customer-c
 - **Link not working?** Issue a fresh private link (it replaces the old one) and send it to the customer.
 - **Video won't play or is wrong?** A remake is for an objective error only; it sends the same video back to rework and never takes another customer's space.
 - Resolve with the outcome and the root cause (not blame). No review is requested while a case is open or soon after it is resolved.
+
+## 19. Business (16 September 2026)
+
+Full record: `docs/BUSINESS-INTELLIGENCE-20260916.md`. Command Centre → **Business**.
+
+- Figures are management intelligence from recorded data — not accounts. "Awaiting data" means a cost has not been recorded; it is never treated as £0. Contribution always says how many orders it is based on and is never profit.
+- Keep the numbers honest: record actual supplier costs on the supplier order, video cost on the video job, refunds in Customer Care, and payment fees, replacement costs and other direct costs in Business → Data quality → Record a direct cost (a correction voids the old entry).
+- Business → Data quality lists every gap. Alerts and "evidence to review" cards inform a founder decision; nothing changes a price, cancels an order or switches a supplier.
+- Exports (CSV) contain aggregates and order references only and are logged.
