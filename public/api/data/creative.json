@@ -347,7 +347,16 @@
     "target_duration_seconds",
     "max_duration_seconds"
   ],
-  "provider_decision_status": "DEFERRED",
+  "provider_decision_status": "FOUNDER_SELECTED",
+  "provider_integration_status": "PENDING",
+  "selected_music_platform": {
+    "provider_id": "candidate-mozart-ai",
+    "name": "Mozart AI",
+    "decision": "FOUNDER_SELECTED",
+    "account": "NOT_YET_OPENED",
+    "integration": "PENDING",
+    "capabilities_verified": false
+  },
   "provider_roles": [
     "PRIMARY",
     "FALLBACK",
@@ -428,7 +437,7 @@
     },
     {
       "id": "candidate-mozart-ai",
-      "label": "Mozart AI (candidate, not evaluated)",
+      "label": "Mozart AI (founder selected; account not yet opened; integration pending)",
       "kind": "CANDIDATE",
       "role": "DISABLED",
       "adapter": null,

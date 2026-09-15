@@ -10,7 +10,8 @@
 # payment replay; data minimisation; the versioned Fact Ledger and its
 # classifications; album map before song briefs; lyric package and objective
 # fact QC (wrong fact, contamination, duplication, coverage); Music Direction;
-# the provider-neutral composition plan; the DEFERRED provider route;
+# the provider-neutral composition plan; the provider route (Mozart AI founder
+# selected, integration pending: manual generation);
 # immutable attempts, retry cap and exceptions; technical, fact and creative
 # QC; masters, versions and lineage; album QC; vinyl programme QC against
 # VERIFIED capacity only; gating MCB's quality check; metrics; privacy.
@@ -254,7 +255,7 @@ t "a four-song Keepsake's normal target programme is 780 seconds (not 1,200)" "7
 tc "physical capacity is a separate policy, one profile per record SKU from the current catalogue" "$(python3 -c 'import json;c=json.load(open("public/api/data/catalogue.json"))["skus"];d=json.load(open("public/api/data/creative.json"))["capacity_profiles"];phys={k for k,v in c.items() if v.get("vinyl") and v.get("song_count")};print(1 if {p["sku"] for p in d}==phys and all(p["song_count"]==c[p["sku"]]["song_count"] for p in d) else 0)')"
 t "  → track counts follow the catalogue (1, 3, 4, 6, 12) and sides follow disc count" "1,1,3,4,6,12|4" "$(cj '",".join(str(x) for x in sorted(p["song_count"] for p in d["capacity_profiles"]))' $CJ)|$(cj '[p["side_count"] for p in d["capacity_profiles"] if p["sku"]=="journey-12"][0]' $CJ)"
 tc "every capacity is UNVERIFIED with no invented figures" "$(cj 'all(p["status"]=="UNVERIFIED" and p["verified_total_capacity_seconds"] is None and p["verified_per_side_seconds"] is None and p["hard_manufacturing_maximum_seconds"] is None and p["source"] is None for p in d["capacity_profiles"])' $CJ | grep -q true && echo 1 || echo 0)"
-t "the provider decision is DEFERRED; no candidate has a role or adapter" "DEFERRED|DISABLED,DISABLED|None" "$(cj 'd["provider_decision_status"]' $CJ)|$(cj '",".join(p["role"] for p in d["providers"] if p["kind"]=="CANDIDATE")' $CJ)|$(cj 'str([p["adapter"] for p in d["providers"] if p["kind"]=="CANDIDATE"][0])' $CJ)"
+t "Mozart AI is founder selected with integration pending; still no candidate has a role or adapter" "FOUNDER_SELECTED|DISABLED,DISABLED|None" "$(cj 'd["provider_decision_status"]' $CJ)|$(cj '",".join(p["role"] for p in d["providers"] if p["kind"]=="CANDIDATE")' $CJ)|$(cj 'str([p["adapter"] for p in d["providers"] if p["kind"]=="CANDIDATE"][0])' $CJ)"
 tc "  → every candidate capability is UNKNOWN (nothing assumed)" "$(cj 'all(v=="UNKNOWN" for p in d["providers"] if p["kind"]=="CANDIDATE" for v in p["capabilities"].values())' $CJ | grep -q true && echo 1 || echo 0)"
 tc "no provider SDK, endpoint, key or format in the server code" "$(grep -rniE 'elevenlabs|eleven_music|mozart|api\.eleven|xi-api-key|curl_init|file_get_contents\(.https?:' public/api/lib/creative-*.php public/api/crm/creative*.php | grep -q . && echo 0 || echo 1)"
 t "the internal policy file is not served over HTTP" 403 "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/data/creative.json")"
@@ -301,7 +302,7 @@ t "Fact Ledger v1: what the customer supplied, classified" "SEMANTIC|CRITICAL|CU
 tc "  → no EXACT fact is invented from the story" "$(cj 'any(f["classification"]=="EXACT" for f in d["albums"][0]["fact_ledger"]["body"]["facts"])' | grep -q false && echo 1 || echo 0)"
 t "Music Direction: target 195, ceiling 300, MCB to decide the style the customer left to MCB" "195|300|MCB_TO_DECIDE" "$(cj 'd["jobs"][0]["music_direction"]["body"]["target_duration_seconds"]')|$(cj 'd["jobs"][0]["music_direction"]["body"]["max_duration_seconds"]')|$(cj 'd["jobs"][0]["music_direction"]["body"]["status"]')"
 t "the story map is a skeleton allocated to this track, not pretend authored content" "SKELETON|M1-STORY" "$(cj 'd["jobs"][0]["story_map"]["body"]["status"]')|$(cj '",".join(d["jobs"][0]["story_map"]["body"]["important_memories"])')"
-t "the provider route is DEFERRED: awaiting provider, manual generation available, never a PRIMARY" "DEFERRED|None|AWAITING_PROVIDER|MANUAL_GENERATION" "$(cj 'd["provider"]["decision"]')|$(cj 'str(d["provider"]["primary"])')|$(cj 'd["provider"]["route"]')|$(cj '",".join(d["provider"]["actions"])')"
+t "Mozart AI selected but not integrated: awaiting provider, manual generation available, never a PRIMARY" "FOUNDER_SELECTED|None|AWAITING_PROVIDER|MANUAL_GENERATION" "$(cj 'd["provider"]["decision"]')|$(cj 'str(d["provider"]["primary"])')|$(cj 'd["provider"]["route"]')|$(cj '",".join(d["provider"]["actions"])')"
 
 section "2. FACT LEDGER VERSIONS AND LYRIC FACT QC"
 MA=$(q "SELECT id FROM creative_albums WHERE order_id=$MO")
@@ -331,7 +332,7 @@ t "the semantic review passes: the plan is derived and the song needs generation
 cget $MO >/dev/null; cp /tmp/tx.json /tmp/cf-moment2.json
 t "the MCB composition plan: provider-neutral, sections totalling the 195-second target" "mcb.composition_plan.v1|195|195|4" "$(cj 'd["jobs"][0]["composition_plan"]["body"]["schema"]')|$(cj 'd["jobs"][0]["composition_plan"]["body"]["target_duration_seconds"]')|$(cj 'sum(s["target_seconds"] for s in d["jobs"][0]["composition_plan"]["body"]["sections"])')|$(cj 'len(d["jobs"][0]["composition_plan"]["body"]["sections"])')"
 tc "  → fact-bearing sections are STRICT; no provider format, model, prompt or key in it" "$(cj '[s["adherence"] for s in d["jobs"][0]["composition_plan"]["body"]["sections"]][1]' | grep -q STRICT && ! cj 'd["jobs"][0]["composition_plan"]' | grep -qiE 'eleven|mozart|prompt|model_id|api_key|composition_plan_json' && echo 1 || echo 0)"
-t "  → PLAN_READY and GENERATION_REQUIRED (provider decision DEFERRED)" "1|DEFERRED" "$(evcount $MO CREATIVE.PLAN_READY)|$(q "SELECT JSON_VALUE(detail,'$.provider_decision') FROM order_events WHERE order_id=$MO AND event_type='CREATIVE.GENERATION_REQUIRED' ORDER BY id DESC LIMIT 1")"
+t "  → PLAN_READY and GENERATION_REQUIRED (provider founder selected, not integrated)" "1|FOUNDER_SELECTED" "$(evcount $MO CREATIVE.PLAN_READY)|$(q "SELECT JSON_VALUE(detail,'$.provider_decision') FROM order_events WHERE order_id=$MO AND event_type='CREATIVE.GENERATION_REQUIRED' ORDER BY id DESC LIMIT 1")"
 t "  → the order is not failed while no provider exists" "PAID|CREATIVE.PENDING" "$(q "SELECT status FROM orders WHERE id=$MO")|$(state_of $MO)"
 cj '{"target_duration_seconds":195,"max_duration_seconds":300,"sections":[{"index":1,"type":"VERSE","target_seconds":301,"lyric_section_index":2,"adherence":"STRICT","fact_refs":[]}]}' /tmp/cf-moment2.json > /tmp/plan-long.json
 B=$(js '{"action":"SUBMIT_PLAN","order_id":int(E["OID"]),"staff":"Creative Tester","job_id":int(E["JOB"]),"composition_plan":json.load(open("/tmp/plan-long.json"))}')
@@ -450,7 +451,7 @@ section "5. METRICS, PROVIDER ROUTE AND PRIVACY"
 t "metrics" 200 "$(crm "crm/creative?view=metrics&$STAFFQ")"
 tc "  → attempts, attempts per song, generation minutes, failure rate, regeneration reasons, per provider — cost null because none is reported" "$(python3 -c 'import json;d=json.load(open("/tmp/tx.json"));print(1 if d["attempts"]>=11 and d["attempts_per_song"] and d["generation_minutes"]>0 and 0<d["failure_rate"]<1 and d["regeneration_reasons"] and "manual" in d["providers"] and d["provider_cost_minor"] is None and d["cost_per_passed_master_minor"] is None else 0)')"
 with_config "\$c['creative']['providers']['primary']='candidate-eleven-music';"
-t "configuring a PRIMARY provider while the decision is DEFERRED changes nothing" "DEFERRED|None|True" "$(crm 'crm/creative?view=providers' >/dev/null; jget route.decision)|$(cj 'str(d["route"]["primary"])')|$(cj 'str(d["route"]["ignored_configuration"])')"
+t "configuring a PRIMARY provider before integration changes nothing" "FOUNDER_SELECTED|None|True" "$(crm 'crm/creative?view=providers' >/dev/null; jget route.decision)|$(cj 'str(d["route"]["primary"])')|$(cj 'str(d["route"]["ignored_configuration"])')"
 restore_config
 t "another order's job cannot be acted on through this order" "404|job_not_found" "$(cpost "$(OID=$KO JOB=$MJ js '{"action":"UPDATE_STORY_MAP","order_id":int(E["OID"]),"staff":"Creative Tester","job_id":int(E["JOB"]),"story_map":{"opening":"x"}}')")|$(jget error)"
 t "  → nor its audio registered through this order" 404 "$(cfile $KO $KREF $MJ $FIX/audio-195s.flac)"

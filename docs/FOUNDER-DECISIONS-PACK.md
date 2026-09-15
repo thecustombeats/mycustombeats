@@ -148,3 +148,13 @@ Each line is an exact mismatch between current wording and actual site behaviour
 | 40 | Notification bridge: TaskNotify/Telegram credentials and the email fallback are not in the repository; the outbox accepts TELEGRAM, EMAIL_FALLBACK and STAFF_QUEUE acknowledgements. | F |
 | 41 | Retention of support evidence, content permissions and economics snapshots — NEEDS PROFESSIONAL LEGAL REVIEW. | L |
 | 42 | Review destination and marketing-content consent wording for customers (permission is recorded separately from reviews) — NEEDS PROFESSIONAL LEGAL REVIEW. | F + L |
+
+## 10. Founder Command Centre (15 September 2026) — items for the Founders
+
+| # | Item | Class |
+|---|---|---|
+| 43 | Business timezone: none is configured, so "today" and "this week" (Monday start) are UTC. Choose a timezone if UK local days are wanted. | F |
+| 44 | Mozart AI (founder selected): open the account, then verify its interface, output formats, commercial-use and privacy terms and cost model before any integration is designed. Until then songs are produced manually. | F + L |
+| 45 | Refunds: only whole-order REFUNDED status is recorded; partial refunds and refund dates are not. Decide whether refunds should be recorded in MCB. | F |
+| 46 | Who uses the Command Centre (Bella, Lewis, staff) and whether separate founder and staff sign-ins are wanted (today one CRM key plus a named person). | F |
+

@@ -13,7 +13,7 @@
  *
  * PRIVACY RULES ENFORCED HERE
  *  • Private pages never load analytics: /your-order, /approve and
- *    /operations carry secret links or staff data.
+ *    /operations and /command-centre carry secret links or staff data.
  *  • Every page_location and page_referrer is reduced to origin + path (+ utm_
  *    parameters only). A URL fragment never reaches Google, and neither does
  *    ?session_id= on /thank-you or a Stripe Checkout URL in the referrer.
@@ -22,7 +22,7 @@
 (function () {
   var MEASUREMENT_ID = "G-XQFNJC4HND";
   var CONSENT_KEY = "mcb_analytics_consent";
-  var PRIVATE = /^\/(your-order|approve|operations)(\/|$)/;
+  var PRIVATE = /^\/(your-order|approve|operations|command-centre)(\/|$)/;
   var loaded = false;
 
   var noop = function () {};

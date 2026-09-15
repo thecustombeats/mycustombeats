@@ -87,7 +87,7 @@ test("private, transactional and 404 pages are noindex", () => {
   assert.match(read("src/App.tsx"), /path="\/dashboard" element=\{<><NoIndex/);
   assert.match(read("src/App.tsx"), /<main id="main-content">\{children\}<\/main>/);
   const robots = read("public/robots.txt");
-  for (const path of ["/thank-you", "/dashboard", "/your-order", "/approve", "/operations", "/api/"]) assert.match(robots, new RegExp(`^Disallow: ${path.replace("/", "\\/")}$`, "m"));
+  for (const path of ["/thank-you", "/dashboard", "/your-order", "/approve", "/operations", "/command-centre", "/api/"]) assert.match(robots, new RegExp(`^Disallow: ${path.replace("/", "\\/")}$`, "m"));
 });
 
 test("sitemap lists only canonical, public, indexable URLs", () => {
@@ -261,12 +261,12 @@ test("analytics never receives a private token, Stripe session id or query value
   assert.equal(analyticsSafeLocation(`https://www.mycustombeats.com/approve#${token}`), "https://www.mycustombeats.com/approve");
   assert.equal(analyticsSafeLocation("https://www.mycustombeats.com/thank-you?session_id=cs_live_abc123"), "https://www.mycustombeats.com/thank-you");
   assert.equal(analyticsSafeLocation("https://www.mycustombeats.com/?utm_source=news&email=a@b.com&ref=x"), "https://www.mycustombeats.com/?utm_source=news");
-  for (const p of ["/your-order", "/approve", "/operations"]) assert.ok(isPrivateAnalyticsPath(p), p);
+  for (const p of ["/your-order", "/approve", "/operations", "/command-centre"]) assert.ok(isPrivateAnalyticsPath(p), p);
   assert.ok(!isPrivateAnalyticsPath("/blog"));
   const src = read("src/lib/analytics.ts");
   assert.doesNotMatch(src, /page_location: window\.location\.href/);
   const init = read("public/analytics-init.js");
-  assert.match(init, /var PRIVATE = \/\^\\\/\(your-order\|approve\|operations\)\(\\\/\|\$\)\//);
+  assert.match(init, /var PRIVATE = \/\^\\\/\(your-order\|approve\|operations\|command-centre\)\(\\\/\|\$\)\//);
   assert.match(init, /page_location: safe\(window\.location\.href\)/);
   assert.match(init, /page_referrer: document\.referrer \? safe\(document\.referrer\) : ""/);
   assert.doesNotMatch(read("index.html"), /<script>/);
@@ -301,7 +301,7 @@ test("security headers are configured without inline script and without blind HS
   for (const d of ["default-src 'self'", "object-src 'none'", "base-uri 'self'", "frame-ancestors 'self'", "frame-src https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/;"]) assert.ok(csp.includes(d), d);
   for (const header of ['X-Content-Type-Options "nosniff"', 'Referrer-Policy "strict-origin-when-cross-origin"', "Permissions-Policy", 'X-Frame-Options "SAMEORIGIN"']) assert.ok(h.includes(header), header);
   assert.match(h, /^\s*# Header always set Strict-Transport-Security/m, "HSTS prepared but not enabled");
-  assert.match(h, /THE_REQUEST[^\n]*your-order\|approve\|operations\|thank-you[^\n]*\n\s*Header always set X-Robots-Tag "noindex, nofollow"/);
+  assert.match(h, /THE_REQUEST[^\n]*your-order\|approve\|operations\|command-centre\|thank-you[^\n]*\n\s*Header always set X-Robots-Tag "noindex, nofollow"/);
   const api = read("public/api/.htaccess");
   assert.match(api, /Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"/);
   assert.match(api, /X-Robots-Tag "noindex, nofollow"/);

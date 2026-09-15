@@ -2,7 +2,9 @@
 /**
  * MCB Creative Factory — the music-generation provider boundary.
  *
- * PROVIDER DECISION: DEFERRED. No provider is selected, connected, keyed or
+ * PROVIDER DECISION: the Founders have selected a music platform (creative.json
+ * selected_music_platform); integration PENDING (account not
+ * yet opened, capabilities unverified). No provider is connected, keyed or
  * paid. This file defines the contract a future adapter implements and the
  * one adapter that exists: MANUAL (a person registers audio made elsewhere).
  *
@@ -81,7 +83,7 @@ function creative_provider_registry(): array
 }
 
 /**
- * Where generation goes now. While the decision is DEFERRED there is no
+ * Where generation goes now. Until a provider is integrated there is no
  * PRIMARY or FALLBACK, whatever the server config says: the job waits for a
  * provider, and staff may generate manually.
  */
@@ -96,7 +98,8 @@ function creative_generation_route(): array
         'manual' => 'manual',
         'route' => 'AWAITING_PROVIDER',
         'actions' => ['MANUAL_GENERATION'],
-        'ignored_configuration' => $decision === 'DEFERRED' && $configuredPrimary !== null,
+        'integration' => creative_data()['provider_integration_status'],
+        'ignored_configuration' => creative_data()['provider_integration_status'] !== 'INTEGRATED' && $configuredPrimary !== null,
     ];
 }
 

@@ -25,7 +25,7 @@ const ghost =
 
 const humanise = (value: string) => value.replace(/[._]/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 const money = (minor: number | null | undefined, currency = "GBP") =>
-  minor === null || minor === undefined ? "not on file" : `${(minor / 100).toFixed(2)} ${currency}`;
+  minor === null || minor === undefined ? "— Awaiting data" : `${(minor / 100).toFixed(2)} ${currency}`;
 const today = () => new Date().toISOString().slice(0, 10);
 const pounds = (value: string): number | undefined => (value.trim() === "" ? undefined : Math.round(Number(value) * 100));
 

@@ -178,3 +178,15 @@ Full record: `docs/FULFILMENT-CONTROLLER-20260915.md`. MCB is the middleman: par
 - **After completion.** Record a review request (never with an incentive) and, separately, any marketing permission with where the consent is kept.
 - **Daily.** `GET /api/crm/fulfilment?view=today` and `?view=health` (stranded orders); the queue shows open exceptions and health findings.
 
+## 16. Founder Command Centre (15 September 2026)
+
+Full record: `docs/FOUNDER-COMMAND-CENTRE-20260915.md`. Open `/command-centre`, enter the CRM key and your name.
+
+- **MCB Today** answers what is happening and what needs you. Start with **Needs your attention**: each card opens the order and does nothing else.
+- **Quality check:** listen to the song (or view the artwork next to the customer's photographs), answer the plain questions, then *Pass*, *Send back for internal rework* or *Escalate*. The customer is never asked or contacted by these decisions. The final MCB check before making or the reveal still opens in the staff console.
+- **Approvals** lists only Bella's and Lewis's decisions. *Review & authorise* shows the costs, contribution (or "— Awaiting data") and destination; authorise with your own code.
+- **Customers** keeps every unresolved problem visible, even on completed orders.
+- **Health & readiness:** *All good* or *Action needed*; readiness is never "Ready" unless the thing is really in place.
+- **Notifications:** Telegram shows *Not connected* until a notification has actually been delivered by Telegram.
+- Figures are UTC days. Contribution is gross contribution after fulfilment cost, never net profit.
+

@@ -193,7 +193,7 @@ $verifiedRoutes = array_filter($routes, static fn (array $r): bool => $r['verifi
 $add('supplier_routes', $routes !== [] && count($verifiedRoutes) === count($routes) ? 'PASS' : 'WARN', $routes === []
     ? 'No supplier routes (api/data/supplier-routes.json): expected economics will be COMMERCIAL_DATA_REQUIRED and destinations UNKNOWN until the Founders add verified routes.'
     : count($verifiedRoutes) . ' of ' . count($routes) . ' supplier route(s) verified (source and date recorded). Unverified routes need a destination check at the supplier checkout.');
-$add('creative_provider_decision', 'WARN', 'Music-generation provider decision: ' . creative_data()['provider_decision_status'] . '. Songs wait for manual generation; no provider is called.');
+$add('creative_provider_decision', 'WARN', 'Music platform: ' . creative_data()['selected_music_platform']['name'] . ' — ' . creative_data()['provider_decision_status'] . ', integration ' . creative_data()['provider_integration_status'] . ' (account not yet opened). Songs wait for manual generation; no provider is called.');
 $add('creative_factory_enforcement', creative_enforcement() === 'REQUIRED' ? 'PASS' : 'WARN',
     'creative.enforcement is ' . creative_enforcement() . '. ADVISORY reports unfinished Creative Factory work at the quality check; REQUIRED blocks it. An exceeded VERIFIED record capacity blocks in both.');
 $unverified = array_values(array_filter(creative_data()['capacity_profiles'], static fn (array $p): bool => creative_capacity_profile($p['sku'])['status'] !== 'VERIFIED'));

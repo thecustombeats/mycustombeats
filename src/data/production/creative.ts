@@ -157,10 +157,27 @@ export const MUSIC_DIRECTION_FIELDS = [
 ] as const;
 
 /* ------------------------------------------------------------------ */
-/* 5. Providers — decision DEFERRED                                     */
+/* 5. Providers — Mozart AI founder selected, integration pending      */
 /* ------------------------------------------------------------------ */
 
-export const PROVIDER_DECISION_STATUS = "DEFERRED" as const;
+/**
+ * FOUNDER DECISION (15 September 2026): MCB intends to use Mozart AI as its
+ * music-production platform. The account is NOT yet opened and nothing about
+ * its interface is verified, so nothing is wired: no adapter, no credentials,
+ * no call, no assumed capability. Generation stays manual until integration
+ * capabilities are verified and an adapter is built and reviewed.
+ */
+export const PROVIDER_DECISION_STATUS = "FOUNDER_SELECTED" as const;
+export const PROVIDER_INTEGRATION_STATUS = "PENDING" as const;
+
+export const SELECTED_MUSIC_PLATFORM = {
+  providerId: "candidate-mozart-ai",
+  name: "Mozart AI",
+  decision: "FOUNDER_SELECTED",
+  account: "NOT_YET_OPENED",
+  integration: "PENDING",
+  capabilitiesVerified: false,
+} as const;
 export const PROVIDER_ROLES = ["PRIMARY", "FALLBACK", "MANUAL", "DISABLED"] as const;
 
 export const PROVIDER_CAPABILITY_FIELDS = [
@@ -180,7 +197,7 @@ const allUnknown = Object.fromEntries(PROVIDER_CAPABILITY_FIELDS.map((f) => [f, 
 export const PROVIDER_REGISTRY: readonly { readonly id: string; readonly label: string; readonly kind: "CANDIDATE" | "MANUAL"; readonly role: (typeof PROVIDER_ROLES)[number]; readonly adapter: string | null; readonly capabilities: Capabilities }[] = [
   { id: "manual", label: "Manual generation (staff-registered audio)", kind: "MANUAL", role: "MANUAL", adapter: "MANUAL", capabilities: Object.fromEntries(PROVIDER_CAPABILITY_FIELDS.map((f) => [f, "NOT_APPLICABLE"])) as Capabilities },
   { id: "candidate-eleven-music", label: "Eleven Music (candidate, not evaluated)", kind: "CANDIDATE", role: "DISABLED", adapter: null, capabilities: allUnknown },
-  { id: "candidate-mozart-ai", label: "Mozart AI (candidate, not evaluated)", kind: "CANDIDATE", role: "DISABLED", adapter: null, capabilities: allUnknown },
+  { id: "candidate-mozart-ai", label: "Mozart AI (founder selected; account not yet opened; integration pending)", kind: "CANDIDATE", role: "DISABLED", adapter: null, capabilities: allUnknown },
 ];
 
 /* ------------------------------------------------------------------ */

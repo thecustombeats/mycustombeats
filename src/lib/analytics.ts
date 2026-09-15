@@ -41,7 +41,7 @@ let lastTrackedPath: string | null = null;
  * this also covers arriving at one by in-app navigation.
  */
 export const isPrivateAnalyticsPath = (path: string): boolean =>
-  /^\/(your-order|approve|operations)(\/|$)/.test(path);
+  /^\/(your-order|approve|operations|command-centre)(\/|$)/.test(path);
 
 /**
  * The URL analytics may see: origin + path, plus utm_ campaign parameters.

@@ -6,7 +6,7 @@ import type { FormEvent } from "react";
  * (not a DAW). Private creative material, fetched with the CRM key and the
  * staff name (every read is audited server-side), rendered as text.
  *
- * The music-generation provider decision is DEFERRED: songs wait for manual
+ * Music platform: Mozart AI, founder selected, integration pending: songs wait for manual
  * generation, and staff can register a manually generated candidate.
  */
 

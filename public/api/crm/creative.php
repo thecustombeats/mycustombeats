@@ -314,56 +314,10 @@ try {
                 return creative_apply_fact_qc($pdo, $j, (int) $c['attempt_id'], (int) $c['id'], $fact);
 
             case 'CREATIVE_QC':
-                $c = $candidate();
-                $j = creative_job_row($pdo, (int) $c['job_id'], true);
-                if ($j['status'] !== 'CREATIVE_QC_REQUIRED' || $c['technical_status'] !== 'PASS' || $c['fact_status'] !== 'PASS') {
-                    throw new OperationsException('invalid_transition', 'Creative QC follows technical and fact QC.', 409);
-                }
-                $criteria = is_array($body['criteria'] ?? null) ? $body['criteria'] : [];
-                $missing = array_values(array_filter(creative_data()['creative_qc_criteria'], static fn (string $k): bool => !in_array($criteria[$k] ?? null, ['PASS', 'CONCERN'], true)));
-                $outcome = $body['outcome'] ?? null;
-                if ($missing !== [] || !in_array($outcome, creative_data()['creative_qc_outcomes'], true)) {
-                    throw new OperationsException('creative_qc_incomplete', 'Mark every criterion PASS or CONCERN and choose PASS, REGENERATE or ESCALATE.', 422);
-                }
-                if ($outcome === 'PASS' && in_array('CONCERN', $criteria, true)) {
-                    throw new OperationsException('creative_qc_concern', 'A candidate with a concern cannot pass: regenerate or escalate.', 422);
-                }
-                $record = ['by' => $staff, 'outcome' => $outcome, 'criteria' => array_intersect_key($criteria, array_flip(creative_data()['creative_qc_criteria']))];
-                $pdo->prepare('UPDATE creative_candidates SET creative_status = :s, creative_qc = :q WHERE id = :id')->execute([':s' => $outcome, ':q' => json_encode($record), ':id' => (int) $c['id']]);
-                if ($outcome === 'PASS') {
-                    creative_close_attempt($pdo, (int) $c['attempt_id'], 'PASS', null);
-                    creative_set_job($pdo, (int) $j['id'], ['status' => 'MASTER_REQUIRED', 'waiting_on' => 'MASTER']);
-                    record_order_event($pdo, $orderId, 'CREATIVE.CREATIVE_QC_PASSED', ['job_id' => (int) $j['id'], 'candidate_id' => (int) $c['id']], "creative-creative-qc:{$c['id']}");
-                } elseif ($outcome === 'REGENERATE') {
-                    creative_close_attempt($pdo, (int) $c['attempt_id'], 'CREATIVE_FAIL', 'REGENERATE');
-                    creative_after_failure($pdo, (int) $j['id'], 'CREATIVE_FAIL');
-                } else {
-                    creative_close_attempt($pdo, (int) $c['attempt_id'], 'CREATIVE_FAIL', 'ESCALATED');
-                    creative_raise_exception($pdo, $j, 'ESCALATED', 'CREATIVE_QC');
-                }
-                return ['outcome' => $outcome, 'job_status' => creative_job_row($pdo, (int) $j['id'])['status']];
+                return creative_record_creative_qc($pdo, $orderId, $candidate(), is_array($body['criteria'] ?? null) ? $body['criteria'] : [], $body['outcome'] ?? null, $staff);
 
             case 'PROMOTE_MASTER':
-                $c = $candidate();
-                $j = creative_job_row($pdo, (int) $c['job_id'], true);
-                if ($c['technical_status'] !== 'PASS' || $c['fact_status'] !== 'PASS' || $c['creative_status'] !== 'PASS' || $c['attempt_status'] !== 'PASS') {
-                    throw new OperationsException('master_requires_all_qc', 'A master needs technical, fact/content and creative QC all passed.', 409);
-                }
-                if ($j['status'] !== 'MASTER_REQUIRED') {
-                    throw new OperationsException('invalid_transition', 'This song is not waiting for a master.', 409);
-                }
-                $masterId = creative_store_master($pdo, $j, 'PRODUCTION_MASTER', [
-                    'stored_name' => $c['stored_name'], 'container' => $c['container'], 'sha256' => $c['sha256'], 'byte_size' => (int) $c['byte_size'],
-                    'duration_ms' => $c['duration_ms'] === null ? null : (int) $c['duration_ms'], 'sample_rate_hz' => $c['sample_rate_hz'] === null ? null : (int) $c['sample_rate_hz'], 'channels' => $c['channels'] === null ? null : (int) $c['channels'],
-                ], (int) $c['id'], null, null, [
-                    'attempt' => (int) $c['attempt_number'], 'technical' => json_decode((string) $c['technical_qc'], true)['status'] ?? null,
-                    'fact' => 'PASS', 'creative' => json_decode((string) $c['creative_qc'], true),
-                    'versions' => ['fact_ledger' => (int) $j['fact_ledger_version'], 'lyrics' => (int) $j['lyric_version'], 'music_direction' => (int) $j['direction_version'], 'plan' => (int) $j['plan_version']],
-                    'provenance' => 'CANDIDATE_FILE_UNCHANGED',
-                ], $staff);
-                creative_set_job($pdo, (int) $j['id'], ['status' => 'MASTER_READY', 'waiting_on' => null, 'current_master_id' => $masterId]);
-                record_order_event($pdo, $orderId, 'CREATIVE.MASTER_READY', ['job_id' => (int) $j['id'], 'master_id' => $masterId], "creative-master:{$masterId}");
-                return ['master_id' => $masterId, 'album' => creative_evaluate_album($pdo, (int) $j['album_id'], $staff)];
+                return creative_promote_master($pdo, $orderId, $candidate(), $staff);
 
             case 'ALBUM_QC_REVIEW':
                 $a = $album();

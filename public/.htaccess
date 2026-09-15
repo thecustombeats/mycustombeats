@@ -103,7 +103,7 @@
   # Private and non-content routes are never indexed. robots.txt asks
   # crawlers not to fetch them; this header covers anything that does. Neither
   # is access control — that is the token and CRM-key checks on the server.
-  <If "%{THE_REQUEST} =~ m#^[A-Z]+ /(your-order|approve|operations|thank-you|dashboard|artist-thank-you|partner-thank-you|create|api/)#">
+  <If "%{THE_REQUEST} =~ m#^[A-Z]+ /(your-order|approve|operations|command-centre|thank-you|dashboard|artist-thank-you|partner-thank-you|create|api/)#">
     Header always set X-Robots-Tag "noindex, nofollow"
   </If>
   # /luxury/ is a separate, unlinked hospitality showcase that uses stock
@@ -113,7 +113,7 @@
     Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://images.unsplash.com; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
     Header always set X-Robots-Tag "noindex, nofollow"
   </If>
-  <If "%{THE_REQUEST} =~ m#^[A-Z]+ /(your-order|approve|operations)#">
+  <If "%{THE_REQUEST} =~ m#^[A-Z]+ /(your-order|approve|operations|command-centre)#">
     Header always set Referrer-Policy "no-referrer"
   </If>
 

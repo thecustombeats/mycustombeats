@@ -65,8 +65,10 @@ test("physical capacity is a separate policy from the current catalogue, UNVERIF
   assert.doesNotMatch(qc, /ffmpeg|sox|lame|shorten|time_stretch|speed_up|exec\(|shell_exec|proc_open/i, "no automatic editing or compression");
 });
 
-test("provider decision DEFERRED: no PRIMARY, no adapter but MANUAL, every candidate capability UNKNOWN", () => {
-  assert.equal(C.PROVIDER_DECISION_STATUS, "DEFERRED");
+test("Mozart AI founder selected, integration pending: no PRIMARY, no adapter but MANUAL, every candidate capability UNKNOWN", () => {
+  assert.equal(C.PROVIDER_DECISION_STATUS, "FOUNDER_SELECTED");
+  assert.equal(C.PROVIDER_INTEGRATION_STATUS, "PENDING");
+  assert.deepEqual({ ...C.SELECTED_MUSIC_PLATFORM }, { providerId: "candidate-mozart-ai", name: "Mozart AI", decision: "FOUNDER_SELECTED", account: "NOT_YET_OPENED", integration: "PENDING", capabilitiesVerified: false });
   const candidates = C.PROVIDER_REGISTRY.filter((p) => p.kind === "CANDIDATE");
   assert.ok(candidates.length >= 2);
   for (const p of candidates) {

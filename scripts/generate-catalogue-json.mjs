@@ -479,6 +479,8 @@ for (const profile of creative.PHYSICAL_MEDIA_CAPACITY_POLICY) {
   if (profile.status === "VERIFIED" && (!profile.source || !profile.lastVerifiedDate || (profile.verifiedTotalCapacitySeconds === null && profile.verifiedPerSideSeconds === null))) fail(`capacity ${profile.sku} marked VERIFIED without source, date and figures`);
   if (profile.status === "UNVERIFIED" && (profile.verifiedTotalCapacitySeconds !== null || profile.verifiedPerSideSeconds !== null || profile.hardManufacturingMaximumSeconds !== null)) fail(`capacity ${profile.sku} is UNVERIFIED but carries figures`);
 }
+if (!creative.PROVIDER_REGISTRY.some((p) => p.id === creative.SELECTED_MUSIC_PLATFORM.providerId)) fail("the selected music platform is not in the provider registry");
+if (creative.SELECTED_MUSIC_PLATFORM.integration !== "INTEGRATED" && creative.SELECTED_MUSIC_PLATFORM.capabilitiesVerified) fail("music platform capabilities cannot be verified before integration");
 for (const provider of creative.PROVIDER_REGISTRY) {
   if (provider.kind === "CANDIDATE" && (provider.role !== "DISABLED" || provider.adapter !== null)) fail(`provider ${provider.id} is selected while the decision is ${creative.PROVIDER_DECISION_STATUS}`);
   if (provider.kind === "CANDIDATE" && Object.values(provider.capabilities).some((v) => v !== "UNKNOWN")) fail(`provider ${provider.id} has assumed capabilities`);
@@ -500,6 +502,11 @@ const creativeOut = {
   style_to_direction: { ...creative.STYLE_TO_DIRECTION },
   music_direction_fields: [...creative.MUSIC_DIRECTION_FIELDS],
   provider_decision_status: creative.PROVIDER_DECISION_STATUS,
+  provider_integration_status: creative.PROVIDER_INTEGRATION_STATUS,
+  selected_music_platform: {
+    provider_id: creative.SELECTED_MUSIC_PLATFORM.providerId, name: creative.SELECTED_MUSIC_PLATFORM.name, decision: creative.SELECTED_MUSIC_PLATFORM.decision,
+    account: creative.SELECTED_MUSIC_PLATFORM.account, integration: creative.SELECTED_MUSIC_PLATFORM.integration, capabilities_verified: creative.SELECTED_MUSIC_PLATFORM.capabilitiesVerified,
+  },
   provider_roles: [...creative.PROVIDER_ROLES],
   provider_capability_fields: [...creative.PROVIDER_CAPABILITY_FIELDS],
   providers: creative.PROVIDER_REGISTRY.map((p) => ({ id: p.id, label: p.label, kind: p.kind, role: p.role, adapter: p.adapter, capabilities: { ...p.capabilities } })),

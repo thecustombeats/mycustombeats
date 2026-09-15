@@ -16,7 +16,8 @@
 | `crm/creative`, `crm/creative-file` | GET/POST | CRM key; a staff name on every read (creative_access_log); objects checked against the order named (another order's ids → 404); audio in private storage only |
 | `crm/production-files`, `crm/artwork` | GET/POST | CRM key; staff name on every read and download (logged); cross-order ids refused; production files in private storage; supplier data, links and costs only in these staff responses — never public, never in notifications |
 | `crm/fulfilment` | GET | CRM key; INTERNAL economics, routes, scorecards and health — never public, never in notifications; evidence downloads need a staff name and are audited |
-| `crm/*` (all 20 endpoints) | GET/POST | CRM key (Bearer, constant-time compare); no browser cookie |
+| `crm/command-centre` | GET/POST | CRM key and staff name; no-store, noindex; read model only, plus the two quality decisions (audited: FOUNDER.QUALITY_REVIEWED); search text never recorded; list views carry safe names (first name + initial) and no story, photo, address or email |
+| `crm/*` (all 21 endpoints) | GET/POST | CRM key (Bearer, constant-time compare); no browser cookie |
 | `crm/notifications` | GET/POST | CRM key **or** the separate `notifications.worker_key`, which can do nothing else; claim tokens are one-time (stored as SHA-256) |
 | `product-availability` | GET | public; catalogue identifiers only |
 | `AUTHORISE_SUPPLIER_PURCHASE` (via `crm/order-action`) | POST | CRM key **and** the founder's own code (`password_verify` against a config hash); 5 refusals per order per 15 min → 429; refusals audited without the code. A notification deep link carries only `#order=…&action=…` and authorises nothing |
@@ -85,4 +86,11 @@ Uploads fail closed and live outside the web root; webhook signature/idempotency
 - **Server-only commercial data.** Supplier routes, expected costs and internal allowances live in `api/data/supplier-routes.json` on the server (403 over HTTP, never committed). Economics appear only in CRM responses.
 - **Support evidence.** `order-evidence` is same-origin, rate-limited (20/hour), token-scoped to the order's own non-question report, images identified by their bytes (polyglots refused), stored outside the web root with random names (0600). Videos are never uploaded, only described.
 - **Founder-only resolutions** (partial delivery, substitution, refund handled by a founder, proceed at the paid price) use the same founder code check, refusal audit and lockout as purchase authorisation.
+
+## Founder Command Centre (15 September 2026)
+
+- `/command-centre` is a standalone staff page (no site layout, so no consent banner or analytics loader); it is in the analytics private-path rule, robots.txt `Disallow`, and the `X-Robots-Tag: noindex` and `Referrer-Policy: no-referrer` header rules.
+- The CRM key lives in the tab's memory only. Deep links (`#view=…&order=MCB-…&open=…`) choose what to show and are validated; they never carry a credential or perform an action.
+- Private files (song, artwork, source photographs) are fetched with the key into memory (blob URLs); their existing endpoints audit the access.
+- No money moves from the Command Centre: supplier authorisation and founder-only resolutions go through `crm/order-action` with the founder's own code, as before.
 

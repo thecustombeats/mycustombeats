@@ -167,7 +167,9 @@ test("public catalogue and structured data carry no revisions, approval promises
 test("legacy approval/refinement language: no active customer-facing creative approval or refinement promise remains", () => {
   const customerFacing = [...walk("src/pages"), ...walk("src/sections"), ...walk("src/components"), ...walk("src/data"), ...walk("src/lib"), "public/api/lib/lifecycle-messages.php", "public/api/lib/notify.php", "public/catalogue.json"]
     .filter((f) => /\.(tsx?|php|json)$/.test(f))
-    .filter((f) => !/src\/components\/ui\/|src\/data\/legal\/review\.ts$|src\/data\/legal\/versions\.ts$|src\/pages\/Operations\.tsx$|src\/data\/operations\.ts$/.test(f));
+    // Staff surfaces (the operations console and the Founder Command Centre) speak of the Founders' FINANCIAL
+    // approval of a supplier purchase; command-centre.test.mjs proves they never offer customer approval.
+    .filter((f) => !/src\/components\/ui\/|src\/data\/legal\/review\.ts$|src\/data\/legal\/versions\.ts$|src\/pages\/Operations\.tsx$|src\/data\/operations\.ts$|src\/pages\/CommandCentre\.tsx$|src\/pages\/command-centre\/|src\/lib\/commandCentre\.ts$/.test(f));
   const pattern = /\b(approv\w*|refine\w*|revision\w*|remake\w*|drafts?|sign-off|changes requested)\b/gi;
   const allowed = [
     /approved (image|imagery|photograph|photography|mark|text|copy|figure|founder|marketing|price|wording|commercial|proposition|picture|square|founder note|release)/i,
