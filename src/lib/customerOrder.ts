@@ -75,6 +75,16 @@ export interface OrderProgress {
     dispatched_on: string | null;
     delivered_on: string | null;
   } | null;
+  /** One order, possibly several parcels: carrier and tracking only, never who made or sent it. */
+  parcels?: {
+    number: number;
+    status: "BEING_MADE" | "ON_THE_WAY" | "DELIVERED";
+    carrier: string | null;
+    tracking_reference: string | null;
+    tracking_url: string | null;
+    dispatched_on: string | null;
+    delivered_on: string | null;
+  }[];
   items: { key: string; name: string; priority_replacement: { request_by: string | null } | null }[];
   open_requests: number;
 }
@@ -92,12 +102,39 @@ export interface RetiredApprovalView {
 
 export const fetchRetiredApproval = (token: string) => post<RetiredApprovalView>("/api/order-approval", { token });
 
-export type SupportKind = "DAMAGED_OR_FAULTY" | "DELIVERY_PROBLEM" | "INCORRECT_DETAIL" | "QUESTION";
+export type SupportKind = "DAMAGED_OR_FAULTY" | "WRONG_ITEM" | "MANUFACTURING_DEFECT" | "DELIVERY_PROBLEM" | "INCORRECT_DETAIL" | "QUESTION";
 
 export const sendSupportRequest = (
   token: string,
   request: { kind: SupportKind; item?: string; priorityReplacement?: boolean; description: string }
-) => post<{ received: true; message: string }>("/api/order-support", { token, ...request });
+) => post<{ received: true; message: string; request_id: number; evidence: { accepted: string[]; required: false } | null }>("/api/order-support", { token, ...request });
+
+export type EvidenceKind = "PARCEL_PHOTO" | "PRODUCT_PHOTO" | "UNBOXING_VIDEO_REFERENCE" | "OTHER";
+
+/** Optional evidence for a report: a photo, or where a recording is kept. Never required for help. */
+export const sendSupportEvidence = async (
+  token: string,
+  requestId: number,
+  evidence: { kind: EvidenceKind; photo?: File; reference?: string }
+): Promise<{ received: true; message: string }> => {
+  const form = new FormData();
+  form.append("token", token);
+  form.append("request_id", String(requestId));
+  form.append("kind", evidence.kind);
+  if (evidence.photo) form.append("photo", evidence.photo);
+  if (evidence.reference) form.append("reference", evidence.reference);
+  let response: Response;
+  try {
+    response = await fetch("/api/order-evidence", { method: "POST", body: form });
+  } catch {
+    throw new LinkError(CONNECTION_MESSAGE, "network");
+  }
+  const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!response.ok) {
+    throw new LinkError(typeof payload?.message === "string" ? payload.message : "Something went wrong. Please try again.", typeof payload?.error === "string" ? payload.error : "error", (payload?.fields as Record<string, string> | undefined) ?? {});
+  }
+  return payload as { received: true; message: string };
+};
 
 /** A listening or tracking link is only ever followed if it is https. */
 export const safeExternalUrl = (url: string | null): string | null => {

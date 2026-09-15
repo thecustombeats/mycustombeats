@@ -73,4 +73,4 @@ json_response(200, [
     'links'    => (object) $result['links'],
     'emails'   => (object) $emails,
     'warning'  => $result['warning'],
-]);
+] + array_intersect_key($result, array_flip(['supplier_order', 'shipment_id', 'exception_id', 'delivery'])));

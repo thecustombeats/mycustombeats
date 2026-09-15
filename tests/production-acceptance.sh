@@ -261,7 +261,8 @@ print_file() { local oid=$1 aid=$2 am=$3 sku=$4 ref=$5 tpl=$6 ver=$7 file=$8; sh
 build() { pfpostj "{\"action\":\"BUILD_MANUFACTURING_PACKAGE\",\"order_id\":$1,\"staff\":\"Production Tester\"}"; }
 CAP=public/api/data/physical-capacity.json
 SUP=public/api/data/supplier-orders.json
-trap 'restore_config; rm -f public/api/_test-config-base.php "$CAP" "$SUP"' EXIT
+ROUTES=public/api/data/supplier-routes.json
+trap 'restore_config; rm -f public/api/_test-config-base.php "$CAP" "$SUP" "$ROUTES"' EXIT
 
 stub_reset
 reset_limits
@@ -283,6 +284,7 @@ ROOTQ pfa < db/schema.sql 2>/dev/null
 git show 25c428e1:db/schema.sql | ROOTQ pfb 2>/dev/null
 ROOTQ pfb < db/migrations/2026-09-15-production-file-factory.sql 2>/dev/null; P1=$?
 ROOTQ pfb < db/migrations/2026-09-15-production-file-factory.sql 2>/dev/null; P2=$?
+ROOTQ pfb < db/migrations/2026-09-15-fulfilment-controller.sql 2>/dev/null
 dumpdb() { for tb in $(ROOTQ -N -e "SHOW TABLES" "$1"); do ROOTQ -N -e "SHOW CREATE TABLE \`$tb\`" "$1" | sed 's/AUTO_INCREMENT=[0-9]* //'; done; }
 tc "the Production File Factory migration applies to the previous schema, twice, and equals a fresh schema" "$([ "$P1" = 0 ] && [ "$P2" = 0 ] && [ "$(dumpdb pfa | shasum)" = "$(dumpdb pfb | shasum)" ] && echo 1 || echo 0)"
 ROOTQ -e 'DROP DATABASE pfa; DROP DATABASE pfb;' 2>/dev/null
@@ -410,6 +412,11 @@ t "opening the deep link authorised nothing" "FULFILMENT.READY|NULL" "$(state_of
 STRIPE_BEFORE=$(stub_count)
 t "the supplier order cannot be recorded before Bella or Lewis authorises" "409|founder_authorisation_required" "$(act $JO CONFIRM_FULFILMENT)|$(jget error)"
 t "a wrong founder code authorises nothing" 403 "$(founder_authorise $JO BELLA wrong-code-000000)"
+t "in REQUIRED mode a destination the supplier data does not cover blocks the authorisation (Fulfilment Controller)" "409|destination_unknown|NULL" "$(founder_authorise $JO LEWIS "$FOUNDER_CODE_LEWIS")|$(jget error /tmp/fa.json)|$(q "SELECT IFNULL(supplier_purchase_authorised_by,'NULL') FROM order_production WHERE order_id=$JO")"
+cat > "$ROUTES" <<'JSON'
+{"routes":[{"route_id":"TEST-ROUTE-J6","skus":["journey-6"],"supplier":"TEST SUPPLIER (synthetic)","product_url":"https://supplier.example/journey-6","configuration":"12-inch picture disc, gatefold","destinations":{"supported":["GB"],"check_required":[],"unsupported":[]},"shipping_model":"DESTINATION_CALCULATED","currency":"GBP","expected_purchase_cost_minor":4321,"internal_allowance":{"expected_supplier_shipping_minor":800},"verification_status":"VERIFIED","source":"synthetic test fixture","last_verified_date":"2026-09-15"}]}
+JSON
+settle
 t "Lewis explicitly authorises the purchase" "200|FULFILMENT.AUTHORISED" "$(founder_authorise $JO LEWIS "$FOUNDER_CODE_LEWIS")|$(jget state /tmp/fa.json)"
 t "only then is the supplier order recorded as placed by hand; the pack records who" "FULFILMENT.CONFIRMED|ORDER_PLACED|Ops Tester" "$(act $JO CONFIRM_FULFILMENT '"fulfilment_reference":"HAND-PF-1","send_email":false' >/dev/null; jget state)|$(q "SELECT status FROM supplier_order_packs WHERE order_id=$JO ORDER BY version DESC LIMIT 1")|$(q "SELECT placed_by FROM supplier_order_packs WHERE order_id=$JO ORDER BY version DESC LIMIT 1")"
 tc "  → and nothing was bought, charged or sent to a supplier by code" "$([ "$(stub_count)" = "$STRIPE_BEFORE" ] && ! grep -rniE 'curl_init|stripe_request' public/api/lib/production-files.php public/api/crm/production-files.php && echo 1 || echo 0)"
@@ -430,7 +437,7 @@ cpost "$(OID=$HO ALBUM=$HALBUM js '{"action":"RUN_CAPACITY_CHECK","order_id":int
 act $HO START_CREATIVE >/dev/null; act $HO SEND_TO_QUALITY_CHECK >/dev/null
 t "everything MCB controls is done; the Heart's final QC passes (advisory mode)" "200|CAPACITY_PASSED" "$(act $HO PASS_QUALITY_CHECK "$QC_PHYSICAL")|$(q "SELECT capacity_status FROM creative_albums WHERE id=$HALBUM")"
 t "the package is MANUFACTURING_DATA_REQUIRED (the heart dieline), not READY" "MANUFACTURING_DATA_REQUIRED|MANUFACTURER_DATA:PICTURE_DISC_HEART:Manufacturer heart dieline / cut line, bleed and output size" "$(build $HO >/dev/null; jget status)|$(cj '",".join(d["blockers"])')"
-t "  → MANUFACTURING.DATA_REQUIRED and one FULFILMENT_EXCEPTION for the Founders; no supplier pack" "1|1|MANUFACTURING_DATA_REQUIRED|0" "$(evcount $HO MANUFACTURING.DATA_REQUIRED)|$(q "SELECT COUNT(*) FROM founder_notifications WHERE order_id=$HO AND notification_type='FULFILMENT_EXCEPTION'")|$(q "SELECT JSON_VALUE(payload,'$.reason') FROM founder_notifications WHERE order_id=$HO AND notification_type='FULFILMENT_EXCEPTION'")|$(q "SELECT COUNT(*) FROM supplier_order_packs WHERE order_id=$HO")"
+t "  → MANUFACTURING.DATA_REQUIRED and one MANUFACTURING_DATA_REQUIRED notification for the Founders; no supplier pack" "1|1|MANUFACTURING_DATA_REQUIRED|0" "$(evcount $HO MANUFACTURING.DATA_REQUIRED)|$(q "SELECT COUNT(*) FROM founder_notifications WHERE order_id=$HO AND notification_type='MANUFACTURING_DATA_REQUIRED'")|$(q "SELECT JSON_VALUE(payload,'$.reason') FROM founder_notifications WHERE order_id=$HO AND notification_type='MANUFACTURING_DATA_REQUIRED'")|$(q "SELECT COUNT(*) FROM supplier_order_packs WHERE order_id=$HO")"
 t "  → surfaced as a production exception in the staff queue" 1 "$(queue_has "PRODUCTION:$HO:EXCEPTION")"
 with_config "\$c['creative']['enforcement']='REQUIRED';"
 t "in REQUIRED mode the founder cannot authorise a purchase with no READY package" "409|manufacturing_package_not_ready" "$(founder_authorise $HO BELLA "$FOUNDER_CODE_BELLA")|$(jget error /tmp/fa.json)"

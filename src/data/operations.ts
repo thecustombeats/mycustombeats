@@ -187,6 +187,9 @@ export type LifecycleMessageType =
   | "CREATION_READY"
   | "IN_PRODUCTION"
   | "DISPATCHED"
+  | "ADDITIONAL_PARCEL_DISPATCHED"
+  | "DELIVERY_UPDATE"
+  | "DELIVERED"
   | "FOLLOW_UP"
   | "REVIEW_REQUEST";
 
@@ -212,6 +215,9 @@ export const LIFECYCLE_TEMPLATES: readonly LifecycleTemplate[] = [
   { type: "CREATION_READY", trigger: "REVEALED", autoSend: true, workflows: ["DIGITAL"], purpose: "The reveal: your MCB creation is ready, with a private link to your order page where it plays." },
   { type: "IN_PRODUCTION", trigger: "FULFILMENT.CONFIRMED", autoSend: true, workflows: ["PHYSICAL"], purpose: "A one-way note that the keepsake is being made." },
   { type: "DISPATCHED", trigger: "DISPATCHED", autoSend: true, workflows: ["PHYSICAL"], purpose: "Your order is on the way, with tracking where MCB has it." },
+  { type: "ADDITIONAL_PARCEL_DISPATCHED", trigger: "SHIPMENT.PARCEL_DISPATCHED", autoSend: true, workflows: ["PHYSICAL"], purpose: "Another part of your order is on the way, with its tracking." },
+  { type: "DELIVERY_UPDATE", trigger: "FULFILMENT.EXCEPTION_OPENED", autoSend: false, workflows: ["PHYSICAL"], purpose: "A calm update when a delivery is delayed; sent only when staff choose." },
+  { type: "DELIVERED", trigger: "DELIVERED", autoSend: false, workflows: ["PHYSICAL"], purpose: "Your order has arrived, with the damage guidance; sent when staff choose." },
   { type: "FOLLOW_UP", trigger: "FOLLOW_UP.DUE", autoSend: false, workflows: ["DIGITAL", "PHYSICAL"], purpose: "A personal check-in, sent when staff choose." },
   { type: "REVIEW_REQUEST", trigger: "ORDER.COMPLETED", autoSend: false, workflows: ["DIGITAL", "PHYSICAL"], purpose: "Asks for a review, only for a completed order and only when a review URL is configured." },
 ];
@@ -281,6 +287,14 @@ export const AUTOMATION_EVENTS: readonly string[] = [
   "MANUFACTURING.PACKAGE_REQUIRED",
   "MANUFACTURING.PACKAGE_READY",
   "MANUFACTURING.DATA_REQUIRED",
+  // Fulfilment Controller (each partner order a person placed and recorded; the first also confirms fulfilment)
+  "FULFILMENT.PARTNER_ORDER_RECORDED",
+  "SHIPMENT.PARCEL_DISPATCHED",
+  "SHIPMENT.IN_TRANSIT",
+  "SHIPMENT.PARCEL_DELIVERED",
+  "FULFILMENT.EXCEPTION_OPENED",
+  "FULFILMENT.EXCEPTION_RESOLVED",
+  "COMMERCIAL.ECONOMICS_CALCULATED",
 ];
 
 /**
@@ -306,6 +320,8 @@ export const EVENT_MODEL: Readonly<Record<string, string>> = {
   "FULFILMENT.APPROVAL_REQUIRED": "FULFILMENT.READY",
   "FULFILMENT.AUTHORISED": "FULFILMENT.AUTHORISED",
   "SUPPLIER.ORDER_REQUIRED": "FULFILMENT.AUTHORISED",
+  // The first supplier order moves the order to FULFILMENT.CONFIRMED; every partner
+  // order of a split order is also recorded as FULFILMENT.PARTNER_ORDER_RECORDED.
   "SUPPLIER.ORDER_RECORDED": "FULFILMENT.CONFIRMED",
   "SHIPMENT.DISPATCHED": "DISPATCHED",
   "SHIPMENT.DELIVERED": "DELIVERED",
@@ -362,7 +378,10 @@ export type FounderNotificationType =
   | "CUSTOMER_SUPPORT_EXCEPTION"
   | "PRODUCT_SALES_SUSPENDED"
   | "CREATIVE_EXCEPTION"
-  | "AUDIO_CAPACITY_EXCEPTION";
+  | "AUDIO_CAPACITY_EXCEPTION"
+  | "COMMERCIAL_SAFETY_EXCEPTION"
+  | "MANUFACTURING_DATA_REQUIRED"
+  | "DELIVERY_EXCEPTION";
 
 /**
  * What interrupts the Founders. Exceptions and decisions only — plus every
@@ -378,6 +397,9 @@ export const FOUNDER_NOTIFICATIONS: readonly { readonly type: FounderNotificatio
   { type: "CUSTOMER_SUPPORT_EXCEPTION", title: "Customer support report", requiredAction: "Open the order and review the customer's report." },
   { type: "CREATIVE_EXCEPTION", title: "Creative production exception", requiredAction: "Open the order's Creative Factory panel: a song needs a person (retry limit reached or escalated)." },
   { type: "AUDIO_CAPACITY_EXCEPTION", title: "Audio capacity exception", requiredAction: "Open the order: the finished programme does not fit the verified record capacity. Nothing is shortened automatically." },
+  { type: "COMMERCIAL_SAFETY_EXCEPTION", title: "Commercial safety exception", requiredAction: "Open the order: expected fulfilment economics break MCB's commercial safety rule. The paid order is not cancelled." },
+  { type: "MANUFACTURING_DATA_REQUIRED", title: "Manufacturing data required", requiredAction: "Open the order: the manufacturer has not supplied information this product needs." },
+  { type: "DELIVERY_EXCEPTION", title: "Delivery exception", requiredAction: "Open the order and resolve the delivery exception." },
   { type: "PRODUCT_SALES_SUSPENDED", title: "New sales suspended", requiredAction: "Review the product's availability. Existing paid orders are unaffected." },
 ];
 
@@ -405,6 +427,8 @@ export type QueueKind =
   | "CREATIVE_ACTION"
   | "PRODUCTION_EXCEPTION"
   | "PRODUCTION_ACTION"
+  | "FULFILMENT_EXCEPTION"
+  | "FULFILMENT_HEALTH"
   | "DELIVERY_DELAY"
   | "REPLACEMENT_REQUEST"
   | "SUPPORT"
@@ -431,6 +455,8 @@ export const QUEUE_KINDS: Readonly<Record<QueueKind, { readonly label: string; r
   CREATIVE_ACTION: { label: "Creative Factory step waiting", priority: 2 },
   PRODUCTION_EXCEPTION: { label: "Production file or manufacturing exception", priority: 1 },
   PRODUCTION_ACTION: { label: "Production File Factory step waiting", priority: 2 },
+  FULFILMENT_EXCEPTION: { label: "Fulfilment exception open", priority: 1 },
+  FULFILMENT_HEALTH: { label: "Order may be stranded", priority: 1 },
   FULFILMENT_READY: { label: "Fulfilment approval required", priority: 2 },
   SUPPLIER_ORDER_REQUIRED: { label: "Authorised: place supplier order", priority: 2 },
   SUPPLIER_ACTION: { label: "Waiting to dispatch", priority: 2 },

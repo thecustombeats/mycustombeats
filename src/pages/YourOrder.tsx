@@ -10,8 +10,10 @@ import {
   fetchProgress,
   formatDay,
   safeExternalUrl,
+  sendSupportEvidence,
   sendSupportRequest,
   tokenFromHash,
+  type EvidenceKind,
   type OrderProgress,
   type SupportKind,
 } from "../lib/customerOrder";
@@ -32,6 +34,63 @@ const field =
 const button =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-ink px-8 py-3 text-base font-semibold text-ivory transition-colors hover:bg-[#1c2d40] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2 disabled:opacity-70";
 
+/** Optional evidence after a report. Helpful, never a condition of getting help. */
+const AddEvidence = ({ token, requestId }: { token: string; requestId: number }) => {
+  const ids = useId();
+  const [kind, setKind] = useState<EvidenceKind>("PARCEL_PHOTO");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [reference, setReference] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const isVideo = kind === "UNBOXING_VIDEO_REFERENCE";
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSending(true);
+    setError(null);
+    try {
+      const result = await sendSupportEvidence(token, requestId, { kind, ...(photo && !isVideo ? { photo } : {}), ...(reference.trim() ? { reference: reference.trim() } : {}) });
+      setStatus(result.message);
+      setPhoto(null);
+      setReference("");
+    } catch (e) {
+      setError(e instanceof LinkError ? Object.values(e.fields)[0] ?? e.message : "We couldn't add that just now. Your report is safe with us.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="mt-6 space-y-4 border-t border-ink/10 pt-6" aria-labelledby={`${ids}-heading`}>
+      <h3 id={`${ids}-heading`} className="font-serif text-xl text-ink">Add a photo (optional)</h3>
+      <p className="text-base leading-relaxed">A photo of the parcel or the item helps us put things right quickly. It is not needed for us to help you.</p>
+      <div>
+        <label htmlFor={`${ids}-kind`} className={label}>What is it?</label>
+        <select id={`${ids}-kind`} value={kind} onChange={(e) => setKind(e.target.value as EvidenceKind)} className={field}>
+          <option value="PARCEL_PHOTO">A photo of the parcel</option>
+          <option value="PRODUCT_PHOTO">A photo of the item</option>
+          <option value="UNBOXING_VIDEO_REFERENCE">I recorded the opening (tell us where it is)</option>
+          <option value="OTHER">Something else</option>
+        </select>
+      </div>
+      {!isVideo && (
+        <div>
+          <label htmlFor={`${ids}-photo`} className={label}>Photo (JPEG, PNG, WebP or HEIC, up to 10 MB)</label>
+          <input id={`${ids}-photo`} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} className={field} />
+        </div>
+      )}
+      <div>
+        <label htmlFor={`${ids}-reference`} className={label}>{isVideo ? "Where is the recording? We'll ask for it by email if we need it." : "Anything to add (optional)"}</label>
+        <input id={`${ids}-reference`} value={reference} maxLength={500} onChange={(e) => setReference(e.target.value)} className={field} />
+      </div>
+      {status && <p role="status" className="text-base font-semibold text-ink">{status}</p>}
+      {error && <p role="alert" className="rounded-xl bg-[#FDECEC] px-4 py-3 text-base font-semibold text-[#9B2C2C]">{error}</p>}
+      <button type="submit" disabled={sending || (!photo && !reference.trim())} className={button}>{sending ? "Adding…" : "Add to my report"}</button>
+    </form>
+  );
+};
+
 const ReportProblem = ({ token, progress }: { token: string; progress: OrderProgress }) => {
   const ids = useId();
   const physical = progress.workflow === "PHYSICAL";
@@ -41,6 +100,7 @@ const ReportProblem = ({ token, progress }: { token: string; progress: OrderProg
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [caseId, setCaseId] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
 
   const chosen = progress.items.find((i) => i.key === item);
@@ -57,11 +117,12 @@ const ReportProblem = ({ token, progress }: { token: string; progress: OrderProg
     try {
       const result = await sendSupportRequest(token, {
         kind,
-        ...(physical && (kind === "DAMAGED_OR_FAULTY" || kind === "DELIVERY_PROBLEM") && item ? { item } : {}),
+        ...(physical && ["DAMAGED_OR_FAULTY", "WRONG_ITEM", "MANUFACTURING_DEFECT", "DELIVERY_PROBLEM"].includes(kind) && item ? { item } : {}),
         ...(offersPriority ? { priorityReplacement: priority } : {}),
         description: description.trim(),
       });
       setDone(result.message);
+      setCaseId(result.evidence ? result.request_id : null);
     } catch (e) {
       setError(e instanceof LinkError ? Object.values(e.fields)[0] ?? e.message : "We couldn't send that just now. Please try again.");
     } finally {
@@ -74,6 +135,7 @@ const ReportProblem = ({ token, progress }: { token: string; progress: OrderProg
       <div role="status" className={card}>
         <h2 className="font-serif text-2xl text-ink">Thank you</h2>
         <p className="mt-3 text-lg leading-relaxed">{done}</p>
+        {caseId !== null && <AddEvidence token={token} requestId={caseId} />}
       </div>
     );
   }
@@ -89,6 +151,8 @@ const ReportProblem = ({ token, progress }: { token: string; progress: OrderProg
             {(physical
               ? ([
                   ["DAMAGED_OR_FAULTY", "Something arrived damaged or faulty"],
+                  ["WRONG_ITEM", "I received the wrong item"],
+                  ["MANUFACTURING_DEFECT", "The item has a fault in how it was made"],
                   ["DELIVERY_PROBLEM", "A problem with delivery"],
                   ["INCORRECT_DETAIL", "Something in my song or artwork is incorrect"],
                   ["QUESTION", "A question"],
@@ -249,7 +313,32 @@ const YourOrder = () => {
               </ol>
             </section>
 
-            {progress.delivery && (
+            {progress.parcels && progress.parcels.length > 1 && (
+              <section className={card} aria-labelledby="order-parcels-list">
+                <h2 id="order-parcels-list" className="font-serif text-2xl text-ink">Your parcels</h2>
+                <p className="mt-3 text-base leading-relaxed">Your order is arriving in more than one parcel. That's expected — we're coordinating each one for you.</p>
+                <ul className="m-0 mt-4 list-none space-y-4 p-0">
+                  {progress.parcels.map((parcel) => {
+                    const link = safeExternalUrl(parcel.tracking_url);
+                    return (
+                      <li key={parcel.number} className="rounded-2xl border border-ink/10 p-4">
+                        <p className="text-lg font-semibold text-ink">Parcel {parcel.number}: {parcel.status === "DELIVERED" ? "Delivered" : parcel.status === "ON_THE_WAY" ? "On its way" : "Being made"}</p>
+                        <p className="mt-1 text-base">
+                          {[parcel.carrier, parcel.tracking_reference ? `tracking ${parcel.tracking_reference}` : null, parcel.dispatched_on ? `sent ${formatDay(parcel.dispatched_on)}` : null, parcel.delivered_on ? `delivered ${formatDay(parcel.delivered_on)}` : null].filter(Boolean).join(" · ")}
+                        </p>
+                        {link && parcel.status !== "DELIVERED" && (
+                          <a href={link} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block font-semibold text-ink underline">
+                            Track parcel {parcel.number}<span className="sr-only"> (opens in a new window)</span>
+                          </a>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            )}
+
+            {progress.delivery && !(progress.parcels && progress.parcels.length > 1) && (
               <section className={card} aria-labelledby="order-delivery">
                 <h2 id="order-delivery" className="font-serif text-2xl text-ink">Delivery</h2>
                 <dl className="m-0 mt-4 space-y-3 text-lg">

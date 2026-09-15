@@ -9,11 +9,12 @@ FOUNDER_CODE_BELLA="test-founder-bella-not-real"
 FOUNDER_CODE_LEWIS="test-founder-lewis-not-real"
 NOTIFICATION_WORKER_KEY="test_notification_worker_key_not_real_0000"
 
-# founder_authorise ORDER FOUNDER CODE → HTTP code (body in /tmp/fa.json)
+# founder_authorise ORDER FOUNDER CODE → HTTP code (body in /tmp/fa.json). The founder has reviewed the
+# decision card: destination (verified at checkout) and expected economics acknowledged.
 founder_authorise() {
   curl -s -o /tmp/fa.json -w '%{http_code}' -X POST "$BASE/crm/order-action" -H "Authorization: Bearer $AUTOMATION_CRM_KEY" \
     -H 'Content-Type: application/json' \
-    -d "{\"order_id\":$1,\"action\":\"AUTHORISE_SUPPLIER_PURCHASE\",\"staff\":\"Founder Test\",\"founder\":\"$2\",\"founder_code\":\"$3\",\"confirm\":true}"
+    -d "{\"order_id\":$1,\"action\":\"AUTHORISE_SUPPLIER_PURCHASE\",\"staff\":\"Founder Test\",\"founder\":\"$2\",\"founder_code\":\"$3\",\"confirm\":true,\"destination_acknowledged\":true,\"commercial_acknowledged\":true}"
 }
 
 # ensure_art_master ORDER — for every record without a current Creative Art Master

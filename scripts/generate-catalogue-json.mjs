@@ -35,6 +35,7 @@ const TARGETS = {
   publicCatalogue: join(root, "public/catalogue.json"),
   artwork: join(root, "public/api/data/artwork.json"),
   creative: join(root, "public/api/data/creative.json"),
+  fulfilment: join(root, "public/api/data/fulfilment.json"),
 };
 
 const fail = (message) => {
@@ -64,6 +65,7 @@ try {
       join(root, "src/data/imagery.ts"),
       join(root, "src/data/production/artwork.ts"),
       join(root, "src/data/production/creative.ts"),
+      join(root, "src/data/production/fulfilment.ts"),
       "--outDir", tmp,
       "--rootDir", join(root, "src/data"),
       "--module", "esnext",
@@ -106,6 +108,7 @@ const operations = await import(pathToFileURL(join(tmp, "operations.js")).href);
 const imagery = await import(pathToFileURL(join(tmp, "imagery.js")).href);
 const artwork = await import(pathToFileURL(join(tmp, "production/artwork.js")).href);
 const creative = await import(pathToFileURL(join(tmp, "production/creative.js")).href);
+const fulfilment = await import(pathToFileURL(join(tmp, "production/fulfilment.js")).href);
 rmSync(tmp, { recursive: true, force: true });
 
 const { PRODUCTS, ORDER_LIMITS, PRIORITY_REPLACEMENT_SKU, validateCatalogue } = catalogue;
@@ -512,6 +515,17 @@ const creativeOut = {
   lyric_duplication_threshold: creative.LYRIC_DUPLICATION_THRESHOLD,
 };
 
+// Server-only: how a supplier route delivers. Like lib/delivery.php's pricing states,
+// these names stay out of anything under src/ (a browser could load it).
+const DELIVERY_ROUTING_STATES = ["VERIFIED_FIXED_OR_FREE", "DESTINATION_CALCULATED", "MARKETPLACE_LISTING_DEPENDENT", "MANUAL_FULFILMENT_REVIEW"];
+const fulfilmentOut = {
+  _generated: "Do not edit. INTERNAL. Generated from src/data/production/fulfilment.ts by scripts/generate-catalogue-json.mjs",
+  delivery_routing_states: DELIVERY_ROUTING_STATES,
+  ...Object.fromEntries(Object.entries(fulfilment).map(([k, v]) => [k.toLowerCase(), Array.isArray(v) ? [...v] : v])),
+};
+for (const r of fulfilment.FOUNDER_ONLY_RESOLUTIONS) if (!fulfilment.EXCEPTION_RESOLUTIONS.includes(r)) fail(`founder-only resolution ${r} is not a resolution`);
+for (const t of fulfilment.DELIVERY_EXCEPTION_TYPES) if (!fulfilment.FULFILMENT_EXCEPTION_TYPES.includes(t)) fail(`delivery exception ${t} is not an exception type`);
+
 const outputs = [
   [TARGETS.catalogue, JSON.stringify(catalogueOut, null, 2) + "\n"],
   [TARGETS.legal, JSON.stringify(legalOut, null, 2) + "\n"],
@@ -520,6 +534,7 @@ const outputs = [
   [TARGETS.publicCatalogue, JSON.stringify(publicCatalogueOut, null, 2) + "\n"],
   [TARGETS.artwork, JSON.stringify(artworkOut, null, 2) + "\n"],
   [TARGETS.creative, JSON.stringify(creativeOut, null, 2) + "\n"],
+  [TARGETS.fulfilment, JSON.stringify(fulfilmentOut, null, 2) + "\n"],
 ];
 
 if (checkOnly) {

@@ -12,7 +12,8 @@
  *
  * WHICH TEMPLATES SEND THEMSELVES is data (operations.json
  * lifecycle_templates). CREATION_READY (the digital reveal), IN_PRODUCTION and
- * DISPATCHED go with the staff action that raises them. None asks the
+ * DISPATCHED (and ADDITIONAL_PARCEL_DISPATCHED) go with the staff action that
+ * raises them; DELIVERY_UPDATE and DELIVERED only when staff choose to send them. None asks the
  * customer to approve or reply before MCB continues.
  * FOLLOW_UP only when staff ask. The review request keeps its own rules in
  * lifecycle.php.
@@ -39,7 +40,7 @@ require_once __DIR__ . '/lifecycle.php';
  * ONE-WAY messages only. The retired approval emails (APPROVAL_REQUIRED,
  * CHANGES_RECEIVED, APPROVAL_CONFIRMED) are no longer sendable.
  */
-const MCB_LIFECYCLE_TYPES = ['CREATION_READY', 'IN_PRODUCTION', 'DISPATCHED', 'FOLLOW_UP'];
+const MCB_LIFECYCLE_TYPES = ['CREATION_READY', 'IN_PRODUCTION', 'DISPATCHED', 'ADDITIONAL_PARCEL_DISPATCHED', 'DELIVERY_UPDATE', 'DELIVERED', 'FOLLOW_UP'];
 
 /** First name only, as a greeting. Control characters cannot reach a header or body. */
 function lifecycle_first_name(string $name): string
@@ -95,6 +96,35 @@ function lifecycle_message_content(string $type, array $c): array
             ])),
             $c['tracking_url'] !== null ? ['Track your delivery', $c['tracking_url']] : ['See your order', $c['status_link']],
         ],
+        'ADDITIONAL_PARCEL_DISPATCHED' => [
+            "Another part of your order is on the way — {$ref}",
+            array_values(array_filter([
+                "Another parcel from your order has been sent. Your order is arriving in more than one parcel — that's expected, and your order page shows what has been sent so far.",
+                $c['carrier'] !== null ? 'Carrier: ' . $c['carrier'] : null,
+                $c['tracking_reference'] !== null ? 'Tracking reference: ' . $c['tracking_reference'] : null,
+                $copy['damage_guidance'] ?? null,
+                "You can reply to this email or use your order page. " . ($copy['damage_guidance_not_a_condition'] ?? 'Your normal consumer rights are not affected.'),
+            ])),
+            $c['tracking_url'] !== null ? ['Track this parcel', $c['tracking_url']] : ['See your order', $c['status_link']],
+        ],
+        'DELIVERY_UPDATE' => [
+            "An update on your delivery — {$ref}",
+            [
+                "We wanted to let you know that part of your order is taking longer than expected to reach you.",
+                "We're dealing with it for you and will keep you updated. There's nothing you need to do, and nothing you need to arrange with anyone else.",
+                "If you have any questions, reply to this email or use your order page.",
+            ],
+            ['See your order', $c['status_link']],
+        ],
+        'DELIVERED' => [
+            "Your order has arrived — {$ref}",
+            array_values(array_filter([
+                "Your order has been delivered. We hope it brings back every memory.",
+                "If anything has arrived damaged, isn't right, or a detail is different from what you gave us, reply to this email or use your order page and we'll handle it for you.",
+                $copy['damage_guidance_not_a_condition'] ?? null,
+            ])),
+            ['See your order', $c['status_link']],
+        ],
         'FOLLOW_UP' => [
             "How is everything? — {$ref}",
             [
@@ -114,7 +144,7 @@ function lifecycle_message_content(string $type, array $c): array
         $text[] = $button[0] . ': ' . $button[1];
         $text[] = '';
     }
-    if ($type === 'DISPATCHED' && $c['tracking_url'] !== null && $c['status_link'] !== null) {
+    if (in_array($type, ['DISPATCHED', 'ADDITIONAL_PARCEL_DISPATCHED'], true) && $c['tracking_url'] !== null && $c['status_link'] !== null) {
         $text[] = 'Your order page: ' . $c['status_link'];
         $text[] = '';
     }
@@ -133,7 +163,7 @@ function lifecycle_message_content(string $type, array $c): array
             . 'padding:14px 28px;border-radius:999px;text-decoration:none;font-weight:bold;font-family:Arial,sans-serif;">'
             . mcb_e($button[0]) . '</a></p>';
     }
-    if ($type === 'DISPATCHED' && $c['tracking_url'] !== null && $c['status_link'] !== null) {
+    if (in_array($type, ['DISPATCHED', 'ADDITIONAL_PARCEL_DISPATCHED'], true) && $c['tracking_url'] !== null && $c['status_link'] !== null) {
         $html .= '<p style="margin:0 0 16px;"><a href="' . mcb_e($c['status_link']) . '" style="color:#0D1B2A;">See your order</a></p>';
     }
     $html .= '<p style="margin:0 0 16px;">Your reference: <strong>' . mcb_e($ref) . '</strong></p>'
@@ -272,6 +302,15 @@ function send_lifecycle_message(PDO $pdo, int $orderId, string $type, string $de
         }
 
         $statusLink = access_link('STATUS', ensure_status_token($pdo, $orderId, 'lifecycle-email'));
+
+        // A parcel message carries that parcel's own tracking (key "parcel-<shipment id>").
+        if (preg_match('/^parcel-(\d+)$/', $dedupeKey, $m) === 1) {
+            $parcel = $pdo->prepare('SELECT carrier, tracking_reference, tracking_url FROM shipments WHERE id = :id AND order_id = :oid');
+            $parcel->execute([':id' => (int) $m[1], ':oid' => $orderId]);
+            if (($p = $parcel->fetch()) !== false) {
+                $order = array_merge($order, $p);
+            }
+        }
 
         $content = lifecycle_message_content($type, [
             'first_name'         => lifecycle_first_name((string) $order['name']),

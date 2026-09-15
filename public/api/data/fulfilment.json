@@ -1,0 +1,129 @@
+{
+  "_generated": "Do not edit. INTERNAL. Generated from src/data/production/fulfilment.ts by scripts/generate-catalogue-json.mjs",
+  "delivery_routing_states": [
+    "VERIFIED_FIXED_OR_FREE",
+    "DESTINATION_CALCULATED",
+    "MARKETPLACE_LISTING_DEPENDENT",
+    "MANUAL_FULFILMENT_REVIEW"
+  ],
+  "authorised_alternative_delivery_classes": [
+    "CARD"
+  ],
+  "commercial_statuses": [
+    "CALCULATED",
+    "COMMERCIAL_DATA_REQUIRED",
+    "COMMERCIAL_SAFETY_EXCEPTION"
+  ],
+  "content_permission_scopes": [
+    "REVIEW_QUOTE",
+    "PHOTOGRAPHS",
+    "SONG",
+    "LYRICS",
+    "STORY",
+    "VIDEO",
+    "MESSAGES"
+  ],
+  "delivery_exception_types": [
+    "TRACKING_NOT_RECEIVED",
+    "TRACKING_STALLED",
+    "PARCEL_DELAYED",
+    "PARCEL_LOST",
+    "PARCEL_DAMAGED",
+    "PARTIAL_DELIVERY",
+    "DESTINATION_PROBLEM",
+    "CUSTOMS_EXCEPTION"
+  ],
+  "destination_statuses": [
+    "DESTINATION_SUPPORTED",
+    "DESTINATION_CHECK_REQUIRED",
+    "DESTINATION_UNSUPPORTED",
+    "DESTINATION_UNKNOWN"
+  ],
+  "economics_exclusions": [
+    "VAT",
+    "payment processing fees",
+    "creative production time",
+    "marketing costs"
+  ],
+  "exception_resolutions": [
+    "RESOLVED_DELIVERED",
+    "REPLACEMENT_ARRANGED",
+    "CUSTOMER_CONTACTED",
+    "SUPPLIER_RESOLVED",
+    "PARTIAL_DELIVERY_ACCEPTED",
+    "SUBSTITUTION_APPROVED",
+    "REFUND_TO_BE_HANDLED_BY_FOUNDER",
+    "PROCEED_AT_PAID_PRICE",
+    "NO_ACTION_NEEDED",
+    "OTHER"
+  ],
+  "founder_only_resolutions": [
+    "PARTIAL_DELIVERY_ACCEPTED",
+    "SUBSTITUTION_APPROVED",
+    "REFUND_TO_BE_HANDLED_BY_FOUNDER",
+    "PROCEED_AT_PAID_PRICE"
+  ],
+  "fulfilment_exception_types": [
+    "SUPPLIER_DELAY",
+    "PRODUCTION_DELAY",
+    "TRACKING_NOT_RECEIVED",
+    "TRACKING_STALLED",
+    "PARCEL_DELAYED",
+    "PARCEL_LOST",
+    "PARCEL_DAMAGED",
+    "WRONG_ITEM",
+    "MANUFACTURING_DEFECT",
+    "PARTIAL_DELIVERY",
+    "DESTINATION_PROBLEM",
+    "CUSTOMS_EXCEPTION",
+    "SUPPLIER_CANCELLED",
+    "OTHER_FULFILMENT_EXCEPTION",
+    "COMMERCIAL_DATA_REQUIRED",
+    "COMMERCIAL_SAFETY_EXCEPTION",
+    "PAID_ORDER_FULFILMENT_EXCEPTION",
+    "SUBSTITUTION_APPROVAL_REQUIRED",
+    "AUTHORISED_CARD_ALTERNATIVE"
+  ],
+  "internal_allowance_components": [
+    "EXPECTED_SUPPLIER_SHIPPING",
+    "SHIPPING_CONTINGENCY",
+    "MCB_FULFILMENT_HANDLING_ALLOWANCE",
+    "TOTAL_INTERNAL_FULFILMENT_ALLOWANCE"
+  ],
+  "lifecycle_hooks": [
+    "ANOTHER_MEMORY",
+    "ANNIVERSARY_FOLLOW_UP",
+    "JOURNEY_CHAPTER",
+    "RELATED_KEEPSAKE"
+  ],
+  "notification_channels": [
+    "TELEGRAM",
+    "EMAIL_FALLBACK",
+    "STAFF_QUEUE",
+    "EMAIL",
+    "OTHER"
+  ],
+  "shipment_states": [
+    "AWAITING_DISPATCH",
+    "DISPATCHED",
+    "IN_TRANSIT",
+    "DELAYED",
+    "DELIVERED",
+    "LOST",
+    "CANCELLED"
+  ],
+  "support_evidence_kinds": [
+    "PARCEL_PHOTO",
+    "PRODUCT_PHOTO",
+    "UNBOXING_VIDEO_REFERENCE",
+    "OTHER"
+  ],
+  "variance_reasons": [
+    "SUPPLIER_PRICE_CHANGE",
+    "SHIPPING_VARIANCE",
+    "CURRENCY_VARIANCE",
+    "MARKETPLACE_VARIANCE",
+    "MANUAL_ADJUSTMENT",
+    "OTHER"
+  ]
+}

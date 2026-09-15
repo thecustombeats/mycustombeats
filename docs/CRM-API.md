@@ -369,6 +369,8 @@ Full runbook: `docs/OPERATIONS-RUNBOOK.md`. All CRM endpoints need `Authorizatio
 | `GET/POST /api/crm/production-files` | Production File Factory: artwork jobs (minimal input), photo preparation, Creative Art Masters, visual QC, render jobs, print masters, manufacturing package, staff-only supplier order pack, `?view=limits`, audited downloads |
 | `POST /api/crm/artwork` (multipart) | Register a versioned Print Production Master rendered from a visually-passed art master (file QC; safe-zone review) |
 | `GET/POST /api/crm/creative-file` | Register a manual candidate or a derived master (multipart); download audio (audited) |
+| `GET /api/crm/fulfilment` | Fulfilment Controller read models (INTERNAL): `?view=today` (founder command centre), `metrics`, `scorecards` (per supplier route), `health` (stranded orders), `order&order_id=`; `?evidence_id=&staff=` downloads support evidence (audited) |
+| `POST /api/crm/order-action` — Fulfilment Controller actions | `RECORD_SUPPLIER_ORDER` {supplier_order_reference, skus?, actual_purchase_cost_minor?, actual_shipping_cost_minor?, variance_reason?, expected_dispatch_date?, expected_delivery_date?, confirmation_reference?, notes?, substitute_sku?}; `ADD_SHIPMENT` {supplier_order_id?, skus?, required?}; `MARK_SHIPMENT_DISPATCHED` {shipment_id, carrier, dispatched_on, tracking_reference?, tracking_url?, estimated_delivery_date?}; `UPDATE_SHIPMENT` {shipment_id, state IN_TRANSIT/DELAYED, notify_customer?}; `MARK_SHIPMENT_DELIVERED` {shipment_id, delivered_on}; `MARK_SHIPMENT_LOST` {shipment_id}; `RAISE_FULFILMENT_EXCEPTION` {type, detail?, blocking?, shipment_id?, next_action?, notify_customer?}; `RESOLVE_FULFILMENT_EXCEPTION` {exception_id, resolution, note, founder+founder_code+confirm for founder-only resolutions}; `RECORD_REVIEW_REQUEST` {channel}; `RECORD_CONTENT_PERMISSION` {scope, status, granted_via, evidence_reference}. `AUTHORISE_SUPPLIER_PURCHASE` now also takes `destination_acknowledged` and `commercial_acknowledged` where the decision card needs them. |
 
 Public (same-origin, rate-limited, token in body):
 
@@ -376,6 +378,7 @@ Public (same-origin, rate-limited, token in body):
 |---|---|
 | `POST /api/order-progress` `{token}` | Customer progress page |
 | `POST /api/order-approval` `{token}` | **Retired** (Single Creative Authority): always `{retired: true, message}`, records nothing |
-| `POST /api/order-support` `{token, kind, item?, priorityReplacement?, description}` | Report a problem or ask a question |
+| `POST /api/order-support` `{token, kind, item?, priorityReplacement?, description}` | Report a problem or ask a question. Kinds add `WRONG_ITEM` and `MANUFACTURING_DEFECT`; the reply carries `request_id` and `evidence: {accepted, required: false}` |
+| `POST /api/order-evidence` (multipart) `token, request_id, kind, photo? \| reference?` | Optional evidence for a report (photo ≤ 10 MB, or where a recording is kept). Never required for help |
 | `POST /api/live/enquiry` | MCB LIVE enquiry → `LIVE-YYYY-XXXXXX` |
 | `GET /api/product-availability` | Public: SKUs/products currently unavailable for new orders (identifiers only) |

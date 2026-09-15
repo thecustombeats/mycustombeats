@@ -361,6 +361,8 @@ json_response(200, [
                 ],
                 'enforcement'        => creative_enforcement(),
             ] : null,
+            // The Fulfilment Controller: decision card data, workspace, supplier orders, parcels, exceptions (STAFF ONLY).
+            'controller'     => fulfilment_order_record($pdo, $row),
             // Availability, destination and delivery cost confirmed with the partner.
             'review_required'  => $reviewRequired,
             'review_confirmed' => $reviewConfirmed,

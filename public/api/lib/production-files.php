@@ -629,7 +629,7 @@ function build_manufacturing_package(PDO $pdo, int $orderId, string $by): ?array
     } elseif ($status === 'MANUFACTURING_DATA_REQUIRED') {
         $key = substr(hash('sha256', implode('|', $blockers)), 0, 16);
         record_order_event($pdo, $orderId, 'MANUFACTURING.DATA_REQUIRED', ['package_id' => $packageId, 'blockers' => count($blockers)], "manufacturing-data:{$orderId}:{$key}");
-        notify_founders_about_order($pdo, 'FULFILMENT_EXCEPTION', $orderId, "manufacturing-data:{$orderId}:{$key}", ['reason' => 'MANUFACTURING_DATA_REQUIRED', 'manufacturing_package' => 'MANUFACTURING_DATA_REQUIRED']);
+        notify_founders_about_order($pdo, 'MANUFACTURING_DATA_REQUIRED', $orderId, "manufacturing-data:{$orderId}:{$key}", ['reason' => 'MANUFACTURING_DATA_REQUIRED', 'manufacturing_package' => 'MANUFACTURING_DATA_REQUIRED']);
     }
     return ['package_id' => $packageId, 'version' => (int) $row['version'], 'status' => $status, 'blockers' => $blockers, 'body' => $body];
 }

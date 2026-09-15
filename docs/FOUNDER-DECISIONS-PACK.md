@@ -137,3 +137,14 @@ Each line is an exact mismatch between current wording and actual site behaviour
 | 34 | Hosting: confirm the host honours `api/crm/.user.ini` / `.htaccess` upload limits (260 MB), execution time and disk space for production files; otherwise raise the limits with the host. | F |
 | 35 | MCB brand guidelines for artwork (where the brand appears, wordmark usage) — not in the repository. | F |
 | 36 | Audio probing (e.g. an ffprobe-capable worker) so MP3 durations can be verified; until then WAV/FLAC/AIFF for production masters. | F |
+
+## 9. Fulfilment Controller (15 September 2026) — items for the Founders
+
+| # | Item | Class |
+|---|---|---|
+| 37 | Supplier routes (`api/data/supplier-routes.json`, server only): per SKU — route id, supplier, product URL, configuration, supported / check-required / unsupported destinations, shipping model, expected purchase cost, expected supplier shipping, contingency and handling allowances, production and delivery estimates, tracking capability, customs, order instructions, cancellation cut-off, damage reporting, replacement route, authorised fallback, verification source and date. Until supplied: COMMERCIAL_DATA_REQUIRED and DESTINATION_UNKNOWN on every decision card. | F |
+| 38 | Commercial safety rule: minimum expected contribution (default 0 = negative only), optional minimum margin, and whether a breach suspends new sales (default off). | F |
+| 39 | When to switch `creative.enforcement` to REQUIRED. Under REQUIRED, an unknown destination, missing route data or an unresolved commercial safety exception block authorisation (the decision card lists what would block today). | F |
+| 40 | Notification bridge: TaskNotify/Telegram credentials and the email fallback are not in the repository; the outbox accepts TELEGRAM, EMAIL_FALLBACK and STAFF_QUEUE acknowledgements. | F |
+| 41 | Retention of support evidence, content permissions and economics snapshots — NEEDS PROFESSIONAL LEGAL REVIEW. | L |
+| 42 | Review destination and marketing-content consent wording for customers (permission is recorded separately from reviews) — NEEDS PROFESSIONAL LEGAL REVIEW. | F + L |

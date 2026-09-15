@@ -289,6 +289,27 @@
         "PHYSICAL"
       ]
     },
+    "ADDITIONAL_PARCEL_DISPATCHED": {
+      "trigger": "SHIPMENT.PARCEL_DISPATCHED",
+      "auto_send": true,
+      "workflows": [
+        "PHYSICAL"
+      ]
+    },
+    "DELIVERY_UPDATE": {
+      "trigger": "FULFILMENT.EXCEPTION_OPENED",
+      "auto_send": false,
+      "workflows": [
+        "PHYSICAL"
+      ]
+    },
+    "DELIVERED": {
+      "trigger": "DELIVERED",
+      "auto_send": false,
+      "workflows": [
+        "PHYSICAL"
+      ]
+    },
     "FOLLOW_UP": {
       "trigger": "FOLLOW_UP.DUE",
       "auto_send": false,
@@ -359,7 +380,14 @@
     "PRODUCTION.FILE_QC_PASSED",
     "MANUFACTURING.PACKAGE_REQUIRED",
     "MANUFACTURING.PACKAGE_READY",
-    "MANUFACTURING.DATA_REQUIRED"
+    "MANUFACTURING.DATA_REQUIRED",
+    "FULFILMENT.PARTNER_ORDER_RECORDED",
+    "SHIPMENT.PARCEL_DISPATCHED",
+    "SHIPMENT.IN_TRANSIT",
+    "SHIPMENT.PARCEL_DELIVERED",
+    "FULFILMENT.EXCEPTION_OPENED",
+    "FULFILMENT.EXCEPTION_RESOLVED",
+    "COMMERCIAL.ECONOMICS_CALCULATED"
   ],
   "event_model": {
     "ORDER.PAID": "ORDER.PAID",
@@ -459,6 +487,21 @@
       "required_action": "Open the order: the finished programme does not fit the verified record capacity. Nothing is shortened automatically."
     },
     {
+      "type": "COMMERCIAL_SAFETY_EXCEPTION",
+      "title": "Commercial safety exception",
+      "required_action": "Open the order: expected fulfilment economics break MCB's commercial safety rule. The paid order is not cancelled."
+    },
+    {
+      "type": "MANUFACTURING_DATA_REQUIRED",
+      "title": "Manufacturing data required",
+      "required_action": "Open the order: the manufacturer has not supplied information this product needs."
+    },
+    {
+      "type": "DELIVERY_EXCEPTION",
+      "title": "Delivery exception",
+      "required_action": "Open the order and resolve the delivery exception."
+    },
+    {
       "type": "PRODUCT_SALES_SUSPENDED",
       "title": "New sales suspended",
       "required_action": "Review the product's availability. Existing paid orders are unaffected."
@@ -532,6 +575,14 @@
     "PRODUCTION_ACTION": {
       "label": "Production File Factory step waiting",
       "priority": 2
+    },
+    "FULFILMENT_EXCEPTION": {
+      "label": "Fulfilment exception open",
+      "priority": 1
+    },
+    "FULFILMENT_HEALTH": {
+      "label": "Order may be stranded",
+      "priority": 1
     },
     "FULFILMENT_READY": {
       "label": "Fulfilment approval required",

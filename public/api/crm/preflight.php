@@ -177,6 +177,22 @@ $supplierData = is_readable(__DIR__ . '/../data/supplier-orders.json');
 $add('supplier_order_data', $supplierData ? 'PASS' : 'WARN', $supplierData
     ? 'Internal supplier order data is on the server (staff only).'
     : 'No internal supplier order data (api/data/supplier-orders.json): supplier order packs will say NOT_ON_FILE for each line.');
+try {
+    $found = db()->query(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()
+            AND table_name IN ('order_economics','supplier_orders','shipments','fulfilment_exceptions','support_evidence','customer_content_permissions','lifecycle_hooks')"
+    )->fetchColumn();
+    $add('fulfilment_controller_migration_applied', (int) $found === 7 ? 'PASS' : 'FAIL',
+        'db/migrations/2026-09-15-fulfilment-controller.sql must be applied (after a backup).');
+} catch (PDOException $e) {
+    error_log('MCB preflight: database check failed: ' . $e->getMessage());
+    $add('fulfilment_controller_migration_applied', 'FAIL', 'The database could not be checked.');
+}
+$routes = supplier_routes();
+$verifiedRoutes = array_filter($routes, static fn (array $r): bool => $r['verification_status'] === 'VERIFIED');
+$add('supplier_routes', $routes !== [] && count($verifiedRoutes) === count($routes) ? 'PASS' : 'WARN', $routes === []
+    ? 'No supplier routes (api/data/supplier-routes.json): expected economics will be COMMERCIAL_DATA_REQUIRED and destinations UNKNOWN until the Founders add verified routes.'
+    : count($verifiedRoutes) . ' of ' . count($routes) . ' supplier route(s) verified (source and date recorded). Unverified routes need a destination check at the supplier checkout.');
 $add('creative_provider_decision', 'WARN', 'Music-generation provider decision: ' . creative_data()['provider_decision_status'] . '. Songs wait for manual generation; no provider is called.');
 $add('creative_factory_enforcement', creative_enforcement() === 'REQUIRED' ? 'PASS' : 'WARN',
     'creative.enforcement is ' . creative_enforcement() . '. ADVISORY reports unfinished Creative Factory work at the quality check; REQUIRED blocks it. An exceeded VERIFIED record capacity blocks in both.');

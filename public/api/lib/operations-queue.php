@@ -37,14 +37,19 @@ function available_staff_actions(array $row): array
         'REVEALED'                            => ['MARK_COMPLETED', 'REOPEN'],
         'FULFILMENT.PENDING'                  => ['SET_FULFILMENT_READY', 'REOPEN'],
         'FULFILMENT.READY'                    => ['AUTHORISE_SUPPLIER_PURCHASE', 'REOPEN'],
-        'FULFILMENT.AUTHORISED'               => ['CONFIRM_FULFILMENT', 'REOPEN'],
-        'FULFILMENT.CONFIRMED'                => ['MARK_DISPATCHED', 'REOPEN'],
-        'DISPATCHED'                          => ['UPDATE_TRACKING', 'MARK_DELIVERY_DELAYED', 'MARK_DELIVERED'],
+        'FULFILMENT.AUTHORISED'               => ['RECORD_SUPPLIER_ORDER', 'CONFIRM_FULFILMENT', 'REOPEN'],
+        'FULFILMENT.CONFIRMED'                => ['RECORD_SUPPLIER_ORDER', 'ADD_SHIPMENT', 'MARK_SHIPMENT_DISPATCHED', 'MARK_DISPATCHED', 'REOPEN'],
+        'DISPATCHED'                          => ['RECORD_SUPPLIER_ORDER', 'ADD_SHIPMENT', 'MARK_SHIPMENT_DISPATCHED', 'UPDATE_SHIPMENT', 'MARK_SHIPMENT_DELIVERED', 'MARK_SHIPMENT_LOST', 'UPDATE_TRACKING', 'MARK_DELIVERY_DELAYED', 'MARK_DELIVERED'],
         'DELIVERED'                           => ['MARK_COMPLETED', 'REOPEN'],
         'FOLLOW_UP.DUE'                       => ['RECORD_FOLLOW_UP', 'MARK_COMPLETED', 'REOPEN'],
-        'COMPLETED'                           => ['REOPEN'],
+        'COMPLETED'                           => ['RECORD_REVIEW_REQUEST', 'RECORD_CONTENT_PERMISSION', 'REOPEN'],
     ];
     $actions = $byState[$state] ?? [];
+    // Exceptions can be raised and resolved on any paid physical order; permissions are recorded whenever given.
+    if (order_workflow($row) === 'PHYSICAL' && !in_array($state, ['ORDER.PAID', 'CREATIVE.PENDING'], true)) {
+        $actions[] = 'RAISE_FULFILMENT_EXCEPTION';
+        $actions[] = 'RESOLVE_FULFILMENT_EXCEPTION';
+    }
     if ($state !== 'FOLLOW_UP.DUE' && ($row['follow_up_due_at'] ?? null) !== null && ($row['follow_up_done_at'] ?? null) === null) {
         $actions[] = 'RECORD_FOLLOW_UP';
     }
@@ -322,6 +327,29 @@ function operations_queue(PDO $pdo, ?int $now = null): array
         }
         $items[] = queue_item("LIVE:{$r['reference']}:NEW", 'MCB_LIVE_ENQUIRY', ['type' => 'MCB_LIVE_ENQUIRY', 'reference' => $r['reference']],
             $r['created_at'], 'New MCB LIVE enquiry (' . strtolower(str_replace('_', ' ', (string) $r['performer'])) . ').', $flags);
+    }
+
+    // ---- Fulfilment Controller: open exceptions and stranded orders ------------------
+    foreach ($pdo->query(
+        "SELECT f.id, f.order_id, f.type, f.blocking, f.next_action, f.created_at, o.mcb_reference, o.fulfilment_type
+           FROM fulfilment_exceptions f JOIN orders o ON o.id = f.order_id
+          WHERE f.status = 'OPEN' ORDER BY f.id LIMIT 500"
+    )->fetchAll() as $r) {
+        $items[] = queue_item("FULFILMENT_EXCEPTION:{$r['id']}", 'FULFILMENT_EXCEPTION',
+            ['type' => 'ORDER', 'order_id' => (int) $r['order_id'], 'reference' => $r['mcb_reference'], 'workflow' => $r['fulfilment_type'], 'exception_id' => (int) $r['id']],
+            $r['created_at'], strtolower(str_replace('_', ' ', (string) $r['type'])) . ((int) $r['blocking'] === 1 ? ' (blocking)' : '') . '. ' . ($r['next_action'] ?? 'Open the order and decide the next step.'));
+    }
+    $healthText = [
+        'READY_PACKAGE_WITHOUT_FOUNDER_NOTIFICATION' => 'A READY manufacturing package has no founder approval notification on record.',
+        'SUPPLIER_ORDER_WITHOUT_TRACKING_AFTER_EXPECTED_DISPATCH' => 'The supplier\'s expected dispatch date has passed with no parcel dispatched. Chase the partner.',
+        'DISPATCHED_PARCEL_OVERDUE' => 'A parcel is past its estimated delivery date. Check tracking and keep the customer informed.',
+        'DELIVERED_NOT_COMPLETED' => 'Delivered but not completed. Check for an open exception.',
+    ];
+    foreach (fulfilment_health($pdo) as $f) {
+        if (isset($healthText[$f['check']])) {
+            $items[] = queue_item("FULFILMENT_HEALTH:{$f['order_id']}:{$f['check']}", 'FULFILMENT_HEALTH',
+                ['type' => 'ORDER', 'order_id' => $f['order_id'], 'reference' => $f['reference']], $f['since'], $healthText[$f['check']]);
+        }
     }
 
     // ---- Acknowledgements --------------------------------------------------------

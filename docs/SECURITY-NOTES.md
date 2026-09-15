@@ -7,7 +7,7 @@
 | Endpoint | Method | Protection |
 |---|---|---|
 | `order`, `order-quote`, `order-status`, `order-upload`, `checkout/session` | POST | same-origin; rate-limited; checkout token for existing orders |
-| `order-approval` (retired: answers identically, writes nothing), `order-progress`, `order-support` | POST | same-origin; rate-limited; 256-bit HMAC link token (hashed, expiring, revocable, purpose-scoped) |
+| `order-approval` (retired: answers identically, writes nothing), `order-progress`, `order-support`, `order-evidence` | POST | same-origin; rate-limited; 256-bit HMAC link token (hashed, expiring, revocable, purpose-scoped) |
 | `concierge/enquiry`, `live/enquiry`, `affiliate/click`, `affiliate/register` | POST | same-origin; rate-limited; server-side validation |
 | `order-reference` | GET | Stripe session-id shape check; rate-limited |
 | `affiliate/dashboard` | GET | signed dashboard token; rate-limited (Sprint 6) |
@@ -15,7 +15,8 @@
 | `stripe/webhook` | POST | Stripe signature with tolerance; event idempotency; exact amount/currency/mode matching |
 | `crm/creative`, `crm/creative-file` | GET/POST | CRM key; a staff name on every read (creative_access_log); objects checked against the order named (another order's ids → 404); audio in private storage only |
 | `crm/production-files`, `crm/artwork` | GET/POST | CRM key; staff name on every read and download (logged); cross-order ids refused; production files in private storage; supplier data, links and costs only in these staff responses — never public, never in notifications |
-| `crm/*` (all 19 endpoints) | GET/POST | CRM key (Bearer, constant-time compare); no browser cookie |
+| `crm/fulfilment` | GET | CRM key; INTERNAL economics, routes, scorecards and health — never public, never in notifications; evidence downloads need a staff name and are audited |
+| `crm/*` (all 20 endpoints) | GET/POST | CRM key (Bearer, constant-time compare); no browser cookie |
 | `crm/notifications` | GET/POST | CRM key **or** the separate `notifications.worker_key`, which can do nothing else; claim tokens are one-time (stored as SHA-256) |
 | `product-availability` | GET | public; catalogue identifiers only |
 | `AUTHORISE_SUPPLIER_PURCHASE` (via `crm/order-action`) | POST | CRM key **and** the founder's own code (`password_verify` against a config hash); 5 refusals per order per 15 min → 429; refusals audited without the code. A notification deep link carries only `#order=…&action=…` and authorises nothing |
@@ -76,3 +77,12 @@ Consent (Sprint 7): Google Analytics is not loaded, and sends nothing, until the
 ## 6. Unchanged guarantees (re-verified)
 
 Uploads fail closed and live outside the web root; webhook signature/idempotency/amount matching; Adaptive Pricing off; live checkout off (`checkout_sessions_enabled` and `live_checkout_approved` false in `config.example.php`); secrets only in server config; fail-closed token secret.
+
+## Fulfilment Controller (15 September 2026)
+
+- **No spending path.** Nothing buys, pays, refunds, books a courier or checks out. Supplier orders are placed by a person after Bella or Lewis authorises with their own code; a notification link only opens the page.
+- **No payment credentials.** Supplier order references, confirmation references, notes and exception detail are refused if they contain a Luhn-valid card number or a security-code phrase. No column holds card data.
+- **Server-only commercial data.** Supplier routes, expected costs and internal allowances live in `api/data/supplier-routes.json` on the server (403 over HTTP, never committed). Economics appear only in CRM responses.
+- **Support evidence.** `order-evidence` is same-origin, rate-limited (20/hour), token-scoped to the order's own non-question report, images identified by their bytes (polyglots refused), stored outside the web root with random names (0600). Videos are never uploaded, only described.
+- **Founder-only resolutions** (partial delivery, substitution, refund handled by a founder, proceed at the paid price) use the same founder code check, refusal audit and lockout as purchase authorisation.
+

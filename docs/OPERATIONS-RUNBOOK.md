@@ -163,3 +163,18 @@ Full record: `docs/PRODUCTION-FILE-FACTORY-20260915.md`. Physical orders have a 
   - **MANUFACTURING DATA REQUIRED** means the manufacturer has not supplied something (for example the heart dieline or record capacity).
   - **NOT READY** lists what MCB still needs to do.
 - **Founder approval:** at fulfilment approval the founder's page shows the package and the staff-only supplier order pack (supplier, link, estimated cost). Bella or Lewis authorises; then the order is placed by hand and recorded.
+
+## 15. Fulfilment Controller (15 September 2026)
+
+Full record: `docs/FULFILMENT-CONTROLLER-20260915.md`. MCB is the middleman: partners make and ship, MCB looks after the customer.
+
+- **Founder decision.** The approval card shows payment, QC, package, the destination (town and country), each supplier route, expected purchase and delivery provision, total expected cost, revenue, estimated contribution, limitations and what would block under REQUIRED. Bella or Lewis authorises with their own code; tick the destination and commercial acknowledgements where shown. Opening the link authorises nothing.
+- **Place the order by hand.** Use the supplier order workspace (links, configuration, instructions; verify the destination at the partner checkout where flagged). Never type card or payment details into MCB.
+- **Record it.** *Record a supplier order placed by hand*: reference, actual costs, a variance reason if different, expected dates. For items from different partners, record each order.
+- **Parcels.** Add one parcel per shipment. Mark each dispatched (the customer is emailed; a second parcel sends the "another parcel" email), in transit, delayed (tell the customer) or delivered. The order is delivered and completed only when every required parcel has arrived and nothing blocking is open.
+- **Lost parcel.** Mark it lost (a blocking exception). Add the replacement parcel, then resolve as *replacement arranged*. Accepting partial delivery is a founder decision.
+- **Exceptions.** Raise and resolve them on the order. Substituting a different product needs a founder decision first; nothing is substituted silently. A commercial safety exception never cancels a paid order.
+- **Support cases.** Damage, wrong item and manufacturing-defect reports open a case automatically; photos are optional. Download evidence from the order (audited).
+- **After completion.** Record a review request (never with an incentive) and, separately, any marketing permission with where the consent is kept.
+- **Daily.** `GET /api/crm/fulfilment?view=today` and `?view=health` (stranded orders); the queue shows open exceptions and health findings.
+

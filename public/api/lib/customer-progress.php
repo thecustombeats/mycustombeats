@@ -73,6 +73,26 @@ function priority_replacement_eligibility(bool $purchased, ?string $deliveredOn,
     return ($today ?? gmdate('Y-m-d')) <= $end ? 'ELIGIBLE' : 'OUTSIDE_WINDOW';
 }
 
+/** The customer's view of each parcel: simple states, no supplier, no internal exception detail. */
+function customer_parcels(PDO $pdo, int $orderId): array
+{
+    $stmt = $pdo->prepare("SELECT sequence, state, carrier, tracking_reference, tracking_url, dispatched_on, delivered_on FROM shipments WHERE order_id = :o AND state NOT IN ('LOST','CANCELLED') ORDER BY sequence");
+    $stmt->execute([':o' => $orderId]);
+    $parcels = [];
+    foreach ($stmt->fetchAll() as $i => $s) {
+        $parcels[] = [
+            'number'             => $i + 1,
+            'status'             => match ($s['state']) { 'AWAITING_DISPATCH' => 'BEING_MADE', 'DELIVERED' => 'DELIVERED', default => 'ON_THE_WAY' },
+            'carrier'            => $s['carrier'],
+            'tracking_reference' => $s['tracking_reference'],
+            'tracking_url'       => $s['tracking_url'],
+            'dispatched_on'      => $s['dispatched_on'],
+            'delivered_on'       => $s['state'] === 'DELIVERED' ? $s['delivered_on'] : null,
+        ];
+    }
+    return $parcels;
+}
+
 function customer_progress(PDO $pdo, int $orderId): array
 {
     $row      = operations_order_row($pdo, $orderId);
@@ -134,6 +154,8 @@ function customer_progress(PDO $pdo, int $orderId): array
             'dispatched_on'      => $row['dispatched_on'],
             'delivered_on'       => $fulfil === 'DELIVERED' ? $row['delivered_on'] : null,
         ] : null,
+        // One order, possibly several parcels. Carrier and tracking only: never who made or sent it.
+        'parcels'       => $shipped ? customer_parcels($pdo, $orderId) : [],
         'items'         => $items,
         'open_requests' => (int) $open->fetchColumn(),
     ];

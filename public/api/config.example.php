@@ -220,6 +220,23 @@ return [
         // Retention of creative material: NOT SET — awaiting legal review.
     ],
 
+    // ---- Fulfilment Controller -------------------------------------------
+    // MCB is the middleman: nothing here buys, pays or books a courier.
+    // Supplier routes (costs, internal allowances, destinations) live ONLY in
+    // the server file api/data/supplier-routes.json, never in the repository.
+    'fulfilment' => [
+        'commercial_safety' => [
+            // Expected contribution below this (pence) raises a
+            // COMMERCIAL_SAFETY_EXCEPTION for the Founders. 0 = negative only.
+            'min_contribution_minor' => 0,
+            // Optional minimum margin in basis points (e.g. 2000 = 20%). Not set: not checked.
+            // 'min_margin_basis_points' => null,
+            // true: an exception also suspends NEW sales of the SKU (CURRENTLY
+            // UNAVAILABLE). Paid orders are never cancelled or changed.
+            'suspend_new_sales' => false,
+        ],
+    ],
+
     // ---- Reviews ------------------------------------------------------
     // Where a customer is sent to say what their memory meant to them.
     //

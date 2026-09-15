@@ -205,6 +205,7 @@ ROOTQ s5b < db/migrations/2026-09-15-automation-foundation.sql 2>/dev/null; M5=$
 ROOTQ s5b < db/migrations/2026-09-15-automation-foundation.sql 2>/dev/null; M6=$?
 ROOTQ s5b < db/migrations/2026-09-15-creative-factory.sql 2>/dev/null
 ROOTQ s5b < db/migrations/2026-09-15-production-file-factory.sql 2>/dev/null
+ROOTQ s5b < db/migrations/2026-09-15-fulfilment-controller.sql 2>/dev/null
 dumpdb() { for tb in $(ROOTQ -N -e "SHOW TABLES" "$1"); do ROOTQ -N -e "SHOW CREATE TABLE \`$tb\`" "$1" | sed 's/AUTO_INCREMENT=[0-9]* //'; done; }
 tc "the Sprint 5, Single Creative Authority and Automation Foundation migrations apply to the Sprint 4 schema, and again (idempotent)" "$([ "$M1" = 0 ] && [ "$M2" = 0 ] && [ "$M3" = 0 ] && [ "$M4" = 0 ] && [ "$M5" = 0 ] && [ "$M6" = 0 ] && echo 1 || echo 0)"
 tc "a migrated database is identical to a fresh db/schema.sql" "$([ "$(dumpdb s5a | shasum)" = "$(dumpdb s5b | shasum)" ] && [ "$(dumpdb s5a | grep -c .)" -gt 25 ] && echo 1 || echo 0)"

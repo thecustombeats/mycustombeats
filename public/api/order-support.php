@@ -3,7 +3,7 @@
  * POST /api/order-support — tell MCB something is wrong, or ask a question,
  * from the private order page.
  *
- * REQUEST  { token, kind: "DAMAGED_OR_FAULTY" | "DELIVERY_PROBLEM" | "INCORRECT_DETAIL" | "QUESTION",
+ * REQUEST  { token, kind: "DAMAGED_OR_FAULTY" | "WRONG_ITEM" | "MANUFACTURING_DEFECT" | "DELIVERY_PROBLEM" | "INCORRECT_DETAIL" | "QUESTION",
  *            item?: "item-1", priorityReplacement?: bool, description }
  *
  * ─────────────────────────────────────────────────────────────────────────
@@ -42,7 +42,7 @@ $kind = is_string($body['kind'] ?? null) ? $body['kind'] : '';
 // INCORRECT_DETAIL: a genuine error (a name, date or photograph different from
 // what the customer supplied). It is a support request for staff to check; it
 // never reopens production by itself.
-if (!in_array($kind, ['DAMAGED_OR_FAULTY', 'DELIVERY_PROBLEM', 'INCORRECT_DETAIL', 'QUESTION'], true)
+if (!in_array($kind, ['DAMAGED_OR_FAULTY', 'WRONG_ITEM', 'MANUFACTURING_DEFECT', 'DELIVERY_PROBLEM', 'INCORRECT_DETAIL', 'QUESTION'], true)
     || (!$physical && !in_array($kind, ['QUESTION', 'INCORRECT_DETAIL'], true))) {
     $errors['kind'] = 'Please choose what this is about.';
 }
@@ -80,7 +80,7 @@ $eligibility = $wantsPriority
     : 'NOT_APPLICABLE';
 
 try {
-    db_transaction(function (PDO $pdo) use ($orderId, $unitId, $kind, $wantsPriority, $eligibility, $description): void {
+    $requestId = db_transaction(function (PDO $pdo) use ($orderId, $unitId, $kind, $wantsPriority, $eligibility, $description, $physical): int {
         $pdo->prepare(
             'INSERT INTO order_service_requests
                 (order_id, unit_id, kind, priority_replacement_requested, eligibility, description, ip_hash, created_at)
@@ -97,6 +97,17 @@ try {
         if ($kind !== 'QUESTION') {
             notify_founders_about_order($pdo, 'CUSTOMER_SUPPORT_EXCEPTION', $orderId, "support:{$orderId}:{$requestId}", ['reason' => $kind]);
         }
+        // A structured case for the fulfilment controller. Evidence helps but is never required;
+        // the customer deals only with MCB, never with the production partner.
+        $exceptionType = $physical ? match ($kind) {
+            'DAMAGED_OR_FAULTY' => 'PARCEL_DAMAGED', 'WRONG_ITEM' => 'WRONG_ITEM', 'MANUFACTURING_DEFECT' => 'MANUFACTURING_DEFECT',
+            'DELIVERY_PROBLEM' => 'PARCEL_DELAYED', 'INCORRECT_DETAIL' => 'OTHER_FULFILMENT_EXCEPTION', default => null,
+        } : null;
+        if ($exceptionType !== null) {
+            raise_fulfilment_exception($pdo, $orderId, $exceptionType, ['service_request_id' => $requestId, 'blocking' => false,
+                'next_action' => 'Contact the customer, review any evidence they add, and arrange the remedy with the production partner.'], 'CUSTOMER', "support-case:{$requestId}", false);
+        }
+        return $requestId;
     });
 } catch (Throwable $e) {
     error_log('MCB support request failed for order ' . $orderId . ': ' . $e->getMessage());
@@ -114,4 +125,5 @@ $message = match (true) {
         'Thank you. We have your report and will reply by email. Your normal consumer rights are not affected.',
 };
 
-json_response(201, ['received' => true, 'message' => $message]);
+json_response(201, ['received' => true, 'message' => $message, 'request_id' => $requestId,
+    'evidence' => $physical && $kind !== 'QUESTION' ? ['accepted' => fulfilment_data()['support_evidence_kinds'], 'required' => false] : null]);

@@ -38,3 +38,8 @@ No deletion job, no scheduled task and no period exists. The privacy page contin
 ## Production File Factory material (15 September 2026)
 
 Creative Art Masters, print production masters, image-preparation records, manufacturing packages and supplier order packs (which contain the delivery details needed to place the order) are private. Their files live in private storage (`mcb-uploads/production/`). **No retention period is set** — Founder decision pending legal review. Nothing is deleted automatically.
+
+## Fulfilment Controller material (15 September 2026)
+
+Supplier orders (references, actual costs, operator and founder), shipments and tracking, fulfilment exceptions and their resolutions, expected and actual economics snapshots, support evidence (private files in `mcb-uploads/support/` or a text reference), customer content permissions (with withdrawal) and prepared lifecycle hooks are private staff records. **No retention period is set** — NEEDS PROFESSIONAL LEGAL REVIEW. Nothing is deleted automatically; a withdrawn permission is kept as withdrawn.
+

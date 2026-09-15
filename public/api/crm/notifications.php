@@ -106,8 +106,9 @@ try {
         if ($id <= 0 || $token === '' || !in_array($result, ['DELIVERED', 'FAILED'], true)) {
             json_error(422, 'invalid_ack', 'Give id, claim_token and result DELIVERED or FAILED.');
         }
-        if ($channel !== null && !in_array($channel, ['TELEGRAM', 'EMAIL', 'OTHER'], true)) {
-            json_error(422, 'invalid_channel', 'Channel: TELEGRAM, EMAIL or OTHER.');
+        // Provider-independent: the bridge reports how it delivered (Telegram, the email fallback, or the staff queue).
+        if ($channel !== null && !in_array($channel, ['TELEGRAM', 'EMAIL_FALLBACK', 'STAFF_QUEUE', 'EMAIL', 'OTHER'], true)) {
+            json_error(422, 'invalid_channel', 'Channel: TELEGRAM, EMAIL_FALLBACK, STAFF_QUEUE, EMAIL or OTHER.');
         }
         json_response(200, ['id' => $id, 'outcome' => acknowledge_founder_notification($pdo, $id, $token, $result, $channel, $error ?? ($result === 'FAILED' ? 'unspecified' : null))]);
     }

@@ -134,7 +134,7 @@ test("no customer approval, APPROVE/REMAKE or revision path remains in the serve
   assert.doesNotMatch(ops, /function approve_work|function record_changes|function included_revision_allowance|CUSTOMER_REQUEST/);
   assert.match(ops, /founder_authorisation_required/, "partner purchase is authorised by Bella or Lewis");
   const email = code(read("public/api/lib/lifecycle-messages.php"));
-  assert.match(email, /const MCB_LIFECYCLE_TYPES = \['CREATION_READY', 'IN_PRODUCTION', 'DISPATCHED', 'FOLLOW_UP'\]/);
+  assert.match(email, /const MCB_LIFECYCLE_TYPES = \['CREATION_READY', 'IN_PRODUCTION', 'DISPATCHED', 'ADDITIONAL_PARCEL_DISPATCHED', 'DELIVERY_UPDATE', 'DELIVERED', 'FOLLOW_UP'\]/);
   assert.doesNotMatch(email, /Listen and approve|what you would like changed|approving/i);
   assert.match(code(read("public/api/crm/production.php")), /endpoint_retired/);
   assert.match(read("public/api/stripe/webhook.php"), /ORDER\.READY_FOR_PROCESSING/);

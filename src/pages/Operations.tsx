@@ -5,6 +5,7 @@ import { useLocation } from "react-router-dom";
 import { parseOperationsLink } from "../lib/operationsLink";
 import CreativeFactoryPanel from "./operations/CreativeFactoryPanel";
 import ProductionFilesPanel from "./operations/ProductionFilesPanel";
+import FulfilmentPanel, { DecisionDetails } from "./operations/FulfilmentPanel";
 import { FINANCIAL_AUTHORISERS, OPERATIONAL_STATES, QC_CHECKLIST, QC_FAIL_REASONS, REOPEN_REASONS } from "../data/operations";
 
 /**
@@ -42,7 +43,7 @@ const ACTION_FIELDS: Record<string, { name: string; label: string; type?: "text"
   FAIL_QUALITY_CHECK: [{ name: "reason", label: "Why it failed", type: "select", options: [...QC_FAIL_REASONS] }, { name: "note", label: "What to correct (internal, never shown to the customer)", type: "textarea" }],
   SEND_REVEAL: [{ name: "reveal_url", label: "Private https link to the finished song (if not already added)", type: "url" }, { name: "send_email", label: "Email the customer the reveal", type: "checkbox" }],
   CONFIRM_FULFILMENT_REVIEW: [{ name: "confirmed", label: "I have confirmed availability, the destination and the actual delivery cost with the partner", type: "checkbox" }, { name: "note", label: "What was confirmed (no card or account details)", type: "textarea" }],
-  AUTHORISE_SUPPLIER_PURCHASE: [{ name: "founder", label: "Founder authorising", type: "select", options: [...FINANCIAL_AUTHORISERS] }, { name: "founder_code", label: "Your founder authorisation code (never share it or send it in a message)", type: "password" }, { name: "confirm", label: "I authorise MCB to purchase this order from the production partner", type: "checkbox" }],
+  AUTHORISE_SUPPLIER_PURCHASE: [{ name: "founder", label: "Founder authorising", type: "select", options: [...FINANCIAL_AUTHORISERS] }, { name: "founder_code", label: "Your founder authorisation code (never share it or send it in a message)", type: "password" }, { name: "destination_acknowledged", label: "Where the destination is not verified: it will be checked at the partner checkout before ordering", type: "checkbox" }, { name: "commercial_acknowledged", label: "I have reviewed the expected costs and contribution above (the customer's paid price is honoured)", type: "checkbox" }, { name: "confirm", label: "I authorise MCB to purchase this order from the production partner", type: "checkbox" }],
   CONFIRM_FULFILMENT: [{ name: "fulfilment_reference", label: "Your order reference with the supplier (optional)" }, { name: "send_email", label: "Tell the customer their keepsake is being made", type: "checkbox" }],
   MARK_DISPATCHED: [{ name: "carrier", label: "Carrier" }, { name: "tracking_reference", label: "Tracking reference(s) — separate several parcels with commas (optional)" }, { name: "tracking_url", label: "Tracking link, https (optional)", type: "url" }, { name: "dispatched_on", label: "Dispatched on", type: "date" }, { name: "send_email", label: "Email the customer", type: "checkbox" }],
   UPDATE_TRACKING: [{ name: "carrier", label: "Carrier" }, { name: "tracking_reference", label: "Tracking reference(s) — separate several parcels with commas (optional)" }, { name: "tracking_url", label: "Tracking link, https (optional)", type: "url" }, { name: "dispatched_on", label: "Dispatched on", type: "date" }],
@@ -52,6 +53,9 @@ const ACTION_FIELDS: Record<string, { name: string; label: string; type?: "text"
   REVOKE_LINKS: [{ name: "purpose", label: "Which links", type: "select", options: ["STATUS", "APPROVAL"] }],
   ADD_NOTE: [{ name: "note", label: "Note (internal, never shown to the customer)", type: "textarea" }],
 };
+
+/** Actions with their own structured forms in the fulfilment panel (they need parcel or exception ids). */
+const PANEL_ACTIONS = ["RECORD_SUPPLIER_ORDER", "ADD_SHIPMENT", "MARK_SHIPMENT_DISPATCHED", "UPDATE_SHIPMENT", "MARK_SHIPMENT_DELIVERED", "MARK_SHIPMENT_LOST", "RAISE_FULFILMENT_EXCEPTION", "RESOLVE_FULFILMENT_EXCEPTION", "RECORD_REVIEW_REQUEST", "RECORD_CONTENT_PERMISSION"];
 
 const humanise = (value: string) => value.replace(/[._]/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 
@@ -182,6 +186,39 @@ const Operations = () => {
     }
   };
 
+  /** A structured fulfilment action from the panel. Returns whether it succeeded. */
+  const runPanelAction = async (panelAction: string, body: Json): Promise<boolean> => {
+    if (!order) return false;
+    setMessage(null);
+    try {
+      const result = await api("/api/crm/order-action", { order_id: order.order_id, action: panelAction, staff, ...body });
+      const emails = Object.entries(result.emails ?? {}).map(([k, v]) => `${humanise(k)} email: ${v}`);
+      setMessage([`${humanise(panelAction)}: ${result.outcome}. Now: ${result.state ?? "—"}.`, result.warning, ...emails].filter(Boolean).join("\n"));
+      await openOrder(order.order_id);
+      await loadQueue();
+      return true;
+    } catch (e) {
+      setMessage((e as Error).message);
+      return false;
+    }
+  };
+
+  /** Support evidence is private: fetched with the CRM key (audited) and saved as a download. */
+  const downloadEvidence = async (evidenceId: number) => {
+    try {
+      const response = await fetch(`/api/crm/fulfilment?evidence_id=${evidenceId}&staff=${encodeURIComponent(staff)}`, { headers: { Authorization: `Bearer ${key}` } });
+      if (!response.ok) throw new Error("That evidence could not be downloaded.");
+      const url = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `mcb-evidence-${evidenceId}`;
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (e) {
+      setMessage((e as Error).message);
+    }
+  };
+
   /** Photos are private: fetched with the CRM key and saved as a download. */
   const downloadPhoto = async (photoId: string) => {
     try {
@@ -237,8 +274,8 @@ const Operations = () => {
             <p className="text-sm text-espresso/75">The key stays in this tab only and is forgotten when you close it.</p>
           </form>
         ) : (
-          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-            <div className="space-y-4">
+          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+            <div className="min-w-0 space-y-4">
               <form
                 className="flex gap-2"
                 onSubmit={async (e) => {
@@ -293,7 +330,7 @@ const Operations = () => {
               </ul>
             </div>
 
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               {message && <pre role="status" className="whitespace-pre-wrap break-all rounded-2xl bg-white p-4 text-base">{message}</pre>}
 
               {order && (
@@ -338,9 +375,10 @@ const Operations = () => {
                           </ul>
                         </div>
                       )}
-                      <p className="mt-3 text-sm">Only Bella or Lewis can approve, with their own authorisation code. Nothing is purchased automatically.</p>
+                      {order.operations.fulfilment.controller?.decision && <DecisionDetails decision={order.operations.fulfilment.controller.decision} />}
+                      <p className="mt-3 text-sm">Only Bella or Lewis can authorise, with their own authorisation code. Opening this page authorises nothing, and nothing is purchased automatically.</p>
                       {order.operations.available_actions.includes("AUTHORISE_SUPPLIER_PURCHASE") && action !== "AUTHORISE_SUPPLIER_PURCHASE" && (
-                        <button className={`${btn} mt-3`} onClick={() => { setAction("AUTHORISE_SUPPLIER_PURCHASE"); setFields({}); }}>Approve supplier purchase…</button>
+                        <button className={`${btn} mt-3`} onClick={() => { setAction("AUTHORISE_SUPPLIER_PURCHASE"); setFields({}); }}>Authorise supplier purchase…</button>
                       )}
                     </section>
                   )}
@@ -349,7 +387,7 @@ const Operations = () => {
                     <form onSubmit={runAction} className="space-y-3">
                       <select value={action} onChange={(e) => { setAction(e.target.value); setFields(["PASS_QUALITY_CHECK", "SEND_REVEAL", "MARK_DISPATCHED", "CONFIRM_FULFILMENT"].includes(e.target.value) ? { send_email: true, ...(e.target.value === "PASS_QUALITY_CHECK" ? { reveal_now: true, checklist: {} } : {}) } : {}); }} className={input} aria-label="Action">
                         <option value="">Choose an action…</option>
-                        {order.operations.available_actions.map((a: string) => <option key={a} value={a}>{humanise(a)}</option>)}
+                        {order.operations.available_actions.filter((a: string) => !PANEL_ACTIONS.includes(a)).map((a: string) => <option key={a} value={a}>{humanise(a)}</option>)}
                       </select>
                       {action === "PASS_QUALITY_CHECK" && (
                         <fieldset className="rounded-xl border border-ink/15 p-3">
@@ -412,6 +450,12 @@ const Operations = () => {
                     )}
                     {order.operations.delivery.carrier && <p>Delivery: {order.operations.delivery.carrier} {order.operations.delivery.tracking_reference ?? ""} · sent {order.operations.delivery.dispatched_on ?? "—"} · delivered {order.operations.delivery.delivered_on ?? "not recorded"}</p>}
                   </Section>
+
+                  {order.payment_status === "PAID" && order.operations.fulfilment.controller && (
+                    <Section title="Supplier orders, parcels and exceptions">
+                      <FulfilmentPanel controller={order.operations.fulfilment.controller} state={order.operations.state} actions={order.operations.available_actions} run={runPanelAction} downloadEvidence={downloadEvidence} />
+                    </Section>
+                  )}
 
                   {order.payment_status === "PAID" && order.workflow === "PHYSICAL" && (
                     <Section title="Production files and manufacturing package">

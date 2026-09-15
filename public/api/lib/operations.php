@@ -44,6 +44,7 @@ require_once __DIR__ . '/founder-notifications.php';
 require_once __DIR__ . '/artwork.php';
 require_once __DIR__ . '/creative-factory.php';
 require_once __DIR__ . '/production-files.php';
+require_once __DIR__ . '/fulfilment-controller.php';
 
 final class OperationsException extends RuntimeException
 {
@@ -485,6 +486,8 @@ function mark_fulfilment_ready(PDO $pdo, array $row, ?string $staff): void
           WHERE order_id = :oid"
     )->execute([':oid' => $orderId]);
     record_order_event($pdo, $orderId, 'FULFILMENT.READY', $staff === null ? [] : ['by' => $staff], "fulfilment-ready:{$reopen}");
+    // Expected economics before the founder decides (server-only; data required is flagged, never estimated).
+    fulfilment_check_commercials($pdo, $orderId, $staff ?? 'SYSTEM');
     $package = current_manufacturing_package($pdo, $orderId);
     notify_founders_about_order($pdo, 'FULFILMENT_APPROVAL_REQUIRED', $orderId, "fulfilment-approval:{$orderId}:{$reopen}",
         ['qc' => 'PASSED', 'supplier_order' => 'READY', 'manufacturing_package' => $package['status'] ?? 'NOT_BUILT'], 'AUTHORISE_SUPPLIER_PURCHASE');
@@ -615,6 +618,30 @@ function reveal_creation(PDO $pdo, array $row, string $staff, bool $sendEmail): 
     return $sendEmail ? [['CREATION_READY', "reveal-{$reopen}"]] : [];
 }
 
+/**
+ * Delivered and complete only when every required parcel has arrived and no
+ * blocking exception is open. Returns whether the order was completed now.
+ */
+function complete_if_all_delivered(PDO $pdo, array $row, string $staff, string $deliveredOn): bool
+{
+    $orderId = (int) $row['id'];
+    $reopen  = (int) $row['reopen_count'];
+    if (!order_delivery_position($pdo, $orderId)['complete']) {
+        return false;
+    }
+    $pdo->prepare(
+        "UPDATE order_production
+            SET fulfilment_state = 'DELIVERED', delivered_on = :date,
+                follow_up_due_at = UTC_TIMESTAMP() + INTERVAL :days DAY, follow_up_done_at = NULL
+          WHERE order_id = :oid"
+    )->execute([':date' => $deliveredOn, ':days' => follow_up_delay_days(), ':oid' => $orderId]);
+    record_order_event($pdo, $orderId, 'DELIVERED', ['by' => $staff, 'parcels' => count(order_shipments($pdo, $orderId))], "delivered:{$reopen}");
+    complete_order($pdo, $row, 'DELIVERED', $staff);
+    record_order_event($pdo, $orderId, 'FOLLOW_UP.DUE', ['after_days' => follow_up_delay_days()], "follow-up-due:{$reopen}");
+    prepare_lifecycle_hooks($pdo, $orderId);
+    return true;
+}
+
 /* ------------------------------------------------------------------ */
 /* Staff actions                                                       */
 /* ------------------------------------------------------------------ */
@@ -625,6 +652,10 @@ const MCB_STAFF_ACTIONS = [
     'MARK_DISPATCHED', 'UPDATE_TRACKING', 'MARK_DELIVERY_DELAYED', 'MARK_DELIVERED',
     'RECORD_FOLLOW_UP', 'MARK_COMPLETED', 'REOPEN', 'ISSUE_STATUS_LINK', 'REVOKE_LINKS',
     'ADD_NOTE', 'UPDATE_SERVICE_REQUEST',
+    // Fulfilment Controller (lib/fulfilment-controller.php).
+    'RECORD_SUPPLIER_ORDER', 'ADD_SHIPMENT', 'MARK_SHIPMENT_DISPATCHED', 'UPDATE_SHIPMENT', 'MARK_SHIPMENT_DELIVERED',
+    'MARK_SHIPMENT_LOST', 'RAISE_FULFILMENT_EXCEPTION', 'RESOLVE_FULFILMENT_EXCEPTION', 'RECORD_REVIEW_REQUEST',
+    'RECORD_CONTENT_PERMISSION',
 ];
 
 /** Actions of the retired customer-approval model. Refused with an explanation. */
@@ -646,6 +677,14 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
 
     // A founder's code is checked, and a refusal audited, before anything is locked.
     $founder = $action === 'AUTHORISE_SUPPLIER_PURCHASE' ? check_founder_authorisation_request($orderId, $in, $staff) : null;
+    // Resolutions with financial or customer consequences are the Founders' alone, with the same code.
+    if ($action === 'RESOLVE_FULFILMENT_EXCEPTION' && in_array($in['resolution'] ?? null, fulfilment_data()['founder_only_resolutions'], true)) {
+        $founder = check_founder_authorisation_request($orderId, $in, $staff);
+    }
+    // An ordinary product is never substituted silently; the exception it raises is kept.
+    if (in_array($action, ['CONFIRM_FULFILMENT', 'RECORD_SUPPLIER_ORDER'], true)) {
+        check_substitution_request($orderId, $in, $staff);
+    }
 
     return db_transaction(function (PDO $pdo) use ($orderId, $action, $in, $staff, $founder): array {
         $row = operations_order_row($pdo, $orderId, true);
@@ -854,13 +893,46 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                     $result['outcome'] = 'unchanged';
                     break;
                 }
+                // Destination and commercial checks. The founder sees both on the decision card;
+                // anything not verified needs their explicit acknowledgement (ADVISORY) or blocks (REQUIRED).
+                $requiredMode = creative_enforcement() === 'REQUIRED';
+                $destination = order_destination_check($pdo, $orderId);
+                if ($destination['status'] === 'DESTINATION_UNSUPPORTED') {
+                    throw new OperationsException('destination_unsupported', 'The supplier route does not deliver to this destination. Nothing can be authorised: raise a DESTINATION_PROBLEM exception for a founder decision (the paid order is not cancelled).');
+                }
+                if ($destination['status'] === 'DESTINATION_UNKNOWN' && $requiredMode) {
+                    throw new OperationsException('destination_unknown', 'Whether the supplier route delivers to this destination is not known. Record the route\'s destinations first.');
+                }
+                if ($destination['status'] !== 'DESTINATION_SUPPORTED' && ($in['destination_acknowledged'] ?? null) !== true) {
+                    throw new OperationsException('destination_acknowledgement_required', 'The destination is ' . strtolower(str_replace(['DESTINATION_', '_'], ['', ' '], $destination['status'])) . ': tick to confirm it will be verified at the supplier checkout before the order is placed.', 422);
+                }
+                $economics = fulfilment_check_commercials($pdo, $orderId, $staff);
+                $safetyOpen = $pdo->prepare("SELECT COUNT(*) FROM fulfilment_exceptions WHERE order_id = :o AND type = 'COMMERCIAL_SAFETY_EXCEPTION' AND status = 'OPEN'");
+                $safetyOpen->execute([':o' => $orderId]);
+                $commercialConcern = $economics['status'] === 'COMMERCIAL_DATA_REQUIRED' || (int) $safetyOpen->fetchColumn() > 0
+                    || ($economics['status'] === 'COMMERCIAL_SAFETY_EXCEPTION' && !commercial_safety_proceed_approved($pdo, $orderId));
+                if ($commercialConcern && $requiredMode) {
+                    throw new OperationsException('commercial_check_required', 'The expected economics are ' . strtolower(str_replace('_', ' ', $economics['status'])) . '. Complete the route data or resolve the commercial safety exception first.');
+                }
+                if ($commercialConcern && ($in['commercial_acknowledged'] ?? null) !== true) {
+                    throw new OperationsException('commercial_acknowledgement_required', 'The expected economics are ' . strtolower(str_replace('_', ' ', $economics['status'])) . ' (or a commercial safety exception is open): tick to confirm you have reviewed them. The customer\'s paid price is honoured either way.', 422);
+                }
                 $update('supplier_purchase_authorised_by = :founder, supplier_purchase_authorised_at = UTC_TIMESTAMP()', [':founder' => $founder]);
                 record_order_event($pdo, $orderId, 'FULFILMENT.AUTHORISED', [
                     'founder' => $founder, 'by' => $staff, 'method' => 'FOUNDER_CODE', 'ip_hash' => hash_ip(client_ip()),
+                    'destination' => $destination['status'], 'economics' => $economics['status'], 'economics_snapshot' => $economics['snapshot_id'],
+                    'destination_acknowledged' => ($in['destination_acknowledged'] ?? null) === true, 'commercial_acknowledged' => ($in['commercial_acknowledged'] ?? null) === true,
                 ], "fulfilment-authorised:{$reopen}");
                 break;
 
             case 'CONFIRM_FULFILMENT':
+            case 'RECORD_SUPPLIER_ORDER':
+                // A further supplier order for a split order, once the first is placed.
+                if ($action === 'RECORD_SUPPLIER_ORDER' && $physical && in_array($fulfil, ['CONFIRMED', 'DISPATCHED'], true)) {
+                    $recorded = record_supplier_order($pdo, $row, $in, $staff);
+                    $result['supplier_order'] = $recorded;
+                    break;
+                }
                 if (!$physical || !in_array($stage, MCB_QC_PASSED_STAGES, true) || $fulfil !== 'READY') {
                     $refuse('Confirm the physical order only once the work has passed the quality check and fulfilment is ready.');
                 }
@@ -875,13 +947,21 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 if (creative_enforcement() === 'REQUIRED' && (current_manufacturing_package($pdo, $orderId)['status'] ?? null) !== 'READY') {
                     throw new OperationsException('manufacturing_package_not_ready', 'The manufacturing package is not READY.');
                 }
+                $reference = operations_line($in['supplier_order_reference'] ?? ($in['fulfilment_reference'] ?? null), 120);
+                if ($action === 'RECORD_SUPPLIER_ORDER' && $reference === null) {
+                    throw new OperationsException('supplier_order_reference_required', 'Add the supplier\'s order reference.', 422);
+                }
+                // The supplier order record: what was placed, by whom, at what actual cost.
+                if ($reference !== null) {
+                    $result['supplier_order'] = record_supplier_order($pdo, $row, $in, $staff);
+                }
                 // The supplier order pack records that the order was placed, by whom.
                 $pdo->prepare("UPDATE supplier_order_packs SET status = 'ORDER_PLACED', placed_by = :by, placed_at = UTC_TIMESTAMP() WHERE order_id = :oid AND status = 'PREPARED'")
                     ->execute([':by' => $staff, ':oid' => $orderId]);
                 $update(
                     "stage = 'PRODUCTION_LOCKED', production_locked_at = COALESCE(production_locked_at, UTC_TIMESTAMP()),
                      fulfilment_state = 'CONFIRMED', fulfilment_confirmed_at = UTC_TIMESTAMP(), fulfilment_reference = :ref",
-                    [':ref' => operations_line($in['fulfilment_reference'] ?? null, 120)]
+                    [':ref' => $reference]
                 );
                 record_order_event($pdo, $orderId, 'FULFILMENT.CONFIRMED', ['by' => $staff, 'authorised_by' => $authorisedBy], "fulfilment-confirmed:{$reopen}");
                 if (($in['send_email'] ?? true) !== false) {
@@ -912,6 +992,16 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                      tracking_reference = :tref, tracking_url = :turl, dispatched_on = :date",
                     [':carrier' => $carrier, ':tref' => operations_line($in['tracking_reference'] ?? null, 120), ':turl' => $trackingUrl, ':date' => $date]
                 );
+                // The single-parcel path keeps parcel 1 in step, so the customer page and completion agree.
+                $parcels = order_shipments($pdo, $orderId);
+                if ($action === 'MARK_DISPATCHED' && $parcels === []) {
+                    $parcelId = add_shipment($pdo, $orderId, [], $staff);
+                    $parcels = order_shipments($pdo, $orderId);
+                }
+                if (count($parcels) === 1) {
+                    $pdo->prepare("UPDATE shipments SET state = IF(state = 'AWAITING_DISPATCH', 'DISPATCHED', state), carrier = :c, tracking_reference = :r, tracking_url = :u, dispatched_on = :d WHERE id = :id")
+                        ->execute([':c' => $carrier, ':r' => operations_line($in['tracking_reference'] ?? null, 120), ':u' => $trackingUrl, ':d' => $date, ':id' => (int) $parcels[0]['id']]);
+                }
                 if ($action === 'MARK_DISPATCHED') {
                     record_order_event($pdo, $orderId, 'DISPATCHED', ['by' => $staff, 'has_tracking' => $trackingUrl !== null || !empty($in['tracking_reference'])], "dispatched:{$reopen}");
                     if (($in['send_email'] ?? true) !== false) {
@@ -944,6 +1034,16 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 if ($date === null || ($row['dispatched_on'] !== null && $date < $row['dispatched_on'])) {
                     throw new OperationsException('invalid_delivery_date', 'Add the delivery date: on or after dispatch, and not in the future.', 422);
                 }
+                $parcels = order_shipments($pdo, $orderId);
+                if (count($parcels) > 1) {
+                    throw new OperationsException('parcels_recorded_separately', 'This order has more than one parcel. Record each parcel\'s delivery (MARK_SHIPMENT_DELIVERED); the order completes when every required parcel has arrived.');
+                }
+                if (open_blocking_exceptions($pdo, $orderId) !== []) {
+                    throw new OperationsException('blocking_exception_open', 'A blocking fulfilment exception is open on this order. Resolve it before recording delivery.');
+                }
+                if (count($parcels) === 1) {
+                    $pdo->prepare("UPDATE shipments SET state = 'DELIVERED', delivered_on = :d WHERE id = :id")->execute([':d' => $date, ':id' => (int) $parcels[0]['id']]);
+                }
                 $update(
                     "fulfilment_state = 'DELIVERED', delivered_on = :date,
                      follow_up_due_at = UTC_TIMESTAMP() + INTERVAL :days DAY, follow_up_done_at = NULL",
@@ -952,7 +1052,247 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 record_order_event($pdo, $orderId, 'DELIVERED', ['by' => $staff], "delivered:{$reopen}");
                 complete_order($pdo, $row, 'DELIVERED', $staff);
                 record_order_event($pdo, $orderId, 'FOLLOW_UP.DUE', ['after_days' => follow_up_delay_days()], "follow-up-due:{$reopen}");
+                prepare_lifecycle_hooks($pdo, $orderId);
+                if (($in['send_email'] ?? false) === true) {
+                    $result['messages'][] = ['DELIVERED', "delivered-{$reopen}"];
+                }
                 break;
+
+            case 'ADD_SHIPMENT':
+                if (!$physical || !in_array($fulfil, ['CONFIRMED', 'DISPATCHED'], true)) {
+                    $refuse('Parcels are added once the supplier order has been placed.');
+                }
+                $result['shipment_id'] = add_shipment($pdo, $orderId, $in, $staff);
+                break;
+
+            case 'MARK_SHIPMENT_DISPATCHED':
+                if (!$physical || !in_array($fulfil, ['CONFIRMED', 'DISPATCHED'], true)) {
+                    $refuse('A parcel can be dispatched only once the supplier order has been placed.');
+                }
+                $parcel = shipment_for_order($pdo, $orderId, $in['shipment_id'] ?? null);
+                if ($parcel['state'] !== 'AWAITING_DISPATCH') {
+                    $refuse('That parcel has already been dispatched.');
+                }
+                $carrier = operations_line($in['carrier'] ?? null, 80);
+                $date    = operations_past_date($in['dispatched_on'] ?? null);
+                $trackingUrlRaw = $in['tracking_url'] ?? null;
+                $trackingUrl    = operations_https_url($trackingUrlRaw);
+                $trackingRef    = operations_line($in['tracking_reference'] ?? null, 120);
+                if ($carrier === null || $date === null) {
+                    throw new OperationsException('invalid_dispatch', 'Add the carrier and the dispatch date (not in the future).', 422);
+                }
+                if ($trackingUrlRaw !== null && $trackingUrlRaw !== '' && $trackingUrl === null) {
+                    throw new OperationsException('invalid_tracking_url', 'The tracking link must be an https address.', 422);
+                }
+                $estimate = is_string($in['estimated_delivery_date'] ?? null) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $in['estimated_delivery_date']) === 1 ? $in['estimated_delivery_date'] : null;
+                $pdo->prepare("UPDATE shipments SET state = 'DISPATCHED', carrier = :c, tracking_reference = :r, tracking_url = :u, dispatched_on = :d, estimated_delivery_date = :e WHERE id = :id")
+                    ->execute([':c' => $carrier, ':r' => $trackingRef, ':u' => $trackingUrl, ':d' => $date, ':e' => $estimate, ':id' => (int) $parcel['id']]);
+                record_order_event($pdo, $orderId, 'SHIPMENT.PARCEL_DISPATCHED', ['shipment_id' => (int) $parcel['id'], 'sequence' => (int) $parcel['sequence'], 'by' => $staff, 'has_tracking' => $trackingUrl !== null || $trackingRef !== null], "parcel-dispatched:{$parcel['id']}");
+                $sendEmail = ($in['send_email'] ?? true) !== false;
+                if ($fulfil === 'CONFIRMED') {
+                    // The first parcel moves the order to DISPATCHED (the order row mirrors it).
+                    $update(
+                        "stage = 'FULFILMENT', fulfilment_state = 'DISPATCHED', carrier = :carrier, tracking_reference = :tref, tracking_url = :turl, dispatched_on = :date",
+                        [':carrier' => $carrier, ':tref' => $trackingRef, ':turl' => $trackingUrl, ':date' => $date]
+                    );
+                    record_order_event($pdo, $orderId, 'DISPATCHED', ['by' => $staff, 'has_tracking' => $trackingUrl !== null || $trackingRef !== null], "dispatched:{$reopen}");
+                    if ($sendEmail) {
+                        $result['messages'][] = ['DISPATCHED', "parcel-{$parcel['id']}"];
+                    }
+                } elseif ($sendEmail) {
+                    $result['messages'][] = ['ADDITIONAL_PARCEL_DISPATCHED', "parcel-{$parcel['id']}"];
+                }
+                break;
+
+            case 'UPDATE_SHIPMENT':
+                if (!$physical) {
+                    $refuse('Only a physical order has parcels.');
+                }
+                $parcel = shipment_for_order($pdo, $orderId, $in['shipment_id'] ?? null);
+                $newState = $in['state'] ?? null;
+                if (!in_array($newState, ['IN_TRANSIT', 'DELAYED'], true) || !in_array($parcel['state'], ['DISPATCHED', 'IN_TRANSIT', 'DELAYED'], true)) {
+                    $refuse('A dispatched parcel can be updated to IN_TRANSIT or DELAYED.');
+                }
+                $trackingUrlRaw = $in['tracking_url'] ?? null;
+                $trackingUrl    = operations_https_url($trackingUrlRaw);
+                if ($trackingUrlRaw !== null && $trackingUrlRaw !== '' && $trackingUrl === null) {
+                    throw new OperationsException('invalid_tracking_url', 'The tracking link must be an https address.', 422);
+                }
+                $estimate = is_string($in['estimated_delivery_date'] ?? null) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $in['estimated_delivery_date']) === 1 ? $in['estimated_delivery_date'] : null;
+                $pdo->prepare('UPDATE shipments SET state = :s, tracking_reference = COALESCE(:r, tracking_reference), tracking_url = COALESCE(:u, tracking_url), estimated_delivery_date = COALESCE(:e, estimated_delivery_date) WHERE id = :id')
+                    ->execute([':s' => $newState, ':r' => operations_line($in['tracking_reference'] ?? null, 120), ':u' => $trackingUrl, ':e' => $estimate, ':id' => (int) $parcel['id']]);
+                if ($newState === 'IN_TRANSIT') {
+                    record_order_event($pdo, $orderId, 'SHIPMENT.IN_TRANSIT', ['shipment_id' => (int) $parcel['id'], 'by' => $staff], "parcel-in-transit:{$parcel['id']}");
+                } else {
+                    $type = in_array($in['exception_type'] ?? null, ['PARCEL_DELAYED', 'TRACKING_STALLED', 'CUSTOMS_EXCEPTION', 'SUPPLIER_DELAY'], true) ? $in['exception_type'] : 'PARCEL_DELAYED';
+                    // A delay is surfaced, not blocking: the parcel still completes the order when it arrives.
+                    raise_fulfilment_exception($pdo, $orderId, $type, ['shipment_id' => (int) $parcel['id'], 'blocking' => false,
+                        'next_action' => 'Chase the production partner and keep the customer informed.'], $staff, "parcel-delayed:{$parcel['id']}:{$type}");
+                    $update('delivery_delayed_at = COALESCE(delivery_delayed_at, UTC_TIMESTAMP())');
+                    record_order_event($pdo, $orderId, 'DELIVERY.DELAYED', ['by' => $staff, 'shipment_id' => (int) $parcel['id']], "delayed-parcel:{$parcel['id']}");
+                    if (($in['notify_customer'] ?? false) === true) {
+                        $result['messages'][] = ['DELIVERY_UPDATE', "delay-{$parcel['id']}"];
+                    }
+                }
+                break;
+
+            case 'MARK_SHIPMENT_DELIVERED':
+                if (!$physical || !in_array($fulfil, ['DISPATCHED', 'DELIVERED'], true)) {
+                    $refuse('A parcel can be marked delivered only on a dispatched order.');
+                }
+                $parcel = shipment_for_order($pdo, $orderId, $in['shipment_id'] ?? null);
+                if (!in_array($parcel['state'], ['DISPATCHED', 'IN_TRANSIT', 'DELAYED'], true)) {
+                    $refuse('Only a dispatched parcel can be marked delivered.');
+                }
+                $date = operations_past_date($in['delivered_on'] ?? null);
+                if ($date === null || ($parcel['dispatched_on'] !== null && $date < $parcel['dispatched_on'])) {
+                    throw new OperationsException('invalid_delivery_date', 'Add the delivery date: on or after dispatch, and not in the future.', 422);
+                }
+                $pdo->prepare("UPDATE shipments SET state = 'DELIVERED', delivered_on = :d WHERE id = :id")->execute([':d' => $date, ':id' => (int) $parcel['id']]);
+                record_order_event($pdo, $orderId, 'SHIPMENT.PARCEL_DELIVERED', ['shipment_id' => (int) $parcel['id'], 'sequence' => (int) $parcel['sequence'], 'by' => $staff], "parcel-delivered:{$parcel['id']}");
+                $completed = complete_if_all_delivered($pdo, $row, $staff, $date);
+                $result['delivery'] = order_delivery_position($pdo, $orderId);
+                if (!$completed) {
+                    $result['outcome'] = 'partial';
+                    $result['warning'] = 'Parcel recorded. The order is not delivered until every required parcel has arrived and no blocking exception is open.';
+                } elseif (($in['send_email'] ?? false) === true) {
+                    $result['messages'][] = ['DELIVERED', "delivered-{$reopen}"];
+                }
+                break;
+
+            case 'MARK_SHIPMENT_LOST':
+                if (!$physical) {
+                    $refuse('Only a physical order has parcels.');
+                }
+                $parcel = shipment_for_order($pdo, $orderId, $in['shipment_id'] ?? null);
+                if (!in_array($parcel['state'], ['DISPATCHED', 'IN_TRANSIT', 'DELAYED'], true)) {
+                    $refuse('Only a parcel on its way can be recorded as lost.');
+                }
+                $pdo->prepare("UPDATE shipments SET state = 'LOST' WHERE id = :id")->execute([':id' => (int) $parcel['id']]);
+                raise_fulfilment_exception($pdo, $orderId, 'PARCEL_LOST', ['shipment_id' => (int) $parcel['id'], 'blocking' => true,
+                    'next_action' => 'Arrange a replacement with the production partner (a new parcel), or a founder decides otherwise. The customer does not deal with the partner.'], $staff, "parcel-lost:{$parcel['id']}");
+                break;
+
+            case 'RAISE_FULFILMENT_EXCEPTION':
+                $type = (string) ($in['type'] ?? '');
+                $manual = array_values(array_diff(fulfilment_data()['fulfilment_exception_types'], ['COMMERCIAL_DATA_REQUIRED', 'AUTHORISED_CARD_ALTERNATIVE']));
+                if (!in_array($type, $manual, true)) {
+                    throw new OperationsException('invalid_exception_type', 'Choose the exception type.', 422);
+                }
+                $shipmentId = null;
+                if (($in['shipment_id'] ?? null) !== null) {
+                    $shipmentId = (int) shipment_for_order($pdo, $orderId, $in['shipment_id'])['id'];
+                }
+                $detail = operations_text($in['detail'] ?? null, 1000);
+                if (looks_like_card_number($detail)) {
+                    throw new OperationsException('payment_credentials_refused', 'Never record card or payment details here.', 422);
+                }
+                $result['exception_id'] = raise_fulfilment_exception($pdo, $orderId, $type, [
+                    'shipment_id' => $shipmentId, 'blocking' => ($in['blocking'] ?? true) !== false, 'detail' => $detail,
+                    'next_action' => operations_line($in['next_action'] ?? null, 255),
+                    'service_request_id' => is_int($in['service_request_id'] ?? null) ? $in['service_request_id'] : null,
+                ], $staff);
+                if (($in['notify_customer'] ?? false) === true && in_array($type, fulfilment_data()['delivery_exception_types'], true)) {
+                    $result['messages'][] = ['DELIVERY_UPDATE', "exception-{$result['exception_id']}"];
+                }
+                break;
+
+            case 'RESOLVE_FULFILMENT_EXCEPTION':
+                $stmt = $pdo->prepare('SELECT * FROM fulfilment_exceptions WHERE id = :id AND order_id = :o FOR UPDATE');
+                $stmt->execute([':id' => is_int($in['exception_id'] ?? null) ? $in['exception_id'] : 0, ':o' => $orderId]);
+                $exception = $stmt->fetch();
+                if ($exception === false) {
+                    throw new OperationsException('exception_not_found', 'No such exception on this order.', 404);
+                }
+                if ($exception['status'] !== 'OPEN') {
+                    $result['outcome'] = 'unchanged';
+                    break;
+                }
+                $resolution = (string) ($in['resolution'] ?? '');
+                if (!in_array($resolution, fulfilment_data()['exception_resolutions'], true)) {
+                    throw new OperationsException('invalid_resolution', 'Choose how the exception was resolved.', 422);
+                }
+                if ($resolution === 'SUBSTITUTION_APPROVED' && $exception['type'] !== 'SUBSTITUTION_APPROVAL_REQUIRED') {
+                    throw new OperationsException('invalid_resolution', 'A substitution can only be approved on a substitution exception.', 422);
+                }
+                if ($resolution === 'PARTIAL_DELIVERY_ACCEPTED' && !in_array($exception['type'], ['PARTIAL_DELIVERY', 'PARCEL_LOST', 'SUPPLIER_CANCELLED', 'PAID_ORDER_FULFILMENT_EXCEPTION'], true)) {
+                    throw new OperationsException('invalid_resolution', 'Partial delivery can only be accepted on a partial delivery, lost parcel, supplier cancellation or paid-order exception.', 422);
+                }
+                $note = operations_text($in['note'] ?? null, 1000);
+                if ($note === null) {
+                    throw new OperationsException('invalid_note', 'Note what was decided and done.', 422);
+                }
+                // A lost parcel stops being awaited only once its replacement parcel exists (or a founder accepts partial delivery).
+                $replacesLost = $resolution === 'REPLACEMENT_ARRANGED' && $exception['type'] === 'PARCEL_LOST' && $exception['shipment_id'] !== null;
+                if ($replacesLost) {
+                    $replacement = $pdo->prepare('SELECT COUNT(*) FROM shipments s JOIN shipments l ON l.id = :lost WHERE s.order_id = :o AND s.sequence > l.sequence AND s.required = 1');
+                    $replacement->execute([':lost' => (int) $exception['shipment_id'], ':o' => $orderId]);
+                    if ((int) $replacement->fetchColumn() === 0) {
+                        throw new OperationsException('replacement_parcel_required', 'Add the replacement parcel (ADD_SHIPMENT) before resolving the lost parcel as replaced.', 422);
+                    }
+                    $pdo->prepare('UPDATE shipments SET required = 0 WHERE id = :id')->execute([':id' => (int) $exception['shipment_id']]);
+                }
+                $pdo->prepare("UPDATE fulfilment_exceptions SET status = 'RESOLVED', resolution = :r, resolution_note = :n, resolution_authorised_by = :f, resolved_by = :by, resolved_at = UTC_TIMESTAMP() WHERE id = :id")
+                    ->execute([':r' => $resolution, ':n' => $note, ':f' => $founder, ':by' => $staff, ':id' => (int) $exception['id']]);
+                if ($resolution === 'PARTIAL_DELIVERY_ACCEPTED') {
+                    // The founder's decision releases the parcels still outstanding from what completion waits for.
+                    $pdo->prepare("UPDATE shipments SET required = 0 WHERE order_id = :o AND state <> 'DELIVERED'")->execute([':o' => $orderId]);
+                }
+                record_order_event($pdo, $orderId, 'FULFILMENT.EXCEPTION_RESOLVED', ['exception_id' => (int) $exception['id'], 'type' => $exception['type'], 'resolution' => $resolution, 'by' => $staff, 'founder' => $founder], "fulfilment-exception-resolved:{$exception['id']}");
+                if ($fulfil === 'DISPATCHED') {
+                    $delivered = $pdo->prepare("SELECT MAX(delivered_on) FROM shipments WHERE order_id = :o AND state = 'DELIVERED'");
+                    $delivered->execute([':o' => $orderId]);
+                    $on = $delivered->fetchColumn();
+                    if (is_string($on) && complete_if_all_delivered($pdo, $row, $staff, $on)) {
+                        $result['warning'] = 'Every required parcel has arrived: the order is now delivered and complete.';
+                    }
+                }
+                break;
+
+            case 'RECORD_REVIEW_REQUEST':
+                if ($stage !== 'COMPLETED') {
+                    $refuse('A review is only requested for a completed order.');
+                }
+                $channel = $in['channel'] ?? null;
+                if (!in_array($channel, ['EMAIL', 'WHATSAPP', 'PHONE', 'IN_PERSON', 'OTHER'], true)) {
+                    throw new OperationsException('invalid_channel', 'Say how the review was requested.', 422);
+                }
+                // A review request never offers an incentive for a positive review, and nothing is published automatically.
+                if (($in['incentive_offered'] ?? false) !== false) {
+                    throw new OperationsException('incentive_refused', 'A review is never requested in exchange for an incentive.', 422);
+                }
+                record_order_event($pdo, $orderId, 'REVIEW.REQUESTED', ['by' => $staff, 'channel' => $channel], 'review-requested');
+                break;
+
+            case 'RECORD_CONTENT_PERMISSION':
+                $scope = (string) ($in['scope'] ?? '');
+                $status = (string) ($in['status'] ?? '');
+                if (!in_array($scope, fulfilment_data()['content_permission_scopes'], true) || !in_array($status, ['GRANTED', 'WITHDRAWN'], true)) {
+                    throw new OperationsException('invalid_permission', 'Choose what the permission covers and whether it is granted or withdrawn.', 422);
+                }
+                if ($status === 'WITHDRAWN') {
+                    $stmt = $pdo->prepare("UPDATE customer_content_permissions SET status = 'WITHDRAWN', withdrawn_at = UTC_TIMESTAMP(), recorded_by = :by WHERE order_id = :o AND scope = :sc AND status = 'GRANTED'");
+                    $stmt->execute([':by' => $staff, ':o' => $orderId, ':sc' => $scope]);
+                    if ($stmt->rowCount() === 0) {
+                        $result['outcome'] = 'unchanged';
+                        break;
+                    }
+                } else {
+                    $via = $in['granted_via'] ?? null;
+                    $evidence = operations_line($in['evidence_reference'] ?? null, 300);
+                    if (!in_array($via, ['WRITTEN_CONSENT', 'EMAIL', 'OTHER'], true) || $evidence === null) {
+                        throw new OperationsException('permission_evidence_required', 'Record how the customer gave permission (written consent, email or other) and where that is kept. A review is not permission.', 422);
+                    }
+                    $pdo->prepare(
+                        "INSERT INTO customer_content_permissions (order_id, scope, status, granted_via, evidence_reference, recorded_by, granted_at, withdrawn_at)
+                         VALUES (:o, :sc, 'GRANTED', :via, :ev, :by, UTC_TIMESTAMP(), NULL)
+                         ON DUPLICATE KEY UPDATE status = 'GRANTED', granted_via = VALUES(granted_via), evidence_reference = VALUES(evidence_reference),
+                            recorded_by = VALUES(recorded_by), granted_at = UTC_TIMESTAMP(), withdrawn_at = NULL"
+                    )->execute([':o' => $orderId, ':sc' => $scope, ':via' => $via, ':ev' => $evidence, ':by' => $staff]);
+                }
+                record_order_event($pdo, $orderId, 'CONTENT_PERMISSION.' . $status, ['scope' => $scope, 'by' => $staff]);
+                break;
+
 
             case 'RECORD_FOLLOW_UP':
                 if ($row['follow_up_due_at'] === null || $row['follow_up_done_at'] !== null) {
