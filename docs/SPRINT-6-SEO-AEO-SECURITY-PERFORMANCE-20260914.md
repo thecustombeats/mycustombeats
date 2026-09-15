@@ -22,7 +22,7 @@ Stripe public name is "My Custom Beats" (done in the Dashboard). Review requests
 | Performance | Lab CLS: homepage 0.164 → 0.000, MCB LIVE 0.103 → 0.005 (metric-matched fallback fonts). `/occasions` transfer 10.5 MB → 3.1 MB desktop / 0.79 MB mobile (lazy, on-screen-only loops; four oversized photos resized in place). Other pages within ±5 KB. |
 | Public feed | `/catalogue.json` generated from the canonical catalogue (public fields only, same hash as the server copy); `docs/AGENTIC-COMMERCE-READINESS.md`. Not submitted anywhere. |
 | Lint | 5 → 0 errors: non-component exports moved to `toggle-variants.ts`, `navigation-menu-style.ts`, `form-context.ts`, `sidebar-context.ts`; skeleton width derived from `useId`. |
-| Dead code | `src/archive/` and unused `components/logo.tsx` removed; stale Payment Link comments corrected. No active Heirloom, £10 Moment, Memory Box, old plaque, Payment Links, Apollo, LiveIntent, Cloudinary or `webhook-test.php` references. |
+| Dead code | `src/archive/` and unused `components/logo.tsx` removed; stale Payment Link comments corrected. No active Heirloom, obsolete Moment price, Memory Box, old plaque, Payment Links, Apollo, LiveIntent, Cloudinary or `webhook-test.php` references. |
 
 No database migration.
 

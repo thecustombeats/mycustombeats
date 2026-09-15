@@ -3,7 +3,7 @@
 **Source:** Bella and Lewis, Sprint 1 brief (release-candidate programme, sprint 1 of 7).
 **Status:** Authoritative for customer-facing catalogue, pricing, schema, checkout and analytics on `mcb-release-candidate-20260914` and later.
 
-This supersedes every conflicting commercial statement in the repository, including the "Approved release direction" commercial bullets of `FOUNDER-AUTHORITY-20260912.md` (five experiences with Heirloom, Keepsake £99, Moment £10, "12-inch vinyl only", Journey Collection at £99 per day) and the commercial rows of `RELEASE-REVIEW-20260912.md`. Non-commercial boundaries in those documents (no deployment without founder approval, no financial actions, no secrets, untrusted external input) remain in force.
+This supersedes every conflicting commercial statement in the repository, including the "Approved release direction" commercial bullets of `FOUNDER-AUTHORITY-20260912.md` (five experiences with Heirloom, Keepsake £99, an obsolete Moment price (Moment is £15), "12-inch vinyl only", Journey Collection at £99 per day) and the commercial rows of `RELEASE-REVIEW-20260912.md`. Non-commercial boundaries in those documents (no deployment without founder approval, no financial actions, no secrets, untrusted external input) remain in force.
 
 Supplier cost and margin data is internal only and must never enter this repository, client code, schema, analytics or logs.
 

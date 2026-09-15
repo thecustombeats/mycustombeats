@@ -162,7 +162,7 @@ Each line is an exact mismatch between current wording and actual site behaviour
 
 | # | Item | Class |
 |---|---|---|
-| 47 | Moment price: the brief describes a £10 base; the catalogue's authorised Moment price is £15.00, so Moment + video is £64. Confirm the intended Moment price (no price was changed). | F |
+| 47 | Moment price — **decided (15 September 2026)**: Moment is £15 GBP; with one optional Memory Music Video (£49) the order is £64. | Decided |
 | 48 | Verify the video platform's real allowance (videos per period), how and when it resets, the maximum video/song length, output formats and resolution, commercial-use and privacy terms and cost, then set `video.capacity_per_period` and mark the period basis VERIFIED. Until then: 45 and 4 minutes are planning figures. | F + external |
 | 49 | Songs longer than 4 minutes (MCB allows up to 5): proceed with the full song, or another approach once the platform is verified. Nothing shortens the song automatically. | F |
 | 50 | Cancellation and refund wording for personalised video production — NEEDS PROFESSIONAL LEGAL REVIEW. | L |

@@ -279,7 +279,7 @@ means that customer has not yet been sent their reference.
 
 Built server-side from the same payload, so there is one data model. It
 contains the customer's name, the **MCB reference**, the package and format by
-their display names, the amount paid (server-formatted, e.g. `£10.00`), the
+their display names, the amount paid (server-formatted, e.g. `£15.00` for a Moment), the
 delivery promise, "what happens next", and the MCB sign-off.
 
 Sent as both `html` and `text`. The HTML uses the MVIS palette so the

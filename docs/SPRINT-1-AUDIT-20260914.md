@@ -25,7 +25,7 @@ Founder-branch content not carried forward, deliberately: `Products.tsx` (12-inc
 | `tsc -p tsconfig.app.json` / `tsconfig.node.json` | 0 errors | — |
 | `npm run build` | Pass | — |
 | `eslint .` | 10 errors (4 react-refresh in shadcn ui, sidebar purity, HeroSection setState-in-effect, 4 `no-explicit-any`) | Yes — identical on `f48a6534` |
-| `node --test tests/release-rules.test.mjs` | 3/3 pass (pins obsolete £10/£99/£199/£349/Heirloom) | — |
+| `node --test tests/release-rules.test.mjs` | 3/3 pass (pins obsolete package prices, including an obsolete Moment price, and Heirloom; Moment is now £15) | — |
 | api-acceptance | 203/203 | — |
 | checkout-acceptance | 97 pass / 15 fail | Stale: expects Keepsake £79 (£279/£449 baskets) |
 | delivery / legal / lifecycle | 1 fail each | Stale: grep `gbp: 79` |
@@ -38,7 +38,7 @@ After Sprint 1's payment fix: api 218/218 (15 new assertions); every other suite
 
 ## 3. Critical finding fixed on this branch
 
-Payment Link payments were reconciled by `client_reference_id` alone (`public/api/stripe/webhook.php`). Paying the £10 Moment link with another order's id marked that order PAID, issued a reference, credited affiliates and emailed "Amount paid" at the order's price. Fixed in `8881169f`: underpayment, missing amount or wrong currency is filed as unreconciled and the order stays PENDING.
+Payment Link payments were reconciled by `client_reference_id` alone (`public/api/stripe/webhook.php`). Paying the (since retired) Moment Payment Link, at an obsolete price, with another order's id marked that order PAID, issued a reference, credited affiliates and emailed "Amount paid" at the order's price. Fixed in `8881169f`: underpayment, missing amount or wrong currency is filed as unreconciled and the order stays PENDING.
 
 **This fix is not in production.** Whether production is exposed depends on the deployed backend and webhook configuration, which this audit could not inspect.
 
@@ -58,9 +58,9 @@ Payment Link payments were reconciled by `client_reference_id` alone (`public/ap
 
 ## 5. Where the obsolete model lives (summary; see Sprint 1 report for line references)
 
-Price definitions: `src/data/packages.ts` (Moment 10, Keepsake 99, Journey 199, Heirloom 349 + USD), `src/data/catalogue/keepsakeProducts.ts` (CD, Lyrics Frame £100, Vinyl Frame £200, Music Box £600, Engraved Plaque £100, Digital Player £250, gramophones £1000/£200/£100), `catalogue/enhancements.ts` (extra vinyl £60), `catalogue/giftCards.ts` (£50), `catalogue/vinyl.ts` (12-inch only, TBD), `priorityReplacement.ts` (£19.99), `giftVouchers.ts` (min £10, unimported), `legacy/retiredBespoke.ts` (£799, unimported).
+Price definitions: `src/data/packages.ts` (Moment at an obsolete price — Moment is now £15 — Keepsake 99, Journey 199, Heirloom 349 + USD), `src/data/catalogue/keepsakeProducts.ts` (CD, Lyrics Frame £100, Vinyl Frame £200, Music Box £600, Engraved Plaque £100, Digital Player £250, gramophones £1000/£200/£100), `catalogue/enhancements.ts` (extra vinyl £60), `catalogue/giftCards.ts` (£50), `catalogue/vinyl.ts` (12-inch only, TBD), `priorityReplacement.ts` (£19.99), `giftVouchers.ts` (min £10, unimported), `legacy/retiredBespoke.ts` (£799, unimported).
 Generated copies: `public/api/data/packages.json`, `catalogue.json` (and stale `dist/` copies).
-Hard-coded bypasses: `MemoryConcierge.tsx` (£10/99/199/349 budgets, 1/4/6 memories), `lib/memoryConcierge.ts` (heirloom), `index.html`, `App.tsx`, `seo.ts` ("from £10"), `UpgradeInvitation.tsx`, `PriorityReplacement.tsx` (£19.99), `FAQ.tsx` (13 Heirloom mentions; Journey vinyl/CD; add-on prices).
+Hard-coded bypasses: `MemoryConcierge.tsx` (budgets at the obsolete package prices, 1/4/6 memories), `lib/memoryConcierge.ts` (heirloom), `index.html`, `App.tsx`, `seo.ts` (a "from" price at the obsolete Moment price), `UpgradeInvitation.tsx`, `PriorityReplacement.tsx` (£19.99), `FAQ.tsx` (13 Heirloom mentions; Journey vinyl/CD; add-on prices).
 Payment: 8 Payment Links in `packages.ts` + 1 retired; `checkoutSession.ts` Moment fallback; OrderForm Make payload prices.
 Server: `lib/packages.php`, `lib/basket.php`, `order.php`, `checkout/session.php`, `crm/orders.php`, `notify.php`.
 Tests: `release-rules.test.mjs`, and price/name/link-count greps in all seven shell suites.

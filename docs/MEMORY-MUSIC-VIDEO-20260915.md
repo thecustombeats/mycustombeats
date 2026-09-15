@@ -14,7 +14,7 @@
 
 **Catalogue.** SKU `memory-music-video`, category `VIDEO_ENHANCEMENT`, fulfilment `DIGITAL`. Because the video is DIGITAL, a Keepsake or Journey order with a video also asks for the digital-content consent. The public feed lists it as optional, chosen before payment, one per order at launch, with limited monthly availability.
 
-> **Price note for the Founders.** The brief describes Moment as a £10 base. The catalogue's authorised Moment price is **£15.00** (`moment` 1500), so Moment plus a video is **£64** today, not £59. The Moment price was not changed in this sprint.
+> **Moment price (Founders' correction, 15 September 2026).** Moment is **£15** GBP (`moment` 1500). Moment + one optional Memory Music Video (£49) = **£64**. Server checkout charges exactly this; a regression test (`tests/moment-price.test.mjs`) keeps it so.
 
 ## 2. Where it is offered
 

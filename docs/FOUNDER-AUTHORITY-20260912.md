@@ -16,7 +16,7 @@ MCB is a memory company: help customers capture, preserve, relive and gift meani
 
 ## Approved release direction
 
-- Five visual experiences: Moment £10, Keepsake £99, Journey £199, Heirloom £349, Bespoke individually priced. GBP is authoritative.
+- Five visual experiences: Moment £15 (the canonical GBP price; any earlier Moment price is obsolete — see `COMMERCIAL-AUTHORITY-20260914.md`), Keepsake £99, Journey £199, Heirloom £349, Bespoke individually priced. GBP is authoritative.
 - Premium photographic selection, calm hierarchy, readable typography, accessible controls and restrained motion. No invented customer imagery, scale, testimonials or event history.
 - Optional Memory Concierge with concise, truthful, explainable guidance. Never steer someone to a more expensive package unnecessarily. Live AI integration must be distinguished from rules-based guidance.
 - One/four/six independent memories, individual photos and styles, 300-character story limit, guided progress, safe drafts and complete review before payment.

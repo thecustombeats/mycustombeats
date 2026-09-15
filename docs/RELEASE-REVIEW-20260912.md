@@ -83,7 +83,7 @@ The local build is source/build verification only. The connected GitHub file too
 
 | Requirement | Remaining work |
 |---|---|
-| Authoritative prices | Apply £10 / £99 / £199 / £349, individually priced Bespoke; verify the corresponding server charge path before allowing checkout. Keep GBP authoritative. |
+| Authoritative prices | Apply the authorised package prices (Moment £15 — an earlier Moment price is obsolete — £99 / £199 / £349), individually priced Bespoke; verify the corresponding server charge path before allowing checkout. Keep GBP authoritative. |
 | Vinyl | Apply standalone 12-inch price £99 plus approved delivery; remove any conflicting purchase wording. No 7-inch or 10-inch offering. |
 | Discontinued Memory Box | Finish repository and built-output audit. analytics treats Music Box Experience as a distinct £600 product; do not silently conflate it with the retired Memory Box. |
 | Multi-memory personalisation | Implement 1/4/6 separate briefs, each photo/style/story, 300-character live counters, independent genres, MCB-choice option and remake acknowledgement. Persist every memory for fulfilment. |

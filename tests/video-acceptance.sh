@@ -404,6 +404,7 @@ section "3. PAYMENT, WEBHOOK REPLAY AND THE PROTECTED AUDIO MASTER"
 order '{"sku":"moment","email":"mv-moment@example.com","video":[1,1]}'; MO=$OID; MTOK=$TOK
 STRIPE0=$(stub_count)
 t "checkout holds one space before payment" "200|HELD|1" "$(session $MO $MTOK)|$(q "SELECT status FROM video_capacity_reservations WHERE order_id=$MO")|$(q "SELECT COUNT(*) FROM video_capacity_reservations WHERE order_id=$MO")"
+tc "  → Stripe is sent exactly Moment £15 + Memory Music Video £49 = £64 (server-authoritative, GBP)" "$([ "$(q "SELECT total_minor FROM orders WHERE id=$MO")" = 6400 ] && last_params | python3 -c 'import json,sys;p=json.loads(sys.stdin.read())["params"];li=p["line_items"];a=sorted(int(l["price_data"]["unit_amount"])*int(l["quantity"]) for l in li);print(1 if a==[1500,4900] and all(l["price_data"]["currency"]=="gbp" for l in li) else 0)' | grep -qx 1 && echo 1 || echo 0)"
 t "  → a repeated session reuses the same hold" "200|1" "$(session $MO $MTOK)|$(q "SELECT COUNT(*) FROM video_capacity_reservations WHERE order_id=$MO")"
 MSID=$(session_id_for $MO); MTOTAL=$(q "SELECT total_minor FROM orders WHERE id=$MO")
 EVT=$(pay_event "evt_mv_$(openssl rand -hex 6)" "$MSID" "$MO" "$MTOTAL" gbp)
