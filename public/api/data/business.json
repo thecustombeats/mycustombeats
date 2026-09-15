@@ -44,6 +44,13 @@
       "record_at": "Record the supplier order (actual shipping cost) in the staff console."
     },
     {
+      "category": "SUPPLIER_TAX_DUTY",
+      "expected": null,
+      "actual": "SUPPLIER_ORDER",
+      "entry": [],
+      "record_at": "Record tax or duty actually paid, where known, on the supplier order. It is never assumed."
+    },
+    {
       "category": "SHIPPING_CONTINGENCY",
       "expected": "ORDER_ECONOMICS_EXPECTED",
       "actual": null,
@@ -59,13 +66,13 @@
     },
     {
       "category": "PAYMENT_PROCESSING_FEE",
-      "expected": "PAYMENT_FEE_MODEL_OR_ENTRY",
+      "expected": "ACTUAL_FIRST_OR_ENTRY",
       "actual": "ENTRY",
       "entry": [
         "EXPECTED",
         "ACTUAL"
       ],
-      "record_at": "Record the payment provider's fee for the order."
+      "record_at": "Record the payment provider's actual fee for the order. Until it is recorded the fee is UNKNOWN."
     },
     {
       "category": "VIDEO_PRODUCTION_COST",
@@ -165,11 +172,14 @@
     "best supplier",
     "winner"
   ],
-  "video_price_points_under_review_minor": [
-    4900,
-    5900,
-    6900
-  ],
+  "founder_decisions": {
+    "business_timezone": "Europe/London",
+    "payment_fee_policy": "ACTUAL_FIRST",
+    "video_launch_price_minor": 4900,
+    "video_price_test": "NOT_AUTHORISED",
+    "video_production_cost_policy": "UNKNOWN_UNTIL_PLATFORM_ECONOMICS_VERIFIED",
+    "commercial_thresholds_policy": "NOT_CONFIGURED_BY_FOUNDER_DECISION"
+  },
   "funnel_stages": [
     {
       "stage": "PRODUCT_VIEWED",

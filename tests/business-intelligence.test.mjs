@@ -4,7 +4,7 @@
  * Contracts: Moment £15 and Moment + video £64; gross contribution is defined
  * and never called profit; each direct cost has one home (no double counting)
  * and unknown is never zero; TEST and foreign-currency orders never enter GBP
- * totals; thresholds and timezone are configuration, never defaults; the
+ * totals; Europe/London and actual-first fees are founder decisions, thresholds are never invented; the
  * layer is deterministic (no model, no outbound call) and changes nothing;
  * recommendations only ask for a review; exports are formula-safe and carry no
  * private content; the Business screens are private and analytics-free.
@@ -46,7 +46,9 @@ test("the decided prices: Moment £15, Memory Music Video £49, together £64", 
   assert.equal(C.getVariant("moment").variant.price.minor, 1500);
   assert.equal(C.getVariant("memory-music-video").variant.price.minor, 4900);
   assert.equal(C.previewOrder([{ sku: "moment", quantity: 1 }, { sku: "memory-music-video", quantity: 1 }]).totalMinor, 6400);
-  assert.equal(B.VIDEO_PRICE_POINTS_UNDER_REVIEW_MINOR[0], 4900, "the current video price is the catalogue price");
+  assert.equal(B.VIDEO_LAUNCH_PRICE_MINOR, 4900, "the £49 launch price is authoritative");
+  assert.equal(B.VIDEO_PRICE_TEST, "NOT_AUTHORISED", "no £59/£69 test is authorised");
+  assert.equal(B.VIDEO_PRICE_POINTS_UNDER_REVIEW_MINOR, undefined);
 });
 
 test("financial language: gross contribution is defined and never called profit", () => {
@@ -59,14 +61,16 @@ test("financial language: gross contribution is defined and never called profit"
   assert.match(B.FINANCIAL_DEFINITIONS.find((d) => d.term === "Revenue").meaning, /TEST payments are rehearsals and never revenue/);
 });
 
-test("the cost model: nine categories, each with one home; hand entries only where no other record holds it", () => {
+test("the cost model: ten categories, each with one home; hand entries only where no other record holds it", () => {
   assert.deepEqual(B.COST_CATEGORIES.map((c) => c.category), [
-    "SUPPLIER_PRODUCT_COST", "SUPPLIER_SHIPPING", "SHIPPING_CONTINGENCY", "MCB_FULFILMENT_HANDLING_ALLOWANCE", "PAYMENT_PROCESSING_FEE",
+    "SUPPLIER_PRODUCT_COST", "SUPPLIER_SHIPPING", "SUPPLIER_TAX_DUTY", "SHIPPING_CONTINGENCY", "MCB_FULFILMENT_HANDLING_ALLOWANCE", "PAYMENT_PROCESSING_FEE",
     "VIDEO_PRODUCTION_COST", "REPLACEMENT_COST", "REFUND_VALUE", "OTHER_DIRECT_COST",
   ]);
   const entry = Object.fromEntries(B.COST_CATEGORIES.map((c) => [c.category, [...c.entry]]));
   assert.deepEqual(entry.SUPPLIER_PRODUCT_COST, []);
   assert.deepEqual(entry.REFUND_VALUE, []);
+  assert.deepEqual(entry.SUPPLIER_TAX_DUTY, [], "tax or duty actually paid lives on the supplier order");
+  assert.equal(B.COST_CATEGORIES.find((c) => c.category === "SUPPLIER_TAX_DUTY").expected, null, "tax or duty is never assumed");
   assert.deepEqual(entry.VIDEO_PRODUCTION_COST, ["EXPECTED"], "actual video cost lives on the video job");
   assert.equal(B.COST_CATEGORIES.find((c) => c.category === "SHIPPING_CONTINGENCY").actual, null, "an allowance is never an actual cost");
   const migration = read("db/migrations/2026-09-16-business-intelligence.sql");
@@ -96,12 +100,20 @@ test("TEST and foreign-currency orders never enter GBP totals; nothing is conver
   assert.match(phpFunction(lib, "biz_revenue"), /'other_currencies' => array_values\(\$other\)/);
 });
 
-test("configuration, never defaults: thresholds, timezone, fee model", () => {
+test("founder decisions: Europe/London, actual-first fees, no invented thresholds or fee model", () => {
   assert.match(phpFunction(lib, "biz_threshold"), /return is_int\(\$v\) \|\| is_float\(\$v\) \? \$v : null;/);
   assert.deepEqual(B.COMMERCIAL_ALERTS.map((a) => a.type), ["NEGATIVE_CONTRIBUTION", "LOW_CONTRIBUTION", "COST_VARIANCE_HIGH", "REFUND_RATE_ELEVATED", "REPLACEMENT_RATE_ELEVATED", "SUPPLIER_EXCEPTION_ELEVATED", "VIDEO_CAPACITY_LOW", "DATA_COMPLETENESS_LOW"]);
   assert.match(phpFunction(lib, "biz_alerts"), /'NOT_CONFIGURED'/);
-  assert.match(phpFunction(lib, "biz_timezone"), /'timezone' => 'UTC', 'configured' => false, 'status' => 'NEEDS_FOUNDER_ACTION'/);
-  assert.match(phpFunction(lib, "biz_payment_fee_model"), /return null;/);
+  assert.equal(B.BUSINESS_TIMEZONE, "Europe/London");
+  assert.equal(B.PAYMENT_FEE_POLICY, "ACTUAL_FIRST");
+  assert.equal(B.COMMERCIAL_THRESHOLDS_POLICY, "NOT_CONFIGURED_BY_FOUNDER_DECISION");
+  assert.equal(JSON.parse(read("public/api/data/business.json")).founder_decisions.business_timezone, "Europe/London");
+  // The timezone is the business's, never the server's or a founder's location.
+  assert.doesNotMatch(phpFunction(lib, "biz_timezone"), /date_default_timezone_get|'UTC'/);
+  assert.ok(!lib.includes("function biz_payment_fee_model"), "there is no fee model");
+  assert.doesNotMatch(lib, /percent_basis_points|payment_fee_model/);
+  // Actual-first: the recorded actual fee is used on both bases; otherwise UNKNOWN (never £0).
+  assert.match(phpFunction(lib, "biz_order_costs"), /\$fees = \$entries\('PAYMENT_PROCESSING_FEE', 'ACTUAL'\);\s*if \(\$fees === \[\] && \$basis === 'EXPECTED'\)[\s\S]*\$missing\[\] = 'PAYMENT_PROCESSING_FEE';/);
   assert.match(read("public/api/config.example.php"), /\/\/ 'business' => \[/, "business settings are commented out: nothing is configured by default");
 });
 

@@ -304,6 +304,20 @@ function quote_delivery(OrderPricing $pricing, ?string $countryCode): DeliveryQu
         return DeliveryQuote::unavailable();
     }
 
+    // Route evidence for this destination (server-only). A destination the
+    // recorded routes prove unsupported is never sold as supported: MCB confirms
+    // delivery personally instead. Nothing about partners reaches the browser.
+    $confirm = delivery_route_confirmation_skus($pricing, $countryCode);
+    if ($confirm !== []) {
+        $names = [];
+        foreach ($pricing->lines as $line) {
+            if (in_array((string) $line['sku'], $confirm, true)) {
+                $names[] = (string) (catalogue_product((string) $line['product_id'])['name'] ?? $line['name']);
+            }
+        }
+        return DeliveryQuote::unavailable('MCB_CONFIRMS_DELIVERY', array_values(array_unique($names)));
+    }
+
     $table = delivery_rate_table();
     if ($table !== null) {
         $source = 'RATE_TABLE';
@@ -350,6 +364,33 @@ function quote_delivery(OrderPricing $pricing, ?string $countryCode): DeliveryQu
         mb_substr($ids, 0, 64),
         mb_substr($labels, 0, 120)
     );
+}
+
+/**
+ * The physical SKUs of a NEW sale that MCB must confirm delivery for, from the
+ * server-only route data (lib/routing.php). Without route data there is no
+ * evidence either way and nothing changes here.
+ *
+ * @return list<string>
+ */
+function delivery_route_confirmation_skus(OrderPricing $pricing, string $countryCode): array
+{
+    if (!is_readable(__DIR__ . '/../data/supplier-routes.json')) {
+        return [];
+    }
+    require_once __DIR__ . '/routing.php';
+    $skus = [];
+    foreach ($pricing->lines as $line) {
+        if ($line['fulfilment'] === 'PHYSICAL') {
+            $skus[] = (string) $line['sku'];
+        }
+    }
+    try {
+        return new_sale_items_needing_confirmation($skus, $countryCode);
+    } catch (Throwable $e) {
+        error_log('MCB delivery: route evidence unavailable: ' . $e->getMessage());
+        return [];
+    }
 }
 
 /**

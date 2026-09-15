@@ -288,6 +288,7 @@ ROOTQ pfb < db/migrations/2026-09-15-fulfilment-controller.sql 2>/dev/null
 ROOTQ pfb < db/migrations/2026-09-15-memory-music-video.sql 2>/dev/null
 ROOTQ pfb < db/migrations/2026-09-16-customer-care.sql 2>/dev/null
 ROOTQ pfb < db/migrations/2026-09-16-business-intelligence.sql 2>/dev/null
+ROOTQ pfb < db/migrations/2026-09-16-supplier-routing.sql 2>/dev/null
 dumpdb() { for tb in $(ROOTQ -N -e "SHOW TABLES" "$1"); do ROOTQ -N -e "SHOW CREATE TABLE \`$tb\`" "$1" | sed 's/AUTO_INCREMENT=[0-9]* //'; done; }
 tc "the Production File Factory migration applies to the previous schema, twice, and equals a fresh schema" "$([ "$P1" = 0 ] && [ "$P2" = 0 ] && [ "$(dumpdb pfa | shasum)" = "$(dumpdb pfb | shasum)" ] && echo 1 || echo 0)"
 ROOTQ -e 'DROP DATABASE pfa; DROP DATABASE pfb;' 2>/dev/null

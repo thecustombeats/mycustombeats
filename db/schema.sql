@@ -2000,6 +2000,7 @@ CREATE TABLE IF NOT EXISTS supplier_orders (
   expected_total_cost_minor    INT NULL,
   actual_purchase_cost_minor   INT NULL,
   actual_shipping_cost_minor   INT NULL,
+  actual_tax_duty_minor INT NULL,
   actual_total_cost_minor      INT NULL,
   variance_minor        INT NULL,
   variance_reason       ENUM('SUPPLIER_PRICE_CHANGE','SHIPPING_VARIANCE','CURRENCY_VARIANCE','MARKETPLACE_VARIANCE','MANUAL_ADJUSTMENT','OTHER') NULL,
@@ -2512,4 +2513,48 @@ CREATE TABLE IF NOT EXISTS business_audit_log (
   created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_business_audit (action, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- MCB Supplier Intelligence & Commercial Routing (2026-09-16-supplier-routing.sql)
+CREATE TABLE IF NOT EXISTS order_route_decisions (
+  id                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  order_id              INT UNSIGNED NOT NULL,
+  sku                   VARCHAR(64)  NOT NULL,
+  route_id              VARCHAR(60)  NOT NULL,
+  -- The route the engine recommended for review at the time (null when there was none).
+  recommended_route_id  VARCHAR(60)  NULL,
+  route_group           ENUM('SUPPORTED','UNVERIFIED','MANUAL_REVIEW') NOT NULL,
+  -- Required when route_id differs from the recommendation.
+  deviation_reason      ENUM('DESTINATION_EVIDENCE','AVAILABILITY','DELIVERY_TIME','QUALITY','CUSTOMER_REQUIREMENT','COST_CONFIRMED','OTHER') NULL,
+  note                  VARCHAR(500) NULL,
+  -- The customer's delivery country the route was reviewed for.
+  country_code          CHAR(2)      NULL,
+  -- The actual delivered cost confirmed with the partner (required before purchase for some products).
+  confirmed_delivered_cost_minor INT UNSIGNED NULL,
+  confirmed_delivered_currency   CHAR(3)      NULL,
+  delivered_cost_evidence        VARCHAR(300) NULL,
+  status                ENUM('CURRENT','SUPERSEDED') NOT NULL DEFAULT 'CURRENT',
+  decided_by            VARCHAR(160) NOT NULL,
+  created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  superseded_at         DATETIME     NULL,
+  PRIMARY KEY (id),
+  KEY idx_route_decisions_order (order_id, sku, status),
+  CONSTRAINT fk_route_decisions_order FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS card_alternatives (
+  id                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  order_id              INT UNSIGNED NOT NULL,
+  supplier_order_reference VARCHAR(120) NOT NULL,
+  original_sku          VARCHAR(64)  NOT NULL,
+  alternative           VARCHAR(160) NOT NULL,
+  reason                VARCHAR(500) NOT NULL,
+  authority             ENUM('STAFF','FOUNDER') NOT NULL,
+  authorised_by         VARCHAR(160) NOT NULL,
+  customer_impact       ENUM('NO_MATERIAL_DIFFERENCE','CUSTOMER_TOLD','CUSTOMER_AGREED') NOT NULL,
+  customer_impact_note  VARCHAR(500) NULL,
+  created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_card_alternative (order_id, supplier_order_reference, original_sku),
+  CONSTRAINT fk_card_alternatives_order FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

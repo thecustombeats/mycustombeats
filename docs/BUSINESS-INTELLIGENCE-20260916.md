@@ -24,13 +24,14 @@ It is not statutory accounting, tax reporting, bookkeeping, pricing automation, 
 
 ## 2. Unknown ≠ £0, and the cost model
 
-**Where each cost lives.** Each of the nine direct-cost categories has one home, so nothing is counted twice:
+**Where each cost lives.** Each of the ten direct-cost categories has one home, so nothing is counted twice:
 
 | Category | Expected | Actual |
 |---|---|---|
 | SUPPLIER_PRODUCT_COST, SUPPLIER_SHIPPING | latest EXPECTED economics snapshot | supplier orders |
+| SUPPLIER_TAX_DUTY (16 Sept) | never assumed | supplier orders (tax or duty actually paid, where known) |
 | SHIPPING_CONTINGENCY, MCB_FULFILMENT_HANDLING_ALLOWANCE | the snapshot (internal route allowances) | never — an allowance is not a cost |
-| PAYMENT_PROCESSING_FEE | founders' fee model (`business.payment_fee_model`) or an entry | an entry |
+| PAYMENT_PROCESSING_FEE | **actual-first** (founder decision): the recorded actual fee, else an expected entry, else UNKNOWN — there is no fee model | an entry |
 | VIDEO_PRODUCTION_COST | an entry | the video job's recorded production cost |
 | REPLACEMENT_COST | an entry against the remedy | an entry against the remedy |
 | REFUND_VALUE | recorded refunds (Customer Care) | recorded refunds |
@@ -57,9 +58,9 @@ Contribution is calculated only for complete orders, and always shows "based on 
 |---|---|
 | **Overview** | MCB BUSINESS BRIEF; revenue today / week / month / all time (gross, refunds full and partial, net paid, orders, average order; TEST separate; other currencies unconverted); expected and actual gross contribution with completeness; what changed; commercial alerts; evidence to review |
 | **Products** | Moment (orders, Moment-only vs with video, video attachment, revenue, average order, refunds, contribution where known); packages and enhancements; per-SKU performance |
-| **Videos** | Offer views, selections, purchases, offer-to-purchase, attachment, revenue, average price, capacity (planned 45, **PENDING MOZART VERIFICATION**), utilisation, rework, quality-check failures, production time, refunds, support cases, known cost and contribution; pricing evidence for £49 / £59 / £69 |
+| **Videos** | Offer views, selections, purchases, offer-to-purchase, attachment, revenue, average price, capacity (planned 45, **PENDING MOZART VERIFICATION**), utilisation, rework, quality-check failures, production time, refunds, support cases, known cost and contribution; the £49 launch price (no price test authorised) |
 | **Customers** | Customers, first-time vs repeat, orders and net paid per customer, repeat purchase rate; cruise and voyage customers; occasions; countries; the sales funnel |
-| **Suppliers** | Per route (staff only): orders, actual purchase cost, purchase and shipping variance, days to dispatch and in transit, damage, wrong item, cancellations, tracking reliability, support cases, replacements, destinations |
+| **Suppliers** | Route readiness from the Suppliers view, transparent route evidence components, and per route (staff only): orders, actual purchase cost, purchase and shipping variance, days to dispatch and in transit, damage, wrong item, cancellations, tracking reliability, support cases, replacements, destinations |
 | **Support & recovery** | Refunds (full, partial, rate, by case type and root cause); replacements (authorised, completed, known actual cost, awaiting cost, recovery cost per affected order); support burden; root causes |
 | **Data quality** | Completeness; every gap; recording a direct cost; CSV exports |
 
@@ -82,7 +83,6 @@ Contribution is calculated only for complete orders, and always shows "based on 
 - missing expected or actual supplier costs;
 - missing actual shipping;
 - missing payment fees;
-- no fee model;
 - missing video costs;
 - replacements without cost;
 - products without routes;
@@ -91,7 +91,6 @@ Contribution is calculated only for complete orders, and always shows "based on 
 - missing root causes;
 - refunds without a provider reference;
 - analytics coverage;
-- no business timezone;
 - thresholds not configured;
 - foreign-currency orders.
 
@@ -114,7 +113,7 @@ Contribution is calculated only for complete orders, and always shows "based on 
 
 ## 5. Timezone, currency, exports, security
 
-**Timezone.** UTC until the Founders configure `business.timezone` (a valid IANA name); readiness shows NEEDS FOUNDER ACTION. An invalid value falls back to UTC.
+**Timezone.** Europe/London — the Founders' decision (16 September), never derived from where anyone is or from the server. `business.timezone` may set another valid IANA name; an invalid value falls back to Europe/London.
 
 **Currency.** GBP management totals use live GBP orders. An order in another currency keeps its currency and amount, and no GBP equivalent is invented.
 
@@ -133,9 +132,9 @@ Contribution is calculated only for complete orders, and always shows "based on 
 
 ## 7. Founder decisions
 
-- Business timezone.
-- Payment fee model, or recording actual fees per order (until then contribution cannot be complete).
-- Commercial alert thresholds.
-- Whether 30 orders is the right early-data line.
-- Any video price test (needs explicit authorisation).
-- How production cost per video is worked out once the platform is verified.
+- ~~Business timezone~~ decided: Europe/London.
+- ~~Payment fee model~~ decided: actual-first; record each order's actual fee (until then contribution cannot be complete).
+- Commercial alert thresholds: deliberately not configured for now.
+- Early-data line: keep 30 orders (a display safeguard, not statistical significance).
+- Video price: £49 launch price authoritative; no £59 / £69 test.
+- How production cost per video is worked out once the platform economics are verified (UNKNOWN until then).

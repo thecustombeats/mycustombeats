@@ -398,6 +398,7 @@ ROOTQ ccb -e "SET FOREIGN_KEY_CHECKS=0; INSERT INTO order_service_requests (orde
 ROOTQ ccb < db/migrations/2026-09-16-customer-care.sql 2>/dev/null; M1=$?
 ROOTQ ccb < db/migrations/2026-09-16-customer-care.sql 2>/dev/null; M2=$?
 ROOTQ ccb < db/migrations/2026-09-16-business-intelligence.sql 2>/dev/null
+ROOTQ ccb < db/migrations/2026-09-16-supplier-routing.sql 2>/dev/null
 dumpdb() { for tb in $(ROOTQ -N -e "SHOW TABLES" "$1"); do ROOTQ -N -e "SHOW CREATE TABLE \`$tb\`" "$1" | sed 's/AUTO_INCREMENT=[0-9]* //'; done; }
 tc "the customer care migration applies to the previous schema, twice, and equals a fresh schema" "$([ "$M1" = 0 ] && [ "$M2" = 0 ] && [ "$(dumpdb cca | shasum)" = "$(dumpdb ccb | shasum)" ] && echo 1 || echo 0)"
 t "  → existing requests keep their meaning: OPEN → NEW, DECLINED → CLOSED; a damage report is urgent" "NEW,CLOSED|NORMAL,URGENT" "$(ROOTQ -N -e "SELECT GROUP_CONCAT(status ORDER BY id) FROM order_service_requests" ccb 2>/dev/null)|$(ROOTQ -N -e "SELECT GROUP_CONCAT(priority ORDER BY id) FROM order_service_requests" ccb 2>/dev/null)"

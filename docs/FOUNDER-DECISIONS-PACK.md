@@ -184,9 +184,21 @@ Each line is an exact mismatch between current wording and actual site behaviour
 
 | # | Item | Class |
 |---|---|---|
-| 59 | Business timezone for days, weeks and months (`business.timezone`). Until then the Business views report in UTC. | F |
-| 60 | Payment fees: configure the expected fee model (`business.payment_fee_model`) and/or record actual fees per order. Until fees are known, no order's contribution is complete. | F |
-| 61 | Commercial alert thresholds (`business.thresholds`: low contribution %, cost variance %, refund rate %, replacement rate %, supplier exception rate %, data completeness %). Unset alerts show NOT CONFIGURED. | F |
-| 62 | The early-data line (default 30 orders, `business.early_data_below_orders`) — a presentation convention, not statistical confidence. | F |
-| 63 | How the production cost of a Memory Music Video is worked out (platform allowance share, time) once the platform is verified; until recorded it is UNKNOWN. | F + external |
-| 64 | Any Memory Music Video price test (£59 / £69): evidence is shown; nothing changes without explicit founder authorisation. | F |
+| 59 | ~~Business timezone~~ **DECIDED 16 Sept: Europe/London** (the business reporting timezone, never derived from where Bella or Lewis are). | Decided |
+| 60 | ~~Payment fee model~~ **DECIDED 16 Sept: ACTUAL-FIRST.** Record each order's actual payment fee; until then it is UNKNOWN / AWAITING DATA, never £0. No fee model exists. | Decided |
+| 61 | Commercial alert thresholds — **DECIDED 16 Sept: deliberately NOT CONFIGURED** for now (negative-contribution and commercial safety protection still apply). Revisit later. | Deferred |
+| 62 | The early-data line — **DECIDED: keep 30 orders**, a display safeguard only, not statistical significance. | Decided |
+| 63 | Memory Music Video production cost — **UNKNOWN** until the platform economics and real workflow are verified. | External |
+| 64 | Memory Music Video price — **DECIDED: £49 launch price is authoritative; no £59 / £69 test.** | Decided |
+
+## 14. Supplier Intelligence & Commercial Routing (16 September 2026) — items for the Founders
+
+| # | Item | Class |
+|---|---|---|
+| 65 | Upload the private `api/data/supplier-routes.json` to the server (never the repository): every route's partner, private link, product reference, route type, destinations and per-country evidence, verification source and date, costs, internal allowances, availability, risks, fallback. A route is VERIFIED only with a source and a date. | F |
+| 66 | Route verification freshness (`fulfilment.route_freshness_days`). Not set = no route is ever marked STALE automatically (no universal period is assumed). | F |
+| 67 | The 18 pop-up card listings: each card's customer-facing name, price point (£49.99 single / £69.99 Large Anniversary / £19.99 Birthday Auto-Play / £79.99 4-pack / £129.99 8-pack), image and personalisation. Until supplied the cards are FOUNDER DATA REQUIRED and not sold. | F |
+| 68 | Confirm the five frame / wall-art configurations the frame routes supply are the catalogue's Lyrics Frames (or supply the correct products). | F |
+| 69 | New-sale commercial safety enforcement (`fulfilment.new_sale_safety`): ADVISORY (default: flags shown in Suppliers) or REQUIRED (flagged items go to MCB to confirm delivery before payment). A destination the routes prove unsupported always goes to MCB. | F |
+| 70 | Manufacturing data from the partners: vinyl programme durations, safe areas, trim, disc pixel canvases, 10" and 7" centre holes, the Heart dieline and the Gatefold template. | External |
+| 71 | The £1,000 gramophone: confirm the actual delivered cost to each customer's destination before authorising (the system requires it). International marketplace shipping is never assumed. | F |

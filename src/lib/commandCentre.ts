@@ -8,7 +8,7 @@
 
 export type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-export const VIEWS = ["today", "approvals", "orders", "videos", "customers", "business", "health", "notifications", "search"] as const;
+export const VIEWS = ["today", "approvals", "orders", "videos", "customers", "suppliers", "business", "health", "notifications", "search"] as const;
 export type View = (typeof VIEWS)[number];
 export const OPEN_MODES = ["card", "quality", "approve", "decide", "advanced"] as const;
 export type OpenMode = (typeof OPEN_MODES)[number];
@@ -109,3 +109,24 @@ export const answersComplete = (questions: Json[], answers: Record<string, strin
 
 /** A pass is only offered when every answer is yes (or not applicable). */
 export const canPass = (answers: Record<string, string>): boolean => !Object.values(answers).includes("NO");
+
+/** SUPPLIERS sections (#view=suppliers&section=…). Choosing one only changes what is shown; nothing is purchased. */
+export const SUPPLIER_SECTIONS = [
+  ["overview", "Overview"],
+  ["orders", "Orders to route"],
+  ["finder", "Route finder"],
+  ["data", "Data needed"],
+  ["evidence", "Route evidence"],
+] as const;
+export type SupplierSection = (typeof SUPPLIER_SECTIONS)[number][0];
+
+export const parseSupplierSection = (hash: string): SupplierSection => {
+  const section = new URLSearchParams(hash.replace(/^#/, "")).get("section");
+  return SUPPLIER_SECTIONS.some(([s]) => s === section) ? (section as SupplierSection) : "overview";
+};
+
+export const supplierLink = (section: SupplierSection): string => `#view=suppliers&section=${section}`;
+
+/** The API view behind each section. */
+export const supplierView = (section: SupplierSection): string =>
+  ({ overview: "overview", orders: "orders", finder: "lookup", data: "overview", evidence: "scorecards" })[section];

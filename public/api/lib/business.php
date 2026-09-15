@@ -23,7 +23,9 @@
  *   UNKNOWN until recorded.
  * - Small samples are EARLY DATA; nothing is ever the best or a winner.
  * - Thresholds are the Founders' (business.thresholds.*); unset = NOT CONFIGURED.
- * - Business time is UTC until the Founders configure business.timezone.
+ * - Business time is Europe/London (founder decision); business.timezone may
+ *   override it with another valid IANA name.
+ * - Payment fees are ACTUAL-FIRST: a recorded fee, else UNKNOWN. No fee model.
  * - Nothing here spends, refunds, purchases, cancels an order or changes a price.
  * - Aggregated: a fixed number of set queries, never one per order.
  */
@@ -33,6 +35,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/operations.php';
 require_once __DIR__ . '/customer-care.php';
 require_once __DIR__ . '/command-centre.php';
+require_once __DIR__ . '/routing.php';
 
 function biz_data(): array
 {
@@ -51,15 +54,20 @@ function biz_data(): array
 /* Configuration: timezone, thresholds, payment fee model              */
 /* ------------------------------------------------------------------ */
 
-/** The business timezone: configured (and valid) or UTC, and whether it was a founder decision. */
+/**
+ * The business reporting timezone. The Founders decided Europe/London; server
+ * configuration (business.timezone) may set another valid IANA name. It is
+ * never derived from where anyone is, or from the server.
+ */
 function biz_timezone(): array
 {
+    $decided = (string) (biz_data()['founder_decisions']['business_timezone'] ?? 'Europe/London');
     $configured = mcb_setting('business.timezone', null);
     if (is_string($configured) && $configured !== '' && in_array($configured, DateTimeZone::listIdentifiers(), true)) {
-        return ['timezone' => $configured, 'configured' => true, 'status' => 'CONFIGURED'];
+        return ['timezone' => $configured, 'configured' => true, 'status' => 'CONFIGURED', 'source' => $configured === $decided ? 'FOUNDER_DECISION' : 'SERVER_CONFIGURATION'];
     }
-    return ['timezone' => 'UTC', 'configured' => false, 'status' => 'NEEDS_FOUNDER_ACTION',
-        'note' => 'No MCB business timezone is configured, so days, weeks and months are UTC.'];
+    return ['timezone' => $decided, 'configured' => true, 'status' => 'CONFIGURED', 'source' => 'FOUNDER_DECISION',
+        'note' => "Business days, weeks and months use {$decided} (founder decision)."];
 }
 
 /** A founder threshold, or null when NOT CONFIGURED. Never a default. */
@@ -80,14 +88,10 @@ function biz_sample(int $n): array
     return ['sample_size' => $n, 'early_data' => $n < biz_early_below(), 'label' => $n === 0 ? 'NO DATA' : ($n < biz_early_below() ? 'EARLY DATA' : 'SAMPLE ' . $n)];
 }
 
-/** Expected payment fee from the Founders' configured fee model, or null (UNKNOWN). */
-function biz_payment_fee_model(): ?array
+/** Payment fee policy: ACTUAL-FIRST (founder decision). There is no fee model; an unrecorded fee is UNKNOWN. */
+function biz_payment_fee_policy(): string
 {
-    $m = mcb_setting('business.payment_fee_model', null);
-    if (!is_array($m) || !is_int($m['percent_basis_points'] ?? null) || !is_int($m['fixed_minor'] ?? null) || !is_string($m['currency'] ?? null)) {
-        return null;
-    }
-    return ['percent_basis_points' => $m['percent_basis_points'], 'fixed_minor' => $m['fixed_minor'], 'currency' => strtoupper($m['currency'])];
+    return (string) (biz_data()['founder_decisions']['payment_fee_policy'] ?? 'ACTUAL_FIRST');
 }
 
 /** Period boundaries in the business timezone, as UTC timestamps for the database. */
@@ -180,7 +184,7 @@ function biz_dataset(PDO $pdo): array
              FROM order_economics e JOIN (SELECT order_id, MAX(id) AS id FROM order_economics WHERE kind = 'EXPECTED' GROUP BY order_id) l ON l.id = e.id", static function (array &$o, array $r): void {
         $o['expected_economics'] = $r;
     });
-    $each('SELECT order_id, id, route_id, status, currency, expected_purchase_cost_minor, expected_shipping_cost_minor, actual_purchase_cost_minor, actual_shipping_cost_minor, purchased_at FROM supplier_orders', static function (array &$o, array $r): void {
+    $each('SELECT order_id, id, route_id, status, currency, expected_purchase_cost_minor, expected_shipping_cost_minor, actual_purchase_cost_minor, actual_shipping_cost_minor, actual_tax_duty_minor, purchased_at FROM supplier_orders', static function (array &$o, array $r): void {
         $o['supplier_orders'][] = $r;
     });
     $each('SELECT order_id, id, status, production_cost_minor, production_started_at, rework_count FROM video_jobs', static function (array &$o, array $r): void {
@@ -265,6 +269,11 @@ function biz_order_costs(array $o): array
                 } else {
                     $missing[] = 'SUPPLIER_SHIPPING';
                 }
+                // Tax or duty where known (never assumed; absence adds nothing and is not recorded as £0).
+                $taxed = array_filter($recorded, static fn (array $s): bool => $s['actual_tax_duty_minor'] !== null && $s['currency'] === $o['currency']);
+                if ($taxed !== []) {
+                    $costs['SUPPLIER_TAX_DUTY'] = array_sum(array_map(static fn (array $s): int => (int) $s['actual_tax_duty_minor'], $taxed));
+                }
             }
         }
         if (biz_order_has_video($o)) {
@@ -285,11 +294,14 @@ function biz_order_costs(array $o): array
                 }
             }
         }
-        $fees = $entries('PAYMENT_PROCESSING_FEE', $basis);
+        // ACTUAL-FIRST: a recorded actual fee is the fee on both bases; an expected
+        // entry is used only before the actual exists; otherwise UNKNOWN, never £0.
+        $fees = $entries('PAYMENT_PROCESSING_FEE', 'ACTUAL');
+        if ($fees === [] && $basis === 'EXPECTED') {
+            $fees = $entries('PAYMENT_PROCESSING_FEE', 'EXPECTED');
+        }
         if ($fees !== []) {
             $costs['PAYMENT_PROCESSING_FEE'] = $sum($fees);
-        } elseif ($basis === 'EXPECTED' && ($model = biz_payment_fee_model()) !== null && $model['currency'] === $o['currency']) {
-            $costs['PAYMENT_PROCESSING_FEE'] = intdiv($o['total_minor'] * $model['percent_basis_points'] + 5000, 10000) + $model['fixed_minor'];
         } else {
             $missing[] = 'PAYMENT_PROCESSING_FEE';
         }
@@ -563,8 +575,9 @@ function biz_video(PDO $pdo, array $orders): array
         'known_contribution_based_on' => count($costed) . ' of ' . count($jobs) . ' videos with a recorded cost (before payment fees and refunds)',
         'pricing_evidence' => [
             'current_price_minor' => (int) catalogue_data()['skus'][$sku]['price_minor'],
-            'price_points_under_review_minor' => biz_data()['video_price_points_under_review_minor'],
-            'note' => 'Evidence for a founder decision only. No price changes automatically; any price test needs explicit founder authorisation.',
+            'launch_price_authoritative' => true,
+            'price_test' => biz_data()['founder_decisions']['video_price_test'],
+            'note' => 'The £49 launch price is authoritative (founder decision). No price test is authorised and no price changes automatically.',
         ],
     ] + biz_sample($purchased);
 }
@@ -793,7 +806,7 @@ function biz_supplier_routes(array $orders): array
 {
     $routes = [];
     foreach (supplier_routes() as $r) {
-        $routes[$r['route_id']] = ['route_id' => $r['route_id'], 'supplier' => $r['supplier'] ?? null, 'verification_status' => $r['verification_status'] ?? null];
+        $routes[$r['route_id']] = ['route_id' => $r['route_id'], 'supplier' => $r['supplier'] ?? null, 'verification_status' => $r['verification_status'] ?? null, 'verification_state' => $r['verification_state'] ?? null];
     }
     $acc = [];
     foreach ($orders as $o) {
@@ -814,6 +827,9 @@ function biz_supplier_routes(array $orders): array
                 $a['purchase_variance_minor'] = ($a['purchase_variance_minor'] ?? 0) + (int) $s['actual_purchase_cost_minor'] - (int) $s['expected_purchase_cost_minor'];
                 $a['purchase_expected_minor'] = ($a['purchase_expected_minor'] ?? 0) + (int) $s['expected_purchase_cost_minor'];
                 $a['purchase_compared'] = ($a['purchase_compared'] ?? 0) + 1;
+            }
+            if ($s['actual_tax_duty_minor'] !== null) {
+                $a['actual_tax_duty_minor'] = ($a['actual_tax_duty_minor'] ?? 0) + (int) $s['actual_tax_duty_minor'];
             }
             if ($s['actual_shipping_cost_minor'] !== null && $s['expected_shipping_cost_minor'] !== null) {
                 $a['shipping_variance_minor'] = ($a['shipping_variance_minor'] ?? 0) + (int) $s['actual_shipping_cost_minor'] - (int) $s['expected_shipping_cost_minor'];
@@ -847,6 +863,7 @@ function biz_supplier_routes(array $orders): array
             'purchase_variance_minor' => $a['purchase_variance_minor'] ?? null,
             'purchase_variance_percent' => isset($a['purchase_expected_minor']) && $a['purchase_expected_minor'] > 0 ? round($a['purchase_variance_minor'] * 100 / $a['purchase_expected_minor'], 1) : null,
             'shipping_variance_minor' => $a['shipping_variance_minor'] ?? null,
+            'actual_tax_duty_minor' => $a['actual_tax_duty_minor'] ?? null,
             'cancellation_rate' => round($a['cancelled'] / max(1, $a['supplier_orders']), 4),
             'damage_rate' => round(($kinds['DAMAGED_OR_FAULTY'] ?? 0) / $n, 4),
             'wrong_item_rate' => round(($kinds['WRONG_ITEM'] ?? 0) / $n, 4),
@@ -867,6 +884,18 @@ function biz_supplier_routes(array $orders): array
     }
     return ['routes' => array_values($out), 'internal' => true,
         'note' => 'Staff only. Evidence for founder decisions; routes are not ranked and no supplier is changed automatically. Production and dispatch times come from supplier order and parcel dates.'];
+}
+
+/** Route readiness for the Business tab: counts from the Suppliers overview (reads only). */
+function biz_routing_summary(PDO $pdo): array
+{
+    $overview = suppliers_overview($pdo);
+    return [
+        'tiles' => array_map(static fn (array $t): array => ['key' => $t['key'], 'label' => $t['label'], 'count' => $t['count']], $overview['tiles']),
+        'catalogue' => $overview['catalogue'],
+        'research_items' => count($overview['research']),
+        'note' => 'No partner is switched and no price is changed automatically. Unknown costs are shown as unknown, never £0.',
+    ];
 }
 
 /* ------------------------------------------------------------------ */
@@ -1129,7 +1158,6 @@ function biz_data_quality(PDO $pdo, array $orders): array
         ['key' => 'missing_actual_supplier_cost', 'label' => 'Physical orders without an actual supplier cost', 'count' => $count($physical, static fn (array $o): bool => $missing($o, 'actual', 'SUPPLIER_PRODUCT_COST')), 'of' => count($physical)],
         ['key' => 'missing_actual_shipping', 'label' => 'Physical orders without actual shipping cost', 'count' => $count($physical, static fn (array $o): bool => $missing($o, 'actual', 'SUPPLIER_SHIPPING')), 'of' => count($physical)],
         ['key' => 'missing_payment_fees', 'label' => 'Paid orders without a recorded payment fee', 'count' => $count($live, static fn (array $o): bool => $missing($o, 'actual', 'PAYMENT_PROCESSING_FEE')), 'of' => count($live)],
-        ['key' => 'payment_fee_model', 'label' => 'Expected payment fee model not configured', 'count' => biz_payment_fee_model() === null ? 1 : 0, 'of' => 1],
         ['key' => 'missing_video_cost', 'label' => 'Video orders without a recorded production cost', 'count' => $count($live, static fn (array $o): bool => biz_order_has_video($o) && $missing($o, 'actual', 'VIDEO_PRODUCTION_COST')), 'of' => $count($live, 'biz_order_has_video')],
         ['key' => 'missing_replacement_cost', 'label' => 'Authorised replacements without an actual cost', 'count' => biz_replacements($orders)['authorised_without_actual_cost'], 'of' => biz_replacements($orders)['authorised_or_later']],
         ['key' => 'missing_supplier_routes', 'label' => 'Orderable physical products without a supplier route', 'count' => count($routeless), 'of' => count($physicalSkus), 'detail' => $routeless],
@@ -1138,7 +1166,6 @@ function biz_data_quality(PDO $pdo, array $orders): array
         ['key' => 'missing_root_cause', 'label' => 'Resolved operational cases without a root cause', 'count' => count(array_filter($allCases, static fn (array $c): bool => in_array($c['status'], ['RESOLVED', 'CLOSED'], true) && !in_array($c['kind'], ['QUESTION', 'OTHER'], true) && $c['root_cause'] === null)), 'of' => count(array_filter($allCases, static fn (array $c): bool => in_array($c['status'], ['RESOLVED', 'CLOSED'], true)))],
         ['key' => 'missing_refund_references', 'label' => 'Recorded refunds without a payment provider reference', 'count' => count(array_filter($refunds, static fn (array $r): bool => !$r['has_reference'])), 'of' => count($refunds)],
         ['key' => 'analytics_coverage', 'label' => 'Funnel stages recorded only in Google Analytics (product views, personalisation starts)', 'count' => 2, 'of' => 7, 'status' => 'ANALYTICS_COVERAGE_INCOMPLETE'],
-        ['key' => 'business_timezone', 'label' => 'Business timezone not configured (reporting in UTC)', 'count' => biz_timezone()['configured'] ? 0 : 1, 'of' => 1],
         ['key' => 'thresholds_not_configured', 'label' => 'Commercial alert thresholds not configured', 'count' => count($thresholds), 'of' => count($thresholds) + count(array_filter(biz_data()['alerts'], static fn (array $a): bool => $a['threshold_key'] !== null && $a['threshold_key'] !== 'VIDEO_POLICY' && biz_threshold($a['threshold_key']) !== null)), 'detail' => $thresholds],
         ['key' => 'foreign_currency_orders', 'label' => 'Live orders in another currency (kept in their own currency, not converted)', 'count' => count(array_filter($orders, static fn (array $o): bool => $o['live'] && $o['currency'] !== 'GBP')), 'of' => count(array_filter($orders, static fn (array $o): bool => $o['live']))],
     ];
@@ -1272,7 +1299,8 @@ function biz_view(PDO $pdo, string $section): array
         'products' => ['products' => biz_products($orders), 'moment' => biz_moment($orders), 'enhancements' => biz_enhancements($orders)],
         'videos' => ['video' => biz_video($pdo, $orders)],
         'customers' => ['customers' => biz_customers($orders), 'occasions' => biz_occasions($orders), 'cruise' => biz_cruise($orders), 'geography' => biz_geography($orders), 'funnel' => biz_funnel($pdo, $orders, $periods['month'])],
-        'suppliers' => ['supplier_routes' => biz_supplier_routes($orders)],
+        'suppliers' => ['supplier_routes' => biz_supplier_routes($orders), 'route_scorecards' => route_scorecards($pdo), 'scorecard_components' => suppliers_data()['scorecard_components'],
+            'routing' => biz_routing_summary($pdo)],
         'support' => ['refunds' => biz_refunds($orders), 'replacements' => biz_replacements($orders), 'support' => biz_support($orders), 'root_causes' => biz_root_causes($orders)],
         'data' => ['data_quality' => biz_data_quality($pdo, $orders)],
         default => throw new OperationsException('invalid_section', 'Unknown business section.', 422),

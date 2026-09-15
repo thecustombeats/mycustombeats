@@ -51,7 +51,7 @@ const Business = ({ section, api, fetchBlob, staff }: { section: BusinessSection
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className={eyebrow}>Management intelligence · {data?.timezone?.timezone ?? "UTC"}{data?.timezone && !data.timezone.configured ? " (business timezone not configured)" : ""}</p>
+          <p className={eyebrow}>Management intelligence · {data?.timezone?.timezone ?? "Europe/London"}</p>
           <h1 className="font-serif text-4xl text-ink">Business</h1>
         </div>
       </div>
@@ -73,7 +73,7 @@ const Business = ({ section, api, fetchBlob, staff }: { section: BusinessSection
           {section === "products" && <Products data={data} />}
           {section === "videos" && <Videos video={data.video} />}
           {section === "customers" && <Customers data={data} />}
-          {section === "suppliers" && <Suppliers routes={data.supplier_routes} />}
+          {section === "suppliers" && <Suppliers routes={data.supplier_routes} routing={data.routing} scorecards={data.route_scorecards} />}
           {section === "support" && <Support data={data} />}
           {section === "data" && <DataQuality quality={data.data_quality} api={api} staff={staff} onDone={(m) => { setMessage(m); load(); }} exportCsv={exportCsv} />}
           {section !== "data" && (
@@ -282,7 +282,7 @@ const Videos = ({ video: v }: { video: Json }) => (
     </Panel>
     <Panel id="video-pricing" title="Pricing evidence">
       <div className={card}>
-        <p>Current price {money(v.pricing_evidence.current_price_minor)}. Price points under review: {v.pricing_evidence.price_points_under_review_minor.map((p: number) => money(p)).join(", ")}.</p>
+        <p>Launch price {money(v.pricing_evidence.current_price_minor)}. Price test: {v.pricing_evidence.price_test === "NOT_AUTHORISED" ? "not authorised" : "founder decision required"}.</p>
         <p className="mt-1 text-sm">{v.pricing_evidence.note}</p>
       </div>
     </Panel>
@@ -348,14 +348,22 @@ const Customers = ({ data }: { data: Json }) => {
   );
 };
 
-const Suppliers = ({ routes }: { routes: Json }) => (
+const Suppliers = ({ routes, routing, scorecards }: { routes: Json; routing: Json; scorecards: Json[] }) => (
+  <>
+  <Panel id="route-readiness" title="Route readiness" aside={<a className={secondary} href="#view=suppliers&section=overview">Open Suppliers</a>}>
+    <ul className="m-0 grid list-none grid-cols-2 gap-3 p-0 md:grid-cols-3">
+      {routing.tiles.map((t: Json) => <li key={t.key}><Tile label={t.label} value={t.count} /></li>)}
+    </ul>
+    <p className="text-sm">{routing.catalogue.mapped_physical_skus} of {routing.catalogue.expected_physical_skus} physical products mapped · pop-up cards {routing.catalogue.cards.mapped} of {routing.catalogue.cards.expected} · {routing.research_items} supplier data item(s) need review. {routing.note}</p>
+  </Panel>
   <Panel id="routes" title="Supplier routes (staff only)">
     <Table label="Supplier route performance" rows={routes.routes} columns={[
-      { key: "route", label: "Route", render: (r) => `${r.route_id}${r.verification_status ? ` · ${humanise(r.verification_status)}` : ""}` },
+      { key: "route", label: "Route", render: (r) => `${r.route_id}${r.verification_state ? ` · ${humanise(r.verification_state)}` : r.verification_status ? ` · ${humanise(r.verification_status)}` : ""}` },
       { key: "orders", label: "Orders", render: (r) => String(r.orders) },
       { key: "cost", label: "Actual purchase cost", render: (r) => known(r.actual_purchase_cost_minor) },
       { key: "var", label: "Purchase variance", render: (r) => (r.purchase_variance_minor === null || r.purchase_variance_minor === undefined ? "— Awaiting data" : `${money(r.purchase_variance_minor)}${r.purchase_variance_percent !== null ? ` (${r.purchase_variance_percent}%)` : ""}`) },
       { key: "ship", label: "Shipping variance", render: (r) => known(r.shipping_variance_minor) },
+      { key: "tax", label: "Tax or duty recorded", render: (r) => known(r.actual_tax_duty_minor) },
       { key: "dispatch", label: "Days to dispatch", render: (r) => r.average_days_to_dispatch ?? "—" },
       { key: "transit", label: "Days in transit", render: (r) => r.average_days_in_transit ?? "—" },
       { key: "damage", label: "Damage", render: (r) => rateText(r.damage_rate) },
@@ -369,6 +377,20 @@ const Suppliers = ({ routes }: { routes: Json }) => (
     ]} />
     <p className="text-sm text-ink/80">{routes.note}</p>
   </Panel>
+  <Panel id="route-components" title="Route evidence by component">
+    <Table label="Route evidence by component" rows={scorecards} columns={[
+      { key: "route", label: "Route", render: (s) => s.route_id },
+      { key: "verification", label: "Verification quality", render: (s) => humanise(s.components.VERIFICATION_QUALITY.state) },
+      { key: "cost", label: "Cost completeness", render: (s) => `${s.components.COST_COMPLETENESS.orders_with_actual_product_cost} of ${s.components.COST_COMPLETENESS.of}` },
+      { key: "total", label: "Expected / actual total", render: (s) => `${known(s.components.COST_COMPLETENESS.expected_total_minor)} / ${known(s.components.COST_COMPLETENESS.actual_total_minor)}` },
+      { key: "dest", label: "Destinations supported", render: (s) => s.components.DESTINATION_CERTAINTY.supported.join(", ") || "—" },
+      { key: "tracking", label: "Tracking evidence", render: (s) => humanise(s.components.TRACKING_EVIDENCE.capability) },
+      { key: "problems", label: "Customer problems", render: (s) => String(s.components.CUSTOMER_PROBLEM_RATE.problems ?? 0) },
+      { key: "sample", label: "Sample", render: (s) => (s.components.SAMPLE_SIZE.label === "INSUFFICIENT DATA" ? "Insufficient data" : s.components.SAMPLE_SIZE.label === "EARLY DATA" ? `Early data · ${s.components.SAMPLE_SIZE.sample_size}` : `Sample ${s.components.SAMPLE_SIZE.sample_size}`) },
+    ]} />
+    <p className="text-sm text-ink/80">No combined score. Evidence for founder decisions only.</p>
+  </Panel>
+  </>
 );
 
 const Support = ({ data }: { data: Json }) => {

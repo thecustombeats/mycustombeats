@@ -71,7 +71,9 @@ test("supplier routes are server-only, never committed and never invented; missi
   assert.match(economics, /'total_cost_minor' => null, 'contribution_minor' => null/, "nothing estimated when data is missing");
   assert.doesNotMatch(economics, /\b(800|1000|2000)\b/, "no £8/£10/£20 allowance is hard-coded");
   // A route is VERIFIED only with a source and date.
-  assert.match(phpFunction(controller, "supplier_routes"), /'VERIFIED' && \$str\(\$r\['source'\] \?\? null\) !== null && \$str\(\$r\['last_verified_date'\] \?\? null, 10\) !== null/);
+  // VERIFIED needs a source and a (past) verification date; the state is calculated in lib/routing.php.
+  assert.match(phpFunction(controller, "supplier_routes"), /route_with_verification\(/);
+  assert.match(phpFunction(read("public/api/lib/routing.php"), "route_verification"), /if \(\$source === null \|\| \(\$claimed === 'VERIFIED' && \$date === null\)\) \{\s*\$state = 'VERIFICATION_REQUIRED';/);
   // Allowances never feed the customer quote.
   assert.doesNotMatch(read("public/api/lib/delivery.php"), /supplier_route|internal_allowance|fulfilment-controller/);
 });

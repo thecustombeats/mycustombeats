@@ -316,6 +316,8 @@ export const AUTOMATION_EVENTS: readonly string[] = [
   "SUPPORT.RESPONSE_SENT",
   "SUPPORT.CASE_RESOLVED",
   "SUPPORT.PRIVACY_REVIEW_REQUIRED",
+  // Supplier Intelligence & Commercial Routing (a person's route choice; never an authorisation)
+  "ROUTING.DECISION_RECORDED",
 ];
 
 /**

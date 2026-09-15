@@ -36,9 +36,10 @@ export const FORBIDDEN_PROFIT_TERMS = ["net profit", "profit after tax", "ebitda
 export const COST_CATEGORIES = [
   { category: "SUPPLIER_PRODUCT_COST", expected: "ORDER_ECONOMICS_EXPECTED", actual: "SUPPLIER_ORDER", entry: [], recordAt: "Record the supplier order (actual purchase cost) in the staff console." },
   { category: "SUPPLIER_SHIPPING", expected: "ORDER_ECONOMICS_EXPECTED", actual: "SUPPLIER_ORDER", entry: [], recordAt: "Record the supplier order (actual shipping cost) in the staff console." },
+  { category: "SUPPLIER_TAX_DUTY", expected: null, actual: "SUPPLIER_ORDER", entry: [], recordAt: "Record tax or duty actually paid, where known, on the supplier order. It is never assumed." },
   { category: "SHIPPING_CONTINGENCY", expected: "ORDER_ECONOMICS_EXPECTED", actual: null, entry: [], recordAt: "An internal allowance on the supplier route; it is never an actual cost." },
   { category: "MCB_FULFILMENT_HANDLING_ALLOWANCE", expected: "ORDER_ECONOMICS_EXPECTED", actual: null, entry: [], recordAt: "An internal allowance on the supplier route; it is never an actual cost." },
-  { category: "PAYMENT_PROCESSING_FEE", expected: "PAYMENT_FEE_MODEL_OR_ENTRY", actual: "ENTRY", entry: ["EXPECTED", "ACTUAL"], recordAt: "Record the payment provider's fee for the order." },
+  { category: "PAYMENT_PROCESSING_FEE", expected: "ACTUAL_FIRST_OR_ENTRY", actual: "ENTRY", entry: ["EXPECTED", "ACTUAL"], recordAt: "Record the payment provider's actual fee for the order. Until it is recorded the fee is UNKNOWN." },
   { category: "VIDEO_PRODUCTION_COST", expected: "ENTRY", actual: "VIDEO_JOB", entry: ["EXPECTED"], recordAt: "Record the actual cost on the video job (Memory Music Video panel)." },
   { category: "REPLACEMENT_COST", expected: "ENTRY", actual: "ENTRY", entry: ["EXPECTED", "ACTUAL"], recordAt: "Record against the authorised replacement or reproduction remedy." },
   { category: "REFUND_VALUE", expected: "REFUND_REVIEW", actual: "REFUND_REVIEW", entry: [], recordAt: "Refunds are recorded in Customer Care (refund review)." },
@@ -78,8 +79,23 @@ export const EARLY_DATA_BELOW_ORDERS = 30;
 export const RECOMMENDATION_KINDS = ["INSIGHT", "COMPLETE_DATA", "REVIEW_PRICING", "REVIEW_PRODUCT_ECONOMICS", "REVIEW_SUPPLIER_ROUTE"] as const;
 export const FORBIDDEN_RECOMMENDATION_WORDS = ["raise price", "lower price", "drop supplier", "switch supplier", "stop product", "best product", "best supplier", "winner"] as const;
 
-/** Future Memory Music Video test prices. Evidence only; any test needs explicit founder authorisation. */
-export const VIDEO_PRICE_POINTS_UNDER_REVIEW_MINOR = [4900, 5900, 6900] as const;
+/**
+ * Founder decisions (16 September 2026).
+ *   Business timezone: Europe/London, the business reporting timezone. It is
+ *   not derived from where Bella or Lewis happen to be.
+ *   Payment fees: ACTUAL_FIRST. A recorded actual fee is used; until one exists
+ *   the fee is UNKNOWN / AWAITING DATA, never £0. There is no fee model.
+ *   Memory Music Video: the £49 launch price is authoritative; no price test is
+ *   authorised. Production cost stays UNKNOWN until the platform economics are
+ *   verified.
+ *   Commercial alert thresholds: deliberately NOT CONFIGURED.
+ */
+export const BUSINESS_TIMEZONE = "Europe/London";
+export const PAYMENT_FEE_POLICY = "ACTUAL_FIRST" as const;
+export const VIDEO_LAUNCH_PRICE_MINOR = 4900;
+export const VIDEO_PRICE_TEST = "NOT_AUTHORISED" as const;
+export const VIDEO_PRODUCTION_COST_POLICY = "UNKNOWN_UNTIL_PLATFORM_ECONOMICS_VERIFIED" as const;
+export const COMMERCIAL_THRESHOLDS_POLICY = "NOT_CONFIGURED_BY_FOUNDER_DECISION" as const;
 
 /**
  * Funnel stages. Only stages MCB's own database records are counted; the rest

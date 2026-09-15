@@ -39,6 +39,7 @@ const TARGETS = {
   video: join(root, "public/api/data/video.json"),
   customerCare: join(root, "public/api/data/customer-care.json"),
   business: join(root, "public/api/data/business.json"),
+  suppliers: join(root, "public/api/data/suppliers.json"),
 };
 
 const fail = (message) => {
@@ -72,6 +73,7 @@ try {
       join(root, "src/data/production/video.ts"),
       join(root, "src/data/production/customer-care.ts"),
       join(root, "src/data/production/business.ts"),
+      join(root, "src/data/production/suppliers.ts"),
       "--outDir", tmp,
       "--rootDir", join(root, "src/data"),
       "--module", "esnext",
@@ -118,6 +120,7 @@ const fulfilment = await import(pathToFileURL(join(tmp, "production/fulfilment.j
 const video = await import(pathToFileURL(join(tmp, "production/video.js")).href);
 const care = await import(pathToFileURL(join(tmp, "production/customer-care.js")).href);
 const business = await import(pathToFileURL(join(tmp, "production/business.js")).href);
+const suppliers = await import(pathToFileURL(join(tmp, "production/suppliers.js")).href);
 rmSync(tmp, { recursive: true, force: true });
 
 const { PRODUCTS, ORDER_LIMITS, PRIORITY_REPLACEMENT_SKU, validateCatalogue } = catalogue;
@@ -641,20 +644,23 @@ const customerCareOut = {
 
 // ---- Business & Profit Intelligence ------------------------------------------
 const costNames = business.COST_CATEGORIES.map((c) => c.category);
-const requiredCosts = ["SUPPLIER_PRODUCT_COST", "SUPPLIER_SHIPPING", "SHIPPING_CONTINGENCY", "MCB_FULFILMENT_HANDLING_ALLOWANCE", "PAYMENT_PROCESSING_FEE", "VIDEO_PRODUCTION_COST", "REPLACEMENT_COST", "REFUND_VALUE", "OTHER_DIRECT_COST"];
+const requiredCosts = ["SUPPLIER_PRODUCT_COST", "SUPPLIER_SHIPPING", "SUPPLIER_TAX_DUTY", "SHIPPING_CONTINGENCY", "MCB_FULFILMENT_HANDLING_ALLOWANCE", "PAYMENT_PROCESSING_FEE", "VIDEO_PRODUCTION_COST", "REPLACEMENT_COST", "REFUND_VALUE", "OTHER_DIRECT_COST"];
 if (JSON.stringify(costNames) !== JSON.stringify(requiredCosts)) fail("business: the canonical cost categories changed");
 for (const c of business.COST_CATEGORIES) {
   // A category recorded elsewhere can never also be entered by hand (no double counting).
-  const owned = [c.expected, c.actual].filter((s) => s !== null && s !== "ENTRY" && s !== "PAYMENT_FEE_MODEL_OR_ENTRY");
+  const owned = [c.expected, c.actual].filter((s) => s !== null && s !== "ENTRY" && s !== "ACTUAL_FIRST_OR_ENTRY");
   for (const basis of c.entry) {
-    if ((basis === "ACTUAL" ? c.actual : c.expected) !== "ENTRY" && !(basis === "EXPECTED" && c.expected === "PAYMENT_FEE_MODEL_OR_ENTRY")) fail(`business: ${c.category} ${basis} is recorded elsewhere and cannot be entered`);
+    if ((basis === "ACTUAL" ? c.actual : c.expected) !== "ENTRY" && !(basis === "EXPECTED" && c.expected === "ACTUAL_FIRST_OR_ENTRY")) fail(`business: ${c.category} ${basis} is recorded elsewhere and cannot be entered`);
   }
   if (owned.length === 0 && c.entry.length === 0) fail(`business: ${c.category} has no home`);
 }
 for (const d of business.FINANCIAL_DEFINITIONS) {
   if (d.term !== "Gross contribution" && business.FORBIDDEN_PROFIT_TERMS.some((w) => d.meaning.toLowerCase().includes(w))) fail(`business: ${d.term} uses a profit term`);
 }
-if (business.VIDEO_PRICE_POINTS_UNDER_REVIEW_MINOR[0] !== skus["memory-music-video"].price_minor) fail("business: the current video price must be the catalogue price");
+if (business.VIDEO_LAUNCH_PRICE_MINOR !== skus["memory-music-video"].price_minor || business.VIDEO_LAUNCH_PRICE_MINOR !== 4900) fail("business: the £49 video launch price is authoritative");
+if (business.VIDEO_PRICE_TEST !== "NOT_AUTHORISED") fail("business: no video price test is authorised");
+if (business.PAYMENT_FEE_POLICY !== "ACTUAL_FIRST") fail("business: payment fees are actual-first");
+if (business.BUSINESS_TIMEZONE !== "Europe/London") fail("business: the business timezone is Europe/London");
 if (skus.moment.price_minor !== 1500) fail("business: Moment is £15");
 const businessOut = {
   _generated: "Do not edit. INTERNAL. Generated from src/data/production/business.ts by scripts/generate-catalogue-json.mjs",
@@ -666,11 +672,85 @@ const businessOut = {
   early_data_below_orders: business.EARLY_DATA_BELOW_ORDERS,
   recommendation_kinds: [...business.RECOMMENDATION_KINDS],
   forbidden_recommendation_words: [...business.FORBIDDEN_RECOMMENDATION_WORDS],
-  video_price_points_under_review_minor: [...business.VIDEO_PRICE_POINTS_UNDER_REVIEW_MINOR],
+  founder_decisions: {
+    business_timezone: business.BUSINESS_TIMEZONE,
+    payment_fee_policy: business.PAYMENT_FEE_POLICY,
+    video_launch_price_minor: business.VIDEO_LAUNCH_PRICE_MINOR,
+    video_price_test: business.VIDEO_PRICE_TEST,
+    video_production_cost_policy: business.VIDEO_PRODUCTION_COST_POLICY,
+    commercial_thresholds_policy: business.COMMERCIAL_THRESHOLDS_POLICY,
+  },
   funnel_stages: business.FUNNEL_STAGES.map((f) => ({ stage: f.stage, source: f.source })),
   export_datasets: [...business.EXPORT_DATASETS],
   occasions: Object.fromEntries(Object.values(occasions.OCCASIONS).map((o) => [o.id, o.label])),
   catalogue_hash: catalogueOut.catalogue_hash,
+};
+
+// ---- Supplier Intelligence & Commercial Routing (server-only) ---------------------
+// Routing groups and route delivery states stay out of browser-loaded source.
+const ROUTE_GROUPS = ["SUPPORTED", "UNVERIFIED", "UNSUPPORTED", "MANUAL_REVIEW"];
+const REJECTED_PARTNERS = /prodigi|kunaki/i;
+const registrySkus = suppliers.PHYSICAL_REGISTRY.map((e) => e.sku);
+if (new Set(registrySkus).size !== registrySkus.length) fail("suppliers: a SKU appears twice in the physical registry");
+const catalogueFamily = { VINYL: "VINYL", FRAME: "FRAME", PLAYER: "GRAMOPHONE", PLAQUE: "PLAQUE", CARD: "CARD" };
+for (const [id, s] of Object.entries(skus)) {
+  if (s.fulfilment === "PHYSICAL" && !registrySkus.includes(id)) fail(`suppliers: physical SKU ${id} is not in the registry`);
+}
+for (const e of suppliers.PHYSICAL_REGISTRY) {
+  const s = skus[e.sku];
+  if (!s || s.fulfilment !== "PHYSICAL") fail(`suppliers: registry SKU ${e.sku} is not a physical catalogue SKU`);
+  if (catalogueFamily[s.delivery_class] !== e.family) fail(`suppliers: ${e.sku} family ${e.family} does not match the catalogue`);
+  if (s.price_minor !== e.priceMinor) fail(`suppliers: ${e.sku} price ${e.priceMinor} does not match the catalogue ${s.price_minor}`);
+  if (e.family === "VINYL" && s.song_count !== e.songs) fail(`suppliers: ${e.sku} songs ${e.songs} do not match the catalogue ${s.song_count}`);
+  for (const t of e.manufacturing.artwork) if (!artwork.ARTWORK_TEMPLATES.some((a) => a.id === t)) fail(`suppliers: ${e.sku} artwork template ${t} is unknown`);
+  if (e.manufacturing.capacity && !creative.PHYSICAL_MEDIA_CAPACITY_POLICY.some((p) => p.sku === e.sku)) fail(`suppliers: ${e.sku} has no capacity profile`);
+  if (REJECTED_PARTNERS.test(JSON.stringify(e))) fail("suppliers: rejected partners are never routes");
+}
+const vinylTruth = { "journey-12": [12, 34900], "journey-6": [6, 19900], "keepsake-12-picture-disc": [4, 14999], "keepsake-10-picture-disc": [3, 13999], "keepsake-10-heart-picture-disc": [1, 12999], "keepsake-7-picture-disc": [1, 9900] };
+for (const [sku, [songs, price]] of Object.entries(vinylTruth)) {
+  const e = suppliers.PHYSICAL_REGISTRY.find((r) => r.sku === sku);
+  if (!e || e.songs !== songs || e.priceMinor !== price) fail(`suppliers: ${sku} must be ${songs} songs at ${price}`);
+}
+const cardPrices = suppliers.CARD_PRICE_POINTS.map((c) => c.priceMinor).join(",");
+if (cardPrices !== "4999,6999,1999,7999,12999") fail("suppliers: the pop-up card price points changed");
+for (const c of suppliers.CARD_LISTINGS) {
+  if (!suppliers.CARD_PRICE_POINTS.some((t) => t.tier === c.tier)) fail(`suppliers: card ${c.sku} has no authoritative price point`);
+}
+const familyCounts = Object.fromEntries(suppliers.PHYSICAL_FAMILIES.map((f) => [f.family, f.family === "CARD" ? suppliers.CARD_LISTINGS.length : suppliers.PHYSICAL_REGISTRY.filter((e) => e.family === f.family).length]));
+for (const f of suppliers.PHYSICAL_FAMILIES) {
+  if (f.family !== "CARD" && familyCounts[f.family] !== f.expected) fail(`suppliers: ${f.family} has ${familyCounts[f.family]} SKUs, expected ${f.expected}`);
+  if (f.family === "CARD" && familyCounts.CARD > f.expected) fail("suppliers: more card listings than the Founders' 18");
+}
+if (suppliers.PHYSICAL_FAMILIES.reduce((n, f) => n + f.expected, 0) !== suppliers.EXPECTED_PHYSICAL_SKUS) fail("suppliers: the families do not add up to 33");
+if (suppliers.PHYSICAL_REGISTRY.filter((e) => e.deliveredCostConfirmationRequired).map((e) => e.sku).join() !== "antique-brass-gramophone") fail("suppliers: the £1,000 gramophone needs its delivered cost confirmed");
+if (suppliers.FORBIDDEN_RECOMMENDATION_PHRASES.some((w) => (suppliers.RECOMMENDATION_LABEL + " " + suppliers.RECOMMENDATION_NOTE).toLowerCase().includes(w))) fail("suppliers: a recommendation is never automatic");
+const snakeKeys = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k.replace(/[A-Z]/g, (c) => "_" + c.toLowerCase()), v]));
+const suppliersOut = {
+  _generated: "Do not edit. INTERNAL. Generated from src/data/production/suppliers.ts by scripts/generate-catalogue-json.mjs",
+  families: suppliers.PHYSICAL_FAMILIES.map((f) => ({ ...f, mapped: familyCounts[f.family] })),
+  expected_physical_skus: suppliers.EXPECTED_PHYSICAL_SKUS,
+  registry: suppliers.PHYSICAL_REGISTRY.map((e) => ({ ...snakeKeys(e), manufacturing: { ...e.manufacturing } })),
+  card_price_points: suppliers.CARD_PRICE_POINTS.map(snakeKeys),
+  card_listings: suppliers.CARD_LISTINGS.map(snakeKeys),
+  card_alternative_record: [...suppliers.CARD_ALTERNATIVE_RECORD],
+  card_alternative_impacts: [...suppliers.CARD_ALTERNATIVE_IMPACTS],
+  routing_modes: [...suppliers.ROUTING_MODES],
+  route_groups: ROUTE_GROUPS,
+  verification_states: [...suppliers.VERIFICATION_STATES],
+  route_types: [...suppliers.ROUTE_TYPES],
+  availability_states: [...suppliers.AVAILABILITY_STATES],
+  route_issues: suppliers.ROUTE_ISSUES.map(snakeKeys),
+  research_item_kinds: suppliers.RESEARCH_ITEM_KINDS.map(snakeKeys),
+  manufacturing_item_kinds: suppliers.MANUFACTURING_ITEM_KINDS.map(snakeKeys),
+  scorecard_components: suppliers.SCORECARD_COMPONENTS.map(snakeKeys),
+  route_insufficient_data_below: suppliers.ROUTE_INSUFFICIENT_DATA_BELOW,
+  recommendation_label: suppliers.RECOMMENDATION_LABEL,
+  recommendation_note: suppliers.RECOMMENDATION_NOTE,
+  forbidden_recommendation_phrases: [...suppliers.FORBIDDEN_RECOMMENDATION_PHRASES],
+  forbidden_delivery_promises: [...suppliers.FORBIDDEN_DELIVERY_PROMISES],
+  customer_promise: suppliers.CUSTOMER_PROMISE,
+  overview_tiles: suppliers.SUPPLIER_OVERVIEW_TILES.map(snakeKeys),
+  route_deviation_reasons: [...suppliers.ROUTE_DEVIATION_REASONS],
 };
 
 const outputs = [
@@ -685,6 +765,7 @@ const outputs = [
   [TARGETS.video, JSON.stringify(videoOut, null, 2) + "\n"],
   [TARGETS.customerCare, JSON.stringify(customerCareOut, null, 2) + "\n"],
   [TARGETS.business, JSON.stringify(businessOut, null, 2) + "\n"],
+  [TARGETS.suppliers, JSON.stringify(suppliersOut, null, 2) + "\n"],
 ];
 
 if (checkOnly) {

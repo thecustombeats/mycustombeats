@@ -897,12 +897,22 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 // Destination and commercial checks. The founder sees both on the decision card;
                 // anything not verified needs their explicit acknowledgement (ADVISORY) or blocks (REQUIRED).
                 $requiredMode = creative_enforcement() === 'REQUIRED';
+                // Route review. A product that needs its delivered cost confirmed cannot be authorised
+                // without it, in any mode; an unreviewed route blocks only under REQUIRED.
+                $routeRequirements = route_authorisation_requirements($pdo, $orderId);
+                if ($routeRequirements['unmet'] !== []) {
+                    throw new OperationsException('delivered_cost_confirmation_required', 'Confirm the actual delivered cost to the customer\'s destination with the partner, and record it on the route review, for: '
+                        . implode(', ', array_column($routeRequirements['unmet'], 'product')) . '. Nothing can be authorised before that.', 409);
+                }
                 $destination = order_destination_check($pdo, $orderId);
                 if ($destination['status'] === 'DESTINATION_UNSUPPORTED') {
                     throw new OperationsException('destination_unsupported', 'The supplier route does not deliver to this destination. Nothing can be authorised: raise a DESTINATION_PROBLEM exception for a founder decision (the paid order is not cancelled).');
                 }
                 if ($destination['status'] === 'DESTINATION_UNKNOWN' && $requiredMode) {
                     throw new OperationsException('destination_unknown', 'Whether the supplier route delivers to this destination is not known. Record the route\'s destinations first.');
+                }
+                if ($routeRequirements['routes_not_reviewed'] !== [] && $requiredMode) {
+                    throw new OperationsException('route_review_required', 'Review and record the route for: ' . implode(', ', array_column($routeRequirements['routes_not_reviewed'], 'product')) . '.', 409);
                 }
                 if ($destination['status'] !== 'DESTINATION_SUPPORTED' && ($in['destination_acknowledged'] ?? null) !== true) {
                     throw new OperationsException('destination_acknowledgement_required', 'The destination is ' . strtolower(str_replace(['DESTINATION_', '_'], ['', ' '], $destination['status'])) . ': tick to confirm it will be verified at the supplier checkout before the order is placed.', 422);
@@ -923,6 +933,7 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                     'founder' => $founder, 'by' => $staff, 'method' => 'FOUNDER_CODE', 'ip_hash' => hash_ip(client_ip()),
                     'destination' => $destination['status'], 'economics' => $economics['status'], 'economics_snapshot' => $economics['snapshot_id'],
                     'destination_acknowledged' => ($in['destination_acknowledged'] ?? null) === true, 'commercial_acknowledged' => ($in['commercial_acknowledged'] ?? null) === true,
+                    'routes_reviewed' => $routeRequirements['routes_not_reviewed'] === [],
                 ], "fulfilment-authorised:{$reopen}");
                 break;
 

@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/operations.php';
 require_once __DIR__ . '/production-files.php';
+require_once __DIR__ . '/routing.php';
 
 function fulfilment_data(): array
 {
@@ -46,7 +47,10 @@ function fulfilment_data(): array
 /**
  * Supplier routes from api/data/supplier-routes.json (or the older
  * supplier-orders.json, read as routes with everything else unknown).
- * Values are taken as given; nothing missing is filled in.
+ * Values are taken as given; nothing missing is filled in. A SKU may have
+ * several routes; lib/routing.php groups and recommends them for review.
+ * The verification state is calculated (route_verification): VERIFIED needs a
+ * source and a date, and a verified route past its freshness period is STALE.
  */
 function supplier_routes(): array
 {
@@ -95,10 +99,11 @@ function supplier_routes(): array
             'replacement_route' => $str($r['replacement_route'] ?? null),
             'fallback_route_id' => ($r['fallback_authorised'] ?? false) === true ? $str($r['fallback_route_id'] ?? null, 60) : null,
             'limitations' => array_values(array_filter($r['limitations'] ?? [], 'is_string')),
-            'verification_status' => ($r['verification_status'] ?? null) === 'VERIFIED' && $str($r['source'] ?? null) !== null && $str($r['last_verified_date'] ?? null, 10) !== null ? 'VERIFIED' : 'UNVERIFIED',
+            'verification_status' => 'UNVERIFIED',
             'source' => $str($r['source'] ?? null),
             'last_verified_date' => $str($r['last_verified_date'] ?? null, 10),
-        ];
+        ] + route_record_fields($r);
+        $routes[count($routes) - 1] = route_with_verification($routes[count($routes) - 1]);
     }
     // Older supplier order data: supplier, link and costs only; everything else unknown.
     foreach (['skus' => supplier_order_data_all()] as $legacy) {
@@ -115,7 +120,8 @@ function supplier_routes(): array
                 'customs_position' => null, 'order_instructions' => $entry['order_notes'], 'cancellation_cutoff' => null, 'damage_reporting' => null,
                 'replacement_route' => null, 'fallback_route_id' => null, 'limitations' => $entry['destination_limitations'],
                 'verification_status' => 'UNVERIFIED', 'source' => null, 'last_verified_date' => null,
-            ];
+            ] + route_record_fields([]);
+            $routes[count($routes) - 1] = route_with_verification($routes[count($routes) - 1]);
         }
     }
     return $routes;
@@ -213,7 +219,7 @@ function order_destination_check(PDO $pdo, int $orderId): array
     $worst = 'DESTINATION_SUPPORTED';
     $lines = [];
     foreach (fulfilment_lines($pdo, $orderId) as $line) {
-        $check = destination_check(supplier_route_for_sku($line['sku']), $destination['country_code'] ?? null);
+        $check = destination_check(order_route_for_sku($pdo, $orderId, $line['sku']), $destination['country_code'] ?? null);
         $lines[] = ['sku' => $line['sku']] + $check;
         if ($rank[$check['status']] > $rank[$worst]) {
             $worst = $check['status'];
@@ -246,7 +252,7 @@ function fulfilment_expected_economics(PDO $pdo, int $orderId): array
     $handling = 0;
     $routesUsed = [];
     foreach (fulfilment_lines($pdo, $orderId) as $line) {
-        $route = supplier_route_for_sku($line['sku']);
+        $route = order_route_for_sku($pdo, $orderId, $line['sku']);
         if ($route === null) {
             $missing[] = "SUPPLIER_ROUTE:{$line['sku']}";
             continue;
@@ -470,15 +476,30 @@ function record_supplier_order(PDO $pdo, array $row, array $in, string $staff): 
             if ($note === null) {
                 throw new OperationsException('alternative_note_required', 'Record why the alternative card was needed and that it matches the occasion and style (never materially different).', 422);
             }
-            raise_fulfilment_exception($pdo, $orderId, 'AUTHORISED_CARD_ALTERNATIVE', ['blocking' => false, 'detail' => "{$original} -> {$substitute}: {$note}"], $staff, "card-alternative:{$reference}", false);
+            // The full record: original, alternative, reason, authority and the customer-impact assessment.
+            $impact = $in['customer_impact'] ?? null;
+            if (!in_array($impact, suppliers_data()['card_alternative_impacts'], true)) {
+                throw new OperationsException('customer_impact_required', 'Assess the customer impact of the alternative card: no material difference, customer told, or customer agreed.', 422);
+            }
+            $authority = ($in['authority'] ?? 'STAFF') === 'FOUNDER' ? 'FOUNDER' : 'STAFF';
+            if ($authority === 'FOUNDER' && !in_array($in['authorised_by'] ?? null, MCB_FOUNDERS, true)) {
+                throw new OperationsException('founder_required', 'A founder authority names BELLA or LEWIS.', 422);
+            }
+            $pdo->prepare('INSERT IGNORE INTO card_alternatives (order_id, supplier_order_reference, original_sku, alternative, reason, authority, authorised_by, customer_impact, customer_impact_note, created_at)
+                           VALUES (:o, :ref, :orig, :alt, :reason, :auth, :by, :impact, :inote, UTC_TIMESTAMP())')
+                ->execute([':o' => $orderId, ':ref' => $reference, ':orig' => $original, ':alt' => mb_substr($substitute, 0, 160), ':reason' => $note, ':auth' => $authority,
+                    ':by' => $authority === 'FOUNDER' ? $in['authorised_by'] : $staff, ':impact' => $impact, ':inote' => operations_text($in['customer_impact_note'] ?? null, 500)]);
+            raise_fulfilment_exception($pdo, $orderId, 'AUTHORISED_CARD_ALTERNATIVE', ['blocking' => false, 'detail' => "{$original} -> {$substitute}: {$note} (customer impact: {$impact})"], $staff, "card-alternative:{$reference}", false);
         } elseif (!substitution_approved($pdo, $orderId)) {
             throw new OperationsException('substitution_approval_required', 'A different product cannot be ordered without a founder\'s decision.', 409);
         }
     }
-    $route = isset($in['route_id']) && is_string($in['route_id']) ? (array_values(array_filter(supplier_routes(), static fn (array $r): bool => $r['route_id'] === $in['route_id']))[0] ?? null) : supplier_route_for_sku($skus[0] ?? '');
+    $route = isset($in['route_id']) && is_string($in['route_id']) ? route_by_id($in['route_id']) : order_route_for_sku($pdo, $orderId, $skus[0] ?? '');
     $int = static fn ($v): ?int => is_int($v) && $v >= 0 ? $v : null;
     $actualPurchase = $int($in['actual_purchase_cost_minor'] ?? null);
     $actualShipping = $int($in['actual_shipping_cost_minor'] ?? null);
+    // Tax or duty actually paid, where known; kept apart from product and shipping (absence is UNKNOWN).
+    $actualTaxDuty = $int($in['actual_tax_duty_minor'] ?? null);
     $currency = is_string($in['currency'] ?? null) && preg_match('/^[A-Z]{3}$/', $in['currency']) === 1 ? $in['currency'] : 'GBP';
     $expectedPurchase = null;
     $expectedShipping = null;
@@ -502,12 +523,12 @@ function record_supplier_order(PDO $pdo, array $row, array $in, string $staff): 
     try {
         $pdo->prepare(
             'INSERT INTO supplier_orders (order_id, route_id, supplier_order_reference, skus, purchased_at, operator, financial_authoriser, currency,
-                 expected_purchase_cost_minor, expected_shipping_cost_minor, expected_total_cost_minor, actual_purchase_cost_minor, actual_shipping_cost_minor,
+                 expected_purchase_cost_minor, expected_shipping_cost_minor, expected_total_cost_minor, actual_purchase_cost_minor, actual_shipping_cost_minor, actual_tax_duty_minor,
                  actual_total_cost_minor, variance_minor, variance_reason, expected_dispatch_date, expected_delivery_date, tracking_pending, confirmation_reference, notes, created_at)
-             VALUES (:o, :r, :ref, :skus, UTC_TIMESTAMP(), :op, :auth, :cur, :ep, :es, :et, :ap, :as, :at, :v, :vr, :ed, :edd, :tp, :cr, :n, UTC_TIMESTAMP())'
+             VALUES (:o, :r, :ref, :skus, UTC_TIMESTAMP(), :op, :auth, :cur, :ep, :es, :et, :ap, :as, :td, :at, :v, :vr, :ed, :edd, :tp, :cr, :n, UTC_TIMESTAMP())'
         )->execute([':o' => $orderId, ':r' => $route['route_id'] ?? null, ':ref' => $reference, ':skus' => implode(',', $skus), ':op' => $staff,
             ':auth' => $row['supplier_purchase_authorised_by'], ':cur' => $currency, ':ep' => $expectedPurchase, ':es' => $expectedShipping, ':et' => $expectedTotal,
-            ':ap' => $actualPurchase, ':as' => $actualShipping, ':at' => $actualTotal, ':v' => $variance, ':vr' => $variance === null || $variance === 0 ? null : $reason,
+            ':ap' => $actualPurchase, ':as' => $actualShipping, ':td' => $actualTaxDuty, ':at' => $actualTotal, ':v' => $variance, ':vr' => $variance === null || $variance === 0 ? null : $reason,
             ':ed' => $date($in['expected_dispatch_date'] ?? null), ':edd' => $date($in['expected_delivery_date'] ?? null),
             ':tp' => ($in['tracking_pending'] ?? true) === false ? 0 : 1, ':cr' => $confirmation, ':n' => $notes]);
     } catch (PDOException $e) {
@@ -561,7 +582,7 @@ function fulfilment_actual_economics(PDO $pdo, int $orderId): ?array
     $o = $pdo->prepare('SELECT total_minor, currency FROM orders WHERE id = :o');
     $o->execute([':o' => $orderId]);
     $order = $o->fetch();
-    $s = $pdo->prepare("SELECT actual_purchase_cost_minor, actual_shipping_cost_minor, actual_total_cost_minor, currency FROM supplier_orders WHERE order_id = :o AND status = 'RECORDED'");
+    $s = $pdo->prepare("SELECT actual_purchase_cost_minor, actual_shipping_cost_minor, actual_tax_duty_minor, actual_total_cost_minor, currency FROM supplier_orders WHERE order_id = :o AND status = 'RECORDED'");
     $s->execute([':o' => $orderId]);
     $rows = $s->fetchAll();
     if ($rows === []) {
@@ -572,12 +593,15 @@ function fulfilment_actual_economics(PDO $pdo, int $orderId): ?array
     $expected->execute([':o' => $orderId]);
     $exp = $expected->fetch() ?: ['total_cost_minor' => null, 'contribution_minor' => null];
     $revenue = (int) $order['total_minor'];
-    $total = $missing === [] ? array_sum(array_map(static fn (array $r): int => (int) $r['actual_total_cost_minor'], $rows)) : null;
+    // Known tax or duty is a direct cost too; where none is recorded nothing is added (and nothing is assumed).
+    $taxRows = array_filter($rows, static fn (array $r): bool => $r['actual_tax_duty_minor'] !== null);
+    $taxDuty = $taxRows === [] ? null : array_sum(array_map(static fn (array $r): int => (int) $r['actual_tax_duty_minor'], $taxRows));
+    $total = $missing === [] ? array_sum(array_map(static fn (array $r): int => (int) $r['actual_total_cost_minor'], $rows)) + ($taxDuty ?? 0) : null;
     $e = [
         'currency' => (string) $order['currency'], 'revenue_minor' => $revenue,
         'purchase_cost_minor' => $missing === [] ? array_sum(array_map(static fn (array $r): int => (int) $r['actual_purchase_cost_minor'], $rows)) : null,
         'shipping_cost_minor' => $missing === [] ? array_sum(array_map(static fn (array $r): int => (int) $r['actual_shipping_cost_minor'], $rows)) : null,
-        'contingency_minor' => null, 'handling_minor' => null, 'total_cost_minor' => $total,
+        'tax_duty_minor' => $taxDuty, 'contingency_minor' => null, 'handling_minor' => null, 'total_cost_minor' => $total,
         'contribution_minor' => $total === null ? null : $revenue - $total,
         'margin_basis_points' => $total === null || $revenue <= 0 ? null : intdiv(($revenue - $total) * 10000, $revenue),
         'supplier_orders' => count($rows),
@@ -677,8 +701,9 @@ function fulfilment_approval_summary(PDO $pdo, array $row): array
     $economics = fulfilment_expected_economics($pdo, $orderId);
     $destination = order_destination_check($pdo, $orderId);
     $package = current_manufacturing_package($pdo, $orderId);
-    $lines = array_map(static function (array $l) use ($destination): array {
-        $route = supplier_route_for_sku($l['sku']);
+    $lines = array_map(static function (array $l) use ($destination, $pdo, $orderId): array {
+        $route = order_route_for_sku($pdo, $orderId, $l['sku']);
+        $routing = route_options($l['sku'], $destination['destination']['country_code'] ?? null);
         $check = array_values(array_filter($destination['lines'], static fn (array $d): bool => $d['sku'] === $l['sku']))[0] ?? null;
         return [
             'sku' => $l['sku'], 'product' => $l['name'], 'quantity' => $l['quantity'],
@@ -691,6 +716,10 @@ function fulfilment_approval_summary(PDO $pdo, array $row): array
                 'limitations' => $route['limitations'], 'verification_status' => $route['verification_status'], 'cancellation_cutoff' => $route['cancellation_cutoff'],
             ],
             'destination' => $check,
+            // Internal routing evidence: the route recommended for review is never an authorisation.
+            'recommendation' => $routing['recommendation'],
+            'routing_status' => $routing['status'],
+            'route_decision' => current_route_decision($pdo, $orderId, $l['sku']),
         ];
     }, fulfilment_lines($pdo, $orderId));
     $safetyOpen = $pdo->prepare("SELECT COUNT(*) FROM fulfilment_exceptions WHERE order_id = :o AND type = 'COMMERCIAL_SAFETY_EXCEPTION' AND status = 'OPEN'");
@@ -700,6 +729,8 @@ function fulfilment_approval_summary(PDO $pdo, array $row): array
     if ($economics['status'] === 'COMMERCIAL_DATA_REQUIRED') $wouldBlock[] = 'COMMERCIAL_DATA_REQUIRED';
     if ((int) $safetyOpen->fetchColumn() > 0 || ($economics['status'] === 'COMMERCIAL_SAFETY_EXCEPTION' && !commercial_safety_proceed_approved($pdo, $orderId))) $wouldBlock[] = 'COMMERCIAL_SAFETY_EXCEPTION_UNRESOLVED';
     if (in_array($destination['status'], ['DESTINATION_UNKNOWN', 'DESTINATION_UNSUPPORTED'], true)) $wouldBlock[] = $destination['status'];
+    $routeRequirements = route_authorisation_requirements($pdo, $orderId);
+    if ($routeRequirements['routes_not_reviewed'] !== []) $wouldBlock[] = 'ROUTE_NOT_REVIEWED';
     return [
         'destination' => $destination['destination'],
         'destination_status' => $destination['status'],
@@ -707,6 +738,8 @@ function fulfilment_approval_summary(PDO $pdo, array $row): array
         'economics' => $economics,
         'enforcement' => creative_enforcement(),
         'would_block_if_required' => $wouldBlock,
+        // Always required, whatever the enforcement mode (e.g. the high-value gramophone's delivered cost).
+        'route_requirements' => $routeRequirements,
         'action_required' => 'Bella or Lewis reviews this decision and, if right, authorises the supplier purchase with their own code.',
     ];
 }
@@ -870,8 +903,8 @@ function fulfilment_order_record(PDO $pdo, array $row): ?array
         'workspace' => $row['supplier_purchase_authorised_at'] === null ? null : [
             'authorised_by' => $row['supplier_purchase_authorised_by'],
             'authorised_at' => $row['supplier_purchase_authorised_at'],
-            'instructions' => array_map(static function (array $l): array {
-                $route = supplier_route_for_sku($l['sku']);
+            'instructions' => array_map(static function (array $l) use ($pdo, $orderId): array {
+                $route = order_route_for_sku($pdo, $orderId, $l['sku']);
                 return ['sku' => $l['sku'], 'product' => $l['name'], 'quantity' => $l['quantity'], 'route_id' => $route['route_id'] ?? null,
                     'supplier' => $route['supplier'] ?? null, 'product_url' => $route['product_url'] ?? null, 'configuration' => $route['configuration'] ?? null,
                     'order_instructions' => $route['order_instructions'] ?? null, 'cancellation_cutoff' => $route['cancellation_cutoff'] ?? null,
@@ -883,7 +916,7 @@ function fulfilment_order_record(PDO $pdo, array $row): ?array
             'id' => (int) $s['id'], 'route_id' => $s['route_id'], 'reference' => $s['supplier_order_reference'], 'skus' => $s['skus'] === null ? [] : explode(',', $s['skus']),
             'purchased_at' => $s['purchased_at'], 'operator' => $s['operator'], 'financial_authoriser' => $s['financial_authoriser'], 'currency' => $s['currency'],
             'expected_total_cost_minor' => $int($s['expected_total_cost_minor']), 'actual_purchase_cost_minor' => $int($s['actual_purchase_cost_minor']),
-            'actual_shipping_cost_minor' => $int($s['actual_shipping_cost_minor']), 'actual_total_cost_minor' => $int($s['actual_total_cost_minor']),
+            'actual_shipping_cost_minor' => $int($s['actual_shipping_cost_minor']), 'actual_tax_duty_minor' => $int($s['actual_tax_duty_minor'] ?? null), 'actual_total_cost_minor' => $int($s['actual_total_cost_minor']),
             'variance_minor' => $int($s['variance_minor']), 'variance_reason' => $s['variance_reason'], 'expected_dispatch_date' => $s['expected_dispatch_date'],
             'expected_delivery_date' => $s['expected_delivery_date'], 'tracking_pending' => (int) $s['tracking_pending'] === 1, 'status' => $s['status'],
         ], $all('SELECT * FROM supplier_orders WHERE order_id = :o ORDER BY id')),

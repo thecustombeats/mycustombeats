@@ -1,0 +1,584 @@
+{
+  "_generated": "Do not edit. INTERNAL. Generated from src/data/production/suppliers.ts by scripts/generate-catalogue-json.mjs",
+  "families": [
+    {
+      "family": "VINYL",
+      "label": "Vinyl",
+      "expected": 6,
+      "mapped": 6
+    },
+    {
+      "family": "FRAME",
+      "label": "Vinyl frames / wall art",
+      "expected": 5,
+      "mapped": 5
+    },
+    {
+      "family": "CARD",
+      "label": "Pop-up cards",
+      "expected": 18,
+      "mapped": 0
+    },
+    {
+      "family": "GRAMOPHONE",
+      "label": "Gramophones / record players",
+      "expected": 3,
+      "mapped": 3
+    },
+    {
+      "family": "PLAQUE",
+      "label": "Plaque",
+      "expected": 1,
+      "mapped": 1
+    }
+  ],
+  "expected_physical_skus": 33,
+  "registry": [
+    {
+      "sku": "journey-12",
+      "family": "VINYL",
+      "label": "Journey Double 12\" Gatefold",
+      "songs": 12,
+      "price_minor": 34900,
+      "routing_mode": "STANDARD",
+      "partner_group": "VINYL_BLACK",
+      "manufacturing": {
+        "artwork": [
+          "GATEFOLD_12_DOUBLE"
+        ],
+        "capacity": true
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": []
+    },
+    {
+      "sku": "journey-6",
+      "family": "VINYL",
+      "label": "Journey 12\" Vinyl",
+      "songs": 6,
+      "price_minor": 19900,
+      "routing_mode": "STANDARD",
+      "partner_group": "VINYL_BLACK",
+      "manufacturing": {
+        "artwork": [
+          "SLEEVE_12_FRONT",
+          "SLEEVE_12_BACK"
+        ],
+        "capacity": true
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": []
+    },
+    {
+      "sku": "keepsake-12-picture-disc",
+      "family": "VINYL",
+      "label": "Keepsake 12\" Picture Disc",
+      "songs": 4,
+      "price_minor": 14999,
+      "routing_mode": "STANDARD",
+      "partner_group": "VINYL_PICTURE",
+      "manufacturing": {
+        "artwork": [
+          "PICTURE_DISC_12"
+        ],
+        "capacity": true
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": []
+    },
+    {
+      "sku": "keepsake-10-picture-disc",
+      "family": "VINYL",
+      "label": "Keepsake 10\" Picture Disc",
+      "songs": 3,
+      "price_minor": 13999,
+      "routing_mode": "STANDARD",
+      "partner_group": "VINYL_PICTURE",
+      "manufacturing": {
+        "artwork": [
+          "PICTURE_DISC_10"
+        ],
+        "capacity": true
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": []
+    },
+    {
+      "sku": "keepsake-10-heart-picture-disc",
+      "family": "VINYL",
+      "label": "Keepsake Heart Picture Disc",
+      "songs": 1,
+      "price_minor": 12999,
+      "routing_mode": "STANDARD",
+      "partner_group": "VINYL_PICTURE",
+      "manufacturing": {
+        "artwork": [
+          "PICTURE_DISC_HEART"
+        ],
+        "capacity": true
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": []
+    },
+    {
+      "sku": "keepsake-7-picture-disc",
+      "family": "VINYL",
+      "label": "Keepsake 7\" Picture Disc",
+      "songs": 1,
+      "price_minor": 9900,
+      "routing_mode": "STANDARD",
+      "partner_group": "VINYL_PICTURE",
+      "manufacturing": {
+        "artwork": [
+          "PICTURE_DISC_7"
+        ],
+        "capacity": true
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": []
+    },
+    {
+      "sku": "lyrics-frame-10x15",
+      "family": "FRAME",
+      "label": "Lyrics Frame 10 × 15",
+      "songs": null,
+      "price_minor": 4999,
+      "routing_mode": "STANDARD",
+      "partner_group": "FRAME",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "A direct partner supplying the same premium product to a supported destination is reviewed first.",
+        "Founders to confirm these five configurations are the frames the partner routes supply."
+      ]
+    },
+    {
+      "sku": "lyrics-frame-12x18",
+      "family": "FRAME",
+      "label": "Lyrics Frame 12 × 18",
+      "songs": null,
+      "price_minor": 6999,
+      "routing_mode": "STANDARD",
+      "partner_group": "FRAME",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "A direct partner supplying the same premium product to a supported destination is reviewed first.",
+        "Founders to confirm these five configurations are the frames the partner routes supply."
+      ]
+    },
+    {
+      "sku": "lyrics-frame-14x21",
+      "family": "FRAME",
+      "label": "Lyrics Frame 14 × 21",
+      "songs": null,
+      "price_minor": 7999,
+      "routing_mode": "STANDARD",
+      "partner_group": "FRAME",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "A direct partner supplying the same premium product to a supported destination is reviewed first.",
+        "Founders to confirm these five configurations are the frames the partner routes supply."
+      ]
+    },
+    {
+      "sku": "lyrics-frame-16x24",
+      "family": "FRAME",
+      "label": "Lyrics Frame 16 × 24",
+      "songs": null,
+      "price_minor": 8999,
+      "routing_mode": "STANDARD",
+      "partner_group": "FRAME",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "A direct partner supplying the same premium product to a supported destination is reviewed first.",
+        "Founders to confirm these five configurations are the frames the partner routes supply."
+      ]
+    },
+    {
+      "sku": "lyrics-frame-20x30",
+      "family": "FRAME",
+      "label": "Lyrics Frame 20 × 30",
+      "songs": null,
+      "price_minor": 9999,
+      "routing_mode": "STANDARD",
+      "partner_group": "FRAME",
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "A direct partner supplying the same premium product to a supported destination is reviewed first.",
+        "Founders to confirm these five configurations are the frames the partner routes supply."
+      ]
+    },
+    {
+      "sku": "vintage-smartphone-gramophone",
+      "family": "GRAMOPHONE",
+      "label": "Vintage Smartphone Gramophone",
+      "songs": null,
+      "price_minor": 10000,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": null,
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability, destination and shipping vary: a person confirms them before purchase."
+      ]
+    },
+    {
+      "sku": "portable-suitcase-record-player",
+      "family": "GRAMOPHONE",
+      "label": "Portable Suitcase Record Player",
+      "songs": null,
+      "price_minor": 20000,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": null,
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "Marketplace availability, destination and shipping vary: a person confirms them before purchase."
+      ]
+    },
+    {
+      "sku": "antique-brass-gramophone",
+      "family": "GRAMOPHONE",
+      "label": "Antique Brass Gramophone",
+      "songs": null,
+      "price_minor": 100000,
+      "routing_mode": "MANUAL_AVAILABILITY_CONFIRMED",
+      "partner_group": null,
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": true,
+      "notes": [
+        "High value: the actual delivered cost to the customer's destination must be confirmed and recorded before purchase.",
+        "International shipping from a marketplace is never assumed."
+      ]
+    },
+    {
+      "sku": "personalised-music-plaque",
+      "family": "PLAQUE",
+      "label": "Personalised Music Plaque (8 × 12)",
+      "songs": 1,
+      "price_minor": 4999,
+      "routing_mode": "MANUAL_WHEN_UNVERIFIED",
+      "partner_group": null,
+      "manufacturing": {
+        "artwork": [],
+        "capacity": false
+      },
+      "delivered_cost_confirmation_required": false,
+      "notes": [
+        "8 × 12, associated with one song. It does not play music.",
+        "Destinations without verified evidence go to manual fulfilment review; customers are never told a country-only restriction."
+      ]
+    }
+  ],
+  "card_price_points": [
+    {
+      "tier": "SINGLE",
+      "label": "Most single cards",
+      "price_minor": 4999
+    },
+    {
+      "tier": "LARGE_ANNIVERSARY",
+      "label": "Large Anniversary",
+      "price_minor": 6999
+    },
+    {
+      "tier": "BIRTHDAY_AUTO_PLAY",
+      "label": "Birthday Auto-Play",
+      "price_minor": 1999
+    },
+    {
+      "tier": "FOUR_PACK",
+      "label": "4-packs",
+      "price_minor": 7999
+    },
+    {
+      "tier": "EIGHT_PACK",
+      "label": "8-pack",
+      "price_minor": 12999
+    }
+  ],
+  "card_listings": [],
+  "card_alternative_record": [
+    "ORIGINAL_SKU",
+    "ALTERNATIVE",
+    "REASON",
+    "AUTHORITY",
+    "CUSTOMER_IMPACT"
+  ],
+  "card_alternative_impacts": [
+    "NO_MATERIAL_DIFFERENCE",
+    "CUSTOMER_TOLD",
+    "CUSTOMER_AGREED"
+  ],
+  "routing_modes": [
+    "STANDARD",
+    "MANUAL_AVAILABILITY_CONFIRMED",
+    "MANUAL_WHEN_UNVERIFIED"
+  ],
+  "route_groups": [
+    "SUPPORTED",
+    "UNVERIFIED",
+    "UNSUPPORTED",
+    "MANUAL_REVIEW"
+  ],
+  "verification_states": [
+    "VERIFIED",
+    "PARTIALLY_VERIFIED",
+    "VERIFICATION_REQUIRED",
+    "STALE",
+    "UNSUPPORTED",
+    "SUSPENDED"
+  ],
+  "route_types": [
+    "DIRECT_MANUFACTURER",
+    "DIRECT_RETAILER",
+    "MARKETPLACE",
+    "MANUAL"
+  ],
+  "availability_states": [
+    "AVAILABLE",
+    "UNAVAILABLE",
+    "UNKNOWN"
+  ],
+  "route_issues": [
+    {
+      "code": "GEOGRAPHIC_INCONSISTENCY",
+      "holds_verification": true,
+      "label": "Where it ships from or to has been inconsistent"
+    },
+    {
+      "code": "LISTING_CHANGED",
+      "holds_verification": true,
+      "label": "The listing changed"
+    },
+    {
+      "code": "TERMS_CHANGED",
+      "holds_verification": true,
+      "label": "The partner's terms changed"
+    },
+    {
+      "code": "PRICE_STALE",
+      "holds_verification": false,
+      "label": "The price needs checking again"
+    },
+    {
+      "code": "SHIPPING_QUOTE_MISSING",
+      "holds_verification": false,
+      "label": "No shipping quote has been recorded"
+    }
+  ],
+  "research_item_kinds": [
+    {
+      "kind": "SHIPPING_QUOTE_MISSING",
+      "label": "Shipping quote missing"
+    },
+    {
+      "kind": "DESTINATION_UNVERIFIED",
+      "label": "Destination unverified"
+    },
+    {
+      "kind": "PRICE_STALE",
+      "label": "Price stale"
+    },
+    {
+      "kind": "PRODUCT_UNAVAILABLE",
+      "label": "Product unavailable"
+    },
+    {
+      "kind": "TEMPLATE_MISSING",
+      "label": "Template missing"
+    },
+    {
+      "kind": "CAPACITY_MISSING",
+      "label": "Capacity missing"
+    },
+    {
+      "kind": "TERMS_CHANGED",
+      "label": "Terms changed"
+    },
+    {
+      "kind": "LISTING_CHANGED",
+      "label": "Marketplace listing changed"
+    },
+    {
+      "kind": "FALLBACK_ABSENT",
+      "label": "No fallback route"
+    },
+    {
+      "kind": "REVERIFY_ROUTE",
+      "label": "Reverify route"
+    },
+    {
+      "kind": "VERIFICATION_REQUIRED",
+      "label": "Route needs verification"
+    },
+    {
+      "kind": "NO_ROUTE",
+      "label": "No route recorded"
+    },
+    {
+      "kind": "COST_MISSING",
+      "label": "Expected cost missing"
+    },
+    {
+      "kind": "FOUNDER_DATA_REQUIRED",
+      "label": "Founder data required"
+    }
+  ],
+  "manufacturing_item_kinds": [
+    {
+      "kind": "PROGRAMME_DURATION",
+      "label": "Vinyl programme duration"
+    },
+    {
+      "kind": "SAFE_AREA",
+      "label": "Safe areas"
+    },
+    {
+      "kind": "TRIM",
+      "label": "Trim"
+    },
+    {
+      "kind": "DISC_PIXEL_CANVAS",
+      "label": "Disc pixel canvas"
+    },
+    {
+      "kind": "CENTRE_HOLE",
+      "label": "Centre hole"
+    },
+    {
+      "kind": "HEART_DIELINE",
+      "label": "Heart dieline"
+    },
+    {
+      "kind": "GATEFOLD_TEMPLATE",
+      "label": "Gatefold template"
+    },
+    {
+      "kind": "OTHER_SPECIFICATION",
+      "label": "Other production specification"
+    }
+  ],
+  "scorecard_components": [
+    {
+      "component": "VERIFICATION_QUALITY",
+      "label": "Verification quality"
+    },
+    {
+      "component": "COST_COMPLETENESS",
+      "label": "Cost completeness"
+    },
+    {
+      "component": "DESTINATION_CERTAINTY",
+      "label": "Destination certainty"
+    },
+    {
+      "component": "TRACKING_EVIDENCE",
+      "label": "Tracking evidence"
+    },
+    {
+      "component": "FULFILMENT_RELIABILITY",
+      "label": "Fulfilment reliability"
+    },
+    {
+      "component": "CUSTOMER_PROBLEM_RATE",
+      "label": "Customer-problem rate"
+    },
+    {
+      "component": "SAMPLE_SIZE",
+      "label": "Sample size"
+    }
+  ],
+  "route_insufficient_data_below": 1,
+  "recommendation_label": "RECOMMENDED FOR REVIEW",
+  "recommendation_note": "A recommendation is not an authorisation. Nothing is purchased: Bella or Lewis authorises, then a person places the order.",
+  "forbidden_recommendation_phrases": [
+    "auto selected",
+    "auto-selected",
+    "automatically selected",
+    "selected automatically"
+  ],
+  "forbidden_delivery_promises": [
+    "duties included",
+    "tax included",
+    "worldwide delivery",
+    "ships worldwide",
+    "india only"
+  ],
+  "customer_promise": "MCB manages your order from memory to delivery.",
+  "overview_tiles": [
+    {
+      "key": "routes_ready",
+      "label": "Routes ready"
+    },
+    {
+      "key": "routes_needing_verification",
+      "label": "Routes needing verification"
+    },
+    {
+      "key": "products_without_safe_route",
+      "label": "Products with no safe route"
+    },
+    {
+      "key": "commercial_exceptions",
+      "label": "Commercial exceptions"
+    },
+    {
+      "key": "manufacturing_data_missing",
+      "label": "Manufacturing data missing"
+    },
+    {
+      "key": "awaiting_founder_authorisation",
+      "label": "Supplier orders awaiting founder approval"
+    },
+    {
+      "key": "authorised_not_placed",
+      "label": "Authorised but not placed"
+    },
+    {
+      "key": "being_made",
+      "label": "Orders being made"
+    },
+    {
+      "key": "supplier_delivery_problems",
+      "label": "Supplier / delivery problems"
+    }
+  ],
+  "route_deviation_reasons": [
+    "DESTINATION_EVIDENCE",
+    "AVAILABILITY",
+    "DELIVERY_TIME",
+    "QUALITY",
+    "CUSTOMER_REQUIREMENT",
+    "COST_CONFIRMED",
+    "OTHER"
+  ]
+}

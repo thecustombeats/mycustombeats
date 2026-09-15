@@ -153,6 +153,8 @@ test("automation events are the named set, with nothing financial or supplier-fa
     "VIDEO.CAPACITY_RELEASED", "VIDEO.EXCEPTION",
     // Customer Care & Recovery (no refund, charge or purchase follows from any of them)
     "SUPPORT.CASE_OPENED", "SUPPORT.RESPONSE_SENT", "SUPPORT.CASE_RESOLVED", "SUPPORT.PRIVACY_REVIEW_REQUIRED",
+    // Supplier Intelligence & Commercial Routing (a person's route choice; never an authorisation)
+    "ROUTING.DECISION_RECORDED",
   ].sort());
   assert.ok(!M.ops.AUTOMATION_EVENTS.some((e) => /REFUND|CHARGE|SUPPLIER|PURCHASE/.test(e)));
 });
