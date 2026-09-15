@@ -836,5 +836,9 @@ function creative_promote_master(PDO $pdo, int $orderId, array $c, string $staff
     ], $staff);
     creative_set_job($pdo, (int) $j['id'], ['status' => 'MASTER_READY', 'waiting_on' => null, 'current_master_id' => $masterId]);
     record_order_event($pdo, $orderId, 'CREATIVE.MASTER_READY', ['job_id' => (int) $j['id'], 'master_id' => $masterId], "creative-master:{$masterId}");
+    // A Memory Music Video for this song can now be prepared from the (unchanged) master.
+    if (function_exists('video_refresh_order')) {
+        video_refresh_order($pdo, $orderId);
+    }
     return ['master_id' => $masterId, 'album' => creative_evaluate_album($pdo, (int) $j['album_id'], $staff)];
 }

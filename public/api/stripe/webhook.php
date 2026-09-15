@@ -28,6 +28,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../lib/bootstrap.php';
 require_once __DIR__ . '/../lib/referral.php';
 require_once __DIR__ . '/../lib/founder-notifications.php';
+require_once __DIR__ . '/../lib/video.php';
 require_once __DIR__ . '/../lib/artwork.php';
 
 mcb_event_source('STRIPE_WEBHOOK');
@@ -456,6 +457,21 @@ if ($outcome === 'recorded' || $outcome === 'already_paid' || $outcome === 'dupl
     }
 }
 
+// MCB Memory Music Video: the checkout hold becomes a reservation and the video
+// job is created, in its own locked transaction (idempotent: a replayed or
+// resent event changes nothing already done). If it cannot complete, Stripe is
+// asked to retry (500) — the payment itself is already safely recorded.
+$videoFailed = false;
+if ($outcome === 'recorded' || $outcome === 'already_paid' || $outcome === 'duplicate') {
+    try {
+        video_period_at(db());
+        video_transaction(static fn (PDO $pdo): array => video_confirm_on_payment($pdo, $orderId));
+    } catch (Throwable $e) {
+        $videoFailed = true;
+        error_log('MCB video: could not confirm video capacity for order ' . $orderId . ': ' . $e->getMessage());
+    }
+}
+
 // Close the snapshot, for operators reading the checkout history. Purely a
 // record: the order's own status is what the rest of the system reads, and it
 // was already set inside the transaction above.
@@ -469,4 +485,7 @@ if ($snapshot !== false && $outcome === 'recorded') {
     }
 }
 
+if ($videoFailed) {
+    json_error(500, 'retry_later', 'Payment recorded; a follow-up step will be retried.');
+}
 json_response(200, ['received' => true, 'outcome' => $outcome, 'customer_email' => $notified]);

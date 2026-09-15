@@ -37,6 +37,8 @@ export type Category =
   | "PROTECTION"
   /** An optional service that prepares a customer's photograph for artwork. */
   | "ARTWORK_SERVICE"
+  /** An optional enhancement made from one of the order's songs (Memory Music Video). */
+  | "VIDEO_ENHANCEMENT"
   | "EDUCATION"
   | "GIFT";
 
@@ -113,6 +115,7 @@ export type ProductId =
   | "portable-suitcase-record-player"
   | "priority-replacement"
   | "artwork-preparation"
+  | "memory-music-video"
   | "cruise-ship-dj-bible"
   | "gift-voucher";
 

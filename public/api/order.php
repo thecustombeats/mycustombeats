@@ -44,6 +44,7 @@ require_once __DIR__ . '/lib/bootstrap.php';
 require_once __DIR__ . '/lib/attribution.php';
 require_once __DIR__ . '/lib/legal.php';
 require_once __DIR__ . '/lib/referral.php';
+require_once __DIR__ . '/lib/video.php';
 
 require_method('POST');
 require_same_origin();
@@ -260,6 +261,13 @@ $brief = [
 ];
 
 $v->stopIfInvalid();
+
+// ---- MCB Memory Music Video: not offered against a fully booked period ----
+// (The space itself is held, under a lock, when checkout starts.)
+if (in_array((string) catalogue_data()['rules']['memory_video_sku'], array_column($pricing->lines, 'sku'), true)
+    && video_customer_availability(db())['available'] !== true) {
+    json_error(409, 'video_capacity_full', 'Memory Music Video is fully booked for this production month. Please remove it to continue.');
+}
 
 // ---- Delivery, quoted by the server ------------------------------------
 $delivery   = quote_delivery($pricing, $countryCode);

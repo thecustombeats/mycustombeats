@@ -41,6 +41,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../lib/bootstrap.php';
+require_once __DIR__ . '/../lib/video.php';
 
 require_method('POST');
 require_same_origin();
@@ -138,6 +139,19 @@ if ($lines === [] || $order['total_minor'] === null || $totalMinor !== $goodsMin
     || $totalMinor <= 0 || $order['currency'] !== 'GBP') {
     error_log("MCB checkout: order {$orderId} has no consistent saved lines; refusing a session.");
     json_error(409, 'order_not_payable_online', 'This order cannot be paid online. Please contact MCB.');
+}
+
+/**
+ * MCB Memory Music Video: a space is held for each chosen video before the
+ * customer is sent to pay, under a lock on the capacity period. A full period
+ * refuses the session, so no one pays for a video without a space. The hold
+ * outlives the Stripe session; a repeated session extends the same hold.
+ */
+try {
+    video_period_at(db());
+    video_transaction(static fn (PDO $pdo): int => video_hold_for_checkout($pdo, $orderId));
+} catch (OperationsException $e) {
+    json_error($e->httpStatus, $e->errorCode, $e->getMessage());
 }
 
 // ---- Idempotency and expiry -----------------------------------------------

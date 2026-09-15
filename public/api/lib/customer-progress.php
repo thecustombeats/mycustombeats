@@ -156,6 +156,8 @@ function customer_progress(PDO $pdo, int $orderId): array
         ] : null,
         // One order, possibly several parcels. Carrier and tracking only: never who made or sent it.
         'parcels'       => $shipped ? customer_parcels($pdo, $orderId) : [],
+        // MCB Memory Music Video: plain states; the film itself only once revealed.
+        'videos'        => video_customer_view($pdo, $orderId),
         'items'         => $items,
         'open_requests' => (int) $open->fetchColumn(),
     ];

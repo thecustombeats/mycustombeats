@@ -1,6 +1,6 @@
 {
   "_generated": "Do not edit. Generated from src/data/catalogue/ by scripts/generate-catalogue-json.mjs",
-  "catalogue_hash": "898530d07d9d419a2b33768604e7618f2136214985edd98113ed7680cec5df79",
+  "catalogue_hash": "ee5c02eddb389a443a30ae51d2cfe81a4529e8135f985e5f38883308ec501271",
   "schema_version": 2,
   "currency": "GBP",
   "rules": {
@@ -13,7 +13,9 @@
       "keepsake",
       "journey"
     ],
-    "artwork_photo_min_px": 2500
+    "artwork_photo_min_px": 2500,
+    "memory_video_sku": "memory-music-video",
+    "memory_video_max_per_order": 1
   },
   "products": {
     "moment": {
@@ -174,6 +176,19 @@
       "analytics_category": "Artwork Service",
       "skus": [
         "artwork-preparation"
+      ]
+    },
+    "memory-music-video": {
+      "name": "MCB Memory Music Video™",
+      "commercial_model": "FIXED",
+      "category": "VIDEO_ENHANCEMENT",
+      "active": true,
+      "online_checkout": true,
+      "requires_personalisation": false,
+      "turnaround": null,
+      "analytics_category": "Video Enhancement",
+      "skus": [
+        "memory-music-video"
       ]
     },
     "cruise-ship-dj-bible": {
@@ -469,6 +484,19 @@
       "orderable": true,
       "category": "ARTWORK_SERVICE",
       "fulfilment": "SERVICE",
+      "delivery_class": null,
+      "song_count": null,
+      "vinyl": null,
+      "priority_replacement_eligible": false
+    },
+    "memory-music-video": {
+      "product_id": "memory-music-video",
+      "name": "MCB Memory Music Video™",
+      "price_minor": 4900,
+      "currency": "GBP",
+      "orderable": true,
+      "category": "VIDEO_ENHANCEMENT",
+      "fulfilment": "DIGITAL",
       "delivery_class": null,
       "song_count": null,
       "vinyl": null,

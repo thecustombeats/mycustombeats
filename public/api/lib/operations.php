@@ -45,6 +45,7 @@ require_once __DIR__ . '/artwork.php';
 require_once __DIR__ . '/creative-factory.php';
 require_once __DIR__ . '/production-files.php';
 require_once __DIR__ . '/fulfilment-controller.php';
+require_once __DIR__ . '/video.php';
 
 final class OperationsException extends RuntimeException
 {

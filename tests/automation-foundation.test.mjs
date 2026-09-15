@@ -147,7 +147,7 @@ test("the Founders' event model maps each name to exactly one recorded automatio
 test("founder notifications: the exception types (incl. creative and audio capacity) plus suspension; safe payload allow-list; no provider call or credential", () => {
   assert.deepEqual(M.ops.FOUNDER_NOTIFICATIONS.map((n) => n.type).sort(), [
     "ARTWORK_EXCEPTION", "AUDIO_CAPACITY_EXCEPTION", "COMMERCIAL_SAFETY_EXCEPTION", "CREATIVE_EXCEPTION", "CUSTOMER_SUPPORT_EXCEPTION", "DELIVERY_EXCEPTION", "FULFILMENT_APPROVAL_REQUIRED", "FULFILMENT_EXCEPTION",
-    "MANUFACTURING_DATA_REQUIRED", "NEW_ORDER_READY_FOR_PROCESSING", "PRODUCT_SALES_SUSPENDED", "QC_EXCEPTION",
+    "MANUFACTURING_DATA_REQUIRED", "NEW_ORDER_READY_FOR_PROCESSING", "PRODUCT_SALES_SUSPENDED", "QC_EXCEPTION", "VIDEO_CAPACITY_ALERT", "VIDEO_EXCEPTION",
   ]);
   const outbox = read("public/api/lib/founder-notifications.php");
   const keys = outbox.match(/const MCB_NOTIFICATION_PAYLOAD_KEYS = \[([\s\S]*?)\];/)[1].match(/'([a-z_]+)'/g).map((k) => k.slice(1, -1));

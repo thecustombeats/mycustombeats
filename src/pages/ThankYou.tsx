@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, Clock, HelpCircle } from "lucide-react";
 import { getVariant } from "../data/catalogue";
-import { trackPurchase, type ConfirmedPurchase } from "../lib/analytics";
+import { trackFunnel, trackPurchase, type ConfirmedPurchase } from "../lib/analytics";
 import { Helmet } from "react-helmet-async";
 import ShareMcb from "../components/ShareMcb";
 import { SAVED_ORDER_KEY } from "../lib/orderApi";
@@ -330,6 +330,9 @@ export default function ThankYou() {
 
     if (!trackPurchase(purchase)) return;
     purchaseSent.current = true;
+    // Memory Music Video purchased (server-confirmed): the SKU only, never customer content.
+    const video = purchase.items.find((item) => item.sku === "memory-music-video");
+    if (video) trackFunnel("video_purchase", { sku: video.sku, quantity: video.quantity });
     try {
       sessionStorage.setItem(trackedKey, "true");
     } catch {

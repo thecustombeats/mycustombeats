@@ -310,6 +310,14 @@
         "PHYSICAL"
       ]
     },
+    "VIDEO_READY": {
+      "trigger": "VIDEO.REVEALED",
+      "auto_send": true,
+      "workflows": [
+        "DIGITAL",
+        "PHYSICAL"
+      ]
+    },
     "FOLLOW_UP": {
       "trigger": "FOLLOW_UP.DUE",
       "auto_send": false,
@@ -387,7 +395,19 @@
     "SHIPMENT.PARCEL_DELIVERED",
     "FULFILMENT.EXCEPTION_OPENED",
     "FULFILMENT.EXCEPTION_RESOLVED",
-    "COMMERCIAL.ECONOMICS_CALCULATED"
+    "COMMERCIAL.ECONOMICS_CALCULATED",
+    "VIDEO.ENTITLED",
+    "VIDEO.CAPACITY_EXCEPTION",
+    "VIDEO.INPUT_RECEIVED",
+    "VIDEO.PRODUCTION_REQUIRED",
+    "VIDEO.DURATION_REVIEW_REQUIRED",
+    "VIDEO.CANDIDATE_READY",
+    "VIDEO.QUALITY_CHECK_REQUIRED",
+    "VIDEO.REWORK_REQUIRED",
+    "VIDEO.MASTER_READY",
+    "VIDEO.REVEALED",
+    "VIDEO.CAPACITY_RELEASED",
+    "VIDEO.EXCEPTION"
   ],
   "event_model": {
     "ORDER.PAID": "ORDER.PAID",
@@ -505,6 +525,16 @@
       "type": "PRODUCT_SALES_SUSPENDED",
       "title": "New sales suspended",
       "required_action": "Review the product's availability. Existing paid orders are unaffected."
+    },
+    {
+      "type": "VIDEO_EXCEPTION",
+      "title": "Memory Music Video exception",
+      "required_action": "Open the order and decide what happens with this video. Nothing is refunded or charged automatically."
+    },
+    {
+      "type": "VIDEO_CAPACITY_ALERT",
+      "title": "Memory Music Video capacity",
+      "required_action": "Review this period's video capacity. It is a planning figure pending verification with the platform."
     }
   ],
   "financial_authorisers": [

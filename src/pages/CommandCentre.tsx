@@ -23,6 +23,7 @@ const NAV: { view: View; label: string }[] = [
   { view: "today", label: "MCB Today" },
   { view: "approvals", label: "Approvals" },
   { view: "orders", label: "Orders" },
+  { view: "videos", label: "Videos" },
   { view: "customers", label: "Customers" },
   { view: "health", label: "Health & readiness" },
   { view: "notifications", label: "Notifications" },
@@ -84,6 +85,7 @@ const CommandCentre = () => {
         setOrderId(null);
         if (link.view === "today") setOverview(await api(q(`view=overview&period=${period}`)));
         else if (link.view === "approvals") setData(await api(q("view=approvals")));
+        else if (link.view === "videos") setData(await api(q(`view=videos&period=${period}`)));
         else if (link.view === "orders") {
           const [ov, list] = await Promise.all([api(q(`view=overview&period=${period}`)), api(q(`view=orders&period=${period}${stage ? `&stage=${stage}` : ""}`))]);
           if (!cancelled) { setOverview(ov); setData(list); }
@@ -249,7 +251,51 @@ const CommandCentre = () => {
                     <Panel id="health-summary" title="MCB system health" aside={<Status good={overview.health.status === "ALL_GOOD"} label={overview.health.label} />}>
                       <HealthList items={overview.health.items} />
                     </Panel>
+                    {overview.videos && <VideoSummary videos={overview.videos} />}
                     <MusicPlatform platform={overview.music_platform} />
+                  </>
+                )}
+              </>
+            ) : link.view === "videos" ? (
+              <>
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <h1 className="font-serif text-4xl text-ink">Videos</h1>
+                  {PeriodSwitch}
+                </div>
+                {!data?.summary ? <p role="status">Loading…</p> : (
+                  <>
+                    <VideoSummary videos={data.summary} />
+                    <Panel id="video-jobs" title="Videos in progress">
+                      {data.jobs.length === 0 ? <p className={card}>No Memory Music Videos are in progress.</p> : (
+                        <ul className="m-0 list-none space-y-2 p-0">
+                          {data.jobs.map((j: Json) => (
+                            <li key={j.video_job_id} className={`${card} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-ink">{j.order.reference} · song {j.song} · {j.order.customer}</p>
+                                <p className="text-sm text-ink/80">{VIDEO_STATUS_LABELS[j.status] ?? humanise(j.status)} · {ago(j.since)}</p>
+                              </div>
+                              <a className={primary} href={commandLink({ view: "videos", order: j.order.reference, open: j.status === "QUALITY_CHECK_REQUIRED" ? "quality" : "card" })}>Open<span className="sr-only"> {j.order.reference}</span></a>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </Panel>
+                    <Panel id="video-metrics" title="Video product metrics">
+                      <dl className={`${card} grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-base`}>
+                        <dt>Offer impressions</dt><dd className="m-0 text-right">{data.metrics.offer_impressions}</dd>
+                        <dt>Selection rate</dt><dd className="m-0 text-right">{pct(data.metrics.selection_rate)}</dd>
+                        <dt>Purchase rate</dt><dd className="m-0 text-right">{pct(data.metrics.purchase_rate)}</dd>
+                        <dt>Videos purchased</dt><dd className="m-0 text-right">{data.metrics.videos_purchased}</dd>
+                        <dt>Video revenue</dt><dd className="m-0 text-right">{money(data.metrics.video_revenue_minor)}</dd>
+                        <dt>Average selling price</dt><dd className="m-0 text-right">{money(data.metrics.average_selling_price_minor)}</dd>
+                        <dt>Capacity used</dt><dd className="m-0 text-right">{pct(data.metrics.capacity_utilisation)}</dd>
+                        <dt>Average production time</dt><dd className="m-0 text-right">{data.metrics.average_production_hours === null ? "— Awaiting data" : `${data.metrics.average_production_hours} hours`}</dd>
+                        <dt>Rework rate</dt><dd className="m-0 text-right">{pct(data.metrics.rework_rate)}</dd>
+                        <dt>Quality check failure rate</dt><dd className="m-0 text-right">{pct(data.metrics.qc_failure_rate)}</dd>
+                        <dt>Contribution where cost is known</dt><dd className="m-0 text-right">{money(data.metrics.contribution_minor_where_cost_known)}</dd>
+                      </dl>
+                      <p className="text-sm text-ink/80">{data.metrics.note}</p>
+                    </Panel>
                   </>
                 )}
               </>
@@ -417,6 +463,42 @@ const HealthList = ({ items }: { items: Json[] }) => (
       </li>
     ))}
   </ul>
+);
+
+const VIDEO_STATUS_LABELS: Record<string, string> = {
+  INPUT_REQUIRED: "Awaiting photographs", READY: "Waiting for the song", PRODUCTION_REQUIRED: "Ready to make", PRODUCTION_IN_PROGRESS: "Being made",
+  CANDIDATE_READY: "Being checked", QUALITY_CHECK_REQUIRED: "Needs quality check", REWORK_REQUIRED: "Being remade", READY_FOR_REVEAL: "Ready", REVEALED: "Delivered", EXCEPTION: "Needs attention",
+};
+
+const pct = (rate: number | null | undefined) => (rate === null || rate === undefined ? "— Awaiting data" : `${Math.round(rate * 1000) / 10}%`);
+
+const VideoSummary = ({ videos }: { videos: Json }) => (
+  <Panel id="videos-summary" title="Memory Music Videos">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <Tile label="Video orders" value={videos.video_orders} />
+      <Tile label="Awaiting input" value={videos.awaiting_input} />
+      <Tile label="Ready to make" value={videos.ready_to_make} emphasis={videos.ready_to_make > 0} />
+      <Tile label="Being made" value={videos.being_made} />
+      <Tile label="Needs quality check" value={videos.needs_quality_check} emphasis={videos.needs_quality_check > 0} />
+      <Tile label="Ready" value={videos.ready} />
+      <Tile label="Delivered" value={videos.revealed} />
+      <Tile label="Needs attention" value={videos.exceptions} emphasis={videos.exceptions > 0} />
+    </div>
+    <div className={card}>
+      <p className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-serif text-xl text-ink">Video capacity · {videos.capacity.period_key}</span>
+        <Status good={videos.capacity.state === "AVAILABLE"} label={videos.capacity.state === "FULL" ? "Full" : videos.capacity.state === "LOW" ? "Low" : "Available"} />
+      </p>
+      <dl className="mt-2 grid grid-cols-[1fr_auto] gap-y-1 text-base">
+        <dt>Planned</dt><dd className="m-0 text-right">{videos.capacity.planned}</dd>
+        <dt>Reserved</dt><dd className="m-0 text-right">{videos.capacity.reserved + videos.capacity.held}</dd>
+        <dt>Completed</dt><dd className="m-0 text-right">{videos.capacity.completed}</dd>
+        <dt className="font-semibold">Remaining</dt><dd className="m-0 text-right font-semibold">{videos.capacity.remaining}</dd>
+      </dl>
+      <p className="mt-2 text-sm font-semibold text-[#7A5E1F]">{videos.capacity.label}</p>
+      <p className="text-sm text-ink/80">Reserved includes spaces held for customers currently at checkout.</p>
+    </div>
+  </Panel>
 );
 
 const MusicPlatform = ({ platform }: { platform: Json }) => (

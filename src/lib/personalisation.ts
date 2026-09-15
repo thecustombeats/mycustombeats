@@ -35,6 +35,7 @@
 import {
   ARTWORK_PHOTO_MIN_PX,
   ARTWORK_PREPARATION_SKU,
+  MEMORY_MUSIC_VIDEO_SKU,
   ORDER_LIMITS,
   PERSONALISED_MUSIC_PLAQUE,
   PHOTO_ARTWORK_PRODUCT_IDS,
@@ -107,6 +108,11 @@ export interface OrderDraft {
   players: PlayerDraft[];
   /** The customer chose the MCB Artwork Preparation Service. Never preselected. */
   artworkPreparation: boolean;
+  /**
+   * The song (memory id) the customer chose for an MCB Memory Music Video, or
+   * null. Optional: never preselected and never included with a package.
+   */
+  memoryVideo?: string | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -125,6 +131,7 @@ export const emptyDraft = (): OrderDraft => ({
   frames: [],
   players: [],
   artworkPreparation: false,
+  memoryVideo: null,
 });
 
 /** Songs on one unit of a variant, from the catalogue. */
@@ -182,6 +189,8 @@ export const reconcileUnits = (draft: OrderDraft): OrderDraft => {
     units,
     // A frame whose song no longer exists points at the first song instead.
     frames: draft.frames.map((frame) => (memoryIds.has(frame.memoryId) ? frame : { ...frame, memoryId: memoryId(0, 0) })),
+    // A Memory Music Video is never moved to another song: if its song is gone, the choice is removed.
+    memoryVideo: draft.memoryVideo && memoryIds.has(draft.memoryVideo) ? draft.memoryVideo : null,
   };
 };
 
@@ -286,6 +295,9 @@ export const draftLines = (draft: OrderDraft): OrderLineRequest[] => {
   for (const frame of draft.frames) frameCounts.set(frame.sku, (frameCounts.get(frame.sku) ?? 0) + 1);
   for (const [sku, quantity] of frameCounts) lines.push({ sku, quantity });
   for (const player of draft.players) if (player.quantity > 0) lines.push({ sku: player.sku, quantity: player.quantity });
+  if (draft.memoryVideo && draft.units.some((unit) => unit.memories.some((memory) => memory.id === draft.memoryVideo))) {
+    lines.push({ sku: MEMORY_MUSIC_VIDEO_SKU, quantity: 1 });
+  }
   const priority = priorityReplacementCount(draft);
   if (priority > 0) lines.push({ sku: PRIORITY_REPLACEMENT_SKU, quantity: priority });
   if (draft.artworkPreparation && usesPhotoArtwork(draft)) lines.push({ sku: ARTWORK_PREPARATION_SKU, quantity: 1 });
@@ -433,7 +445,7 @@ export interface PersonalisationPayload {
   units: {
     sku: string;
     priorityReplacement: boolean;
-    memories: { story: string; about: string; occasion: string; style: StyleChoice; photo: boolean }[];
+    memories: { story: string; about: string; occasion: string; style: StyleChoice; photo: boolean; video?: true }[];
   }[];
   plaques: { songTitle: string; artist: string }[];
   frames: { sku: string; unit: number; memory: number; heading: string }[];
@@ -467,6 +479,7 @@ export const personalisationPayload = (draft: OrderDraft, photoIds: ReadonlySet<
         occasion: memory.occasion,
         style: styleChoice(memory),
         photo: photoIds.has(memory.id),
+        ...(draft.memoryVideo === memory.id ? { video: true as const } : {}),
       })),
     })),
     plaques: draft.plaques.map((plaque) => ({ songTitle: plaque.songTitle.trim(), artist: plaque.artist.trim() })),
@@ -557,6 +570,7 @@ export const parseDraft = (raw: string | null, now: number): OrderDraft | null =
     return reconcileUnits({
       ...base,
       artworkPreparation: (saved as { artworkPreparation?: unknown }).artworkPreparation === true && PHOTO_ARTWORK_PRODUCT_IDS.has(base.productId),
+      memoryVideo: typeof (saved as { memoryVideo?: unknown }).memoryVideo === "string" ? str((saved as { memoryVideo: string }).memoryVideo, 40) : null,
       units: units.map((unit, u) => ({ ...unit, priorityReplacement: chosen(u) })),
       frames,
       plaques,

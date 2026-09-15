@@ -1,0 +1,113 @@
+{
+  "_generated": "Do not edit. INTERNAL. Generated from src/data/production/video.ts by scripts/generate-catalogue-json.mjs",
+  "sku": "memory-music-video",
+  "price_minor": 4900,
+  "max_per_order": 1,
+  "planning_limits": {
+    "capacity_per_period": 45,
+    "max_video_seconds": 240,
+    "source": "FOUNDER_SUPPLIED_PROVIDER_LIMIT",
+    "verification": "PENDING_EXTERNAL_VERIFICATION"
+  },
+  "song_target_seconds": 195,
+  "song_max_seconds": 300,
+  "duration_statuses": [
+    "PENDING_AUDIO_MASTER",
+    "VIDEO_DURATION_ELIGIBLE",
+    "VIDEO_DURATION_REVIEW_REQUIRED"
+  ],
+  "duration_decisions": [
+    "PROCEED_FULL_SONG",
+    "ESCALATE_TO_FOUNDERS"
+  ],
+  "capacity_period_models": [
+    "CALENDAR_MONTH"
+  ],
+  "capacity_basis": "PENDING_VERIFICATION",
+  "reservation_statuses": [
+    "HELD",
+    "RESERVED",
+    "COMPLETED",
+    "RELEASED",
+    "EXPIRED"
+  ],
+  "entitlement_statuses": [
+    "AWAITING_PAYMENT",
+    "ENTITLED",
+    "CAPACITY_EXCEPTION",
+    "CANCELLED"
+  ],
+  "job_statuses": [
+    "INPUT_REQUIRED",
+    "READY",
+    "PRODUCTION_REQUIRED",
+    "PRODUCTION_IN_PROGRESS",
+    "CANDIDATE_READY",
+    "QUALITY_CHECK_REQUIRED",
+    "REWORK_REQUIRED",
+    "READY_FOR_REVEAL",
+    "REVEALED",
+    "EXCEPTION"
+  ],
+  "production_methods": [
+    "MANUAL"
+  ],
+  "platform": {
+    "name": "Mozart AI",
+    "decision": "FOUNDER_SELECTED",
+    "account": "NOT_OPENED",
+    "integration": "PENDING",
+    "video_capabilities": "PENDING_EXTERNAL_VERIFICATION"
+  },
+  "qc_criteria": [
+    "correct_customer",
+    "correct_song",
+    "complete_song",
+    "correct_photographs",
+    "correct_names_details",
+    "image_timing",
+    "transitions",
+    "no_visual_defects",
+    "no_wrong_customer_media",
+    "audio_video_sync",
+    "visual_quality",
+    "emotional_impact",
+    "premium_standard",
+    "branding"
+  ],
+  "qc_optional": [
+    "branding"
+  ],
+  "qc_outcomes": [
+    "PASS",
+    "REWORK",
+    "ESCALATE"
+  ],
+  "containers": [
+    "MP4",
+    "MOV"
+  ],
+  "candidate_max_bytes": 2147483648,
+  "media_policy": {
+    "accepted_types": [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/heic",
+      "image/heif"
+    ],
+    "max_files": 30,
+    "max_bytes_per_file": 10485760,
+    "min_short_edge_px": 720,
+    "orientation_guidance": "Landscape photographs fill the screen best; portrait photographs are welcome and are framed.",
+    "platform_requirements": "PENDING_EXTERNAL_VERIFICATION"
+  },
+  "media_rights_statement": "I confirm I have the right and any permission needed to provide these photographs so MCB can use them privately to make my video. This does not give MCB permission to use them publicly.",
+  "offer_events": [
+    "OFFER_VIEWED",
+    "SELECTED",
+    "DESELECTED"
+  ],
+  "hold_minutes": 1470,
+  "capacity_low_threshold": 5
+}

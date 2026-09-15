@@ -17,6 +17,8 @@
  *
  * POST { action: SONG_QUALITY_CHECK, order_id, candidate_id, answers, decision, note? }
  * POST { action: ARTWORK_QUALITY_CHECK, order_id, art_master_id, answers, decision, note? }
+ * POST { action: VIDEO_QUALITY_CHECK, order_id, candidate_id, answers, decision, note? }
+ * GET ?view=videos                          Memory Music Video summary, capacity, jobs and metrics
  *
  * Financial decisions are not here: they go through crm/order-action with the
  * founder's own code. Nothing here purchases, refunds, sends to a customer or
@@ -67,6 +69,8 @@ try {
                 json_response(200, cc_notifications($pdo, (string) ($_GET['filter'] ?? 'needs_action')));
             case 'search':
                 json_response(200, ['results' => cc_search($pdo, (string) ($_GET['q'] ?? ''))]);
+            case 'videos':
+                json_response(200, cc_videos_view($pdo, cc_period($period)));
             case 'advanced':
                 $adv = cc_advanced($pdo, $orderId);
                 $adv === null ? json_error(404, 'order_not_found', 'No order was found.') : json_response(200, $adv);
@@ -91,6 +95,7 @@ try {
         }
         return match ($action) {
             'SONG_QUALITY_CHECK' => cc_song_quality_check($pdo, $orderId, is_int($body['candidate_id'] ?? null) ? $body['candidate_id'] : 0, $body['answers'] ?? null, $body['decision'] ?? null, $note, $staff),
+            'VIDEO_QUALITY_CHECK' => cc_video_quality_check($pdo, $orderId, is_int($body['candidate_id'] ?? null) ? $body['candidate_id'] : 0, $body['answers'] ?? null, $body['decision'] ?? null, $note, $staff),
             'ARTWORK_QUALITY_CHECK' => cc_artwork_quality_check($pdo, $orderId, is_int($body['art_master_id'] ?? null) ? $body['art_master_id'] : 0, $body['answers'] ?? null, $body['decision'] ?? null, $note, $staff),
             default => throw new OperationsException('unknown_action', 'Unknown action.', 422),
         };

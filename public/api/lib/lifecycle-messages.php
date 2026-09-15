@@ -40,7 +40,7 @@ require_once __DIR__ . '/lifecycle.php';
  * ONE-WAY messages only. The retired approval emails (APPROVAL_REQUIRED,
  * CHANGES_RECEIVED, APPROVAL_CONFIRMED) are no longer sendable.
  */
-const MCB_LIFECYCLE_TYPES = ['CREATION_READY', 'IN_PRODUCTION', 'DISPATCHED', 'ADDITIONAL_PARCEL_DISPATCHED', 'DELIVERY_UPDATE', 'DELIVERED', 'FOLLOW_UP'];
+const MCB_LIFECYCLE_TYPES = ['CREATION_READY', 'IN_PRODUCTION', 'DISPATCHED', 'ADDITIONAL_PARCEL_DISPATCHED', 'DELIVERY_UPDATE', 'DELIVERED', 'VIDEO_READY', 'FOLLOW_UP'];
 
 /** First name only, as a greeting. Control characters cannot reach a header or body. */
 function lifecycle_first_name(string $name): string
@@ -124,6 +124,15 @@ function lifecycle_message_content(string $type, array $c): array
                 $copy['damage_guidance_not_a_condition'] ?? null,
             ])),
             ['See your order', $c['status_link']],
+        ],
+        'VIDEO_READY' => [
+            "Your MCB Memory Music Video is ready — {$ref}",
+            [
+                "Your memory. Your song. Your film.",
+                "Your MCB Memory Music Video is ready and waiting for you on your private order page, where you can watch it and download it.",
+                "If anything in it is genuinely wrong — a name, a photograph or a detail different from what you gave us — just reply to this email and we'll look into it.",
+            ],
+            ['Watch your Memory Music Video', $c['status_link']],
         ],
         'FOLLOW_UP' => [
             "How is everything? — {$ref}",

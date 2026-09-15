@@ -292,7 +292,12 @@ export type FunnelEvent =
   /** MCB's server saved the order with every memory and photo it needs. */
   | "personalisation_complete"
   /** MCB's server created a Stripe Checkout Session; the customer is leaving to pay. */
-  | "checkout_begin";
+  | "checkout_begin"
+  /** MCB Memory Music Video offer (event and product only; never a story, name or photograph). */
+  | "video_offer_view"
+  | "video_select"
+  | "video_deselect"
+  | "video_purchase";
 
 export interface FunnelParams {
   product_id?: string;

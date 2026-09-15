@@ -87,6 +87,17 @@ export interface OrderProgress {
   }[];
   items: { key: string; name: string; priority_replacement: { request_by: string | null } | null }[];
   open_requests: number;
+  /** MCB Memory Music Video™: plain states; the film itself only once revealed. */
+  videos?: {
+    video_job_id: number | null;
+    song: number;
+    status: "PHOTOGRAPHS_WANTED" | "BEING_MADE" | "BEING_ARRANGED" | "READY";
+    photographs: number;
+    max_photographs: number;
+    rights_statement: string;
+    orientation_guidance: string;
+    revealed_on: string | null;
+  }[];
 }
 
 export const fetchProgress = (token: string) => post<OrderProgress>("/api/order-progress", { token });
@@ -135,6 +146,33 @@ export const sendSupportEvidence = async (
   }
   return payload as { received: true; message: string };
 };
+
+/** A short-lived private address for the customer's revealed video (the token never enters a URL). */
+export const videoLink = (token: string, videoJobId: number, download: boolean) =>
+  post<{ url: string; expires_in: number }>("/api/order-video", { token, videoJobId, download });
+
+/** Adds one photograph for the video, with the customer's confirmation of their right to provide it. */
+export const uploadVideoPhoto = async (token: string, videoJobId: number, photo: File): Promise<{ received: true; photographs: number }> => {
+  const form = new FormData();
+  form.append("token", token);
+  form.append("videoJobId", String(videoJobId));
+  form.append("rightsConfirmed", "yes");
+  form.append("photo", photo);
+  let response: Response;
+  try {
+    response = await fetch("/api/order-video-media", { method: "POST", body: form });
+  } catch {
+    throw new LinkError(CONNECTION_MESSAGE, "network");
+  }
+  const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!response.ok) {
+    throw new LinkError(typeof payload?.message === "string" ? payload.message : "Something went wrong. Please try again.", typeof payload?.error === "string" ? payload.error : "error");
+  }
+  return payload as { received: true; photographs: number };
+};
+
+export const finishVideoPhotos = (token: string, videoJobId: number) =>
+  post<{ received: true; message: string }>("/api/order-video-media", { token, videoJobId, action: "PHOTOGRAPHS_DONE" });
 
 /** A listening or tracking link is only ever followed if it is https. */
 export const safeExternalUrl = (url: string | null): string | null => {

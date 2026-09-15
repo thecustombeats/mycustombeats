@@ -266,6 +266,7 @@ ROOTQ fca < db/schema.sql 2>/dev/null
 git show cf92949f:db/schema.sql | ROOTQ fcb 2>/dev/null
 ROOTQ fcb < db/migrations/2026-09-15-fulfilment-controller.sql 2>/dev/null; F1=$?
 ROOTQ fcb < db/migrations/2026-09-15-fulfilment-controller.sql 2>/dev/null; F2=$?
+ROOTQ fcb < db/migrations/2026-09-15-memory-music-video.sql 2>/dev/null
 dumpdb() { for tb in $(ROOTQ -N -e "SHOW TABLES" "$1"); do ROOTQ -N -e "SHOW CREATE TABLE \`$tb\`" "$1" | sed 's/AUTO_INCREMENT=[0-9]* //'; done; }
 tc "the Fulfilment Controller migration applies to the previous schema, twice, and equals a fresh schema" "$([ "$F1" = 0 ] && [ "$F2" = 0 ] && [ "$(dumpdb fca | shasum)" = "$(dumpdb fcb | shasum)" ] && echo 1 || echo 0)"
 ROOTQ -e 'DROP DATABASE fca; DROP DATABASE fcb;' 2>/dev/null

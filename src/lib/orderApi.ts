@@ -299,6 +299,8 @@ export const blockerMessage = (blocker: string | null): string | null => {
       return "This order isn't waiting for payment any more.";
     case "checkout_unavailable":
       return "Online payment isn't open yet.";
+    case "video_capacity_full":
+      return "Memory Music Video is fully booked for this production month. Please remove it from your finishing touches to continue.";
     default:
       return "This order can't be paid online. Please contact MCB and we'll help.";
   }

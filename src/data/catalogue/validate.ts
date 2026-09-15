@@ -78,6 +78,10 @@ export const validateCatalogue = (products: readonly Product[]): string[] => {
   if (artwork && (artwork.variants.length !== 1 || artwork.variants[0].fulfilment !== "SERVICE" || artwork.category !== "ARTWORK_SERVICE")) {
     errors.push("artwork-preparation must be one SERVICE variant in ARTWORK_SERVICE");
   }
+  const video = products.find((p) => p.id === "memory-music-video");
+  if (video && (video.variants.length !== 1 || video.variants[0].fulfilment !== "DIGITAL" || video.category !== "VIDEO_ENHANCEMENT" || video.variants[0].songCount !== null)) {
+    errors.push("memory-music-video must be one DIGITAL variant in VIDEO_ENHANCEMENT with no songs of its own");
+  }
   const priority = products.find((p) => p.id === "priority-replacement");
   if (!priority) errors.push("unknown referenced product 'priority-replacement'");
   if (!products.some((p) => p.variants.some((v) => v.priorityReplacementEligible))) {

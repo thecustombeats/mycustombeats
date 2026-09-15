@@ -174,6 +174,54 @@ const ArtworkReview = ({ art, questions, props }: { art: Json; questions: Json[]
   );
 };
 
+/** A Memory Music Video candidate: watch it, answer plain questions, decide. The customer is never asked. */
+const VideoReview = ({ video, questions, props }: { video: Json; questions: Json[]; props: Props }) => {
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [src, setSrc] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const watch = async () => {
+    setError(null);
+    try {
+      setSrc(await props.fetchBlob(`/api/crm/video?download=candidate&id=${video.candidate_id}&staff=${encodeURIComponent(props.staff)}`, video.container === "MOV" ? "video/quicktime" : "video/mp4"));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+  const decide = async (decision: string, note: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await props.api("/api/crm/command-centre", { action: "VIDEO_QUALITY_CHECK", order_id: props.orderId, candidate_id: video.candidate_id, answers, decision, note: note || undefined, staff: props.staff });
+      props.onDone(decision === "PASS" ? "Memory Music Video passed quality check." : decision === "REWORK" ? "Memory Music Video sent back for internal rework. The customer has not been contacted." : "Memory Music Video escalated.");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const checks = video.checks ?? {};
+  return (
+    <article className={`${card} space-y-4`} aria-labelledby={`video-${video.candidate_id}`}>
+      <div>
+        <p className={eyebrow}>Memory Music Video · song {video.song} · version {video.version}</p>
+        <h3 id={`video-${video.candidate_id}`} className="font-serif text-2xl text-ink">{video.song_title ?? "Untitled song"}</h3>
+      </div>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-base">
+        <dt className="font-semibold">Song length</dt><dd className="m-0">{video.song_seconds !== null ? `${video.song_seconds} seconds` : "— Awaiting data"}</dd>
+        <dt className="font-semibold">Film length</dt><dd className="m-0">{video.video_seconds !== null ? `${video.video_seconds} seconds` : "Not readable"}{checks.COVERS_WHOLE_SONG === "CONCERN" ? " — does not match the song" : ""}</dd>
+        <dt className="font-semibold">Picture</dt><dd className="m-0">{video.picture ?? "Not readable"}</dd>
+        <dt className="font-semibold">Photographs supplied</dt><dd className="m-0">{video.photographs}</dd>
+        <dt className="font-semibold">Earlier reworks</dt><dd className="m-0">{video.rework_count}</dd>
+      </dl>
+      {src ? <video controls playsInline src={src} className="w-full rounded-xl bg-ink" aria-label={`Memory Music Video for song ${video.song}`} /> : <button type="button" className={secondary} onClick={watch}>Watch the video</button>}
+      <Questions questions={questions} answers={answers} setAnswers={setAnswers} name={`video-${video.candidate_id}`} />
+      {error && <p role="alert" className="rounded-xl bg-[#FBEAEA] px-3 py-2 font-semibold text-[#8A1F1F]">{error}</p>}
+      <Decision answers={answers} questions={questions} busy={busy} onDecide={decide} />
+    </article>
+  );
+};
+
 const QualityReview = (props: Props) => {
   const [data, setData] = useState<Json | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -186,9 +234,10 @@ const QualityReview = (props: Props) => {
   return (
     <div className="space-y-4">
       <p className="text-base text-ink/80">{data.note}</p>
-      {data.songs.length === 0 && data.artwork.length === 0 && <p className={card}>Nothing on this order is waiting for a song or artwork quality check.</p>}
+      {data.songs.length === 0 && data.artwork.length === 0 && (data.videos ?? []).length === 0 && <p className={card}>Nothing on this order is waiting for a song, artwork or video quality check.</p>}
       {data.songs.map((s: Json) => <SongReview key={s.candidate_id} song={s} questions={data.song_questions} props={props} />)}
       {data.artwork.map((a: Json) => <ArtworkReview key={a.art_master_id} art={a} questions={data.artwork_questions} props={props} />)}
+      {(data.videos ?? []).map((v: Json) => <VideoReview key={v.candidate_id} video={v} questions={data.video_questions} props={props} />)}
     </div>
   );
 };

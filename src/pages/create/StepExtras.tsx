@@ -28,6 +28,7 @@ import {
   type OrderDraft,
 } from "../../lib/personalisation";
 import PhotoField from "./PhotoField";
+import VideoOffer from "./VideoOffer";
 
 interface StepExtrasProps {
   draft: OrderDraft;
@@ -69,6 +70,9 @@ const StepExtras = ({ draft, setDraft, photos, setPhoto, showErrors, onAdd }: St
       <p className="text-lg leading-relaxed text-espresso/80">
         Everything here is optional. Add a piece to display, a way to play your record, or peace of mind for your Keepsake.
       </p>
+
+      {/* ---- MCB Memory Music Video: optional, never preselected ---- */}
+      <VideoOffer draft={draft} setDraft={setDraft} />
 
       {/* ---- Personalised Music Plaque ---- */}
       <section aria-labelledby={`${uid}-plaque`} className="rounded-2xl bg-white p-5 sm:p-7">

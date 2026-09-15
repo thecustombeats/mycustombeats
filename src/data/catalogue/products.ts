@@ -548,6 +548,59 @@ export const ARTWORK_PREPARATION: Product = {
   ],
 };
 
+/* ------------------------------------------------------------------ */
+/* MCB Memory Music Video™ — optional enhancement                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One £49 purchase is ONE film for ONE selected song in the order. Never
+ * included with a package, never pre-selected, and only sold while the
+ * server's capacity ledger has a space (limited monthly availability).
+ */
+export const MEMORY_MUSIC_VIDEO: Product = {
+  id: "memory-music-video",
+  slug: "memory-music-video",
+  name: "MCB Memory Music Video™",
+  positioning: "Your memory. Your song. Your film.",
+  shortDescription:
+    "Turn your personalised MCB song into a beautiful memory film using the photographs and moments that made the story yours.",
+  commercialModel: "FIXED",
+  category: "VIDEO_ENHANCEMENT",
+  active: true,
+  public: true,
+  onlineCheckout: true,
+  requiresPersonalisation: false,
+  route: null,
+  deliveryClass: null,
+  turnaround: null,
+  schemaType: "Service",
+  variesBy: null,
+  analyticsCategory: "Video Enhancement",
+  image: null,
+  imageAlt: null,
+  disclosures: [
+    "Optional enhancement, chosen by you before payment. Not included with any package.",
+    "One Memory Music Video is made for one song you choose from your order.",
+    "Limited monthly availability.",
+  ],
+  cta: "Add my Memory Music Video",
+  storedValue: null,
+  variants: [
+    {
+      ...plainVariant,
+      sku: "memory-music-video",
+      name: "MCB Memory Music Video™",
+      label: "One film for one song",
+      price: gbp(4900),
+      fulfilment: "DIGITAL",
+      features: [],
+    },
+  ],
+};
+
+/** Memory Music Videos one order may include at launch (one per song remains the architecture). */
+export const MEMORY_MUSIC_VIDEO_MAX_PER_ORDER = 1;
+
 /** Days after confirmed delivery within which a priority request must be made. */
 export const PRIORITY_REPLACEMENT_CLAIM_WINDOW_DAYS = 7;
 
@@ -650,6 +703,7 @@ export const PRODUCTS: readonly Product[] = [
   PORTABLE_SUITCASE_RECORD_PLAYER,
   PRIORITY_REPLACEMENT,
   ARTWORK_PREPARATION,
+  MEMORY_MUSIC_VIDEO,
   CRUISE_SHIP_DJ_BIBLE,
   GIFT_VOUCHER,
 ];

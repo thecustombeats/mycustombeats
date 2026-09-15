@@ -6,7 +6,7 @@
     "url": "https://www.mycustombeats.com"
   },
   "currency": "GBP",
-  "catalogue_hash": "898530d07d9d419a2b33768604e7618f2136214985edd98113ed7680cec5df79",
+  "catalogue_hash": "ee5c02eddb389a443a30ae51d2cfe81a4529e8135f985e5f38883308ec501271",
   "how_to_order": "https://www.mycustombeats.com/create",
   "ordering_rules": {
     "automated_ordering": false,
@@ -14,6 +14,7 @@
     "song_experience_required": "Every order includes at least one Moment, Keepsake or Journey.",
     "priority_replacement": "At most one per eligible Keepsake in the same order.",
     "creative_process": "Single creative authority: the customer supplies the story, preferences and photographs and authorises MCB to make the creative decisions. No drafts are sent for approval and no subjective revisions are included. MCB quality-checks every order before a digital reveal or physical production. Statutory rights that cannot legally be excluded are unaffected.",
+    "memory_music_video": "Optional, never pre-selected, chosen before payment: one Memory Music Video for one song in the same order, at most one per order at launch. Limited monthly availability; it cannot be bought when the month is fully booked.",
     "artwork_preparation": "Keepsake and Journey artwork needs a customer photograph; square and at least 2500 × 2500 pixels is preferred. The optional MCB Artwork Preparation Service is added once per order, before payment, when a photograph is not artwork-ready.",
     "max_lines": 20,
     "delivery": "Physical items: the delivery charge for the destination is confirmed before payment. Where delivery for an item or destination cannot yet be confirmed online, MCB confirms it with the customer first and online payment is not offered for that order."
@@ -862,6 +863,59 @@
             "count": null,
             "each": {
               "applies_to": "a Keepsake or Journey order whose photograph is not artwork-ready"
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        }
+      ]
+    },
+    {
+      "id": "memory-music-video",
+      "name": "MCB Memory Music Video™",
+      "description": "Turn your personalised MCB song into a beautiful memory film using the photographs and moments that made the story yours.",
+      "positioning": "Your memory. Your song. Your film.",
+      "product_type": "VIDEO_ENHANCEMENT",
+      "commercial_model": "FIXED",
+      "url": "https://www.mycustombeats.com/products",
+      "image_url": null,
+      "availability": "ORDERABLE_ONLINE",
+      "enquiry_url": null,
+      "timing": null,
+      "availability_note": null,
+      "disclosures": [
+        "Optional enhancement, chosen by you before payment. Not included with any package.",
+        "One Memory Music Video is made for one song you choose from your order.",
+        "Limited monthly availability."
+      ],
+      "requires_song_experience_in_order": true,
+      "variants": [
+        {
+          "sku": "memory-music-video",
+          "name": "MCB Memory Music Video™",
+          "label": "One film for one song",
+          "price": {
+            "amount": "49.00",
+            "minor_units": 4900,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "DIGITAL",
+          "shipping_required": false,
+          "song_capacity": null,
+          "format": {
+            "type": "DIGITAL"
+          },
+          "personalisation": {
+            "required": false,
+            "unit": "song",
+            "count": 1,
+            "each": {
+              "applies_to": "one song you choose from a Moment, Keepsake or Journey in the same order",
+              "photographs": "added privately after payment"
             }
           },
           "add_ons": {

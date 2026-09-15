@@ -211,6 +211,21 @@ function price_order_lines(mixed $requested): OrderPricing
             return OrderPricing::refused('artwork_preparation_ineligible', 'MCB Artwork Preparation can be added once to a Keepsake or Journey order.');
         }
     }
+    // MCB Memory Music Video: one film per chosen song, at most the launch limit per order.
+    $videoSku = $rules['memory_video_sku'] ?? null;
+    foreach ($lines as $l) {
+        if ($l['sku'] === $videoSku) {
+            $songs = 0;
+            foreach ($lines as $s) {
+                if ($s['category'] === $rules['primary_category']) {
+                    $songs += (int) (catalogue_sku($s['sku'])['song_count'] ?? 0) * $s['quantity'];
+                }
+            }
+            if ($l['quantity'] > (int) ($rules['memory_video_max_per_order'] ?? 1) || $l['quantity'] > $songs) {
+                return OrderPricing::refused('memory_video_ineligible', 'One MCB Memory Music Video can be added for a song in your order.');
+            }
+        }
+    }
     if ($priorityUnits > $eligibleUnits) {
         return OrderPricing::refused(
             'priority_replacement_ineligible',

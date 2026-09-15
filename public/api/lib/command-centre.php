@@ -180,6 +180,11 @@ function cc_quality_items(PDO $pdo, array $orders): array
             $items[] = ['kind' => 'ARTWORK', 'order_id' => (int) $a['order_id'], 'since' => $a['created_at'], 'detail' => 'Artwork version ' . (int) $a['version'], 'art_master_id' => (int) $a['id']];
         }
     }
+    foreach ($pdo->query("SELECT j.order_id, c.id AS candidate_id, c.created_at, m.sequence FROM video_jobs j JOIN video_candidates c ON c.video_job_id = j.id AND c.qc_status = 'PENDING' JOIN video_entitlements e ON e.id = j.entitlement_id JOIN order_memories m ON m.id = e.memory_id WHERE j.status = 'QUALITY_CHECK_REQUIRED'")->fetchAll() as $v) {
+        if (isset($orders[(int) $v['order_id']])) {
+            $items[] = ['kind' => 'VIDEO', 'order_id' => (int) $v['order_id'], 'since' => $v['created_at'], 'detail' => 'Memory Music Video for song ' . (int) $v['sequence'], 'candidate_id' => (int) $v['candidate_id']];
+        }
+    }
     foreach ($orders as $id => $r) {
         if ($r['state'] === 'QUALITY_CHECK') {
             $items[] = ['kind' => 'FINAL', 'order_id' => $id, 'since' => $r['stage_since'], 'detail' => 'Final MCB check before ' . (order_workflow($r) === 'PHYSICAL' ? 'making' : 'the reveal')];
@@ -264,7 +269,7 @@ function cc_attention(PDO $pdo, array $orders, array $economics, array $quality,
             'priority' => 1, 'order' => $a['order'], 'since' => $a['since'], 'facts' => $a['facts'], 'action' => $a['action']];
     }
     foreach ($quality as $q) {
-        $title = ['SONG' => 'Song quality check required', 'ARTWORK' => 'Artwork quality check required', 'FINAL' => 'Final quality check required'][$q['kind']];
+        $title = ['SONG' => 'Song quality check required', 'ARTWORK' => 'Artwork quality check required', 'VIDEO' => 'Video quality check required', 'FINAL' => 'Final quality check required'][$q['kind']];
         $card('QUALITY_CHECK', $title, 2, cc_order_summary($orders[$q['order_id']]), $q['since'], 'Review quality', $q['kind'] === 'FINAL' ? 'final' : 'quality', ['item' => $q['detail']]);
     }
     foreach ($orders as $id => $r) {
@@ -309,6 +314,39 @@ function cc_attention(PDO $pdo, array $orders, array $economics, array $quality,
         if ($active($oid) && in_array($orders[$oid]['stage'], ['NEW', 'CREATING', 'QUALITY_CHECK', 'READY_FOR_FULFILMENT'], true)) {
             $card('CREATIVE_EXCEPTION', 'Creative exception', 2, cc_order_summary($orders[$oid]), $c['since'], 'Open order', 'card');
         }
+    }
+    // MCB Memory Music Video: genuine actions only.
+    foreach ($pdo->query(
+        "SELECT j.id, j.order_id, j.status, j.waiting_on, j.exception_reason, j.updated_at, j.created_at, m.sequence
+           FROM video_jobs j JOIN video_entitlements e ON e.id = j.entitlement_id JOIN order_memories m ON m.id = e.memory_id
+          WHERE j.status IN ('INPUT_REQUIRED','READY','PRODUCTION_REQUIRED','REWORK_REQUIRED','EXCEPTION')"
+    )->fetchAll() as $v) {
+        $oid = (int) $v['order_id'];
+        if (!$active($oid)) {
+            continue;
+        }
+        $facts = ['item' => 'Memory Music Video for song ' . (int) $v['sequence']];
+        if ($v['status'] === 'INPUT_REQUIRED' && strtotime($v['created_at'] . ' UTC') < time() - 48 * 3600) {
+            $card('VIDEO_INPUT_REQUIRED', 'Video input required', 3, cc_order_summary($orders[$oid]), $v['created_at'], 'Open order', 'card', $facts + ['problem' => 'CUSTOMER_PHOTOGRAPHS_NOT_RECEIVED']);
+        } elseif ($v['status'] === 'READY' && $v['waiting_on'] === 'DURATION_REVIEW') {
+            $card('VIDEO_EXCEPTION', 'Video duration review required', 2, cc_order_summary($orders[$oid]), $v['updated_at'], 'Open order', 'card', $facts + ['problem' => 'SONG_LONGER_THAN_PLANNING_MAXIMUM']);
+        } elseif (in_array($v['status'], ['PRODUCTION_REQUIRED', 'REWORK_REQUIRED'], true)) {
+            $card('VIDEO_PRODUCTION_REQUIRED', 'Video production required', 2, cc_order_summary($orders[$oid]), $v['updated_at'], 'Open order', 'card', $facts);
+        } elseif ($v['status'] === 'EXCEPTION' && $v['exception_reason'] !== 'CANCELLED_BEFORE_PRODUCTION') {
+            $card('VIDEO_EXCEPTION', 'Video exception', 1, cc_order_summary($orders[$oid]), $v['updated_at'], 'Open order', 'card', $facts + ['problem' => $v['exception_reason']]);
+        }
+    }
+    foreach ($pdo->query("SELECT order_id, updated_at FROM video_entitlements WHERE status = 'CAPACITY_EXCEPTION'")->fetchAll() as $x) {
+        if ($active((int) $x['order_id'])) {
+            $card('VIDEO_EXCEPTION', 'Video paid without a production space', 1, cc_order_summary($orders[(int) $x['order_id']]), $x['updated_at'], 'Open order', 'card', ['problem' => 'PAID_WITHOUT_CAPACITY']);
+        }
+    }
+    $videoCapacity = video_capacity_readonly($pdo);
+    if ($videoCapacity['state'] !== 'AVAILABLE') {
+        $cards[] = ['kind' => $videoCapacity['state'] === 'FULL' ? 'VIDEO_CAPACITY_FULL' : 'VIDEO_CAPACITY_LOW', 'title' => $videoCapacity['state'] === 'FULL' ? 'Video capacity full' : 'Video capacity low',
+            'priority' => $videoCapacity['state'] === 'FULL' ? 1 : 3, 'order' => null, 'since' => null,
+            'facts' => ['remaining' => $videoCapacity['remaining'], 'planned' => $videoCapacity['planned'], 'period' => $videoCapacity['period_key'], 'label' => $videoCapacity['label']],
+            'action' => ['label' => 'Open videos', 'open' => 'videos']];
     }
     foreach (cc_customer_problems($pdo, $orders) as $p) {
         if ($p['kind'] !== 'QUESTION') {
@@ -526,6 +564,10 @@ function cc_readiness(PDO $pdo): array
     $out[] = $item('music_platform', 'Music platform', $music['integration'] === 'INTEGRATED' && $music['capabilities_verified'] ? 'READY' : 'NEEDS_FOUNDER_ACTION',
         $music['name'] . ': founder selected; account not yet opened; integration pending. Songs are produced manually meanwhile.');
 
+    $videoLimits = video_data()['planning_limits'];
+    $out[] = $item('video_capacity', 'Memory Music Video capacity', 'NEEDS_EXTERNAL_VERIFICATION',
+        "Planning figures from the Founders ({$videoLimits['capacity_per_period']} videos per period, up to " . (int) round($videoLimits['max_video_seconds'] / 60) . ' minutes) are pending verification with the platform; videos are produced manually meanwhile.');
+
     $out[] = $item('artwork_production', 'Artwork production', 'DEFERRED', 'No artwork provider is selected; artwork is designed by people and checked by MCB.');
 
     $limits = array_map('production_role_limit', ['CREATIVE_ART_MASTER', 'PRINT_PRODUCTION_MASTER', 'AUDIO_PRODUCTION_MASTER', 'CUSTOMER_LISTENING_COPY']);
@@ -609,7 +651,7 @@ function cc_overview(PDO $pdo, string $periodKey, ?int $now = null): array
     }
     $inPeriod = array_filter($orders, static fn (array $r): bool => cc_in_period($r, $period));
     $count = static fn (callable $f): int => count(array_filter($orders, $f));
-    $problemKinds = ['DELIVERY_EXCEPTION', 'FULFILMENT_EXCEPTION', 'MANUFACTURING_DATA', 'ARTWORK_EXCEPTION', 'CREATIVE_EXCEPTION', 'CUSTOMER_SUPPORT', 'STRANDED_ORDER', 'FOUNDER_DECISION'];
+    $problemKinds = ['DELIVERY_EXCEPTION', 'FULFILMENT_EXCEPTION', 'MANUFACTURING_DATA', 'ARTWORK_EXCEPTION', 'CREATIVE_EXCEPTION', 'CUSTOMER_SUPPORT', 'STRANDED_ORDER', 'FOUNDER_DECISION', 'VIDEO_EXCEPTION'];
     $revenue = cc_revenue($pdo, $now);
     $profit = cc_profit($orders, $economics, $period);
 
@@ -625,7 +667,7 @@ function cc_overview(PDO $pdo, string $periodKey, ?int $now = null): array
             'being_made' => $count(static fn (array $r): bool => $r['stage'] === 'BEING_MADE'),
             'on_the_way' => $count(static fn (array $r): bool => $r['stage'] === 'ON_THE_WAY'),
             'delivered' => $count(static fn (array $r): bool => cc_delivered_in($r, $period)),
-            'needs_attention' => count(array_unique(array_map(static fn (array $c): int => $c['order']['order_id'], array_filter($attention, static fn (array $c): bool => in_array($c['kind'], $problemKinds, true))))),
+            'needs_attention' => count(array_unique(array_map(static fn (array $c): int => $c['order']['order_id'], array_filter($attention, static fn (array $c): bool => $c['order'] !== null && in_array($c['kind'], $problemKinds, true))))),
             'revenue' => $period['key'] === 'week' ? $revenue['week'] : ($period['key'] === 'all' ? null : $revenue['today']),
             'estimated_gross_contribution_minor' => $profit['estimated']['contribution_minor'],
             'actual_gross_contribution_minor' => $profit['actual']['contribution_minor'],
@@ -638,6 +680,7 @@ function cc_overview(PDO $pdo, string $periodKey, ?int $now = null): array
         'approvals' => ['pending' => count($approvals['pending'])],
         'health' => ['status' => $health['status'], 'label' => $health['label'], 'items' => $health['items']],
         'music_platform' => creative_data()['selected_music_platform'],
+        'videos' => video_command_summary($pdo, $period),
     ];
 }
 
@@ -824,6 +867,24 @@ const CC_ARTWORK_QUESTIONS = [
     'branding' => ['label' => 'MCB branding right?', 'criteria' => ['mcb_branding'], 'not_applicable' => 'No MCB branding used'],
 ];
 
+/** Founder question → video QC criterion (one each). Branding may honestly be not applicable. */
+const CC_VIDEO_QUESTIONS = [
+    'customer' => ['label' => 'Correct customer?', 'criteria' => ['correct_customer']],
+    'song' => ['label' => 'Correct song?', 'criteria' => ['correct_song']],
+    'whole_song' => ['label' => 'Does the film run for the whole song?', 'criteria' => ['complete_song']],
+    'photographs' => ['label' => 'Correct photographs?', 'criteria' => ['correct_photographs']],
+    'names' => ['label' => 'Names and details correct?', 'criteria' => ['correct_names_details']],
+    'timing' => ['label' => 'Photographs timed well?', 'criteria' => ['image_timing']],
+    'transitions' => ['label' => 'Transitions right?', 'criteria' => ['transitions']],
+    'defects' => ['label' => 'Free of visual defects?', 'criteria' => ['no_visual_defects']],
+    'other_customer' => ['label' => 'Nothing from another customer?', 'criteria' => ['no_wrong_customer_media']],
+    'sync' => ['label' => 'Picture and sound in sync?', 'criteria' => ['audio_video_sync']],
+    'quality' => ['label' => 'Looks sharp and clear?', 'criteria' => ['visual_quality']],
+    'emotion' => ['label' => 'Emotion right?', 'criteria' => ['emotional_impact']],
+    'standard' => ['label' => 'Premium MCB standard?', 'criteria' => ['premium_standard']],
+    'branding' => ['label' => 'MCB branding right?', 'criteria' => ['branding'], 'not_applicable' => 'No MCB branding used'],
+];
+
 /** answers: question → 'YES' | 'NO' | 'NOT_APPLICABLE' (only where allowed). */
 function cc_answers_to_criteria(array $questions, mixed $answers): array
 {
@@ -917,11 +978,30 @@ function cc_quality_view(PDO $pdo, int $orderId, string $staff): ?array
             'print_previews' => array_map(static fn (array $p): array => ['print_master_id' => (int) $p['id'], 'template' => $p['template_id'], 'version' => (int) $p['version']], $prints->fetchAll()),
         ];
     }
+    $videos = [];
+    $v = $pdo->prepare("SELECT j.id AS video_job_id, j.audio_duration_ms, j.rework_count, c.id AS candidate_id, c.version, c.container, c.duration_ms, c.width, c.height, c.technical_checks, m.sequence
+                          FROM video_jobs j JOIN video_candidates c ON c.video_job_id = j.id AND c.qc_status = 'PENDING' JOIN video_entitlements e ON e.id = j.entitlement_id JOIN order_memories m ON m.id = e.memory_id
+                         WHERE j.order_id = :o AND j.status = 'QUALITY_CHECK_REQUIRED' ORDER BY j.id");
+    $v->execute([':o' => $orderId]);
+    foreach ($v->fetchAll() as $x) {
+        $inputs = video_production_inputs($pdo, (int) $x['video_job_id']);
+        $videos[] = [
+            'video_job_id' => (int) $x['video_job_id'], 'candidate_id' => (int) $x['candidate_id'], 'version' => (int) $x['version'], 'song' => (int) $x['sequence'],
+            'song_title' => $inputs['song_title'], 'container' => $x['container'],
+            'song_seconds' => $x['audio_duration_ms'] === null ? null : (int) round((int) $x['audio_duration_ms'] / 1000),
+            'video_seconds' => $x['duration_ms'] === null ? null : (int) round((int) $x['duration_ms'] / 1000),
+            'picture' => $x['width'] === null ? null : (int) $x['width'] . ' × ' . (int) $x['height'],
+            'checks' => json_decode((string) $x['technical_checks'], true), 'rework_count' => (int) $x['rework_count'],
+            'facts' => $inputs['facts'], 'photographs' => count($inputs['photographs']),
+        ];
+    }
     return [
         'order_id' => $orderId,
         'reference' => $row['mcb_reference'],
         'songs' => $songs,
         'artwork' => $artwork,
+        'videos' => $videos,
+        'video_questions' => array_map(static fn (string $k, array $q): array => ['key' => $k, 'label' => $q['label'], 'not_applicable' => $q['not_applicable'] ?? null], array_keys(CC_VIDEO_QUESTIONS), CC_VIDEO_QUESTIONS),
         'song_questions' => array_map(static fn (string $k, array $q): array => ['key' => $k, 'label' => $q['label']], array_keys(CC_SONG_QUESTIONS), CC_SONG_QUESTIONS),
         'artwork_questions' => array_map(static fn (string $k, array $q): array => ['key' => $k, 'label' => $q['label'], 'not_applicable' => $q['not_applicable'] ?? null], array_keys(CC_ARTWORK_QUESTIONS), CC_ARTWORK_QUESTIONS),
         'note' => 'Internal quality review. The customer is not asked to approve anything and is not contacted by these decisions.',
@@ -967,3 +1047,34 @@ function cc_artwork_quality_check(PDO $pdo, int $orderId, int $artMasterId, mixe
     record_order_event($pdo, $orderId, 'FOUNDER.QUALITY_REVIEWED', ['kind' => 'ARTWORK', 'art_master_id' => $artMasterId, 'decision' => $decision, 'by' => $staff, 'with_note' => $note !== null]);
     return $result + ['decision' => $decision];
 }
+
+/** A founder's video quality decision: PASS (a new immutable Video Master), REWORK (internal) or ESCALATE. */
+function cc_video_quality_check(PDO $pdo, int $orderId, int $candidateId, mixed $answers, mixed $decision, ?string $note, string $staff): array
+{
+    if (!in_array($decision, ['PASS', 'REWORK', 'ESCALATE'], true)) {
+        throw new OperationsException('invalid_decision', 'Choose: pass, send back for internal rework, or escalate.', 422);
+    }
+    $criteria = cc_answers_to_criteria(CC_VIDEO_QUESTIONS, $answers);
+    $stmt = $pdo->prepare('SELECT video_job_id FROM video_candidates WHERE id = :c AND order_id = :o');
+    $stmt->execute([':c' => $candidateId, ':o' => $orderId]);
+    $jobId = $stmt->fetchColumn();
+    $job = $jobId === false ? null : video_job_row($pdo, (int) $jobId, true);
+    if ($job === null) {
+        throw new OperationsException('candidate_not_found', 'No such video on this order.', 404);
+    }
+    return video_quality_check($pdo, $job, $candidateId, $criteria, $decision, $note, $staff) + ['decision' => $decision];
+}
+
+/** The Videos view: summary, capacity (clearly pending verification), jobs in progress and metrics. */
+function cc_videos_view(PDO $pdo, array $period): array
+{
+    $orders = cc_paid_orders($pdo);
+    $jobs = [];
+    foreach ($pdo->query("SELECT j.id, j.order_id, j.status, j.waiting_on, j.updated_at, m.sequence FROM video_jobs j JOIN video_entitlements e ON e.id = j.entitlement_id JOIN order_memories m ON m.id = e.memory_id WHERE j.status <> 'REVEALED' ORDER BY j.updated_at")->fetchAll() as $j) {
+        if (isset($orders[(int) $j['order_id']])) {
+            $jobs[] = ['video_job_id' => (int) $j['id'], 'song' => (int) $j['sequence'], 'status' => $j['status'], 'waiting_on' => $j['waiting_on'], 'since' => $j['updated_at'], 'order' => cc_order_summary($orders[(int) $j['order_id']])];
+        }
+    }
+    return ['summary' => video_command_summary($pdo, $period), 'jobs' => $jobs, 'metrics' => video_metrics($pdo), 'platform' => video_data()['platform'], 'planning_limits' => video_data()['planning_limits']];
+}
+

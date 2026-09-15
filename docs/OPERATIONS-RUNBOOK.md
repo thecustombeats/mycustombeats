@@ -190,3 +190,13 @@ Full record: `docs/FOUNDER-COMMAND-CENTRE-20260915.md`. Open `/command-centre`, 
 - **Notifications:** Telegram shows *Not connected* until a notification has actually been delivered by Telegram.
 - Figures are UTC days. Contribution is gross contribution after fulfilment cost, never net profit.
 
+## 17. Memory Music Video (15 September 2026)
+
+Full record: `docs/MEMORY-MUSIC-VIDEO-20260915.md`.
+
+- A paid order with a video has an **MCB Memory Music Video** section on the staff console. The customer adds photographs on their order page (with their rights confirmation) and marks them done — or confirm the inputs yourself.
+- When the song's Production Master exists and is 4 minutes or shorter, the video is **ready to make**. Longer songs need your duration decision (proceed with the full song, or escalate); the song is never shortened.
+- **Start production**, download the audio reference and photographs, make the film on the chosen platform, then upload the finished MP4/MOV.
+- Check it (Command Centre → Quality check, or the staff console): pass, send back for internal rework (the customer is not contacted), or escalate. Then **reveal**: the customer is emailed and watches or downloads privately.
+- Capacity (Command Centre → Videos) is a planning figure pending platform verification. A customer who cancels before production can have their space released (with a reason); no refund is made by the system.
+

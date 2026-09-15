@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Check } from "lucide-react";
 import { DAMAGE_GUIDANCE, DAMAGE_GUIDANCE_NOT_A_CONDITION, SEPARATE_PARCELS_NOTE } from "../data/legal/delivery";
 import { CUSTOMER_STAGES } from "../data/operations";
+import VideoSection from "./order/VideoSection";
 import {
   LinkError,
   fetchProgress,
@@ -283,6 +284,8 @@ const YourOrder = () => {
                 </a>
               </section>
             )}
+
+            <VideoSection token={token as string} progress={progress} />
 
             <section className={card} aria-labelledby="order-progress">
               <h2 id="order-progress" className="font-serif text-2xl text-ink">Progress</h2>

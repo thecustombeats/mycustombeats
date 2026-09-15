@@ -7,7 +7,7 @@
 | Endpoint | Method | Protection |
 |---|---|---|
 | `order`, `order-quote`, `order-status`, `order-upload`, `checkout/session` | POST | same-origin; rate-limited; checkout token for existing orders |
-| `order-approval` (retired: answers identically, writes nothing), `order-progress`, `order-support`, `order-evidence` | POST | same-origin; rate-limited; 256-bit HMAC link token (hashed, expiring, revocable, purpose-scoped) |
+| `order-approval` (retired: answers identically, writes nothing), `order-progress`, `order-support`, `order-evidence`, `order-video`, `order-video-media` | POST | same-origin; rate-limited; 256-bit HMAC link token (hashed, expiring, revocable, purpose-scoped) |
 | `concierge/enquiry`, `live/enquiry`, `affiliate/click`, `affiliate/register` | POST | same-origin; rate-limited; server-side validation |
 | `order-reference` | GET | Stripe session-id shape check; rate-limited |
 | `affiliate/dashboard` | GET | signed dashboard token; rate-limited (Sprint 6) |
@@ -17,7 +17,8 @@
 | `crm/production-files`, `crm/artwork` | GET/POST | CRM key; staff name on every read and download (logged); cross-order ids refused; production files in private storage; supplier data, links and costs only in these staff responses — never public, never in notifications |
 | `crm/fulfilment` | GET | CRM key; INTERNAL economics, routes, scorecards and health — never public, never in notifications; evidence downloads need a staff name and are audited |
 | `crm/command-centre` | GET/POST | CRM key and staff name; no-store, noindex; read model only, plus the two quality decisions (audited: FOUNDER.QUALITY_REVIEWED); search text never recorded; list views carry safe names (first name + initial) and no story, photo, address or email |
-| `crm/*` (all 21 endpoints) | GET/POST | CRM key (Bearer, constant-time compare); no browser cookie |
+| `crm/video` | GET/POST | CRM key and staff name; every file download logged (`video_access_log`; audio references also in `creative_access_log`); cross-order registration refused; candidate and master files private (random names, 0600) |
+| `crm/*` (all 22 endpoints) | GET/POST | CRM key (Bearer, constant-time compare); no browser cookie |
 | `crm/notifications` | GET/POST | CRM key **or** the separate `notifications.worker_key`, which can do nothing else; claim tokens are one-time (stored as SHA-256) |
 | `product-availability` | GET | public; catalogue identifiers only |
 | `AUTHORISE_SUPPLIER_PURCHASE` (via `crm/order-action`) | POST | CRM key **and** the founder's own code (`password_verify` against a config hash); 5 refusals per order per 15 min → 429; refusals audited without the code. A notification deep link carries only `#order=…&action=…` and authorises nothing |
@@ -93,4 +94,12 @@ Uploads fail closed and live outside the web root; webhook signature/idempotency
 - The CRM key lives in the tab's memory only. Deep links (`#view=…&order=MCB-…&open=…`) choose what to show and are validated; they never carry a credential or perform an action.
 - Private files (song, artwork, source photographs) are fetched with the key into memory (blob URLs); their existing endpoints audit the access.
 - No money moves from the Command Centre: supplier authorisation and founder-only resolutions go through `crm/order-action` with the founder's own code, as before.
+
+## Memory Music Video (15 September 2026)
+
+- **Capacity is server-authoritative**: the period row is locked before a checkout session is created; a full period refuses the session. Payment converts the hold in its own locked, idempotent transaction; a replay changes nothing; a payment without a space becomes a founder exception (no oversell, no automatic refund).
+- **Customer video access** uses ten-minute HMAC-signed links (order, master, expiry, disposition) under `token_secret`; the order link token never enters a URL. Responses are `no-store`, `noindex`, `nosniff`. Another order's token is refused.
+- **Video photographs** are identified by their bytes, stored privately, and carry the customer's confirmation of their right to provide them — which is recorded as private production permission only, never marketing permission.
+- **No platform integration**: no API call, endpoint, credential, scraping or browser automation. The production inputs exclude address, phone, email, payment, supplier economics and credentials.
+- **The audio Production Master is never written**: videos reference it by id, version and SHA-256; Video Masters are hash-verified copies of checked candidates.
 

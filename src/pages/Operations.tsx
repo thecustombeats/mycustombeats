@@ -5,6 +5,7 @@ import { useLocation } from "react-router-dom";
 import { parseOperationsLink } from "../lib/operationsLink";
 import CreativeFactoryPanel from "./operations/CreativeFactoryPanel";
 import ProductionFilesPanel from "./operations/ProductionFilesPanel";
+import VideoPanel from "./operations/VideoPanel";
 import FulfilmentPanel, { DecisionDetails } from "./operations/FulfilmentPanel";
 import { FINANCIAL_AUTHORISERS, OPERATIONAL_STATES, QC_CHECKLIST, QC_FAIL_REASONS, REOPEN_REASONS } from "../data/operations";
 
@@ -454,6 +455,12 @@ const Operations = () => {
                   {order.payment_status === "PAID" && order.operations.fulfilment.controller && (
                     <Section title="Supplier orders, parcels and exceptions">
                       <FulfilmentPanel controller={order.operations.fulfilment.controller} state={order.operations.state} actions={order.operations.available_actions} run={runPanelAction} downloadEvidence={downloadEvidence} />
+                    </Section>
+                  )}
+
+                  {order.payment_status === "PAID" && order.lines.some((l: Json) => l.sku === "memory-music-video") && (
+                    <Section title="MCB Memory Music Video">
+                      <VideoPanel key={`v${order.order_id}`} orderId={order.order_id} reference={order.reference} apiKey={key} staff={staff} />
                     </Section>
                   )}
 

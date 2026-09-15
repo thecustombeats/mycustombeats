@@ -43,3 +43,7 @@ Creative Art Masters, print production masters, image-preparation records, manuf
 
 Supplier orders (references, actual costs, operator and founder), shipments and tracking, fulfilment exceptions and their resolutions, expected and actual economics snapshots, support evidence (private files in `mcb-uploads/support/` or a text reference), customer content permissions (with withdrawal) and prepared lifecycle hooks are private staff records. **No retention period is set** — NEEDS PROFESSIONAL LEGAL REVIEW. Nothing is deleted automatically; a withdrawn permission is kept as withdrawn.
 
+## Memory Music Video material (15 September 2026)
+
+Customer video photographs (with a hash of the rights statement they confirmed), video candidates, Video Masters, video access logs, capacity reservations and offer counters (no personal data) are stored privately (`mcb-uploads/video/`). **No retention period is set** — NEEDS PROFESSIONAL LEGAL REVIEW. Nothing is deleted automatically.
+

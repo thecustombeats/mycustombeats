@@ -189,6 +189,7 @@ authorised = {
     "vintage-smartphone-gramophone": 10000, "antique-brass-gramophone": 100000,
     "portable-suitcase-record-player": 20000, "priority-replacement": 1999,
     "artwork-preparation": 1500,
+    "memory-music-video": 4900,
 }
 orderable = {k for k, v in skus.items() if v.get("orderable") is True}
 ok = orderable == set(authorised) and all(
@@ -224,7 +225,8 @@ import json
 r = json.load(open("public/api/data/catalogue.json"))["rules"]
 print(1 if r == {"max_lines": 20, "max_quantity_per_line": 50, "primary_category": "SONG_EXPERIENCE",
                  "priority_replacement_sku": "priority-replacement", "artwork_preparation_sku": "artwork-preparation",
-                 "photo_artwork_product_ids": ["keepsake", "journey"], "artwork_photo_min_px": 2500} else 0)
+                 "photo_artwork_product_ids": ["keepsake", "journey"], "artwork_photo_min_px": 2500,
+                 "memory_video_sku": "memory-music-video", "memory_video_max_per_order": 1} else 0)
 PY
 )"
 tc "  → only the four Keepsake variants are Priority Replacement eligible" "$(python3 - <<'PY'

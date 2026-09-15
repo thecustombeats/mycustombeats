@@ -5,7 +5,7 @@
  * from its generated copy of this catalogue and never accepts a total.
  */
 
-import { ORDER_LIMITS, PRODUCTS } from "./products";
+import { MEMORY_MUSIC_VIDEO_MAX_PER_ORDER, ORDER_LIMITS, PRODUCTS } from "./products";
 import type { Money, Product, ProductId, Variant } from "./types";
 
 export * from "./types";
@@ -47,7 +47,8 @@ export const addOnProducts = (): readonly Product[] =>
       product.onlineCheckout &&
       product.category !== "SONG_EXPERIENCE" &&
       product.category !== "PROTECTION" &&
-      product.category !== "ARTWORK_SERVICE"
+      product.category !== "ARTWORK_SERVICE" &&
+      product.category !== "VIDEO_ENHANCEMENT"
   );
 
 export const isQuoted = (product: Pick<Product, "commercialModel">): boolean =>
@@ -118,6 +119,7 @@ export type OrderPreview =
 
 export const PRIORITY_REPLACEMENT_SKU = "priority-replacement";
 export const ARTWORK_PREPARATION_SKU = "artwork-preparation";
+export const MEMORY_MUSIC_VIDEO_SKU = "memory-music-video";
 
 /** Products whose artwork is created from a customer photograph (vinyl artwork). */
 export const PHOTO_ARTWORK_PRODUCT_IDS: ReadonlySet<string> = new Set(["keepsake", "journey"]);
@@ -136,6 +138,7 @@ export const previewOrder = (requests: readonly OrderLineRequest[]): OrderPrevie
   let priorityUnits = 0;
   let hasSongExperience = false;
   let hasPhotoArtwork = false;
+  let songs = 0;
 
   for (const request of requests) {
     if (seen.has(request.sku)) return { ok: false, reason: "duplicate_sku" };
@@ -145,7 +148,10 @@ export const previewOrder = (requests: readonly OrderLineRequest[]): OrderPrevie
     if (!Number.isSafeInteger(request.quantity) || request.quantity < 1 || request.quantity > ORDER_LIMITS.maxQuantityPerLine) {
       return { ok: false, reason: "invalid_quantity" };
     }
-    if (ref.product.category === "SONG_EXPERIENCE") hasSongExperience = true;
+    if (ref.product.category === "SONG_EXPERIENCE") {
+      hasSongExperience = true;
+      songs += (ref.variant.songCount ?? 0) * request.quantity;
+    }
     if (PHOTO_ARTWORK_PRODUCT_IDS.has(ref.product.id)) hasPhotoArtwork = true;
     if (ref.variant.sku === ARTWORK_PREPARATION_SKU && request.quantity !== 1) return { ok: false, reason: "artwork_preparation_ineligible" };
     if (ref.variant.priorityReplacementEligible) eligibleUnits += request.quantity;
@@ -165,6 +171,8 @@ export const previewOrder = (requests: readonly OrderLineRequest[]): OrderPrevie
   if (!hasSongExperience) return { ok: false, reason: "no_song_experience" };
   if (priorityUnits > eligibleUnits) return { ok: false, reason: "priority_replacement_ineligible" };
   if (seen.has(ARTWORK_PREPARATION_SKU) && !hasPhotoArtwork) return { ok: false, reason: "artwork_preparation_ineligible" };
+  const videos = requests.find((r) => r.sku === MEMORY_MUSIC_VIDEO_SKU)?.quantity ?? 0;
+  if (videos > MEMORY_MUSIC_VIDEO_MAX_PER_ORDER || videos > songs) return { ok: false, reason: "memory_video_ineligible" };
 
   return {
     ok: true,

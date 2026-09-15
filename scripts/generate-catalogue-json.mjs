@@ -36,6 +36,7 @@ const TARGETS = {
   artwork: join(root, "public/api/data/artwork.json"),
   creative: join(root, "public/api/data/creative.json"),
   fulfilment: join(root, "public/api/data/fulfilment.json"),
+  video: join(root, "public/api/data/video.json"),
 };
 
 const fail = (message) => {
@@ -66,6 +67,7 @@ try {
       join(root, "src/data/production/artwork.ts"),
       join(root, "src/data/production/creative.ts"),
       join(root, "src/data/production/fulfilment.ts"),
+      join(root, "src/data/production/video.ts"),
       "--outDir", tmp,
       "--rootDir", join(root, "src/data"),
       "--module", "esnext",
@@ -109,6 +111,7 @@ const imagery = await import(pathToFileURL(join(tmp, "imagery.js")).href);
 const artwork = await import(pathToFileURL(join(tmp, "production/artwork.js")).href);
 const creative = await import(pathToFileURL(join(tmp, "production/creative.js")).href);
 const fulfilment = await import(pathToFileURL(join(tmp, "production/fulfilment.js")).href);
+const video = await import(pathToFileURL(join(tmp, "production/video.js")).href);
 rmSync(tmp, { recursive: true, force: true });
 
 const { PRODUCTS, ORDER_LIMITS, PRIORITY_REPLACEMENT_SKU, validateCatalogue } = catalogue;
@@ -189,6 +192,8 @@ const body = {
     artwork_preparation_sku: catalogue.ARTWORK_PREPARATION_SKU,
     photo_artwork_product_ids: [...catalogue.PHOTO_ARTWORK_PRODUCT_IDS],
     artwork_photo_min_px: catalogue.ARTWORK_PHOTO_MIN_PX,
+    memory_video_sku: catalogue.MEMORY_MUSIC_VIDEO_SKU,
+    memory_video_max_per_order: catalogue.MEMORY_MUSIC_VIDEO_MAX_PER_ORDER,
   },
   products,
   skus,
@@ -310,7 +315,7 @@ const operationsOut = {
 const SITE = "https://www.mycustombeats.com";
 const addOnIds = new Set(catalogue.addOnProducts().map((p) => p.id));
 const feedProducts = PRODUCTS.filter(
-  (p) => p.active && p.public && p.commercialModel !== "STORED_VALUE" && (p.route !== null || addOnIds.has(p.id) || p.id === "artwork-preparation")
+  (p) => p.active && p.public && p.commercialModel !== "STORED_VALUE" && (p.route !== null || addOnIds.has(p.id) || p.id === "artwork-preparation" || p.id === "memory-music-video")
 );
 // Photographs that show the product itself. Lifestyle and display-wall images
 // (Moment, Keepsake, Bespoke) are deliberately not offered as product images.
@@ -338,6 +343,9 @@ const personalisationFor = (product, variant) => {
   }
   if (product.id === "artwork-preparation") {
     return { required: false, unit: null, count: null, each: { applies_to: "a Keepsake or Journey order whose photograph is not artwork-ready" } };
+  }
+  if (product.id === "memory-music-video") {
+    return { required: false, unit: "song", count: 1, each: { applies_to: "one song you choose from a Moment, Keepsake or Journey in the same order", photographs: "added privately after payment" } };
   }
   if (product.id === "priority-replacement") {
     return { required: false, unit: null, count: null, each: { applies_to: "one eligible Keepsake in the same order" } };
@@ -369,6 +377,7 @@ const publicCatalogueBody = {
     song_experience_required: "Every order includes at least one Moment, Keepsake or Journey.",
     priority_replacement: "At most one per eligible Keepsake in the same order.",
     creative_process: "Single creative authority: the customer supplies the story, preferences and photographs and authorises MCB to make the creative decisions. No drafts are sent for approval and no subjective revisions are included. MCB quality-checks every order before a digital reveal or physical production. Statutory rights that cannot legally be excluded are unaffected.",
+    memory_music_video: "Optional, never pre-selected, chosen before payment: one Memory Music Video for one song in the same order, at most one per order at launch. Limited monthly availability; it cannot be bought when the month is fully booked.",
     artwork_preparation: "Keepsake and Journey artwork needs a customer photograph; square and at least 2500 × 2500 pixels is preferred. The optional MCB Artwork Preparation Service is added once per order, before payment, when a photograph is not artwork-ready.",
     max_lines: ORDER_LIMITS.maxLines,
     delivery: "Physical items: the delivery charge for the destination is confirmed before payment. Where delivery for an item or destination cannot yet be confirmed online, MCB confirms it with the customer first and online payment is not offered for that order.",
@@ -533,6 +542,40 @@ const fulfilmentOut = {
 for (const r of fulfilment.FOUNDER_ONLY_RESOLUTIONS) if (!fulfilment.EXCEPTION_RESOLUTIONS.includes(r)) fail(`founder-only resolution ${r} is not a resolution`);
 for (const t of fulfilment.DELIVERY_EXCEPTION_TYPES) if (!fulfilment.FULFILMENT_EXCEPTION_TYPES.includes(t)) fail(`delivery exception ${t} is not an exception type`);
 
+// Memory Music Video policy (server-only). The price comes from the catalogue; the platform name from the music platform record.
+const videoSku = skus[catalogue.MEMORY_MUSIC_VIDEO_SKU];
+if (!videoSku || videoSku.price_minor !== 4900 || videoSku.fulfilment !== "DIGITAL") fail("memory-music-video must be a £49 DIGITAL SKU");
+if (video.VIDEO_PLANNING_LIMITS.verification !== "PENDING_EXTERNAL_VERIFICATION") fail("video planning limits cannot be marked verified before the platform is verified");
+if (video.VIDEO_PLANNING_LIMITS.maxVideoSeconds > video.SONG_MAX_SECONDS) fail("the video planning maximum cannot exceed the song maximum");
+const videoOut = {
+  _generated: "Do not edit. INTERNAL. Generated from src/data/production/video.ts by scripts/generate-catalogue-json.mjs",
+  sku: video.VIDEO_SKU,
+  price_minor: videoSku.price_minor,
+  max_per_order: catalogue.MEMORY_MUSIC_VIDEO_MAX_PER_ORDER,
+  planning_limits: { capacity_per_period: video.VIDEO_PLANNING_LIMITS.capacityPerPeriod, max_video_seconds: video.VIDEO_PLANNING_LIMITS.maxVideoSeconds, source: video.VIDEO_PLANNING_LIMITS.source, verification: video.VIDEO_PLANNING_LIMITS.verification },
+  song_target_seconds: video.SONG_TARGET_SECONDS,
+  song_max_seconds: video.SONG_MAX_SECONDS,
+  duration_statuses: [...video.VIDEO_DURATION_STATUSES],
+  duration_decisions: [...video.VIDEO_DURATION_DECISIONS],
+  capacity_period_models: [...video.VIDEO_CAPACITY_PERIOD_MODELS],
+  capacity_basis: video.VIDEO_CAPACITY_BASIS,
+  reservation_statuses: [...video.VIDEO_RESERVATION_STATUSES],
+  entitlement_statuses: [...video.VIDEO_ENTITLEMENT_STATUSES],
+  job_statuses: [...video.VIDEO_JOB_STATUSES],
+  production_methods: [...video.VIDEO_PRODUCTION_METHODS],
+  platform: { name: creative.SELECTED_MUSIC_PLATFORM.name, decision: video.VIDEO_PLATFORM.decision, account: video.VIDEO_PLATFORM.account, integration: video.VIDEO_PLATFORM.integration, video_capabilities: video.VIDEO_PLATFORM.videoCapabilities },
+  qc_criteria: [...video.VIDEO_QC_CRITERIA],
+  qc_optional: [...video.VIDEO_QC_OPTIONAL],
+  qc_outcomes: [...video.VIDEO_QC_OUTCOMES],
+  containers: [...video.VIDEO_CONTAINERS],
+  candidate_max_bytes: video.VIDEO_CANDIDATE_MAX_BYTES,
+  media_policy: { accepted_types: [...video.VIDEO_MEDIA_POLICY.acceptedTypes], max_files: video.VIDEO_MEDIA_POLICY.maxFiles, max_bytes_per_file: video.VIDEO_MEDIA_POLICY.maxBytesPerFile, min_short_edge_px: video.VIDEO_MEDIA_POLICY.minShortEdgePx, orientation_guidance: video.VIDEO_MEDIA_POLICY.orientationGuidance, platform_requirements: video.VIDEO_MEDIA_POLICY.platformRequirements },
+  media_rights_statement: video.VIDEO_MEDIA_RIGHTS_STATEMENT,
+  offer_events: [...video.VIDEO_OFFER_EVENTS],
+  hold_minutes: video.VIDEO_HOLD_MINUTES,
+  capacity_low_threshold: video.VIDEO_CAPACITY_LOW_THRESHOLD,
+};
+
 const outputs = [
   [TARGETS.catalogue, JSON.stringify(catalogueOut, null, 2) + "\n"],
   [TARGETS.legal, JSON.stringify(legalOut, null, 2) + "\n"],
@@ -542,6 +585,7 @@ const outputs = [
   [TARGETS.artwork, JSON.stringify(artworkOut, null, 2) + "\n"],
   [TARGETS.creative, JSON.stringify(creativeOut, null, 2) + "\n"],
   [TARGETS.fulfilment, JSON.stringify(fulfilmentOut, null, 2) + "\n"],
+  [TARGETS.video, JSON.stringify(videoOut, null, 2) + "\n"],
 ];
 
 if (checkOnly) {

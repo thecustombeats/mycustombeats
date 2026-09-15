@@ -24,6 +24,17 @@ export const Tile = ({ label, value, hint, emphasis = false }: { label: string; 
 export const ActionCard = ({ item }: { item: Json }) => {
   const o = item.order;
   const f = item.facts ?? {};
+  if (!o) {
+    // Not about one order (e.g. Memory Music Video capacity): opens the Videos view.
+    return (
+      <article className={`${card} flex flex-col gap-3 border-l-4 ${item.priority === 1 ? "border-l-[#9B2C2C]" : "border-l-gold"}`} aria-label={item.title}>
+        <p className={eyebrow}>{item.priority === 1 ? "Priority · " : ""}{item.title}</p>
+        <p className="text-base text-ink">{f.remaining} of {f.planned} video spaces left in {f.period}.</p>
+        <p className="text-sm font-semibold text-ink/80">{f.label}</p>
+        <a className={`${primary} self-start`} href={commandLink({ view: "videos" })}>{item.action.label}</a>
+      </article>
+    );
+  }
   return (
     <article className={`${card} flex flex-col gap-3 border-l-4 ${item.priority === 1 ? "border-l-[#9B2C2C]" : "border-l-gold"}`} aria-label={`${item.title}, ${o.reference}`}>
       <div>

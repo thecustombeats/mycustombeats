@@ -190,6 +190,7 @@ export type LifecycleMessageType =
   | "ADDITIONAL_PARCEL_DISPATCHED"
   | "DELIVERY_UPDATE"
   | "DELIVERED"
+  | "VIDEO_READY"
   | "FOLLOW_UP"
   | "REVIEW_REQUEST";
 
@@ -218,6 +219,7 @@ export const LIFECYCLE_TEMPLATES: readonly LifecycleTemplate[] = [
   { type: "ADDITIONAL_PARCEL_DISPATCHED", trigger: "SHIPMENT.PARCEL_DISPATCHED", autoSend: true, workflows: ["PHYSICAL"], purpose: "Another part of your order is on the way, with its tracking." },
   { type: "DELIVERY_UPDATE", trigger: "FULFILMENT.EXCEPTION_OPENED", autoSend: false, workflows: ["PHYSICAL"], purpose: "A calm update when a delivery is delayed; sent only when staff choose." },
   { type: "DELIVERED", trigger: "DELIVERED", autoSend: false, workflows: ["PHYSICAL"], purpose: "Your order has arrived, with the damage guidance; sent when staff choose." },
+  { type: "VIDEO_READY", trigger: "VIDEO.REVEALED", autoSend: true, workflows: ["DIGITAL", "PHYSICAL"], purpose: "Your MCB Memory Music Video is ready: a private link to the order page where it plays and can be downloaded." },
   { type: "FOLLOW_UP", trigger: "FOLLOW_UP.DUE", autoSend: false, workflows: ["DIGITAL", "PHYSICAL"], purpose: "A personal check-in, sent when staff choose." },
   { type: "REVIEW_REQUEST", trigger: "ORDER.COMPLETED", autoSend: false, workflows: ["DIGITAL", "PHYSICAL"], purpose: "Asks for a review, only for a completed order and only when a review URL is configured." },
 ];
@@ -295,6 +297,19 @@ export const AUTOMATION_EVENTS: readonly string[] = [
   "FULFILMENT.EXCEPTION_OPENED",
   "FULFILMENT.EXCEPTION_RESOLVED",
   "COMMERCIAL.ECONOMICS_CALCULATED",
+  // MCB Memory Music Video (manual production; no platform is called)
+  "VIDEO.ENTITLED",
+  "VIDEO.CAPACITY_EXCEPTION",
+  "VIDEO.INPUT_RECEIVED",
+  "VIDEO.PRODUCTION_REQUIRED",
+  "VIDEO.DURATION_REVIEW_REQUIRED",
+  "VIDEO.CANDIDATE_READY",
+  "VIDEO.QUALITY_CHECK_REQUIRED",
+  "VIDEO.REWORK_REQUIRED",
+  "VIDEO.MASTER_READY",
+  "VIDEO.REVEALED",
+  "VIDEO.CAPACITY_RELEASED",
+  "VIDEO.EXCEPTION",
 ];
 
 /**
@@ -381,7 +396,9 @@ export type FounderNotificationType =
   | "AUDIO_CAPACITY_EXCEPTION"
   | "COMMERCIAL_SAFETY_EXCEPTION"
   | "MANUFACTURING_DATA_REQUIRED"
-  | "DELIVERY_EXCEPTION";
+  | "DELIVERY_EXCEPTION"
+  | "VIDEO_EXCEPTION"
+  | "VIDEO_CAPACITY_ALERT";
 
 /**
  * What interrupts the Founders. Exceptions and decisions only — plus every
@@ -401,6 +418,8 @@ export const FOUNDER_NOTIFICATIONS: readonly { readonly type: FounderNotificatio
   { type: "MANUFACTURING_DATA_REQUIRED", title: "Manufacturing data required", requiredAction: "Open the order: the manufacturer has not supplied information this product needs." },
   { type: "DELIVERY_EXCEPTION", title: "Delivery exception", requiredAction: "Open the order and resolve the delivery exception." },
   { type: "PRODUCT_SALES_SUSPENDED", title: "New sales suspended", requiredAction: "Review the product's availability. Existing paid orders are unaffected." },
+  { type: "VIDEO_EXCEPTION", title: "Memory Music Video exception", requiredAction: "Open the order and decide what happens with this video. Nothing is refunded or charged automatically." },
+  { type: "VIDEO_CAPACITY_ALERT", title: "Memory Music Video capacity", requiredAction: "Review this period's video capacity. It is a planning figure pending verification with the platform." },
 ];
 
 /** Who may authorise money leaving MCB. Either one is enough; automation is neither. */

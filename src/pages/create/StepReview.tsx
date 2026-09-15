@@ -92,7 +92,7 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
       </section>
 
       {/* ---- Finishing touches ---- */}
-      {(draft.plaques.length > 0 || draft.frames.length > 0 || draft.players.length > 0 || prCount > 0 || draft.artworkPreparation) && (
+      {(draft.plaques.length > 0 || draft.frames.length > 0 || draft.players.length > 0 || prCount > 0 || draft.artworkPreparation || draft.memoryVideo) && (
         <section aria-labelledby="review-extras" className="rounded-2xl bg-white p-5 sm:p-7">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2 id="review-extras" className="!text-3xl text-ink">Finishing touches</h2>
@@ -110,6 +110,15 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
               <li key={player.sku}>{getProduct(getVariant(player.sku)?.product.id ?? "")?.name ?? player.sku}{player.quantity > 1 ? ` × ${player.quantity}` : ""}</li>
             ))}
             {draft.artworkPreparation && <li>{ARTWORK_PREPARATION.name} — chosen by you, once for this order</li>}
+            {draft.memoryVideo && (
+              <li>
+                MCB Memory Music Video™ — chosen by you
+                {draft.units.flatMap((unit, u) => unit.memories.map((memory, m) => ({ id: memory.id, label: memoryLabel(draft, u, m) }))).length > 1
+                  ? ` for ${draft.units.flatMap((unit, u) => unit.memories.map((memory, m) => ({ id: memory.id, label: memoryLabel(draft, u, m) }))).find((s) => s.id === draft.memoryVideo)?.label}`
+                  : ""}
+                . Photographs for your film are added privately after payment.
+              </li>
+            )}
             {prCount > 0 && (
               <li>
                 {PRIORITY_REPLACEMENT.name}:{" "}

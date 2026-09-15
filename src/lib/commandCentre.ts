@@ -8,7 +8,7 @@
 
 export type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-export const VIEWS = ["today", "approvals", "orders", "customers", "health", "notifications", "search"] as const;
+export const VIEWS = ["today", "approvals", "orders", "videos", "customers", "health", "notifications", "search"] as const;
 export type View = (typeof VIEWS)[number];
 export const OPEN_MODES = ["card", "quality", "approve", "decide", "advanced"] as const;
 export type OpenMode = (typeof OPEN_MODES)[number];

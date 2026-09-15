@@ -195,6 +195,7 @@ function validate_personalisation(mixed $raw, OrderPricing $pricing): Personalis
 
     $plannedUnits = [];
     $priorityChosen = 0;
+    $videosChosen = 0;
 
     foreach ($units as $u => $unit) {
         $unitNo = $u + 1;
@@ -282,7 +283,18 @@ function validate_personalisation(mixed $raw, OrderPricing $pricing): Personalis
                 $photo = false;
             }
 
+            // MCB Memory Music Video: the customer's explicit choice of this song. Never assumed.
+            $video = $memory['video'] ?? false;
+            if (!is_bool($video)) {
+                $errors["{$mKey}.video"] = 'That choice could not be read.';
+                $video = false;
+            }
+            if ($video) {
+                $videosChosen++;
+            }
+
             $plannedMemories[] = [
+                'video'           => $video === true,
                 'story'           => (string) $story,
                 'about'           => $about === '' || $about === null ? null : $about,
                 'occasion'        => $occasion === '' ? null : $occasion,
@@ -308,6 +320,13 @@ function validate_personalisation(mixed $raw, OrderPricing $pricing): Personalis
     if (($lineQuantity[$prSku] ?? 0) !== $priorityChosen) {
         $errors['personalisation.priorityReplacement'] =
             'MCB Priority Replacement must be chosen for each Keepsake it covers. Please review your finishing touches.';
+    }
+
+    // ---- Memory Music Video: one line unit per chosen song ----------------------
+    $videoSku = (string) ($rules['memory_video_sku'] ?? '');
+    if ($videoSku !== '' && ($lineQuantity[$videoSku] ?? 0) !== $videosChosen) {
+        $errors['personalisation.memoryVideo'] =
+            'Your Memory Music Video must be chosen for one song. Please review your finishing touches.';
     }
 
     // ---- Plaques -------------------------------------------------------------
@@ -381,6 +400,7 @@ function validate_personalisation(mixed $raw, OrderPricing $pricing): Personalis
         $accounted = match (true) {
             $sku === $songSku, $sku === $prSku, $sku === $plaqueSku => true,
             $sku === ($rules['artwork_preparation_sku'] ?? null) => true,
+            $sku === ($rules['memory_video_sku'] ?? null) => true,
             $line['product_id'] === 'lyrics-frame' => ($frameCounts[$sku] ?? 0) === $line['quantity'],
             $line['category'] === 'PLAYER' => true,
             default => false,
@@ -469,6 +489,13 @@ function persist_personalisation(PDO $pdo, int $orderId, PersonalisationResult $
                 ':photo'    => $memory['photo_requested'] ? 1 : 0,
             ]);
             $memoryIds[$u + 1][$m + 1] = (int) $pdo->lastInsertId();
+            if (($memory['video'] ?? false) === true) {
+                // Awaiting payment: capacity is held at checkout and reserved when payment is confirmed.
+                $videoSku = (string) catalogue_data()['rules']['memory_video_sku'];
+                $pdo->prepare('INSERT INTO video_entitlements (order_id, order_item_id, unit_id, memory_id, price_minor, currency, status) VALUES (:o, :i, :u, :m, :p, :c, :s)')
+                    ->execute([':o' => $orderId, ':i' => $itemIds[$videoSku], ':u' => $unitId, ':m' => $memoryIds[$u + 1][$m + 1],
+                        ':p' => (int) catalogue_sku($videoSku)['price_minor'], ':c' => 'GBP', ':s' => 'AWAITING_PAYMENT']);
+            }
         }
     }
 
