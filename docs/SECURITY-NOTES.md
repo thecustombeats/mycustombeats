@@ -7,7 +7,7 @@
 | Endpoint | Method | Protection |
 |---|---|---|
 | `order`, `order-quote`, `order-status`, `order-upload`, `checkout/session` | POST | same-origin; rate-limited; checkout token for existing orders |
-| `order-approval`, `order-progress`, `order-support` | POST | same-origin; rate-limited; 256-bit HMAC link token (hashed, expiring, revocable, purpose-scoped) |
+| `order-approval` (retired: answers identically, writes nothing), `order-progress`, `order-support` | POST | same-origin; rate-limited; 256-bit HMAC link token (hashed, expiring, revocable, purpose-scoped) |
 | `concierge/enquiry`, `live/enquiry`, `affiliate/click`, `affiliate/register` | POST | same-origin; rate-limited; server-side validation |
 | `order-reference` | GET | Stripe session-id shape check; rate-limited |
 | `affiliate/dashboard` | GET | signed dashboard token; rate-limited (Sprint 6) |

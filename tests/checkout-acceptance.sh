@@ -28,7 +28,7 @@ tc() { local name="$1" ok="$2"
   if [ "$ok" = "1" ]; then printf "  PASS  %-66s\n" "$name"; PASS=$((PASS+1));
   else printf "  FAIL  %-66s\n" "$name"; FAIL=$((FAIL+1)); FAILED+=("$name"); fi }
 
-CONSENT_BLOCK='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2026-09-09.4","cruiseCompanions":"My husband David"'
+CONSENT_BLOCK='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true,"CREATIVE_AUTHORITY":true},"creativeAuthorityVersion":"2026-09-15","termsVersion":"2026-09-09.4","cruiseCompanions":"My husband David"'
 ADDR='"shippingName":"Cs Tester","shippingAddress":"1 Test St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom"'
 CRMKEY="test_crm_key_not_real_000000000000000000000"
 
@@ -88,7 +88,8 @@ if skus[song]["product_id"] != "keepsake" and n != 1:
     sys.exit(0)
 pr = qty.get("priority-replacement", 0)
 units = [{"sku": song, "priorityReplacement": i < pr,
-          "memories": [{"story": "A story.", "style": {"choice": "MCB_CHOICE"}} for _ in range(skus[song]["song_count"])]}
+          # Keepsake and Journey artwork is created from a photograph: the first memory promises one.
+          "memories": [{"story": "A story.", "style": {"choice": "MCB_CHOICE"}, "photo": m == 0 and skus[song]["product_id"] in ("keepsake", "journey")} for m in range(skus[song]["song_count"])]}
          for i in range(n)]
 plaques = [{"songTitle": "Our Song", "artist": "The Band"} for _ in range(qty.get("personalised-music-plaque", 0))]
 frames = [{"sku": s, "unit": 1, "memory": 1} for s in qty if s.startswith("lyrics-frame-") for _ in range(qty[s])]
@@ -102,6 +103,12 @@ mkorder() {
   MK_CODE=$(post_raw order "$(order_body "$1" "$2" "$3")")
   cp /tmp/c.json /tmp/o.json
   MK_OID=$(jget order_id /tmp/o.json); MK_TOK=$(jget checkout_token /tmp/o.json)
+  # Upload an artwork-ready photograph for every memory slot the order expects.
+  for slot in $(python3 -c 'import json;print(" ".join(s for s in (json.load(open("/tmp/o.json")).get("missing_uploads") or []) if s.startswith("memory:")))' 2>/dev/null); do
+    release_order_limit
+    q "UPDATE order_uploads SET ip_hash = NULL" >/dev/null 2>&1
+    curl -s -o /dev/null -X POST "$BASE/order-upload" -H "Origin: $ORIGIN" -F "orderId=$MK_OID" -F "checkoutToken=$MK_TOK" -F "slot=$slot" -F "photo=@tests/fixtures/photo-2500.jpg;filename=photo.jpg"
+  done
 }
 L() { printf '[{"sku":"%s","quantity":%s}]' "$1" "${2:-1}"; }
 order_minor() { q "SELECT total_minor FROM orders WHERE id=$1"; }
@@ -181,6 +188,7 @@ authorised = {
     "lyrics-frame-16x24": 8999, "lyrics-frame-20x30": 9999,
     "vintage-smartphone-gramophone": 10000, "antique-brass-gramophone": 100000,
     "portable-suitcase-record-player": 20000, "priority-replacement": 1999,
+    "artwork-preparation": 1500,
 }
 orderable = {k for k, v in skus.items() if v.get("orderable") is True}
 ok = orderable == set(authorised) and all(
@@ -215,7 +223,8 @@ tc "  → the rules are the approved technical limits" "$(python3 - <<'PY'
 import json
 r = json.load(open("public/api/data/catalogue.json"))["rules"]
 print(1 if r == {"max_lines": 20, "max_quantity_per_line": 50, "primary_category": "SONG_EXPERIENCE",
-                 "priority_replacement_sku": "priority-replacement"} else 0)
+                 "priority_replacement_sku": "priority-replacement", "artwork_preparation_sku": "artwork-preparation",
+                 "photo_artwork_product_ids": ["keepsake", "journey"], "artwork_photo_min_px": 2500} else 0)
 PY
 )"
 tc "  → only the four Keepsake variants are Priority Replacement eligible" "$(python3 - <<'PY'
@@ -392,6 +401,9 @@ tc "  → and the same total and lines" "$([ "$(jget total_minor /tmp/i1.json)" 
 tc "  → exactly ONE orders row for that customer" "$([ "$(q "SELECT COUNT(*) FROM orders o JOIN customers c ON c.id=o.customer_id WHERE c.email='cs-idem@example.com'")" = "1" ] && echo 1 || echo 0)"
 tc "  → only the key's hash is stored" "$([ "$(q "SELECT idempotency_key_hash = SHA2('$KEY1',256) FROM orders WHERE id=$(jget order_id /tmp/i1.json)")" = "1" ] && [ "$(q "SELECT COUNT(*) FROM orders WHERE idempotency_key_hash='$KEY1'")" = "0" ] && echo 1 || echo 0)"
 TOKA=$(jget checkout_token /tmp/i1.json); TOKB=$(jget checkout_token /tmp/i2.json); IOID=$(jget order_id /tmp/i1.json)
+# The Keepsake's artwork photograph arrives before checkout, as it would from /create.
+release_order_limit; q "UPDATE order_uploads SET ip_hash = NULL" >/dev/null 2>&1
+curl -s -o /dev/null -X POST "$BASE/order-upload" -H "Origin: $ORIGIN" -F "orderId=$IOID" -F "checkoutToken=$TOKB" -F "slot=memory:1:1" -F "photo=@tests/fixtures/photo-2500.jpg;filename=photo.jpg"
 tc "  → the retry receives the SAME checkout token, so a lost first response strands nobody" "$([ ${#TOKB} = 64 ] && [ "$TOKA" = "$TOKB" ] && echo 1 || echo 0)"
 tc "  → and the token itself is never stored, only its hash" "$([ "$(q "SELECT COUNT(*) FROM orders WHERE checkout_token_hash='$TOKA'")" = "0" ] && [ "$(q "SELECT checkout_token_hash = SHA2('$TOKA',256) FROM orders WHERE id=$IOID")" = "1" ] && echo 1 || echo 0)"
 t "  → that token opens checkout" 200 "$(session "$IOID" "$TOKB")"

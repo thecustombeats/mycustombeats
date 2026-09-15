@@ -234,8 +234,10 @@ test("the thank-you page promises no timeline for made-to-order records", () => 
   for (const id of ["keepsake", "journey"]) {
     assert.ok(!/\d|hour|day|week|month|dispatch|deliver/i.test(branch(id)), `${id}: no timeline or dispatch promise`);
   }
-  assert.match(branch("moment"), /getProduct\("moment"\)\?\.turnaround\?\.label/, "a Moment's promise is the catalogue's approved wording");
-  assert.match(steps, /products\.has\("journey"\)[\s\S]*your songs and your record/);
+  assert.ok(!/\d|hour|minute/.test(branch("moment")), "a Moment promises no number of minutes or hours");
+  assert.match(branch("moment"), /quality check[\s\S]*reveal/, "a Moment is revealed once quality-checked");
+  assert.match(steps, /products\.has\("journey"\)[\s\S]*arrive as the reveal/);
+  assert.ok(!/approv|refine|revision|draft/i.test(steps), "no approval step is described");
 });
 
 test("the privacy inventory matches the code: private photo storage, no Cloudinary, Apollo stays removed", () => {

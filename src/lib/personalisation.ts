@@ -17,6 +17,12 @@
  * Two Keepsakes are two independent units with their own memories: quantity
  * never means "the same record twice".
  *
+ * Keepsake and Journey artwork is created by MCB from the customer's
+ * photograph, so each of those records needs at least one. A photograph that
+ * is not artwork-ready (square, at least 2500 × 2500 pixels) needs either a
+ * replacement or the optional MCB Artwork Preparation Service, chosen before
+ * payment (`artworkPreparation`).
+ *
  * Photos are NOT part of the draft. They are held in memory by the page,
  * keyed by the memory or plaque id, and never written to storage. When the
  * order is placed they are uploaded to MCB's server, which from then on holds
@@ -27,8 +33,11 @@
  */
 
 import {
+  ARTWORK_PHOTO_MIN_PX,
+  ARTWORK_PREPARATION_SKU,
   ORDER_LIMITS,
   PERSONALISED_MUSIC_PLAQUE,
+  PHOTO_ARTWORK_PRODUCT_IDS,
   PRIORITY_REPLACEMENT_SKU,
   getProduct,
   getVariant,
@@ -96,6 +105,8 @@ export interface OrderDraft {
   plaques: PlaqueDraft[];
   frames: FrameDraft[];
   players: PlayerDraft[];
+  /** The customer chose the MCB Artwork Preparation Service. Never preselected. */
+  artworkPreparation: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -113,6 +124,7 @@ export const emptyDraft = (): OrderDraft => ({
   plaques: [],
   frames: [],
   players: [],
+  artworkPreparation: false,
 });
 
 /** Songs on one unit of a variant, from the catalogue. */
@@ -276,6 +288,7 @@ export const draftLines = (draft: OrderDraft): OrderLineRequest[] => {
   for (const player of draft.players) if (player.quantity > 0) lines.push({ sku: player.sku, quantity: player.quantity });
   const priority = priorityReplacementCount(draft);
   if (priority > 0) lines.push({ sku: PRIORITY_REPLACEMENT_SKU, quantity: priority });
+  if (draft.artworkPreparation && usesPhotoArtwork(draft)) lines.push({ sku: ARTWORK_PREPARATION_SKU, quantity: 1 });
   return lines;
 };
 
@@ -331,6 +344,62 @@ export const addOnIssues = (draft: OrderDraft, photoIds: ReadonlySet<string>): A
   for (const frame of draft.frames) {
     if (!memoryIds.has(frame.memoryId)) issues.push({ id: frame.id, field: "memoryId", message: "Choose which song's lyrics to frame." });
   }
+  return issues;
+};
+
+/* ------------------------------------------------------------------ */
+/* Photographs for artwork                                             */
+/* ------------------------------------------------------------------ */
+
+/** A photograph's pixel size, or null when the browser cannot read it (e.g. HEIC). */
+export type PhotoCheck = { width: number; height: number } | null;
+
+/** True when MCB creates this order's artwork from the customer's photograph. */
+export const usesPhotoArtwork = (draft: Pick<OrderDraft, "productId">): boolean => PHOTO_ARTWORK_PRODUCT_IDS.has(draft.productId);
+
+/** Square within 1% and at least the artwork minimum on both sides. Larger is welcome. */
+export const isArtworkReady = (check: PhotoCheck | undefined): boolean =>
+  Boolean(
+    check &&
+      check.width >= ARTWORK_PHOTO_MIN_PX &&
+      check.height >= ARTWORK_PHOTO_MIN_PX &&
+      Math.abs(check.width - check.height) <= Math.floor(Math.max(check.width, check.height) * 0.01)
+  );
+
+export interface PhotoIssue {
+  /** A unit id (no photo for that record) or a memory id (photo not artwork-ready). */
+  id: string;
+  kind: "missing" | "not_ready" | "checking";
+  message: string;
+}
+
+/**
+ * What stops a Keepsake or Journey going ahead for want of a suitable photo.
+ * `checks` holds each attached photo's size; an attached photo not yet
+ * measured is "checking".
+ */
+export const photoIssues = (
+  draft: OrderDraft,
+  photoIds: ReadonlySet<string>,
+  checks: ReadonlyMap<string, PhotoCheck>
+): PhotoIssue[] => {
+  if (!usesPhotoArtwork(draft)) return [];
+  const product = getProduct(draft.productId);
+  const issues: PhotoIssue[] = [];
+  draft.units.forEach((unit, u) => {
+    const withPhoto = unit.memories.filter((memory) => photoIds.has(memory.id));
+    if (withPhoto.length === 0) {
+      const what = product?.id === "journey" ? "your Journey" : draft.units.length > 1 ? `${product?.name ?? "record"} ${u + 1}` : `your ${product?.name ?? "record"}`;
+      issues.push({ id: unit.id, kind: "missing", message: `Please add a photograph for the artwork of ${what}.` });
+    }
+    for (const memory of withPhoto) {
+      if (!checks.has(memory.id)) {
+        issues.push({ id: memory.id, kind: "checking", message: "One moment — we're checking your photograph." });
+      } else if (!draft.artworkPreparation && !isArtworkReady(checks.get(memory.id))) {
+        issues.push({ id: memory.id, kind: "not_ready", message: "A photograph isn't artwork-ready: choose a square photo of at least 2500 × 2500 pixels, or add MCB Artwork Preparation." });
+      }
+    }
+  });
   return issues;
 };
 
@@ -487,6 +556,7 @@ export const parseDraft = (raw: string | null, now: number): OrderDraft | null =
 
     return reconcileUnits({
       ...base,
+      artworkPreparation: (saved as { artworkPreparation?: unknown }).artworkPreparation === true && PHOTO_ARTWORK_PRODUCT_IDS.has(base.productId),
       units: units.map((unit, u) => ({ ...unit, priorityReplacement: chosen(u) })),
       frames,
       plaques,

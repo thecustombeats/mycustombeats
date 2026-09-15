@@ -236,7 +236,7 @@ export const PRIVACY_SECTIONS: readonly PrivacySection[] = [
       "When you order: your name, email address, a phone number if you give one, a delivery address for anything physical, and the story and details you send us so we can create your work. If you upload photographs or artwork, those too.",
       "When you enquire about a Bespoke commission: your contact details, the occasion, what you would like to spend, and what you tell us about the person it is for.",
       "When you enquire about MCB LIVE: your contact details, the kind of event, its date and location, the performer and length of performance you are interested in, an approximate budget if you give one, and anything else you tell us about the event.",
-      "After you order: if you ask for changes to your music, or report a problem or ask a question from your private order page, what you write to us.",
+      "After you order: if you report a problem or ask a question from your private order page, or if we contact you because something we need to complete your order is missing or unusable, what you write to us.",
       "When you simply visit: the pages you look at, and technical information your browser sends, including your IP address.",
     ],
   },
@@ -257,10 +257,10 @@ export const PRIVACY_SECTIONS: readonly PrivacySection[] = [
   {
     heading: "Records we keep about your order",
     body: [
-      "Alongside the order itself we record which version of our terms you accepted and when, so that both of us can establish later what was agreed. That record includes a one-way scrambled form of your IP address and your browser's description of itself.",
+      "Alongside the order itself we record which version of our terms and of the Creative Authority statement you accepted and when, so that both of us can establish later what was agreed. That record includes a one-way scrambled form of your IP address and your browser's description of itself.",
       "We use the same scrambled form of an IP address to stop the site being flooded with automated submissions. It cannot be turned back into an address.",
-      "We also record where your commission has got to, when we sent you an email about it, and — for a physical order — the carrier and tracking details we entered when it was sent.",
-      "The links we send you to follow your order and to approve your music are private. We do not store the links themselves — our server can only recreate one with a secret key kept outside the database — and we can switch a link off at any time.",
+      "We also record where your commission has got to, that our team completed its internal quality check (and any internal note about it), when we sent you an email about it, and — for a physical order — the carrier and tracking details we entered when it was sent.",
+      "The links we send you to follow your order and to reveal your finished creation are private. We do not store the links themselves — our server can only recreate one with a secret key kept outside the database — and we can switch a link off at any time.",
     ],
   },
   {
@@ -289,7 +289,7 @@ export const PRIVACY_SECTIONS: readonly PrivacySection[] = [
     heading: "Cookies and similar technology",
     body: [
       "The site stores a small number of values in your browser, listed below. Most simply remember what you chose.",
-      "Google Analytics sets its own cookies. It is switched off until you choose \"Accept analytics cookies\", and you can change your mind at any time from \"Cookie settings\" at the foot of every page. Your private order and approval pages never use analytics.",
+      "Google Analytics sets its own cookies. It is switched off until you choose \"Accept analytics cookies\", and you can change your mind at any time from \"Cookie settings\" at the foot of every page. Your private order pages never use analytics.",
       "The artist application form uses Google reCAPTCHA to keep out automated submissions; it loads only on that page.",
     ],
   },

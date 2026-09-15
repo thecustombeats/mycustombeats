@@ -1,246 +1,115 @@
 /**
- * THE CREATIVE LIFECYCLE — where revision entitlement opens and closes.
+ * THE CREATIVE LIFECYCLE — Single Creative Authority (15 September 2026).
  *
  * ─────────────────────────────────────────────────────────────────────────
- * THE COMMERCIAL PROBLEM THIS SOLVES
+ * THE CUSTOMER PROVIDES THE MEMORIES. MCB CREATES THE MAGIC.
  * ─────────────────────────────────────────────────────────────────────────
- * MCB presses records. A pressing cannot be un-pressed, and a customer who
- * changes their creative mind after approving the master is asking for a
- * second record, not a correction of the first. MCB should not pay for that
- * twice.
+ * At checkout the customer gives MCB their story, preferences and photographs
+ * and grants MCB creative authority (the CREATIVE_AUTHORITY consent). Verified
+ * payment is the order commitment, and personalised production may begin
+ * straight away. There is NO customer creative-approval stage, no drafts sent
+ * for sign-off and no included revision round.
  *
- * But the same lock must never be used to avoid fixing something MCB got
- * wrong. Those are two different questions and the whole architecture below
- * exists to keep them apart:
+ * What protects the customer instead is MCB's own INTERNAL QUALITY CONTROL:
+ * nothing is revealed or manufactured until a person at MCB has checked it.
+ * The customer is never part of that loop.
  *
- *   "I've changed my mind"          → after the lock, this is a new order.
- *   "You made it wrong"             → the lock is irrelevant. Always.
+ *   CREATIVE        paid; MCB is creating (pending, then in progress)
+ *   QUALITY_CHECK   finished internally; MCB is checking it
+ *   QC_PASSED       checked; a Moment can be revealed, a record can be made
+ *   PRODUCTION_LOCKED / FULFILMENT   the physical order is placed, then sent
+ *   COMPLETED       revealed or delivered, and followed up
+ *
+ * A failed check returns the work to CREATIVE for an internal correction.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * WHY "ONCE PRODUCTION STARTS" WAS NOT GOOD ENOUGH
+ * LEGACY STAGES
  * ─────────────────────────────────────────────────────────────────────────
- * The previous terms said refunds end "once production has started". In a
- * business that writes, records, mixes, masters, presses, prints and packs,
- * "production" names at least six different moments, and the customer and MCB
- * would reasonably pick different ones. A term that vague is both unusable
- * operationally and a poor candidate for enforceability.
+ * SONG_READY, AWAITING_APPROVAL, REVISION_REQUESTED and APPROVED belong to the
+ * retired approval model. They remain valid database values so historical and
+ * test records keep their original audit evidence; no new order enters them.
+ * An older record in one of the first three is treated as awaiting the
+ * quality check; APPROVED is treated as having passed it.
  *
- * So the lock has an explicit trigger, and it is an EVENT MCB CAN EVIDENCE:
- * the customer's approval, or the start of irreversible manufacture —
- * whichever the product actually requires.
+ * Objective problems (MCB used the wrong name, wrong photograph, a defect,
+ * damage, non-fulfilment) are handled as support and, where needed, an
+ * internal MCB_CORRECTION or REPLACEMENT — never as a creative revision.
  */
 
-/* ------------------------------------------------------------------ */
-/* Stages                                                              */
-/* ------------------------------------------------------------------ */
-
-/**
- * Where an order sits in the creative process.
- *
- * DELIBERATELY SEPARATE FROM `orders.status`. That column tracks the money:
- * PENDING, PAID, ABANDONED, REFUNDED. This tracks the work. They answer
- * different questions and they move independently — a PAID order can sit in
- * CREATIVE for two weeks, and an order can be PRODUCTION_LOCKED and later
- * REFUNDED if MCB got something wrong.
- *
- * The invariant this exists to serve: MCB must be able to answer "does this
- * customer still have revisions open?" without inferring it from whether they
- * paid. **PAID IS NOT PRODUCTION_LOCKED**, and treating it as such is how a
- * customer gets told their revisions are gone the moment their card cleared.
- */
 export type ProductionStage =
   | "CREATIVE"
+  | "QUALITY_CHECK"
+  | "QC_PASSED"
+  | "PRODUCTION_LOCKED"
+  | "FULFILMENT"
+  | "COMPLETED"
+  /** Legacy (retired approval model): kept only for historical records. */
   | "SONG_READY"
   | "AWAITING_APPROVAL"
   | "REVISION_REQUESTED"
-  | "APPROVED"
-  | "PRODUCTION_LOCKED"
-  | "FULFILMENT"
-  | "COMPLETED";
+  | "APPROVED";
 
 export interface StageDefinition {
   stage: ProductionStage;
   /** What is happening, for an operator. */
   internal: string;
-  /** What the customer would be told, if asked. */
-  customer: string;
-  /** Whether the package's included refinements can still be used here. */
-  revisionsOpen: boolean;
+  /** Whether new orders can enter this stage. False for the retired approval stages. */
+  current: boolean;
+  /** Whether MCB's internal quality check has been passed at this stage. */
+  qualityChecked: boolean;
 }
 
 export const PRODUCTION_STAGES: readonly StageDefinition[] = [
-  {
-    stage: "CREATIVE",
-    internal:
-      "The work is being written, recorded and produced. Included refinements are used here.",
-    customer:
-      "We are creating your work. This is when your included refinements are used.",
-    revisionsOpen: true,
-  },
-  {
-    stage: "SONG_READY",
-    internal:
-      "Finished internally and not yet sent. The gap between 'we have made it' and 'they have it' is real and was previously invisible.",
-    customer:
-      "Your work is finished and we are about to send it to you.",
-    revisionsOpen: true,
-  },
-  {
-    stage: "AWAITING_APPROVAL",
-    internal:
-      "The draft is with the customer. Still open — a customer looking at a draft has not spent their refinements by looking.",
-    customer:
-      "Your work is with you to review. Tell us what you would like adjusted.",
-    revisionsOpen: true,
-  },
-  {
-    stage: "REVISION_REQUESTED",
-    internal:
-      "The customer has heard it and asked for a change. Revisions are OPEN — this is the state a refinement is used in.",
-    customer:
-      "You have asked us for a change, and we are making it.",
-    /**
-     * OPEN, and this is the whole reason the state exists.
-     *
-     * Without it the only move out of AWAITING_APPROVAL was APPROVED, so
-     * a customer asking for a change had to be recorded as having
-     * approved the work — false, and it would have closed the very
-     * refinement they were trying to use.
-     */
-    revisionsOpen: true,
-  },
-  {
-    stage: "APPROVED",
-    internal:
-      "The customer has approved the work for finalisation. Recorded in `order_production` with a timestamp and channel.",
-    customer:
-      "You have approved your work. We are preparing it for production.",
-    // Closed on approval, not on manufacture. Approval is the customer's own
-    // act and the point from which MCB commits materials and machine time.
-    revisionsOpen: false,
-  },
-  {
-    stage: "PRODUCTION_LOCKED",
-    internal:
-      "Irreversible manufacture has begun — pressing, printing, engraving, assembly.",
-    customer:
-      "Your order is in production with our specialist partner. It can no longer be changed, but if anything is wrong with what arrives, contact MCB and we'll deal with it for you.",
-    revisionsOpen: false,
-  },
-  {
-    stage: "FULFILMENT",
-    internal: "Made, and being packed or dispatched.",
-    customer: "Your order is being prepared for dispatch.",
-    revisionsOpen: false,
-  },
-  {
-    stage: "COMPLETED",
-    internal: "Delivered. Statutory rights continue to apply.",
-    customer: "Delivered.",
-    revisionsOpen: false,
-  },
+  { stage: "CREATIVE", internal: "Paid. MCB is creating the song and artwork from what the customer supplied.", current: true, qualityChecked: false },
+  { stage: "QUALITY_CHECK", internal: "Created. MCB is checking it internally before anything is revealed or made.", current: true, qualityChecked: false },
+  { stage: "QC_PASSED", internal: "MCB's quality check is passed. A Moment can be revealed; a physical order can be placed.", current: true, qualityChecked: true },
+  { stage: "PRODUCTION_LOCKED", internal: "The physical order is placed with the production partner.", current: true, qualityChecked: true },
+  { stage: "FULFILMENT", internal: "Sent to the customer.", current: true, qualityChecked: true },
+  { stage: "COMPLETED", internal: "Revealed or delivered, and complete. Statutory rights continue to apply.", current: true, qualityChecked: true },
+  { stage: "SONG_READY", internal: "Legacy: finished before the approval model was retired. Treated as awaiting the quality check.", current: false, qualityChecked: false },
+  { stage: "AWAITING_APPROVAL", internal: "Legacy: sent for customer approval under the retired model. Treated as awaiting the quality check.", current: false, qualityChecked: false },
+  { stage: "REVISION_REQUESTED", internal: "Legacy: changes requested under the retired model. Treated as awaiting the quality check.", current: false, qualityChecked: false },
+  { stage: "APPROVED", internal: "Legacy: approved by the customer under the retired model. Treated as quality-checked.", current: false, qualityChecked: true },
 ];
 
-export const getStage = (
-  stage: ProductionStage
-): StageDefinition | undefined =>
+export const getStage = (stage: ProductionStage): StageDefinition | undefined =>
   PRODUCTION_STAGES.find((definition) => definition.stage === stage);
 
-/**
- * The one question the rest of the business asks this module.
- *
- * A function rather than a set literal so callers read the intent rather than
- * a list of enum values they would then have to keep in step.
- */
-export const revisionsRemainOpen = (stage: ProductionStage): boolean =>
-  getStage(stage)?.revisionsOpen ?? false;
-
-/**
- * The stage a paid order starts in.
- *
- * CREATIVE, not APPROVED and not locked. Stated as a named constant because
- * the alternative — a default buried in a migration — is how "PAID means
- * locked" quietly becomes true again.
- */
+/** The stage a paid order starts in: MCB begins creating at payment. */
 export const INITIAL_STAGE: ProductionStage = "CREATIVE";
 
-/* ------------------------------------------------------------------ */
-/* How approval is captured                                            */
-/* ------------------------------------------------------------------ */
-
 /**
- * Where a customer's approval actually came from.
- *
- * MCB approves work over email and WhatsApp today. The website has no
- * post-creation approval screen, and inventing one that nobody uses would be
- * worse than recording the truth: an operator files the approval that
- * genuinely happened, with the channel it happened on.
- *
- * `WEBSITE` exists so that when an approval screen is built, the record shape
- * does not have to change and old rows stay meaningful.
+ * Said wherever the creative model is explained. Positive first; the
+ * commercial position follows before payment, never after.
  */
-export type ApprovalChannel =
-  | "WEBSITE"
-  | "EMAIL"
-  | "WHATSAPP"
-  | "PHONE"
-  | "IN_PERSON";
+export const CREATIVE_PROMISE = "You provide the memories. We create the surprise.";
 
-export const APPROVAL_CHANNELS: readonly ApprovalChannel[] = [
-  "WEBSITE",
-  "EMAIL",
-  "WHATSAPP",
-  "PHONE",
-  "IN_PERSON",
+export const CREATIVE_AUTHORITY_SUMMARY =
+  "MCB creates the finished personalised work using the information and preferences you supply. The creative interpretation and final production decisions are entrusted to MCB.";
+
+/** The five-step journey, as approved. */
+export const CREATIVE_JOURNEY: readonly { title: string; detail: string }[] = [
+  { title: "Tell us your story", detail: "Share the memories, people, places and moments that matter." },
+  { title: "Choose your sound", detail: "Give us your musical preferences, or let MCB choose, and anything else you want us to know." },
+  { title: "Upload your photograph", detail: "Supply the photographs your personalised artwork needs." },
+  { title: "Trust MCB with the creativity", detail: "Our creative team transforms everything you provide into your personalised song and artwork, and checks it carefully." },
+  { title: "Experience the reveal", detail: "Your finished MCB creation is the surprise — not another draft waiting for approval." },
 ];
 
-/**
- * CHECKOUT ACCEPTANCE IS NOT CREATIVE APPROVAL.
- *
- * They are separate acts, minutes or weeks apart, about different things:
- *
- *   at checkout    the customer accepts the terms of purchase, for a song
- *                  that does not exist yet;
- *   later          the customer approves the finished work for manufacture.
- *
- * Nothing may treat the first as the second. A customer cannot approve a
- * record they have not heard, and a system that pretended otherwise would be
- * evidencing an approval that never happened — which is worse than having no
- * record at all, because it looks like one.
- */
-export const APPROVAL_IS_NOT_CHECKOUT =
-  "Agreeing to our terms at checkout is not the same as approving your finished work. You approve the work later, once you have heard it.";
-
-/* ------------------------------------------------------------------ */
-/* Refinements                                                         */
-/* ------------------------------------------------------------------ */
+/** Before payment: the customer checks what they have given MCB. */
+export const CHECK_YOUR_DETAILS =
+  "MCB creates from exactly what you give us, so please check names, spellings, dates, places, relationships, your story, your music choices and your photographs before you pay.";
 
 /**
- * What a refinement is — one definition, used everywhere.
- *
- * Written to be generous enough that the promised refinements mean something.
- * A definition narrow enough to refuse every request would make "2 refinement
- * revisions" a decorative feature bullet, which is both unfair and a poor
- * commercial signal.
+ * Creative preference versus a genuine problem — one explanation, used by the
+ * Terms, Refunds, FAQ and the customer's order page.
  */
-export const REFINEMENT_DEFINITION =
-  "A refinement is a reasonable adjustment to the work we have already made for you — the wording of a line, the feel of a section, the mix, the pace, a detail in the artwork.";
-
-/**
- * What it is not.
- *
- * Each of these is a different commission rather than a smaller version of
- * the same one: a new recipient means a new story, and a new story means the
- * work starts again. Saying so plainly is fairer than discovering it in a
- * disagreement.
- */
-export const REFINEMENT_EXCLUSIONS: readonly string[] = [
-  "an entirely new composition",
-  "a different recipient",
-  "a different occasion",
-  "a rewrite from a new brief",
-  "an open-ended series of alternative concepts",
-];
-
-export const SCOPE_CHANGE_TREATMENT =
-  "If what you would like is genuinely a different piece of work rather than an adjustment to this one, we will say so, and we will quote for it as a new order rather than quietly absorbing it or quietly refusing it.";
+export const PREFERENCE_VS_PROBLEM = {
+  preference:
+    "Because you have entrusted the creative decisions to MCB, a different personal preference — another colour, crop, arrangement, lyrical structure, instrumentation or typography, or simply imagining the finished work differently — does not by itself give a right to a revision, remake or refund, subject always to applicable law.",
+  problem:
+    "A genuine problem is different, and we will put it right in the way the law and your order require: if we used information different from what you gave us (for example a name or place), used the wrong photograph, sent the wrong product, if an item is defective, damaged or not delivered, or if something else is wrong with what we supplied.",
+  specification:
+    "A music style you specifically chose is part of what you asked for. Choosing \"Let MCB choose\" leaves the style to our judgement.",
+  statutory: "Nothing in these terms affects any statutory rights that cannot legally be excluded or limited.",
+} as const;

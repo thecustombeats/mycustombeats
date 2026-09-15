@@ -18,6 +18,13 @@ const gbp = (minor: number): Money => ({ currency: "GBP", minor });
 
 const MADE_TO_ORDER = { basis: "MADE_TO_ORDER", label: PLANNING_RECOMMENDATION } as const;
 
+/**
+ * SINGLE CREATIVE AUTHORITY (15 September 2026). A Moment is created, checked
+ * by MCB and then revealed as quickly as the work and the quality check allow.
+ * No number of minutes or hours is promised.
+ */
+export const MOMENT_REVEAL_TIMING = "Revealed to you as soon as it has passed our quality check";
+
 const pictureDisc = (sizeInches: VinylSpec["sizeInches"], shape: VinylSpec["shape"] = "ROUND"): VinylSpec => ({
   pictureDisc: true,
   sizeInches,
@@ -57,8 +64,7 @@ export const MOMENT: Product = {
   requiresPersonalisation: true,
   route: "/moment",
   deliveryClass: null,
-  turnaround: { basis: "DIGITAL_TURNAROUND", label: "Target delivery within 1 hour" },
-  revisions: "1 revision",
+  turnaround: { basis: "DIGITAL_TURNAROUND", label: MOMENT_REVEAL_TIMING },
   schemaType: "Product",
   variesBy: null,
   analyticsCategory: "Song Experience",
@@ -83,10 +89,9 @@ export const MOMENT: Product = {
       features: [
         "1 personalised song",
         "Customised lyrics from your story",
-        "Choose your mood and style",
-        "1 revision",
+        "Choose your mood and style, or let MCB choose",
+        "A private reveal link to your finished song",
         "MP4 delivery",
-        "Target delivery within 1 hour",
       ],
     },
   ],
@@ -113,7 +118,7 @@ const keepsakeVariant = (
   features: [
     songs(songCount),
     `${vinyl.sizeInches}-inch ${vinyl.shape === "HEART" ? "heart-shaped " : ""}picture disc`,
-    "Personalised picture-disc artwork",
+    "Picture-disc artwork created by MCB from your photograph",
     PLANNING_RECOMMENDATION,
   ],
 });
@@ -134,7 +139,6 @@ export const KEEPSAKE: Product = {
   route: "/keepsake",
   deliveryClass: "VINYL",
   turnaround: MADE_TO_ORDER,
-  revisions: "1 refinement per song",
   schemaType: "ProductGroup",
   variesBy: "size",
   analyticsCategory: "Song Experience",
@@ -177,7 +181,6 @@ export const JOURNEY: Product = {
   route: "/journey",
   deliveryClass: "VINYL",
   turnaround: MADE_TO_ORDER,
-  revisions: "1 refinement per song",
   schemaType: "ProductGroup",
   variesBy: "songCount",
   analyticsCategory: "Song Experience",
@@ -203,7 +206,7 @@ export const JOURNEY: Product = {
         songs(6),
         "A different music style for each song if you wish",
         "Standard 12-inch vinyl record — not a Picture Disc",
-        "Personalised album artwork, which can include your approved photograph",
+        "Album artwork created by MCB from your photograph",
         "Mastering",
         PLANNING_RECOMMENDATION,
       ],
@@ -224,7 +227,7 @@ export const JOURNEY: Product = {
         songs(12),
         "A different music style for each song if you wish",
         "Double 12-inch standard vinyl in a gatefold sleeve — not a Picture Disc",
-        "Personalised gatefold artwork, which can include your approved photograph",
+        "Gatefold artwork created by MCB from your photograph",
         "Mastering",
         PLANNING_RECOMMENDATION,
       ],
@@ -252,13 +255,15 @@ export const BESPOKE: Product = {
   route: "/bespoke",
   deliveryClass: null,
   turnaround: { basis: "AGREED_IN_PROPOSAL", label: "Timeline agreed with you during the consultation" },
-  revisions: "Refinement continues until the agreed scope is met",
   schemaType: "Service",
   variesBy: null,
   analyticsCategory: "Commission",
   image: null,
   imageAlt: null,
-  disclosures: ["Individually quoted"],
+  disclosures: [
+    "Individually quoted",
+    "Scope, deliverables and price are agreed with you before payment. Once your commission enters personalised production, the creative decisions are entrusted to MCB.",
+  ],
   cta: "Request a Quote",
   storedValue: null,
   variants: [],
@@ -279,7 +284,6 @@ export const MCB_LIVE: Product = {
   route: "/mcb-live",
   deliveryClass: null,
   turnaround: null,
-  revisions: null,
   schemaType: "Service",
   variesBy: null,
   analyticsCategory: "Live Performance",
@@ -313,7 +317,6 @@ export const PERSONALISED_MUSIC_PLAQUE: Product = {
   route: null,
   deliveryClass: "PLAQUE",
   turnaround: MADE_TO_ORDER,
-  revisions: null,
   schemaType: "Product",
   variesBy: null,
   analyticsCategory: "Personalised Decor",
@@ -371,7 +374,6 @@ export const LYRICS_FRAME: Product = {
   route: null,
   deliveryClass: "FRAME",
   turnaround: MADE_TO_ORDER,
-  revisions: null,
   schemaType: "ProductGroup",
   variesBy: "size",
   analyticsCategory: "Personalised Decor",
@@ -415,7 +417,6 @@ const player = (
   route: null,
   deliveryClass: "PLAYER",
   turnaround: null,
-  revisions: null,
   schemaType: "Product",
   variesBy: null,
   analyticsCategory: "Player",
@@ -476,7 +477,6 @@ export const PRIORITY_REPLACEMENT: Product = {
   route: "/priority-replacement",
   deliveryClass: null,
   turnaround: null,
-  revisions: null,
   schemaType: "Service",
   variesBy: null,
   analyticsCategory: "Protection",
@@ -495,6 +495,53 @@ export const PRIORITY_REPLACEMENT: Product = {
       name: "MCB Priority Replacement™",
       label: "Per eligible Keepsake",
       price: gbp(1999),
+      fulfilment: "SERVICE",
+      features: [],
+    },
+  ],
+};
+
+/* ------------------------------------------------------------------ */
+/* Artwork preparation                                                 */
+/* ------------------------------------------------------------------ */
+
+/** What an artwork-ready photograph is. Larger square photographs are welcome. */
+export const ARTWORK_PHOTO_MIN_PX = 2500;
+
+export const ARTWORK_PREPARATION: Product = {
+  id: "artwork-preparation",
+  slug: "artwork-preparation",
+  name: "MCB Artwork Preparation Service",
+  positioning: "For a photograph that isn't artwork-ready, MCB prepares it for your record's artwork.",
+  shortDescription:
+    "If your photograph isn't square or is smaller than 2500 × 2500 pixels, our team prepares it for your artwork — cropping, resizing and adjusting it as far as the original allows.",
+  commercialModel: "FIXED",
+  category: "ARTWORK_SERVICE",
+  active: true,
+  public: true,
+  onlineCheckout: true,
+  requiresPersonalisation: false,
+  route: null,
+  deliveryClass: null,
+  turnaround: null,
+  schemaType: "Service",
+  variesBy: null,
+  analyticsCategory: "Artwork Service",
+  image: null,
+  imageAlt: null,
+  disclosures: [
+    "Optional, chosen by you before payment, once per order.",
+    "Not every photograph can be prepared to print quality. If yours can't, we'll ask you for another photograph.",
+  ],
+  cta: "Add Artwork Preparation",
+  storedValue: null,
+  variants: [
+    {
+      ...plainVariant,
+      sku: "artwork-preparation",
+      name: "MCB Artwork Preparation Service",
+      label: "Per order",
+      price: gbp(1500),
       fulfilment: "SERVICE",
       features: [],
     },
@@ -533,7 +580,6 @@ export const CRUISE_SHIP_DJ_BIBLE: Product = {
   route: null,
   deliveryClass: null,
   turnaround: null,
-  revisions: null,
   schemaType: "ProductGroup",
   variesBy: "level",
   analyticsCategory: "Education",
@@ -570,7 +616,6 @@ export const GIFT_VOUCHER: Product = {
   route: null,
   deliveryClass: null,
   turnaround: null,
-  revisions: null,
   schemaType: "Product",
   variesBy: null,
   analyticsCategory: "Gift",
@@ -604,6 +649,7 @@ export const PRODUCTS: readonly Product[] = [
   ANTIQUE_BRASS_GRAMOPHONE,
   PORTABLE_SUITCASE_RECORD_PLAYER,
   PRIORITY_REPLACEMENT,
+  ARTWORK_PREPARATION,
   CRUISE_SHIP_DJ_BIBLE,
   GIFT_VOUCHER,
 ];

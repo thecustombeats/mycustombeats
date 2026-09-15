@@ -11,15 +11,16 @@
  * kept as FAILED — visible to staff in the queue — and a retry may reclaim it.
  *
  * WHICH TEMPLATES SEND THEMSELVES is data (operations.json
- * lifecycle_templates). APPROVAL_REQUIRED, CHANGES_RECEIVED,
- * APPROVAL_CONFIRMED and DISPATCHED go with the action that raises them.
+ * lifecycle_templates). CREATION_READY (the digital reveal), IN_PRODUCTION and
+ * DISPATCHED go with the staff action that raises them. None asks the
+ * customer to approve or reply before MCB continues.
  * FOLLOW_UP only when staff ask. The review request keeps its own rules in
  * lifecycle.php.
  *
  * ─────────────────────────────────────────────────────────────────────────
  * WHAT NEVER GOES IN AN EMAIL
  * ─────────────────────────────────────────────────────────────────────────
- * The customer's story, their change requests, staff notes, the delivery
+ * The customer's story, quality-check notes, staff notes, the reveal link itself, the delivery
  * address, amounts or anything about suppliers. A message says what has
  * happened and links to the private page; the page shows the rest.
  *
@@ -34,7 +35,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/operations.php';
 require_once __DIR__ . '/lifecycle.php';
 
-const MCB_LIFECYCLE_TYPES = ['APPROVAL_REQUIRED', 'CHANGES_RECEIVED', 'APPROVAL_CONFIRMED', 'DISPATCHED', 'FOLLOW_UP'];
+/**
+ * ONE-WAY messages only. The retired approval emails (APPROVAL_REQUIRED,
+ * CHANGES_RECEIVED, APPROVAL_CONFIRMED) are no longer sendable.
+ */
+const MCB_LIFECYCLE_TYPES = ['CREATION_READY', 'IN_PRODUCTION', 'DISPATCHED', 'FOLLOW_UP'];
 
 /** First name only, as a greeting. Control characters cannot reach a header or body. */
 function lifecycle_first_name(string $name): string
@@ -48,7 +53,7 @@ function lifecycle_first_name(string $name): string
  * Subject, text and HTML for one message.
  *
  * @param array{first_name:string, reference:string, workflow:string, status_link:?string,
- *              approval_link:?string, carrier:?string, tracking_reference:?string,
+ *              carrier:?string, tracking_reference:?string,
  *              tracking_url:?string, test_mode:bool} $c
  * @return array{subject:string, text:string, html:string}
  */
@@ -60,41 +65,26 @@ function lifecycle_message_content(string $type, array $c): array
     $music    = $physical ? 'your music' : 'your song';
 
     [$subject, $paragraphs, $button] = match ($type) {
-        'APPROVAL_REQUIRED' => [
-            "Your " . ($physical ? 'music is' : 'song is') . " ready to listen to — {$ref}",
+        'CREATION_READY' => [
+            "Your MCB creation is ready — {$ref}",
             [
-                "Your " . ($physical ? 'music is' : 'song is') . " ready for you to listen to.",
-                "Use the button below to listen. You can approve it, or tell us what you would like changed.",
-                $physical
-                    ? "Once you approve, we begin making your keepsake, and after that the music can no longer be changed."
-                    : "Take your time — we won't treat it as approved until you tell us.",
+                "The moment has arrived — your MCB creation is ready.",
+                "You gave us the memories; we've created the surprise. Your finished song is waiting for you on your private order page.",
+                "Find a quiet moment, press play, and enjoy it. If anything is genuinely wrong — a name or detail different from what you gave us — just reply to this email and we'll look into it.",
             ],
-            ['Listen and approve', $c['approval_link']],
+            ['Experience your creation', $c['status_link']],
         ],
-        'CHANGES_RECEIVED' => [
-            "We've received your changes — {$ref}",
-            [
-                "Thank you — we've received the changes you asked for.",
-                "We'll work on {$music} and let you know when it is ready to listen to again. If we need to check anything with you, we'll be in touch.",
-            ],
-            ['See your order', $c['status_link']],
-        ],
-        'APPROVAL_CONFIRMED' => [
-            "Thank you for approving " . ($physical ? 'your music' : 'your song') . " — {$ref}",
-            $physical
-                ? array_values(array_filter([
-                    "Thank you — you have approved your music.",
-                    "We'll now place your keepsake into production and email you when it has been sent.",
-                    $copy['separate_parcels'] ?? null,
-                ]))
-                : [
-                    "Thank you — you have approved your song.",
-                    "We hope it brings back every bit of that memory. If anything is not right, just reply to this email.",
-                ],
+        'IN_PRODUCTION' => [
+            "Your keepsake is being made — {$ref}",
+            array_values(array_filter([
+                "Your music and artwork have passed our quality check, and your keepsake is now being made.",
+                "We'll email you when it's on its way. There's nothing you need to do.",
+                $copy['separate_parcels'] ?? null,
+            ])),
             ['See your order', $c['status_link']],
         ],
         'DISPATCHED' => [
-            "Your order is on its way — {$ref}",
+            "Your order is on the way — {$ref}",
             array_values(array_filter([
                 "Good news — your order has been sent.",
                 $c['carrier'] !== null ? 'Carrier: ' . $c['carrier'] : null,
@@ -281,17 +271,6 @@ function send_lifecycle_message(PDO $pdo, int $orderId, string $type, string $de
             return 'already_sent';
         }
 
-        $approvalLink = null;
-        if ($type === 'APPROVAL_REQUIRED') {
-            $token = active_access_token($pdo, $orderId, 'APPROVAL');
-            if ($token === null) {
-                $pdo->prepare("UPDATE customer_communications SET status = 'FAILED', failure_code = 'no_approval_link' WHERE id = :id")
-                    ->execute([':id' => $claim]);
-                record_order_event_safely($pdo, $orderId, 'CUSTOMER.MESSAGE.FAILED', ['type' => $type, 'code' => 'no_approval_link']);
-                return 'failed';
-            }
-            $approvalLink = access_link('APPROVAL', $token);
-        }
         $statusLink = access_link('STATUS', ensure_status_token($pdo, $orderId, 'lifecycle-email'));
 
         $content = lifecycle_message_content($type, [
@@ -299,7 +278,6 @@ function send_lifecycle_message(PDO $pdo, int $orderId, string $type, string $de
             'reference'          => (string) $order['mcb_reference'],
             'workflow'           => $workflow,
             'status_link'        => $statusLink,
-            'approval_link'      => $approvalLink,
             'carrier'            => $order['carrier'],
             'tracking_reference' => $order['tracking_reference'],
             'tracking_url'       => $order['tracking_url'],

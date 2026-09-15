@@ -1,9 +1,11 @@
 import SectionHeading from "../components/mcb/SectionHeading";
 import { McbButtonLink } from "../components/mcb/McbButton";
 import { JOURNEY, KEEPSAKE, MOMENT } from "../data/catalogue";
+import { CREATIVE_JOURNEY, CREATIVE_PROMISE } from "../data/legal";
 
 /**
- * How it works — remember, tell us, we create, keep and relive.
+ * How it works — tell us your story, choose your sound, upload your photograph,
+ * trust MCB with the creativity, experience the reveal.
  *
  * Timing is read from the catalogue's own turnaround lines, never restated.
  * No animation: the steps are the content and must never depend on a scroll
@@ -21,24 +23,8 @@ const TIMINGS = [MOMENT, KEEPSAKE, JOURNEY].reduce<{ names: string; label: strin
   return lines;
 }, []);
 
-const STEPS = [
-  {
-    title: "Remember",
-    body: "Choose the moment you want to keep — an anniversary, a wedding, a birthday, a family gathering, a retirement or a day at sea.",
-  },
-  {
-    title: "Tell us your story",
-    body: "Share it in your own words: the people, the places, the little details. No lyrics or musical knowledge needed. Pick a mood and style, or let MCB choose the music style for you.",
-  },
-  {
-    title: "We create",
-    body: "Your story is written into a personalised song and produced for you. Choose to keep it digitally, on a picture disc, or as a full album on vinyl.",
-  },
-  {
-    title: "Keep, relive and share",
-    body: "Play it at the celebration, give it as a gift, keep it on the shelf — and return to the moment whenever you want.",
-  },
-];
+/** The approved five-step journey (Single Creative Authority), from legal/production.ts. */
+const STEPS = CREATIVE_JOURNEY.map((step) => ({ title: step.title, body: step.detail }));
 
 const HowItWorksSection = () => (
   <section id="how-it-works" aria-labelledby="how-it-works-heading" className="scroll-mt-24 bg-white px-5 py-20 sm:px-8 md:py-28">
@@ -46,10 +32,10 @@ const HowItWorksSection = () => (
       <SectionHeading
         id="how-it-works-heading"
         eyebrow="How it works"
-        title="From your story to something you can keep"
+        title={CREATIVE_PROMISE}
       />
 
-      <ol className="mt-14 grid list-none gap-5 p-0 sm:grid-cols-2 lg:grid-cols-4">
+      <ol className="mt-14 grid list-none gap-5 p-0 sm:grid-cols-2 lg:grid-cols-5">
         {STEPS.map((step, index) => (
           <li key={step.title} className="flex flex-col rounded-2xl border border-ink/10 bg-ivory p-6 sm:p-7">
             <span aria-hidden="true" className="font-mono text-base text-gold-deep">

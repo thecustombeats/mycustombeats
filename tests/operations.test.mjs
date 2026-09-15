@@ -59,13 +59,18 @@ const text = (html) => html.replace(/<script[\s\S]*?<\/script>/g, " ").replace(/
 /* Operational state model                                             */
 /* ------------------------------------------------------------------ */
 
-test("the operational states are exactly the Sprint 5 model", () => {
+test("the operational states are the Single Creative Authority model: creation, quality check, reveal — no customer approval", () => {
   assert.deepEqual(M.ops.OPERATIONAL_STATES.map((s) => s.state), [
-    "ORDER.PAID", "CREATIVE.PENDING", "CREATIVE.IN_PROGRESS", "CREATIVE.READY",
-    "CUSTOMER_APPROVAL.REQUIRED", "CUSTOMER_APPROVAL.CHANGES_REQUESTED", "CUSTOMER_APPROVAL.APPROVED",
+    "ORDER.PAID", "CREATIVE.PENDING", "CREATIVE.IN_PROGRESS", "QUALITY_CHECK",
+    "REVEAL.READY", "REVEALED",
     "FULFILMENT.NOT_REQUIRED", "FULFILMENT.PENDING", "FULFILMENT.READY", "FULFILMENT.CONFIRMED",
     "DISPATCHED", "DELIVERED", "FOLLOW_UP.DUE", "COMPLETED",
   ]);
+  const all = JSON.stringify([M.ops.OPERATIONAL_STATES, M.ops.CUSTOMER_STAGES, M.ops.LIFECYCLE_TEMPLATES, M.ops.QUEUE_KINDS]);
+  assert.doesNotMatch(all, /APPROVAL|approve|CHANGES_REQUESTED|revision|refine/i);
+  assert.equal(M.ops.OPERATIONAL_STATES.find((s) => s.state === "CREATIVE.PENDING").staff, "New order ready for processing.");
+  assert.deepEqual(M.ops.OPERATIONAL_STATES.find((s) => s.state === "REVEAL.READY").workflows, ["DIGITAL"]);
+  assert.match(M.ops.OPERATIONAL_STATES.find((s) => s.state === "FULFILMENT.READY").nextAction, /Bella or Lewis authorises/);
 });
 
 test("a digital Moment has no physical states, on the staff model or the customer page", () => {
@@ -96,17 +101,20 @@ test("customer stage wording is plain English with no internal codes", () => {
   }
 });
 
-test("included revisions are derived from the approved catalogue wording, nothing invented", () => {
-  const { getProduct } = M.catalogue;
-  assert.equal(getProduct("moment").revisions, "1 revision");
-  assert.deepEqual(M.ops.INCLUDED_REVISIONS.moment, { count: 1, per: "UNIT" });
-  for (const id of ["keepsake", "journey"]) {
-    assert.equal(getProduct(id).revisions, "1 refinement per song");
-    assert.deepEqual(M.ops.INCLUDED_REVISIONS[id], { count: 1, per: "SONG" });
+test("no product carries an included revision or refinement entitlement, and no timing is promised in hours", () => {
+  for (const product of M.catalogue.PRODUCTS) {
+    assert.equal("revisions" in product, false, product.id);
+    for (const variant of product.variants) assert.ok(!variant.features.some((f) => /revision|refinement|within \d+ hour/i.test(f)), variant.sku);
   }
-  assert.equal(M.ops.INCLUDED_REVISIONS.bespoke, undefined, "Bespoke refinement is a proposal term, not a number");
-  assert.deepEqual(Object.keys(M.ops.CREATIVE_TARGET_HOURS), ["moment"]);
-  assert.match(getProduct("moment").turnaround.label, /within 1 hour/);
+  assert.equal(M.ops.INCLUDED_REVISIONS, undefined);
+  assert.doesNotMatch(M.catalogue.getProduct("moment").turnaround.label, /\d|hour|minute/);
+  assert.match(M.catalogue.getProduct("moment").turnaround.label, /quality check/);
+  // Internal operational objectives only; never shown to a customer.
+  assert.deepEqual(M.ops.CREATIVE_TARGET_HOURS, { moment: 24, keepsake: 24, journey: 24 });
+  const json = JSON.parse(read("public/api/data/operations.json"));
+  assert.equal(json.included_revisions, undefined);
+  assert.deepEqual(json.reopen_reasons, ["MCB_CORRECTION", "REPLACEMENT", "OTHER"], "no customer-request reopen");
+  assert.ok(json.qc_checklist.length >= 13 && json.qc_checklist.every((i) => ["ALL", "PHYSICAL"].includes(i.applies_to)));
 });
 
 test("lifecycle templates: follow-up and review are never sent automatically", () => {
@@ -118,8 +126,8 @@ test("lifecycle templates: follow-up and review are never sent automatically", (
 
 test("automation events are the named set, with nothing financial or supplier-facing", () => {
   assert.deepEqual([...M.ops.AUTOMATION_EVENTS].sort(), [
-    "BESPOKE.ENQUIRY_RECEIVED", "CREATIVE.READY", "CUSTOMER.APPROVAL.APPROVED", "CUSTOMER.APPROVAL.REQUIRED",
-    "DELIVERED", "DISPATCHED", "FOLLOW_UP.DUE", "FULFILMENT.READY", "MCB_LIVE.ENQUIRY_RECEIVED", "ORDER.PAID",
+    "BESPOKE.ENQUIRY_RECEIVED", "DELIVERED", "DISPATCHED", "FOLLOW_UP.DUE", "FULFILMENT.READY", "MCB_LIVE.ENQUIRY_RECEIVED",
+    "ORDER.PAID", "ORDER.READY_FOR_PROCESSING", "QUALITY_CHECK.FAILED", "QUALITY_CHECK.PASSED", "QUALITY_CHECK.READY", "REVEALED",
   ]);
   assert.ok(!M.ops.AUTOMATION_EVENTS.some((e) => /REFUND|CHARGE|SUPPLIER|PURCHASE/.test(e)));
 });

@@ -14,7 +14,7 @@ Sprint 5 · 14 September 2026 · **No retention period has been decided, none is
 | **Payment and order records** | `orders` (amounts, status, MCB reference, Stripe ids), `order_items`, `checkout_sessions`, `stripe_events`, `unreconciled_payments` | Accounting and tax obligations | Retain for the statutory period, then anonymise contact fields; never delete amounts needed for accounts before that. |
 | **Consent evidence** | `order_consents` (versions, timestamp, IP hash, user agent) | Showing what was agreed | Retain with the order record; drop user agent after the claims period. |
 | **Audit and operations** | `order_events`, `operations_events`, `operations_acknowledgements`, `customer_communications` | Accountability; troubleshooting | Contains no customer text by design; retain with the order, or aggregate after the period. |
-| **Access links** | `order_access_tokens` | Customer progress/approval pages | Revoked/expired rows can be deleted at any time (no customer content). |
+| **Access links** | `order_access_tokens` | Customer order and reveal pages (legacy approval links) | Revoked/expired rows can be deleted at any time (no customer content). |
 | **Rate-limit counters** | `rate_limit_hits`, `ip_hash` columns | Abuse prevention | Salted hashes only; `rate_limit_hits` already prunes rows older than a day. Blank `ip_hash` columns once a period is agreed. |
 
 ## Principles for the implementation

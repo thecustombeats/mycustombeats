@@ -1,5 +1,5 @@
 /**
- * The customer's private order links — progress, approval and reporting a
+ * The customer's private order links — progress, the reveal and reporting a
  * problem — client side.
  *
  * The token lives in the URL FRAGMENT (`/your-order#…`, `/approve#…`). A
@@ -66,7 +66,8 @@ export interface OrderProgress {
   lines: OrderLine[];
   stage: string | null;
   stages: { id: string; status: "done" | "current" | "upcoming" }[];
-  awaiting_your_approval: boolean;
+  /** The digital reveal: present only once MCB has checked and revealed the creation. */
+  reveal: { url: string; revealed_on: string } | null;
   delivery: {
     carrier: string | null;
     tracking_reference: string | null;
@@ -80,25 +81,18 @@ export interface OrderProgress {
 
 export const fetchProgress = (token: string) => post<OrderProgress>("/api/order-progress", { token });
 
-export type ApprovalPosition = "AWAITING_RESPONSE" | "CHANGES_REQUESTED" | "APPROVED" | "CLOSED";
-
-export interface ApprovalView {
-  outcome?: "approved" | "already_approved" | "changes_received" | "already_received";
-  reference: string;
-  workflow: Workflow;
-  items: OrderLine[];
-  position: ApprovalPosition;
-  preview_url: string | null;
-  approved_on: string | null;
-  revisions: { included: number | null; used: number };
+/**
+ * Customer approval is retired (Single Creative Authority). An old approval
+ * link gets a polite, non-actionable answer and nothing else.
+ */
+export interface RetiredApprovalView {
+  retired: true;
+  message: string;
 }
 
-export const fetchApproval = (token: string) => post<ApprovalView>("/api/order-approval", { token, action: "view" });
-export const approveWork = (token: string) => post<ApprovalView>("/api/order-approval", { token, action: "approve" });
-export const requestChanges = (token: string, feedback: string) =>
-  post<ApprovalView>("/api/order-approval", { token, action: "request_changes", feedback });
+export const fetchRetiredApproval = (token: string) => post<RetiredApprovalView>("/api/order-approval", { token });
 
-export type SupportKind = "DAMAGED_OR_FAULTY" | "DELIVERY_PROBLEM" | "QUESTION";
+export type SupportKind = "DAMAGED_OR_FAULTY" | "DELIVERY_PROBLEM" | "INCORRECT_DETAIL" | "QUESTION";
 
 export const sendSupportRequest = (
   token: string,

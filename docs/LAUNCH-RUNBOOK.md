@@ -11,7 +11,7 @@ The emergency control throughout is **`stripe.live_checkout_approved => false`**
 | 1 | **Final backup** | Hostinger: full file backup of `public_html` and a database export. Keep both off the server. | OFF (new site) |
 | 2 | **Production configuration** | Create/update `mcb-config.php` beside `public_html` from `public/api/config.example.php`: DB credentials, `ip_salt`, `token_secret` (32+ random chars), `crm_api_key`, `app.site_origin = https://www.mycustombeats.com`, `app.debug = false`. **Stripe:** live `secret_key`, `checkout_sessions_enabled => false` for now, `live_checkout_approved => false`. **Resend:** `api_key`, `from`; no `api_url`, no `test_mode_send_to_customer`. `reviews.url` empty (review requests stay off). `delivery.use_test_fixtures` absent. | OFF |
 | 3 | **Private uploads** | Create `mcb-uploads/` beside `public_html` (never inside), permissions 0700/0750, owned by the PHP user. | OFF |
-| 4 | **Database migrations** | In date order, only migrations not yet applied: `2026-09-14-canonical-catalogue.sql` (if absent), `2026-09-14-sprint4-order-persistence.sql`, `2026-09-14-sprint5-operations.sql`. Each is idempotent. | OFF |
+| 4 | **Database migrations** | In date order, only migrations not yet applied: `2026-09-14-canonical-catalogue.sql` (if absent), `2026-09-14-sprint4-order-persistence.sql`, `2026-09-14-sprint5-operations.sql`, `2026-09-15-single-creative-authority.sql`. Each is idempotent and additive. | OFF |
 | 5 | **Clean build** | On a clean checkout of the approved commit: `npm ci && npm test && npm run build`. Confirm `dist/api/data/*.json`, `dist/catalogue.json`, `dist/analytics-init.js`, `dist/.htaccess`, `dist/api/.htaccess` exist. | OFF |
 | 6 | **Remove obsolete files** | On the server: `api/stripe/webhook-test.php` must not exist; remove any `api/config.php` left inside the web root once `mcb-config.php` is in place; remove stale `assets/` chunks after upload. Keep `/luxury/` (non-indexed, unlinked) per Founder decision. | OFF |
 | 7 | **Upload** | Upload `dist/` contents to `public_html` (replace). Do not upload `tests/`, `docs/`, `db/`, `src/` or any `_test-*` stub. | OFF |
@@ -49,12 +49,12 @@ Lowest risk: **one Moment, £15**, paid by a founder with a real card, to a foun
 5. Stripe Dashboard: payment succeeded; webhook delivery 200.
 6. `/operations` → search the reference: payment PAID, state `CREATIVE.PENDING`, creative brief shows the memory; queue shows "Creative work".
 7. Inbox: confirmation email with the reference, correct item and £15.00; no `[TEST]` prefix.
-8. Staff: Start creative → Mark ready → Request approval with a private listening link → approval email arrives → open `/approve#…` and `/your-order#…` on a phone; approve.
+8. Staff: Start creative → Send to quality check → Pass quality check (every item + the private link) → the "Your MCB creation is ready" email arrives → open `/your-order#…` on a phone and experience the reveal. There is nothing for the customer to approve.
 9. GA4 Realtime (DebugView if enabled): one `purchase` with transaction id = MCB reference, value 15, GBP. Check the page_location contains no `session_id` and no `#`.
 10. Confirm nothing sensitive leaked: Stripe payment metadata holds only `mcb_order_id`, `mcb_basket_hash`, `mcb_checkout`; server error log has no story/email text.
 11. Decide whether to refund the founder test via the Stripe Dashboard (a manual Founder action; the site has no refund automation).
 
-Physical products: only after `delivery-rates.json` is in place, repeat with a 7-inch Keepsake to a founder address, then run Confirm fulfilment → Dispatched → Delivered in `/operations`. Any partner purchase is placed and paid by hand by an authorised Founder; nothing is ordered automatically. For a plaque or player (if promoted to online pricing), staff record **Confirm availability and delivery** before the partner order can be confirmed; if the partner cannot supply, contact the customer and decide any refund manually in Stripe (Founder financial decision).
+Physical products: only after `delivery-rates.json` is in place, repeat with a 7-inch Keepsake to a founder address, then run Send to quality check → Pass quality check → Confirm fulfilment (authorised by Bella or Lewis) → Dispatched → Delivered in `/operations`. Any partner purchase is placed and paid by hand by an authorised Founder; nothing is ordered automatically. For a plaque or player (if promoted to online pricing), staff record **Confirm availability and delivery** before the partner order can be confirmed; if the partner cannot supply, contact the customer and decide any refund manually in Stripe (Founder financial decision).
 
 ## 4. First 24 hours — concise checklist
 

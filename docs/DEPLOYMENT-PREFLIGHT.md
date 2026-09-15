@@ -51,7 +51,7 @@ Retention and deletion of photos are **not yet decided** (see the privacy item i
 | `resend.api_url`, `resend.test_mode_send_to_customer` | absent | `resend_test_overrides_off` |
 | `app.site_origin` | `https://www.mycustombeats.com` | `site_origin_https` |
 | `app.debug` | `false` | `debug_off` |
-| `token_secret` | 32+ random characters (customer approval and order links are HMACs under it; changing it invalidates every link already sent) | `token_secret_strong`, `customer_links_secret` |
+| `token_secret` | 32+ random characters (customer order and reveal links are HMACs under it; changing it invalidates every link already sent) | `token_secret_strong`, `customer_links_secret` |
 | `operations.*` | see `docs/OPERATIONS-RUNBOOK.md` §10; defaults are safe | — |
 
 ## 3. Database

@@ -10,7 +10,7 @@
  * step.
  *
  * Each item has a key that encodes the state it came from
- * (ORDER:41:CHANGES_REQUESTED:0:2). Acknowledging stores who saw it and when,
+ * (ORDER:41:QUALITY_CHECK:0:1). Acknowledging stores who saw it and when,
  * against that key — so if the same order raises a new problem later, its
  * new key is not hidden by an old acknowledgement.
  *
@@ -29,13 +29,12 @@ function available_staff_actions(array $row): array
     }
     $state = operational_state($row);
     $byState = [
-        'ORDER.PAID'                          => ['START_CREATIVE', 'MARK_CREATIVE_READY'],
-        'CREATIVE.PENDING'                    => ['START_CREATIVE', 'MARK_CREATIVE_READY'],
-        'CREATIVE.IN_PROGRESS'                => ['MARK_CREATIVE_READY'],
-        'CREATIVE.READY'                      => ['REQUEST_APPROVAL', 'RECORD_APPROVAL', 'RECORD_CHANGES_REQUEST'],
-        'CUSTOMER_APPROVAL.REQUIRED'          => ['RECORD_APPROVAL', 'RECORD_CHANGES_REQUEST', 'REISSUE_APPROVAL_LINK'],
-        'CUSTOMER_APPROVAL.CHANGES_REQUESTED' => ['MARK_CREATIVE_READY'],
-        'CUSTOMER_APPROVAL.APPROVED'          => ['MARK_COMPLETED', 'REOPEN'],
+        'ORDER.PAID'                          => ['START_CREATIVE', 'SEND_TO_QUALITY_CHECK'],
+        'CREATIVE.PENDING'                    => ['START_CREATIVE', 'SEND_TO_QUALITY_CHECK'],
+        'CREATIVE.IN_PROGRESS'                => ['SEND_TO_QUALITY_CHECK'],
+        'QUALITY_CHECK'                       => ['PASS_QUALITY_CHECK', 'FAIL_QUALITY_CHECK'],
+        'REVEAL.READY'                        => ['SEND_REVEAL', 'REOPEN'],
+        'REVEALED'                            => ['MARK_COMPLETED', 'REOPEN'],
         'FULFILMENT.PENDING'                  => ['SET_FULFILMENT_READY', 'REOPEN'],
         'FULFILMENT.READY'                    => ['CONFIRM_FULFILMENT', 'REOPEN'],
         'FULFILMENT.CONFIRMED'                => ['MARK_DISPATCHED', 'REOPEN'],
@@ -112,35 +111,31 @@ function operations_queue(PDO $pdo, ?int $now = null): array
         switch ($state) {
             case 'ORDER.PAID':
             case 'CREATIVE.PENDING':
+                $items[] = queue_item("ORDER:{$id}:NEW_ORDER:{$reopen}", 'NEW_ORDER', $subject, $r['paid_at'],
+                    'New order ready for processing. ' . (next_action_for($state) ?? ''));
+                break;
             case 'CREATIVE.IN_PROGRESS':
-            case 'CREATIVE.READY':
-                $items[] = queue_item("ORDER:{$id}:CREATIVE_WORK:{$reopen}:{$state}", 'CREATIVE_WORK', $subject,
-                    $r['creative_ready_at'] ?? $r['creative_started_at'] ?? $r['paid_at'], next_action_for($state) ?? '');
+                $items[] = queue_item("ORDER:{$id}:CREATIVE_WORK:{$reopen}:{$r['qc_failed_count']}", 'CREATIVE_WORK', $subject,
+                    $r['creative_started_at'] ?? $r['paid_at'],
+                    (int) $r['qc_failed_count'] > 0 ? 'Correcting after a failed quality check, then back to the check.' : (next_action_for($state) ?? ''));
                 break;
-            case 'CUSTOMER_APPROVAL.REQUIRED':
-                $items[] = queue_item("ORDER:{$id}:APPROVAL_REQUIRED:{$reopen}:{$r['approval_round']}", 'APPROVAL_REQUIRED', $subject,
-                    $r['approval_requested_at'], 'Sent for approval (round ' . (int) $r['approval_round'] . ').');
+            case 'QUALITY_CHECK':
+                $items[] = queue_item("ORDER:{$id}:QUALITY_CHECK:{$reopen}:{$r['qc_failed_count']}", 'QUALITY_CHECK', $subject,
+                    $r['qc_submitted_at'] ?? $r['creative_ready_at'] ?? $r['paid_at'], next_action_for($state) ?? '');
                 break;
-            case 'CUSTOMER_APPROVAL.CHANGES_REQUESTED':
-                $within = $r['last_within_allowance'];
-                $items[] = queue_item("ORDER:{$id}:CHANGES_REQUESTED:{$reopen}:{$r['approval_round']}", 'CHANGES_REQUESTED', $subject,
-                    $r['changes_requested_at'],
-                    match ($within) {
-                        'YES' => 'Within the included revisions.',
-                        'NO'  => 'Beyond the included revisions — decide how to handle it before starting.',
-                        default => 'This product has no numeric revision allowance — decide how to handle it.',
-                    },
-                    $within === 'YES' ? [] : ['REVISION_ALLOWANCE']);
+            case 'REVEAL.READY':
+                $items[] = queue_item("ORDER:{$id}:REVEAL_READY:{$reopen}", 'REVEAL_READY', $subject, $r['qc_passed_at'],
+                    'Quality check passed. Send the reveal.');
                 break;
             case 'FULFILMENT.PENDING':
-                $items[] = queue_item("ORDER:{$id}:MISSING_INFORMATION:fulfilment:{$reopen}", 'MISSING_INFORMATION', $subject, $r['approved_at'],
-                    'Approved, but fulfilment is waiting on: ' . (fulfilment_review_pending($pdo, $id)
+                $items[] = queue_item("ORDER:{$id}:MISSING_INFORMATION:fulfilment:{$reopen}", 'MISSING_INFORMATION', $subject, $r['qc_passed_at'] ?? $r['approved_at'],
+                    'Quality check passed, but fulfilment is waiting on: ' . (fulfilment_review_pending($pdo, $id)
                         ? fulfilment_blocker_text('FULFILMENT_REVIEW')
                         : strtolower(str_replace('_', ' ', (string) ($r['fulfilment_pending_reason'] ?? 'something')))) . '.');
                 break;
             case 'FULFILMENT.READY':
                 $items[] = queue_item("ORDER:{$id}:FULFILMENT_READY:{$reopen}", 'FULFILMENT_READY', $subject, $r['fulfilment_ready_at'],
-                    'Place the supplier order by hand, then confirm it here. Nothing is ordered automatically. Items may come from different partners and be sent separately.');
+                    'Bella or Lewis authorises the partner purchase; place it by hand, then confirm it here. Nothing is ordered automatically. Items may come from different partners and be sent separately.');
                 break;
             case 'FULFILMENT.CONFIRMED':
                 $items[] = queue_item("ORDER:{$id}:SUPPLIER_ACTION:{$reopen}", 'SUPPLIER_ACTION', $subject, $r['fulfilment_confirmed_at'],
@@ -162,16 +157,17 @@ function operations_queue(PDO $pdo, ?int $now = null): array
                 'Check in with the customer, then record the follow-up.');
         }
 
-        // Overdue: before the first approval request only, against an approved
-        // numeric target (Moment) or the configured made-to-order threshold.
-        if (in_array($state, ['ORDER.PAID', 'CREATIVE.PENDING', 'CREATIVE.IN_PROGRESS', 'CREATIVE.READY'], true)
-            && (int) $r['approval_round'] === 0 && $reopen === 0) {
+        // Overdue: still being created or checked, first time through, past
+        // MCB's internal objective (never a customer promise) or the
+        // configured made-to-order threshold.
+        if (in_array($state, ['ORDER.PAID', 'CREATIVE.PENDING', 'CREATIVE.IN_PROGRESS', 'QUALITY_CHECK', 'REVEAL.READY'], true)
+            && $reopen === 0) {
             $paidAt = strtotime($r['paid_at'] . ' UTC');
             $hours  = $data['creative_target_hours'][$r['package']] ?? null;
             $limit  = $hours !== null ? (int) $hours * 3600 : ($overdueDays > 0 ? $overdueDays * 86400 : null);
             if ($limit !== null && $paidAt + $limit < $now) {
                 $items[] = queue_item("ORDER:{$id}:OVERDUE:0", 'OVERDUE', $subject, $r['paid_at'],
-                    $hours !== null ? "Past the {$hours}-hour delivery target." : "Paid more than {$overdueDays} days ago and not yet sent for approval.");
+                    $hours !== null ? "Past MCB's internal {$hours}-hour objective." : "Paid more than {$overdueDays} days ago and not yet through the quality check.");
             }
         }
     }
@@ -192,12 +188,17 @@ function operations_queue(PDO $pdo, ?int $now = null): array
            FROM order_service_requests s JOIN orders o ON o.id = s.order_id
           WHERE s.status IN ('OPEN','IN_REVIEW') ORDER BY s.id LIMIT 500"
     )->fetchAll() as $r) {
-        $kind = $r['kind'] === 'DAMAGED_OR_FAULTY' ? 'REPLACEMENT_REQUEST' : 'SUPPORT';
+        $kind = match ($r['kind']) {
+            'DAMAGED_OR_FAULTY' => 'REPLACEMENT_REQUEST',
+            'INCORRECT_DETAIL'  => 'INCORRECT_DETAIL',
+            default             => 'SUPPORT',
+        };
         $detail = match ($r['kind']) {
             'DAMAGED_OR_FAULTY' => (int) $r['priority_replacement_requested'] === 1
                 ? 'Damaged or faulty item, Priority Replacement requested: ' . strtolower(str_replace('_', ' ', (string) $r['eligibility'])) . '.'
                 : 'Damaged or faulty item reported.',
             'DELIVERY_PROBLEM' => 'Delivery problem reported.',
+            'INCORRECT_DETAIL' => 'The customer reports something incorrect in their song or artwork. Check it against what they supplied: an MCB error is corrected (reopen: MCB_CORRECTION); a creative preference is not a revision.',
             default => 'Question from the customer.',
         };
         $items[] = queue_item("SERVICE:{$r['id']}:{$r['status']}", $kind,

@@ -5,7 +5,7 @@
  * Built only from an order already resolved from a valid STATUS link. Plain
  * facts the customer already has: their reference, what they bought, where it
  * has got to, and tracking MCB has recorded. Never a name, email, address,
- * story, change request, note, amount, database id or supplier detail.
+ * story, quality-check detail, note, amount, database id or supplier detail.
  */
 
 declare(strict_types=1);
@@ -122,7 +122,11 @@ function customer_progress(PDO $pdo, int $orderId): array
         'lines'     => array_map(static fn (array $l): array => ['name' => $l['item_name'], 'quantity' => (int) $l['quantity']], $lines->fetchAll()),
         'stage'     => $current,
         'stages'    => $stages,
-        'awaiting_your_approval' => $state === 'CUSTOMER_APPROVAL.REQUIRED',
+        // The reveal: a digital creation's private listening link, only once
+        // MCB has checked and revealed it. Never a draft; never before.
+        'reveal'    => $workflow === 'DIGITAL' && ($row['revealed_at'] ?? null) !== null && ($row['reveal_url'] ?? null) !== null
+            ? ['url' => $row['reveal_url'], 'revealed_on' => substr((string) $row['revealed_at'], 0, 10)]
+            : null,
         'delivery'  => $shipped ? [
             'carrier'            => $row['carrier'],
             'tracking_reference' => $row['tracking_reference'],

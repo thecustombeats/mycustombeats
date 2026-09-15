@@ -147,9 +147,9 @@ return [
         // Lifetimes of the private customer links. They are HMACs under
         // token_secret, which must be 32+ random characters.
         'status_link_ttl_days'   => 180,
-        'approval_link_ttl_days' => 30,
+        // approval_link_ttl_days: retired with customer approval (legacy links only).
 
-        // Days after delivery (or a digital approval) before the follow-up
+        // Days after delivery (or a digital reveal) before the follow-up
         // is due. 0: due straight away.
         'follow_up_delay_days' => 0,
 

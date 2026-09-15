@@ -74,6 +74,10 @@ export const validateCatalogue = (products: readonly Product[]): string[] => {
     if (!physical && product.deliveryClass !== null) errors.push(`${at}: only physical products carry a delivery class`);
   }
 
+  const artwork = products.find((p) => p.id === "artwork-preparation");
+  if (artwork && (artwork.variants.length !== 1 || artwork.variants[0].fulfilment !== "SERVICE" || artwork.category !== "ARTWORK_SERVICE")) {
+    errors.push("artwork-preparation must be one SERVICE variant in ARTWORK_SERVICE");
+  }
   const priority = products.find((p) => p.id === "priority-replacement");
   if (!priority) errors.push("unknown referenced product 'priority-replacement'");
   if (!products.some((p) => p.variants.some((v) => v.priorityReplacementEligible))) {

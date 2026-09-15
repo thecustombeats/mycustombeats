@@ -65,12 +65,12 @@ crmp() { curl -s -o /tmp/lg.json -w '%{http_code}' -X POST "$BASE/$1" -H "Author
 # than a new date. Assertions 1 and 5 pin the CURRENT version; the superseded
 # one must still be recognised, which is asserted below and covered in depth by
 # tests/delivery-acceptance.sh.
-VER="2026-09-15"
+VER="2026-09-15.2"
 SUPERSEDED_VER="2026-09-09"
 # Orders now also require the cruise-companion field, so every payload that
 # is not specifically testing it carries one.
 CRUISE='"cruiseCompanions":"My husband David"'
-FULL='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"'"$VER"'",'"$CRUISE"
+FULL='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true,"CREATIVE_AUTHORITY":true},"creativeAuthorityVersion":"2026-09-15","termsVersion":"'"$VER"'",'"$CRUISE"
 
 # Customer-facing prose only. Every legal file explains WHY a phrase was
 # removed, and those explanations necessarily quote the phrase — so the
@@ -111,7 +111,7 @@ t "11. a crafted request cannot skip the digital acknowledgement" 422 \
 t "12. a truthy-but-not-true consent value is refused, not coerced" 422 \
   "$(post order '{"firstName":"Truthy","lastName":"X","email":"lg-truthy@example.com",'"$DIGITAL"',"story":"x","consents":{"TERMS":"true","SERVICE_START":1,"DIGITAL_CONTENT":"on"},"termsVersion":"'"$VER"'"}')"
 t "13. a terms version MCB never published is refused" 422 \
-  "$(post order '{"firstName":"Bad","lastName":"Ver","email":"lg-ver@example.com",'"$DIGITAL"',"story":"x","consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2019-01-01"}')"
+  "$(post order '{"firstName":"Bad","lastName":"Ver","email":"lg-ver@example.com",'"$DIGITAL"',"story":"x","consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true,"CREATIVE_AUTHORITY":true},"creativeAuthorityVersion":"2026-09-15","termsVersion":"2019-01-01"}')"
 tc "14.  → and named the version field" \
   "$(body | grep -q 'termsVersion' && echo 1 || echo 0)"
 t "15. a fully consented order is accepted" 201 \
@@ -131,21 +131,21 @@ tc "21. consent evidence is booleans and timestamps, not a blob of text" \
   "$(q "SHOW COLUMNS FROM order_consents" | grep -q 'terms_accepted_at' && q "SHOW COLUMNS FROM order_consents" | grep -q 'digital_content_ack' && echo 1 || echo 0)"
 
 t "22. a physical order is not asked to acknowledge digital supply" 201 \
-  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true},"termsVersion":"'"$VER"'",'"$CRUISE"',"firstName":"Vin","lastName":"Yl","email":"lg-vinyl@example.com",'"$PHYSICAL"',"story":"x","shippingName":"V Y","shippingAddress":"1 St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom"}')"
+  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true,"CREATIVE_AUTHORITY":true},"creativeAuthorityVersion":"2026-09-15","termsVersion":"'"$VER"'",'"$CRUISE"',"firstName":"Vin","lastName":"Yl","email":"lg-vinyl@example.com",'"$PHYSICAL"',"story":"x","shippingName":"V Y","shippingAddress":"1 St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom"}')"
 OIDV=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 tc "23.  → and its acknowledgement is NULL, not 0 (never asked ≠ declined)" \
   "$([ "$(q "SELECT IFNULL(digital_content_ack,'NULL') FROM order_consents WHERE order_id=$OIDV")" = "NULL" ] && echo 1 || echo 0)"
 # Attempted against a FRESH order id with no consent row, so the UNIQUE key
 # cannot fire first and mask the constraint being tested.
-post order '{"consents":{"TERMS":true,"SERVICE_START":true},"termsVersion":"'"$VER"'",'"$CRUISE"',"firstName":"Chk","lastName":"Row","email":"lg-chk@example.com",'"$PHYSICAL"',"story":"x","shippingName":"C R","shippingAddress":"1 St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom"}' >/dev/null
+post order '{"consents":{"TERMS":true,"SERVICE_START":true,"CREATIVE_AUTHORITY":true},"creativeAuthorityVersion":"2026-09-15","termsVersion":"'"$VER"'",'"$CRUISE"',"firstName":"Chk","lastName":"Row","email":"lg-chk@example.com",'"$PHYSICAL"',"story":"x","shippingName":"C R","shippingAddress":"1 St","shippingCity":"London","shippingPostcode":"E1 1AA","shippingCountry":"United Kingdom"}' >/dev/null
 OIDC=$(body | sed -n 's/.*"order_id":\([0-9]*\).*/\1/p')
 q "DELETE FROM order_consents WHERE order_id=$OIDC" >/dev/null
 tc "24. the DATABASE refuses a required-but-missing digital acknowledgement" \
   "$(qerr "INSERT INTO order_consents (order_id,terms_version,refund_policy_version,privacy_policy_version,terms_accepted_at,digital_content_required,digital_content_ack) VALUES ($OIDC,'$VER','$VER','$VER',UTC_TIMESTAMP(),1,NULL)" | grep -q 'chk_consent_digital' && echo 1 || echo 0)"
 tc "25. no consent box is pre-ticked" \
   "$(grep -A4 'INITIAL_CONSENT_STATE' src/data/legal/consent.ts | grep -q 'true' && echo 0 || echo 1)"
-tc "26. the three acts are modelled separately, not as one boolean" \
-  "$([ "$(grep -c '  id: "' src/data/legal/consent.ts)" = "3" ] && echo 1 || echo 0)"
+tc "26. the four acts (terms, service start, digital content, Creative Authority) are modelled separately, not as one boolean" \
+  "$([ "$(grep -c '  id: "' src/data/legal/consent.ts)" = "4" ] && echo 1 || echo 0)"
 tc "27. the old single agreeTerms boolean is gone from the form" \
   "$(prose src/sections/OrderFormSection.tsx | grep -q 'agreeTerms' && echo 0 || echo 1)"
 
@@ -155,34 +155,39 @@ tc "28. a new order opens at CREATIVE, not locked" \
   "$([ "$(q "SELECT stage FROM order_production WHERE order_id=$OID")" = "CREATIVE" ] && echo 1 || echo 0)"
 tc "29. PAID IS NOT PRODUCTION_LOCKED — they are different columns entirely" \
   "$(q "SHOW COLUMNS FROM order_production" | grep -qi "^status" && echo 0 || echo 1)"
-tc "30. a fresh order still has its revisions open" \
-  "$(curl -s "$BASE/crm/production?order=$OID" -H "Authorization: Bearer $CRMKEY" | grep -q '"revisions_open":true' && echo 1 || echo 0)"
+tc "30. a fresh order has not passed MCB's quality check" \
+  "$(curl -s "$BASE/crm/production?order=$OID" -H "Authorization: Bearer $CRMKEY" | grep -q '"quality_checked":false' && echo 1 || echo 0)"
 tc "31. the payment status is reported alongside, never as a substitute" \
   "$(curl -s "$BASE/crm/production?order=$OID" -H "Authorization: Bearer $CRMKEY" | grep -q '"payment_status":"PENDING"' && echo 1 || echo 0)"
-t "32. recording an approval with no channel is refused" 422 \
-  "$(curl -s -o /tmp/lg.json -w '%{http_code}' -X POST "$BASE/crm/production" -H "Authorization: Bearer $CRMKEY" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d '{"order_id":'"$OID"',"stage":"APPROVED"}')"
-t "33. an approval recorded through a real channel is accepted" 200 \
+t "32. recording a customer approval is retired" 410 \
   "$(curl -s -o /tmp/lg.json -w '%{http_code}' -X POST "$BASE/crm/production" -H "Authorization: Bearer $CRMKEY" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d '{"order_id":'"$OID"',"stage":"APPROVED","approval_channel":"WHATSAPP","approval_reference":"thread 1","approved_by":"Ops"}')"
-tc "34.  → and closes the revision entitlement" \
-  "$(body | grep -q '"revisions_open":false' && echo 1 || echo 0)"
-tc "35.  → while the order is still only PENDING payment (lock ≠ paid)" \
-  "$(body | grep -q '"payment_status":"PENDING"' && echo 1 || echo 0)"
-tc "36. the approval channel and timestamp are both persisted" \
-  "$([ "$(q "SELECT CONCAT(approval_channel,'|',IF(approved_at IS NULL,'NO','YES')) FROM order_production WHERE order_id=$OID")" = "WHATSAPP|YES" ] && echo 1 || echo 0)"
-tc "37. the DATABASE refuses an APPROVED row that cannot evidence approval" \
-  "$(qerr "INSERT INTO order_production (order_id,stage) VALUES ($OIDV,'APPROVED')" | grep -q 'chk_production_approval' && echo 1 || echo 0)"
-tc "38. approval is recorded off-website, honestly — email/WhatsApp/phone are channels" \
+tc "33.  → and changed nothing: no approval, still CREATIVE" \
+  "$([ "$(q "SELECT CONCAT(stage,'|',IFNULL(approved_at,'none')) FROM order_production WHERE order_id=$OID")" = "CREATIVE|none" ] && echo 1 || echo 0)"
+tc "34. the DATABASE refuses a QC_PASSED row that cannot evidence MCB's quality check" \
+  "$(qerr "UPDATE order_production SET stage='QC_PASSED' WHERE order_id=$OID" | grep -q 'chk_production_evidence' && echo 1 || echo 0)"
+tc "35.  → and accepts it with the quality-check evidence" \
+  "$(qerr "UPDATE order_production SET stage='QC_PASSED', qc_passed_at=UTC_TIMESTAMP(), qc_passed_by='Ops' WHERE order_id=$OID" | grep -q 'ERROR' && echo 0 || echo 1)"
+tc "36. historical approval evidence still satisfies the constraint for legacy rows" \
+  "$(qerr "UPDATE order_production SET stage='APPROVED', qc_passed_at=NULL, approved_at=UTC_TIMESTAMP(), approval_channel='EMAIL' WHERE order_id=$OID" | grep -q 'ERROR' && echo 0 || echo 1)"
+q "UPDATE order_production SET stage='CREATIVE', qc_passed_at=NULL, qc_passed_by=NULL, approved_at=NULL, approval_channel=NULL WHERE order_id=$OID" >/dev/null
+tc "37. checkout records the Creative Authority acceptance, with its version and time" \
+  "$([ "$(q "SELECT CONCAT(creative_authority_version,'|',IF(creative_authority_accepted_at IS NULL,'NO','YES')) FROM order_consents WHERE order_id=$OID")" = "2026-09-15|YES" ] && echo 1 || echo 0)"
+t "37b. an order without the Creative Authority statement is refused" 422 \
+  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"creativeAuthorityVersion":"2026-09-15","termsVersion":"'"$VER"'",'"$CRUISE"',"firstName":"No","lastName":"Ca","email":"lg-noca@example.com",'"$DIGITAL"',"story":"x"}')"
+t "37c.  → as is one naming a Creative Authority version MCB did not publish" 422 \
+  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true,"CREATIVE_AUTHORITY":true},"creativeAuthorityVersion":"2019-01-01","termsVersion":"'"$VER"'",'"$CRUISE"',"firstName":"Old","lastName":"Ca","email":"lg-oldca@example.com",'"$DIGITAL"',"story":"x"}')"
+tc "38. legacy approval channels remain valid values for historical records" \
   "$(grep -q "'WEBSITE','EMAIL','WHATSAPP','PHONE','IN_PERSON'" db/schema.sql && echo 1 || echo 0)"
-tc "39. checkout acceptance is stated to be a different act from approval" \
-  "$(grep -q 'APPROVAL_IS_NOT_CHECKOUT' src/data/legal/production.ts && echo 1 || echo 0)"
+tc "39. the lifecycle states there is no customer creative-approval stage" \
+  "$(grep -q 'There is NO customer creative-approval stage' src/data/legal/production.ts && echo 1 || echo 0)"
 tc "40. the production record holds no creative content" \
   "$(q "SHOW COLUMNS FROM order_production" | grep -qiE '^(story|brief|lyrics)' && echo 0 || echo 1)"
 tc "41. locking is recorded with its own timestamp, separate from approval" \
   "$(q "SHOW COLUMNS FROM order_production" | grep -q 'production_locked_at' && echo 1 || echo 0)"
-tc "42. a locked order's timestamp is set when it locks" \
-  "$(curl -s -X POST "$BASE/crm/production" -H "Authorization: Bearer $CRMKEY" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d '{"order_id":'"$OID"',"stage":"PRODUCTION_LOCKED","approval_channel":"WHATSAPP"}' >/dev/null; [ -n "$(q "SELECT production_locked_at FROM order_production WHERE order_id=$OID")" ] && echo 1 || echo 0)"
-tc "43. re-recording does not move the original approval date" \
-  "$(A1=$(q "SELECT approved_at FROM order_production WHERE order_id=$OID"); curl -s -X POST "$BASE/crm/production" -H "Authorization: Bearer $CRMKEY" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d '{"order_id":'"$OID"',"stage":"FULFILMENT","approval_channel":"EMAIL"}' >/dev/null; [ "$A1" = "$(q "SELECT approved_at FROM order_production WHERE order_id=$OID")" ] && echo 1 || echo 0)"
+tc "42. locking is set when staff confirm the partner order, through the checked action" \
+  "$(grep -q "production_locked_at = COALESCE(production_locked_at, UTC_TIMESTAMP())" public/api/lib/operations.php && echo 1 || echo 0)"
+tc "43. the retired endpoint cannot move a stage past MCB's quality check" \
+  "$(C=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/crm/production" -H "Authorization: Bearer $CRMKEY" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d '{"order_id":'"$OID"',"stage":"FULFILMENT","approval_channel":"EMAIL"}'); [ "$C" = "410" ] && [ "$(q "SELECT stage FROM order_production WHERE order_id=$OID")" = "CREATIVE" ] && echo 1 || echo 0)"
 
 echo ""
 echo "================ 4. WHAT THE DOCUMENTS MAY NOT SAY ================"
@@ -272,17 +277,12 @@ tc "69. the entry is BLOCKING, not downgraded to make a release green" \
   "$(grep -A6 'clauses that consumer law does not permit' src/data/legal/review.ts | grep -q 'BLOCKING' && echo 1 || echo 0)"
 tc "70. and the repository does not claim the wording was legally approved" \
   "$(grep -q 'has NOT been reviewed by a solicitor\|NOT LEGALLY REVIEWED' src/data/legal/terms.ts && echo 1 || echo 0)"
-tc "58. a refinement is defined" \
-  "$(grep -q 'REFINEMENT_DEFINITION' src/data/legal/production.ts && echo 1 || echo 0)"
-tc "59.  → and its limits are stated without making it meaningless" \
-  "$([ "$(grep -c '^  \"' src/data/legal/production.ts)" -ge 5 ] && grep -q 'REFINEMENT_EXCLUSIONS' src/data/legal/production.ts && echo 1 || echo 0)"
-# The Founder's clause 4 states the refinement position in its own words and
-# does not use SCOPE_CHANGE_TREATMENT. The constant still exists and is still
-# correct; it is simply no longer quoted in the Terms.
-# Launch closure 2026-09-15: clause 4 now closes refinements at approval, as
-# clause 6 and the approval flow already did.
-tc "60b. the refinement clause closes refinements at approval" \
-  "$(grep -q 'Once you have approved a song, no further refinements can be made' src/data/legal/terms.ts && ! grep -q 'As soon as a song goes to Vinyl pressing, no refinements can be made' src/data/legal/terms.ts && echo 1 || echo 0)"
+tc "58. creative authority is defined once, and used by the Terms" \
+  "$(grep -q 'export const CREATIVE_AUTHORITY_SUMMARY' src/data/legal/production.ts && grep -q 'CREATIVE_AUTHORITY_SUMMARY' src/data/legal/terms.ts && echo 1 || echo 0)"
+tc "59.  → with creative preference and genuine problems distinguished, statutory rights preserved" \
+  "$(grep -q 'export const PREFERENCE_VS_PROBLEM' src/data/legal/production.ts && grep -q 'Nothing in these terms affects any statutory rights that cannot legally be excluded or limited.' src/data/legal/production.ts && grep -q 'id: "preference-and-problems"' src/data/legal/terms.ts && echo 1 || echo 0)"
+tc "60b. no refinement or approval clause remains in the Terms" \
+  "$(! grep -qE 'id: "refinements"|id: "approval"|no further refinements|Approving your work' src/data/legal/terms.ts && echo 1 || echo 0)"
 tc "61. customer-supplied material is covered" \
   "$(grep -q 'materials-you-give-us' src/data/legal/terms.ts && echo 1 || echo 0)"
 tc "62.  → the customer keeps ownership of it" \
@@ -305,35 +305,35 @@ tc "68b. the consent checkbox no longer describes a cancellation route the Terms
   "$(grep -q 'we can charge you for the work already done' src/data/legal/consent.ts && echo 0 || echo 1)"
 tc "69b.  → but the early-start ACT is still asked and still recorded separately" \
   "$(grep -q 'Please start work on my order straight away' src/data/legal/consent.ts \
-     && [ "$(grep -c '^    id: \"' src/data/legal/consent.ts)" = "3" ] && echo 1 || echo 0)"
+     && [ "$(grep -c '^    id: \"' src/data/legal/consent.ts)" = "4" ] && echo 1 || echo 0)"
 tc "70b. the Refunds page no longer promises a route the Terms deny" \
-  "$(grep -q 'There is no cancellation of the product service after payment' src/data/legal/refunds.ts && echo 1 || echo 0)"
+  "$(grep -q 'there is no cancellation of the product service after payment' src/data/legal/refunds.ts && echo 1 || echo 0)"
 tc "71. the digital-supply consequence is stated beside its checkbox" \
   "$(grep -q 'I lose the right to cancel that digital content' src/data/legal/consent.ts && echo 1 || echo 0)"
 
 echo ""
 echo "================ 6. ENTITLEMENTS MATCH THE PACKAGES ================"
-tc "72. the Terms derive entitlements from the catalogue rather than restating them" \
-  "$(grep -q 'export const revisionEntitlements' src/data/legal/terms.ts && grep -q 'entitlement: product.revisions' src/data/legal/terms.ts && echo 1 || echo 0)"
-tc "73. Moment includes 1 revision" \
-  "$(awk '/^export const MOMENT: Product = \{/,/^};/' $PRODUCTS | grep -q 'revisions: "1 revision",' && echo 1 || echo 0)"
-tc "74. Keepsake includes 1 refinement per song" \
-  "$(awk '/^export const KEEPSAKE: Product = \{/,/^};/' $PRODUCTS | grep -q 'revisions: "1 refinement per song",' && echo 1 || echo 0)"
-tc "75. Journey includes 1 refinement per song" \
-  "$(awk '/^export const JOURNEY: Product = \{/,/^};/' $PRODUCTS | grep -q 'revisions: "1 refinement per song",' && echo 1 || echo 0)"
+tc "72. the Terms no longer carry package refinement entitlements" \
+  "$(! grep -q 'revisionEntitlements' src/data/legal/terms.ts src/pages/legal/Terms.tsx && echo 1 || echo 0)"
+tc "73. Moment includes no revision" \
+  "$(awk '/^export const MOMENT: Product = \{/,/^};/' $PRODUCTS | grep -qi 'revision' && echo 0 || echo 1)"
+tc "74. Keepsake includes no refinement round" \
+  "$(awk '/^export const KEEPSAKE: Product = \{/,/^};/' $PRODUCTS | grep -qi 'refinement' && echo 0 || echo 1)"
+tc "75. Journey includes no refinement round" \
+  "$(awk '/^export const JOURNEY: Product = \{/,/^};/' $PRODUCTS | grep -qi 'refinement' && echo 0 || echo 1)"
 tc "76. Bespoke did NOT inherit 'unlimited refinements'" \
   "$(awk '/^export const BESPOKE: Product = \{/,/^};/' $PRODUCTS | grep -qi 'unlimited' && echo 0 || echo 1)"
 tc "77. no surface anywhere still promises unlimited refinements" \
   "$(prose $PRODUCTS src/pages/FAQ.tsx src/data/legal/*.ts | grep -qi 'unlimited refinement' && echo 0 || echo 1)"
-tc "78. the FAQ derives its revision answers from the catalogue" \
-  "$(grep -q 'MOMENT.revisions' src/pages/FAQ.tsx && grep -q 'KEEPSAKE.revisions' src/pages/FAQ.tsx && echo 1 || echo 0)"
+tc "78. the FAQ carries no revision answers; it explains drafts, the reveal and genuine errors" \
+  "$(! grep -q '\.revisions' src/pages/FAQ.tsx && grep -q 'WILL_I_RECEIVE_A_DRAFT' src/pages/FAQ.tsx && grep -q 'IF_MCB_GETS_A_DETAIL_WRONG' src/pages/FAQ.tsx && echo 1 || echo 0)"
 
 echo ""
 echo "================ 7. BESPOKE IS NOT A PURCHASE ================"
 tc "79. an enquiry is described as committing neither side" \
   "$(grep -q 'A Bespoke enquiry is not a purchase' src/data/legal/refunds.ts && echo 1 || echo 0)"
-tc "80. the concierge contract is formed by the written proposal" \
-  "$(grep -q "that commission's own written terms" src/data/legal/refunds.ts && echo 1 || echo 0)"
+tc "80. a Bespoke commission's scope and price are agreed before payment; production is under creative authority" \
+  "$(grep -q 'Scope, deliverables and price are agreed with you before payment' src/data/legal/refunds.ts && echo 1 || echo 0)"
 # Counted before and after, rather than against the order count: assertion 24
 # deliberately deletes a consent row to test the CHECK constraint, so the two
 # tables are legitimately out of step by then.
@@ -397,7 +397,7 @@ tc "98d. each legal page states its own title and description" \
 echo ""
 echo "================ 9c. CRUISE COMPANION FIELD ================"
 t "A1. an order without the cruise field is refused" 422 \
-  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"'"$VER"'","firstName":"NoCruise","lastName":"X","email":"lg-nc2@example.com",'"$DIGITAL"',"story":"x"}')"
+  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true,"CREATIVE_AUTHORITY":true},"creativeAuthorityVersion":"2026-09-15","termsVersion":"'"$VER"'","firstName":"NoCruise","lastName":"X","email":"lg-nc2@example.com",'"$DIGITAL"',"story":"x"}')"
 tc "A2.  → named on its own field, so the customer knows which one" \
   "$(body | grep -q 'cruiseCompanions' && echo 1 || echo 0)"
 t "A3. an order with it is accepted" 201 \
@@ -424,14 +424,14 @@ tc "F1. SONG_READY exists" \
   "$(q "SHOW COLUMNS FROM order_production LIKE 'stage'" | grep -q 'SONG_READY' && echo 1 || echo 0)"
 tc "F2. REVISION_REQUESTED exists" \
   "$(q "SHOW COLUMNS FROM order_production LIKE 'stage'" | grep -q 'REVISION_REQUESTED' && echo 1 || echo 0)"
-tc "F3. a revision request keeps refinements OPEN" \
-  "$(crmp crm/production '{"order_id":'"$OIDCR"',"stage":"REVISION_REQUESTED"}' >/dev/null; body | grep -q '"revisions_open":true' && echo 1 || echo 0)"
-tc "F4.  → and needs no approval evidence, because none has happened" \
-  "$(body | grep -q '"approved_at":null' && echo 1 || echo 0)"
-tc "F5. approval still requires a channel" \
-  "$(crmp crm/production '{"order_id":'"$OIDCR"',"stage":"APPROVED"}' | grep -q '^422$' && echo 1 || echo 0)"
-tc "F6. the pre-approval set is derived, not a hard-coded list" \
-  "$(grep -q 'revisions_remain_open(\$stage)' public/api/crm/production.php && echo 1 || echo 0)"
+tc "F3. the retired endpoint cannot record a revision request" \
+  "$(crmp crm/production '{"order_id":'"$OIDCR"',"stage":"REVISION_REQUESTED"}' | grep -q '^410$' && echo 1 || echo 0)"
+tc "F4.  → and the order stays where it was" \
+  "$([ "$(q "SELECT stage FROM order_production WHERE order_id=$OIDCR")" = "CREATIVE" ] && echo 1 || echo 0)"
+tc "F5. the retired endpoint cannot record an approval either" \
+  "$(crmp crm/production '{"order_id":'"$OIDCR"',"stage":"APPROVED","approval_channel":"EMAIL"}' | grep -q '^410$' && echo 1 || echo 0)"
+tc "F6. quality-checked stages are derived from the generated stage table" \
+  "$(grep -q 'stage_quality_checked(\$stage)' public/api/crm/production.php && echo 1 || echo 0)"
 tc "F7. payment still does not equal creative approval" \
   "$([ "$(q "SELECT stage FROM order_production WHERE order_id=$OIDCR")" != "APPROVED" ] && echo 1 || echo 0)"
 

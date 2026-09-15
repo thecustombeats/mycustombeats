@@ -2,7 +2,7 @@
  * PRODUCT DETAIL — plain-language copy derived from the canonical catalogue.
  *
  * Shared by the product pages (/moment, /keepsake, /journey), /products and
- * the FAQ, so the way MCB explains personalisation, refinements and delivery
+ * the FAQ, so the way MCB explains personalisation, creative authority and delivery
  * reads the same everywhere. No price, song count or size is typed here: each
  * is read from `data/catalogue`.
  */
@@ -13,7 +13,7 @@ import {
   type Product,
   type Variant,
 } from "../data/catalogue";
-import { REFINEMENT_DEFINITION } from "../data/legal";
+import { CREATIVE_AUTHORITY_SUMMARY, CREATIVE_PROMISE, PREFERENCE_VS_PROBLEM } from "../data/legal";
 import { STORY_MAX } from "./personalisation";
 
 /** Said wherever a physical item is sold. No shipping price is invented. */
@@ -53,6 +53,7 @@ export const personalisationSteps = (product: Product, variant: Variant): Person
   const songs = variant.songCount ?? 1;
   const story = `In your own words, up to ${STORY_MAX} characters. No lyrics or rhymes needed.`;
   const style = "Pick a music style, or choose “Let MCB choose” and trust our creative judgement.";
+  const photo = "Square and at least 2500 × 2500 pixels is best. If yours isn't artwork-ready, choose another or add MCB Artwork Preparation before you pay.";
 
   if (product.id === "journey") {
     return [
@@ -65,12 +66,12 @@ export const personalisationSteps = (product: Product, variant: Variant): Person
         detail: `Each chapter can have a different music style. ${style}`,
       },
       {
-        title: "Add photographs if you like",
-        detail: "An optional photograph for any chapter. Your approved photograph can feature in the sleeve artwork.",
+        title: "Upload your photograph",
+        detail: `MCB creates your sleeve artwork from your photograph, so your Journey needs at least one. ${photo}`,
       },
       {
-        title: "We write, record, master and press",
-        detail: `Your songs are mastered and pressed to classic black vinyl. ${product.revisions ? `Includes ${product.revisions.toLowerCase()}.` : ""}`.trim(),
+        title: "Trust MCB, then experience the reveal",
+        detail: "We write, record, master, check and press your songs to classic black vinyl. Your Journey arrives as the reveal.",
       },
     ];
   }
@@ -89,12 +90,12 @@ export const personalisationSteps = (product: Product, variant: Variant): Person
         detail: `${songs === 1 ? "" : "Every memory can sound different. "}${style}`,
       },
       {
-        title: "Add a photograph if you like",
-        detail: `An optional photograph ${songs === 1 ? "for your memory" : "for each memory"}, which can inspire the picture-disc artwork.`,
+        title: "Upload your photograph",
+        detail: `MCB creates your picture-disc artwork from your photograph, so each Keepsake needs at least one. ${photo}`,
       },
       {
-        title: "We create your record",
-        detail: `We write and produce ${songs === 1 ? "your song" : "your songs"} and design the picture disc. ${product.revisions ? `Includes ${product.revisions.toLowerCase()}.` : ""}`.trim(),
+        title: "Trust MCB, then experience the reveal",
+        detail: `We write and produce ${songs === 1 ? "your song" : "your songs"}, design the picture disc and check every detail. Your Keepsake arrives as the reveal.`,
       },
     ];
   }
@@ -104,8 +105,8 @@ export const personalisationSteps = (product: Product, variant: Variant): Person
     { title: "Share one memory", detail: story },
     { title: "Choose the mood and style", detail: style },
     {
-      title: "Receive your song",
-      detail: `${product.turnaround ? `${product.turnaround.label}. ` : ""}${product.revisions ? `Includes ${product.revisions.toLowerCase()}.` : ""}`.trim(),
+      title: "Experience the reveal",
+      detail: `We create and check your song, then reveal it with a private link. ${product.turnaround ? `${product.turnaround.label}.` : ""}`.trim(),
     },
   ];
 };
@@ -128,11 +129,12 @@ export const vinylIncludedLine = (variant: Variant): string => {
   return `Included: ${records}${extras.length ? `, ${extras.join(" and ")}` : ""}.`;
 };
 
-/** "Refinement or remake?" — gentle, and consistent with the legal definition. */
-export const refinementOrRemake = (product: Pick<Product, "revisions">): string[] => [
-  `${REFINEMENT_DEFINITION}${product.revisions ? ` Your order includes ${product.revisions.toLowerCase()}.` : ""}`,
-  "Refinements work within the creative direction you gave us. Changing a finished song to an entirely different genre or direction after production is a remake — a new piece of work, which we will happily quote for rather than count as a refinement.",
-  "If you ask MCB to choose the style, you are trusting our creative judgement. Your included refinements still apply to what we made, but a later request for an entirely different genre after production counts as a remake.",
+/** How MCB creates: positive first, then what the customer is agreeing to. */
+export const howMcbCreates = (): string[] => [
+  `${CREATIVE_PROMISE} ${CREATIVE_AUTHORITY_SUMMARY}`,
+  "There are no drafts to approve and no revision rounds: our team checks every detail against what you gave us before your creation is revealed or made.",
+  PREFERENCE_VS_PROBLEM.specification,
+  "If we get something objectively wrong — a name, a date or a photograph different from what you supplied — tell us and we'll put it right.",
 ];
 
 /** Priority Replacement, phrased quietly, with its price from the catalogue. */

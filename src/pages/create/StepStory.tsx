@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
-import { getProduct } from "../../data/catalogue";
+import { ARTWORK_PREPARATION, formatMoney, getProduct } from "../../data/catalogue";
 import {
+  isArtworkReady,
   isMemoryComplete,
+  photoIssues,
+  usesPhotoArtwork,
+  type PhotoCheck,
   memoryIssues,
   memoryLabel,
   styleSummary,
@@ -16,6 +20,7 @@ interface StepStoryProps {
   draft: OrderDraft;
   setDraft: (update: (draft: OrderDraft) => OrderDraft) => void;
   photos: ReadonlyMap<string, File>;
+  photoChecks?: ReadonlyMap<string, PhotoCheck>;
   setPhoto: (id: string, file: File | undefined) => void;
   showErrors: boolean;
   onStyleEvent: (event: "style_selected" | "mcb_choice_selected" | "explore_opened", styleId?: string) => void;
@@ -25,21 +30,24 @@ const COPY: Record<string, { intro: string; prompt: string; photo: string }> = {
   moment: {
     intro: "One memory, one song. Tell us what happened and how it felt — we'll take it from there.",
     prompt: "What's the memory?",
-    photo: "A photo helps us feel the moment.",
+    photo: "Optional. A photo helps us feel the moment.",
   },
   keepsake: {
     intro: "Every song on your picture disc has its own memory, photo and music style.",
     prompt: "What's the memory for this song?",
-    photo: "It can help us design your picture-disc artwork.",
+    photo: "MCB creates your picture-disc artwork from your photograph, so each Keepsake needs at least one. Square and at least 2500 × 2500 pixels is best.",
   },
   journey: {
     intro: "Your Journey is told in chapters. Each chapter becomes its own song, in its own style if you wish.",
     prompt: "What happened in this chapter?",
-    photo: "Your approved photographs can be used in your sleeve artwork.",
+    photo: "MCB creates your sleeve artwork from your photographs, so your Journey needs at least one. Square and at least 2500 × 2500 pixels is best.",
   },
 };
 
-const StepStory = ({ draft, setDraft, photos, setPhoto, showErrors, onStyleEvent }: StepStoryProps) => {
+const NO_CHECKS: ReadonlyMap<string, PhotoCheck> = new Map();
+const PREPARATION_PRICE = ARTWORK_PREPARATION.variants[0] ? formatMoney(ARTWORK_PREPARATION.variants[0].price) : "";
+
+const StepStory = ({ draft, setDraft, photos, photoChecks = NO_CHECKS, setPhoto, showErrors, onStyleEvent }: StepStoryProps) => {
   const product = getProduct(draft.productId);
   const copy = COPY[draft.productId] ?? COPY.moment;
   const [unitIndex, setUnitIndex] = useState(0);
@@ -68,6 +76,13 @@ const StepStory = ({ draft, setDraft, photos, setPhoto, showErrors, onStyleEvent
   }, [showErrors]);
 
   if (!unit || !product) return null;
+
+  const photoArtwork = usesPhotoArtwork(draft);
+  const photoIds = new Set(photos.keys());
+  const missingPhoto = photoIssues(draft, photoIds, photoChecks).find((issue) => issue.kind === "missing" && issue.id === unit.id);
+  const notReadyCount = photoArtwork
+    ? draft.units.reduce((n, u) => n + u.memories.filter((m) => photos.has(m.id) && photoChecks.has(m.id) && !isArtworkReady(photoChecks.get(m.id))).length, 0)
+    : 0;
 
   const openNext = (currentIndex: number) => {
     const next = unit.memories[currentIndex + 1];
@@ -126,6 +141,41 @@ const StepStory = ({ draft, setDraft, photos, setPhoto, showErrors, onStyleEvent
         </div>
       )}
 
+      {photoArtwork && (
+        <p className={`rounded-2xl p-4 text-base leading-relaxed ${showErrors && missingPhoto ? "border border-red-600 bg-red-50/40 text-red-800" : "bg-ivory text-espresso/80"}`} role={showErrors && missingPhoto ? "alert" : undefined}>
+          {missingPhoto
+            ? `${missingPhoto.message} You can add it to any memory below.`
+            : "Thank you — MCB will create your artwork from your photograph."}
+        </p>
+      )}
+
+      {photoArtwork && (notReadyCount > 0 || draft.artworkPreparation) && (
+        <div className="rounded-2xl border border-gold/50 bg-white p-4 sm:p-5" role="status">
+          {draft.artworkPreparation ? (
+            <>
+              <p className="text-base leading-relaxed text-ink">
+                <strong>{ARTWORK_PREPARATION.name}</strong> ({PREPARATION_PRICE}) is added to your order. Our team will prepare your photograph for your artwork as far as the original allows.
+              </p>
+              <button type="button" onClick={() => setDraft((d) => ({ ...d, artworkPreparation: false }))} className="mt-3 inline-flex min-h-11 items-center rounded-full border border-ink/25 px-5 text-base font-semibold text-ink hover:border-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep">
+                Remove {ARTWORK_PREPARATION.name}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-base leading-relaxed text-ink">
+                {notReadyCount === 1 ? "One of your photographs isn't" : `${notReadyCount} of your photographs aren't`} artwork-ready. For the best result we need a square photo of at least 2500 × 2500 pixels (larger is welcome).
+              </p>
+              <p className="mt-2 text-base leading-relaxed text-espresso/80">
+                You can choose another photo below, or add the optional {ARTWORK_PREPARATION.name} for {PREPARATION_PRICE}, once for this order. {ARTWORK_PREPARATION.disclosures[1]}
+              </p>
+              <button type="button" onClick={() => setDraft((d) => ({ ...d, artworkPreparation: true }))} className="mt-3 inline-flex min-h-12 items-center rounded-full bg-ink px-5 text-base font-semibold text-ivory hover:bg-[#1c2d40] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2">
+                Add {ARTWORK_PREPARATION.name} — {PREPARATION_PRICE}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       <ol className="m-0 list-none space-y-3 p-0">
         {unit.memories.map((memory, memoryIndex) => {
           const label = memoryLabel(draft, draft.units.indexOf(unit), memoryIndex);
@@ -181,6 +231,18 @@ const StepStory = ({ draft, setDraft, photos, setPhoto, showErrors, onStyleEvent
                     storyPrompt={copy.prompt}
                     photoHint={copy.photo}
                     photo={photos.get(memory.id)}
+                    photoRequired={photoArtwork}
+                    photoNote={
+                      photoArtwork && photos.has(memory.id)
+                        ? !photoChecks.has(memory.id)
+                          ? "Checking your photograph…"
+                          : isArtworkReady(photoChecks.get(memory.id))
+                            ? "Artwork-ready."
+                            : draft.artworkPreparation
+                              ? `Not artwork-ready — ${ARTWORK_PREPARATION.name} will prepare it.`
+                              : "Not artwork-ready: square, at least 2500 × 2500 pixels is needed. Choose another photo, or add Artwork Preparation above."
+                        : undefined
+                    }
                     onPhoto={(file) => setPhoto(memory.id, file)}
                     onChange={(change) => setDraft((d) => updateMemory(d, memory.id, change))}
                     errors={errors}

@@ -35,7 +35,7 @@ const button =
 const ReportProblem = ({ token, progress }: { token: string; progress: OrderProgress }) => {
   const ids = useId();
   const physical = progress.workflow === "PHYSICAL";
-  const [kind, setKind] = useState<SupportKind>(physical ? "DAMAGED_OR_FAULTY" : "QUESTION");
+  const [kind, setKind] = useState<SupportKind>(physical ? "DAMAGED_OR_FAULTY" : "INCORRECT_DETAIL");
   const [item, setItem] = useState(progress.items[0]?.key ?? "");
   const [priority, setPriority] = useState(false);
   const [description, setDescription] = useState("");
@@ -57,7 +57,7 @@ const ReportProblem = ({ token, progress }: { token: string; progress: OrderProg
     try {
       const result = await sendSupportRequest(token, {
         kind,
-        ...(physical && kind !== "QUESTION" && item ? { item } : {}),
+        ...(physical && (kind === "DAMAGED_OR_FAULTY" || kind === "DELIVERY_PROBLEM") && item ? { item } : {}),
         ...(offersPriority ? { priorityReplacement: priority } : {}),
         description: description.trim(),
       });
@@ -81,26 +81,36 @@ const ReportProblem = ({ token, progress }: { token: string; progress: OrderProg
   return (
     <form onSubmit={submit} className={`${card} space-y-6`} aria-labelledby={`${ids}-heading`}>
       <h2 id={`${ids}-heading`} className="font-serif text-2xl text-ink">
-        {physical ? "Something wrong, or a question?" : "Have a question?"}
+        Something wrong, or a question?
       </h2>
-      {physical && (
-        <fieldset>
+      <fieldset>
           <legend className={label}>What is it about?</legend>
           <div className="mt-3 grid gap-3">
-            {([
-              ["DAMAGED_OR_FAULTY", "Something arrived damaged or faulty"],
-              ["DELIVERY_PROBLEM", "A problem with delivery"],
-              ["QUESTION", "A question"],
-            ] as const).map(([value, text]) => (
+            {(physical
+              ? ([
+                  ["DAMAGED_OR_FAULTY", "Something arrived damaged or faulty"],
+                  ["DELIVERY_PROBLEM", "A problem with delivery"],
+                  ["INCORRECT_DETAIL", "Something in my song or artwork is incorrect"],
+                  ["QUESTION", "A question"],
+                ] as const)
+              : ([
+                  ["INCORRECT_DETAIL", "Something in my song is incorrect"],
+                  ["QUESTION", "A question"],
+                ] as const)
+            ).map(([value, text]) => (
               <label key={value} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border-2 px-4 py-3 text-base text-ink ${kind === value ? "border-gold-dark bg-gold/10" : "border-ink/15"}`}>
                 <input type="radio" name={`${ids}-kind`} value={value} checked={kind === value} onChange={() => setKind(value)} className="h-5 w-5 accent-[#856823]" />
                 {text}
               </label>
             ))}
           </div>
+          {kind === "INCORRECT_DETAIL" && (
+            <p className="mt-3 text-base leading-relaxed text-espresso/80">
+              For example a name, date, place or photograph different from what you gave us. Because you entrusted the creative choices to MCB, a different personal preference isn't treated as an error — but please tell us about anything that is genuinely wrong.
+            </p>
+          )}
         </fieldset>
-      )}
-      {physical && kind !== "QUESTION" && progress.items.length > 0 && (
+      {physical && kind !== "QUESTION" && kind !== "INCORRECT_DETAIL" && progress.items.length > 0 && (
         <div>
           <label htmlFor={`${ids}-item`} className={label}>Which item?</label>
           <select id={`${ids}-item`} value={item} onChange={(e) => setItem(e.target.value)} className={field}>
@@ -199,10 +209,14 @@ const YourOrder = () => {
               </ul>
             </section>
 
-            {progress.awaiting_your_approval && (
-              <section className="rounded-3xl border-2 border-gold-dark bg-gold/10 p-6 md:p-8" aria-labelledby="order-approval">
-                <h2 id="order-approval" className="font-serif text-2xl text-ink">Your music is ready for you</h2>
-                <p className="mt-3 text-lg leading-relaxed">We have emailed you a private link to listen and tell us what you think. If you can't find it, reply to any of our emails and we'll send it again.</p>
+            {progress.reveal && safeExternalUrl(progress.reveal.url) && (
+              <section className="rounded-3xl border-2 border-gold-dark bg-ink p-6 text-ivory md:p-8" aria-labelledby="order-reveal">
+                <p className="label-uppercase !text-gold">The reveal</p>
+                <h2 id="order-reveal" className="mt-2 font-serif text-3xl !text-ivory">Your MCB creation is ready</h2>
+                <p className="mt-3 text-lg leading-relaxed text-ivory/90">You gave us the memories. We created the surprise. Find a quiet moment, and press play.</p>
+                <a href={safeExternalUrl(progress.reveal.url) ?? undefined} target="_blank" rel="noopener noreferrer" className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-8 py-3 text-base font-semibold text-ink hover:bg-[#d8b35e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ivory focus-visible:ring-offset-2 focus-visible:ring-offset-ink">
+                  Experience your creation<span className="sr-only"> (opens in a new window)</span>
+                </a>
               </section>
             )}
 

@@ -43,6 +43,8 @@ function operations_payment_payload(PDO $pdo, int $orderId): ?array
 
     return [
         'event'           => 'order.paid',
+        // The internal notification the next automation programme listens for.
+        'notification'    => 'NEW_ORDER_READY_FOR_PROCESSING',
         'mcb_reference'   => $order['mcb_reference'],
         'order_id'        => (int) $order['id'],
         'paid_at'         => $order['updated_at'],

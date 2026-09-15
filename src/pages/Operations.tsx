@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Helmet } from "react-helmet-async";
-import { OPERATIONAL_STATES } from "../data/operations";
+import { OPERATIONAL_STATES, QC_CHECKLIST, QC_FAIL_REASONS, REOPEN_REASONS } from "../data/operations";
 
 /**
  * /operations — the MCB staff console.
@@ -29,16 +29,16 @@ const STATE_TEXT = Object.fromEntries(OPERATIONAL_STATES.map((s) => [s.state, s.
 
 /** Extra fields each action needs. */
 const ACTION_FIELDS: Record<string, { name: string; label: string; type?: "text" | "date" | "url" | "select" | "textarea" | "checkbox"; options?: string[] }[]> = {
-  REQUEST_APPROVAL: [{ name: "preview_url", label: "Private listening link (https)", type: "url" }, { name: "send_email", label: "Email the customer the approval link", type: "checkbox" }],
-  RECORD_APPROVAL: [{ name: "channel", label: "How they approved", type: "select", options: ["EMAIL", "WHATSAPP", "PHONE", "IN_PERSON"] }, { name: "reference", label: "Where to find it (optional)" }],
-  RECORD_CHANGES_REQUEST: [{ name: "channel", label: "How they asked", type: "select", options: ["EMAIL", "WHATSAPP", "PHONE", "IN_PERSON"] }, { name: "summary", label: "What they asked for", type: "textarea" }],
+  PASS_QUALITY_CHECK: [{ name: "reveal_url", label: "Digital only: private https link to the finished song you checked", type: "url" }, { name: "reveal_now", label: "Digital only: reveal to the customer now", type: "checkbox" }, { name: "send_email", label: "Email the customer the reveal", type: "checkbox" }],
+  FAIL_QUALITY_CHECK: [{ name: "reason", label: "Why it failed", type: "select", options: [...QC_FAIL_REASONS] }, { name: "note", label: "What to correct (internal, never shown to the customer)", type: "textarea" }],
+  SEND_REVEAL: [{ name: "reveal_url", label: "Private https link to the finished song (if not already added)", type: "url" }, { name: "send_email", label: "Email the customer the reveal", type: "checkbox" }],
   CONFIRM_FULFILMENT_REVIEW: [{ name: "confirmed", label: "I have confirmed availability, the destination and the actual delivery cost with the partner", type: "checkbox" }, { name: "note", label: "What was confirmed (no card or account details)", type: "textarea" }],
-  CONFIRM_FULFILMENT: [{ name: "fulfilment_reference", label: "Your order reference with the supplier (optional)" }],
+  CONFIRM_FULFILMENT: [{ name: "purchase_authorised_by", label: "Partner purchase authorised by", type: "select", options: ["BELLA", "LEWIS"] }, { name: "fulfilment_reference", label: "Your order reference with the supplier (optional)" }, { name: "send_email", label: "Tell the customer their keepsake is being made", type: "checkbox" }],
   MARK_DISPATCHED: [{ name: "carrier", label: "Carrier" }, { name: "tracking_reference", label: "Tracking reference(s) — separate several parcels with commas (optional)" }, { name: "tracking_url", label: "Tracking link, https (optional)", type: "url" }, { name: "dispatched_on", label: "Dispatched on", type: "date" }, { name: "send_email", label: "Email the customer", type: "checkbox" }],
   UPDATE_TRACKING: [{ name: "carrier", label: "Carrier" }, { name: "tracking_reference", label: "Tracking reference(s) — separate several parcels with commas (optional)" }, { name: "tracking_url", label: "Tracking link, https (optional)", type: "url" }, { name: "dispatched_on", label: "Dispatched on", type: "date" }],
   MARK_DELIVERED: [{ name: "delivered_on", label: "Delivered on", type: "date" }],
   RECORD_FOLLOW_UP: [{ name: "send_email", label: "Send the check-in email", type: "checkbox" }],
-  REOPEN: [{ name: "reason", label: "Reason", type: "select", options: ["CUSTOMER_REQUEST", "MCB_CORRECTION", "REPLACEMENT", "OTHER"] }],
+  REOPEN: [{ name: "reason", label: "Reason (MCB correction or replacement — not a creative preference)", type: "select", options: [...REOPEN_REASONS] }],
   REVOKE_LINKS: [{ name: "purpose", label: "Which links", type: "select", options: ["STATUS", "APPROVAL"] }],
   ADD_NOTE: [{ name: "note", label: "Note (internal, never shown to the customer)", type: "textarea" }],
 };
@@ -63,7 +63,7 @@ const Operations = () => {
   const [enquiry, setEnquiry] = useState<Json | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [action, setAction] = useState("");
-  const [fields, setFields] = useState<Record<string, string | boolean>>({});
+  const [fields, setFields] = useState<Record<string, string | boolean | Record<string, boolean>>>({});
   const [busy, setBusy] = useState(false);
   const [brief, setBrief] = useState<Json | null>(null);
 
@@ -276,11 +276,25 @@ const Operations = () => {
 
                   <Section title="Action">
                     <form onSubmit={runAction} className="space-y-3">
-                      <select value={action} onChange={(e) => { setAction(e.target.value); setFields(e.target.value === "REQUEST_APPROVAL" || e.target.value === "MARK_DISPATCHED" ? { send_email: true } : {}); }} className={input} aria-label="Action">
+                      <select value={action} onChange={(e) => { setAction(e.target.value); setFields(["PASS_QUALITY_CHECK", "SEND_REVEAL", "MARK_DISPATCHED", "CONFIRM_FULFILMENT"].includes(e.target.value) ? { send_email: true, ...(e.target.value === "PASS_QUALITY_CHECK" ? { reveal_now: true, checklist: {} } : {}) } : {}); }} className={input} aria-label="Action">
                         <option value="">Choose an action…</option>
                         {order.operations.available_actions.map((a: string) => <option key={a} value={a}>{humanise(a)}</option>)}
                       </select>
-                      {(ACTION_FIELDS[action] ?? []).map((f) => (
+                      {action === "PASS_QUALITY_CHECK" && (
+                        <fieldset className="rounded-xl border border-ink/15 p-3">
+                          <legend className="px-1 font-semibold">Internal quality checklist — every item</legend>
+                          {QC_CHECKLIST.filter((item) => (order.operations.quality_check?.items ?? []).includes(item.id)).map((item) => {
+                            const list = (fields.checklist ?? {}) as Record<string, boolean>;
+                            return (
+                              <label key={item.id} className="flex min-h-11 items-center gap-2">
+                                <input type="checkbox" checked={list[item.id] === true} onChange={(e) => setFields({ ...fields, checklist: { ...list, [item.id]: e.target.checked } })} className="h-5 w-5" />
+                                {item.label}
+                              </label>
+                            );
+                          })}
+                        </fieldset>
+                      )}
+                      {(ACTION_FIELDS[action] ?? []).filter((f) => !(order.workflow === "PHYSICAL" && ["reveal_url", "reveal_now"].includes(f.name)) && !(order.workflow === "PHYSICAL" && action === "PASS_QUALITY_CHECK" && f.name === "send_email")).map((f) => (
                         <label key={f.name} className={f.type === "checkbox" ? "flex items-center gap-2" : "block"}>
                           {f.type === "checkbox" ? (
                             <input type="checkbox" checked={fields[f.name] === true} onChange={(e) => setFields({ ...fields, [f.name]: e.target.checked })} className="h-5 w-5" />
@@ -307,7 +321,13 @@ const Operations = () => {
                     <ul className="m-0 mt-2 list-disc pl-5">
                       {order.lines.map((l: Json, i: number) => <li key={i}>{l.quantity} × {l.name}</li>)}
                     </ul>
-                    <p className="mt-2">Revisions: {order.operations.revisions.used} used of {order.operations.revisions.included ?? "no numeric allowance — decide"}</p>
+                    <p className="mt-2">
+                      Quality check: {order.operations.quality_check?.passed_at ? `passed ${order.operations.quality_check.passed_at} by ${order.operations.quality_check.passed_by}` : "not passed yet"}
+                      {order.operations.quality_check?.failed_count ? ` · failed ${order.operations.quality_check.failed_count} time(s) before` : ""}
+                    </p>
+                    {order.operations.reveal && <p>Reveal: {order.operations.reveal.revealed_at ? `revealed ${order.operations.reveal.revealed_at}` : "not revealed yet"}</p>}
+                    {order.operations.fulfilment.purchase_authorised_by && <p>Partner purchase authorised by {humanise(order.operations.fulfilment.purchase_authorised_by)}</p>}
+                    {order.operations.legacy_approval && <p className="text-sm text-espresso/75">Legacy record (retired approval model): approved {order.operations.legacy_approval.approved_at ?? "—"} via {order.operations.legacy_approval.channel ?? "—"}</p>}
                     <p>Fulfilment: {humanise(order.operations.fulfilment.state)}{order.operations.fulfilment.pending_reason ? ` (waiting on ${humanise(order.operations.fulfilment.pending_reason)})` : ""}</p>
                     {order.operations.fulfilment.review_required && (
                       <p className={order.operations.fulfilment.review_confirmed ? "" : "font-semibold text-red-800"}>
@@ -363,16 +383,6 @@ const Operations = () => {
                           {brief.order.delivery?.label && <p className="text-sm text-espresso/75">Delivery quoted: {brief.order.delivery.label}{brief.order.delivery.test_only ? " (TEST rate)" : ""}</p>}
                         </div>
                       )}
-                    </Section>
-                  )}
-
-                  {order.operations.revisions.requests.length > 0 && (
-                    <Section title="Change requests">
-                      <ul className="m-0 list-none space-y-3 p-0">
-                        {order.operations.revisions.requests.map((r: Json, i: number) => (
-                          <li key={i}><p className="text-sm text-espresso/75">Round {r.approval_round} · {humanise(r.channel)} · within allowance: {r.within_allowance}</p><p className="whitespace-pre-wrap">{r.feedback ?? "—"}</p></li>
-                        ))}
-                      </ul>
                     </Section>
                   )}
 

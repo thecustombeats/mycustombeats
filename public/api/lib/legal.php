@@ -95,26 +95,13 @@ function initial_production_stage(): string
     return (string) (legal_data()['production']['initial_stage'] ?? 'CREATIVE');
 }
 
-/**
- * Whether revision entitlement is still open at a given stage.
- *
- * Read from the generated stage table so PHP never reimplements the rule.
- * Note what is NOT consulted here: `orders.status`. PAID IS NOT
- * PRODUCTION_LOCKED, and a customer whose card cleared five minutes ago still
- * has every refinement their package includes.
- */
-function revisions_remain_open(string $stage): bool
+/** Whether MCB's internal quality check has been passed at a stage (legal.json). */
+function stage_quality_checked(string $stage): bool
 {
     foreach (legal_data()['production']['stages'] ?? [] as $definition) {
         if (($definition['stage'] ?? null) === $stage) {
-            return (bool) ($definition['revisions_open'] ?? false);
+            return (bool) ($definition['quality_checked'] ?? false);
         }
     }
     return false;
-}
-
-/** Channels an approval may legitimately have arrived through. */
-function approval_channels(): array
-{
-    return legal_data()['production']['approval_channels'] ?? [];
 }

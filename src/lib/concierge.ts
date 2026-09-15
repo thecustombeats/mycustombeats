@@ -68,7 +68,7 @@ export const CONCIERGE_SEQUENCE: readonly { title: string; detail: string }[] = 
   {
     title: "Agreed scope and price",
     detail:
-      "You refine it until it is right. Nothing proceeds until you have agreed both what is included and what it costs.",
+      "We agree the scope with you before payment. Nothing proceeds until you have agreed both what is included and what it costs; once it enters personalised production, the creative decisions are entrusted to MCB.",
   },
   {
     title: "Payment arranged",

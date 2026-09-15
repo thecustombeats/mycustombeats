@@ -43,7 +43,7 @@ const PRINCIPLES: readonly { title: string; detail: string }[] = [
   { title: "Made from your story", detail: "Every song begins with your words and your memories. No lyrics or rhymes needed." },
   { title: "Made to order", detail: "Nothing is pulled from a shelf. Each song and each piece is created for one order." },
   { title: "Clear before you pay", detail: "The price, what is included and the timing are shown before payment." },
-  { title: "Room to refine", detail: "Refinements are included, so the finished song feels right." },
+  { title: "Trusted with the creativity", detail: "You give us the memories; we create, check every detail and reveal the finished song." },
 ];
 
 const iconLink =

@@ -21,19 +21,16 @@ import {
   TERMS_VERSION,
   TERMS_EFFECTIVE_DATE,
   TERMS_EFFECTIVE_DATE_DISPLAY,
-  revisionEntitlements,
 } from "../../data/legal";
 
 const Terms = () => {
-  const entitlements = revisionEntitlements();
-
   return (
     <>
       <Helmet>
         <title>Terms &amp; Conditions | My Custom Beats</title>
         <meta
           name="description"
-          content="The terms that apply when you order from My Custom Beats: what is included, how refinements work, when an order can no longer be changed, and what happens if something is wrong."
+          content="The terms that apply when you order from My Custom Beats: what is included, how MCB's creative authority works, when personalised production begins, and what happens if something is wrong."
         />
         {/*
           NO canonical here. App.tsx already emits one for every route from
@@ -140,34 +137,6 @@ const Terms = () => {
                   </p>
                 )}
 
-                {/*
-                  Refinement counts are READ FROM THE PACKAGES, not restated.
-                  A terms page that hard-coded "two refinements" would go stale
-                  the first time a package changed, and the contract would then
-                  disagree with the product card.
-                */}
-                {clause.id === "refinements" && (
-                  <dl className="mt-6 divide-y divide-espresso/10 rounded-2xl border border-espresso/10 bg-white px-5">
-                    {entitlements.map((entitlement) => (
-                      <div
-                        key={entitlement.packageName}
-                        className="flex flex-col gap-1 py-4 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
-                      >
-                        <dt className="font-medium text-espresso">
-                          {entitlement.packageName}
-                        </dt>
-                        <dd className="text-sm leading-relaxed text-espresso/70 sm:text-right">
-                          {entitlement.entitlement}
-                          {entitlement.concierge && (
-                            <span className="mt-1 block text-sm text-espresso/75">
-                              Agreed in your written proposal.
-                            </span>
-                          )}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                )}
               </section>
             ))}
           </div>

@@ -23,11 +23,11 @@ tc() { local name="$1" ok="$2"
   if [ "$ok" = "1" ]; then printf "  PASS  %-64s\n" "$name"; PASS=$((PASS+1));
   else printf "  FAIL  %-64s\n" "$name"; FAIL=$((FAIL+1)); FAILED+=("$name"); fi }
 
-NEW="2026-09-15"
-OLD="2026-09-09.4"
+NEW="2026-09-15.2"
+OLD="2026-09-15"
 CRUISE='"cruiseCompanions":"My husband David"'
-CN='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"'"$NEW"'",'"$CRUISE"
-CO='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"'"$OLD"'",'"$CRUISE"
+CN='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true,"CREATIVE_AUTHORITY":true},"creativeAuthorityVersion":"2026-09-15","termsVersion":"'"$NEW"'",'"$CRUISE"
+CO='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true,"CREATIVE_AUTHORITY":true},"creativeAuthorityVersion":"2026-09-15","termsVersion":"'"$OLD"'",'"$CRUISE"
 # Every order POST carries a fresh Idempotency-Key unless the test sets IDEM.
 idem() { echo "test-$(openssl rand -hex 16)"; }
 post_raw() { curl -s -o /tmp/dl.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -H "Idempotency-Key: ${IDEM:-$(idem)}" -d "$2"; }
@@ -91,12 +91,12 @@ tc "4. both versions are known to the server" \
 # from Terms. That separation is the property worth asserting: a version that
 # tracked deploys rather than content would tell customers nothing.
 tc "5. the privacy version moves independently of Terms, and only on content change" \
-  "$(grep -q 'PRIVACY_POLICY_VERSION = "2026-09-14"' src/data/legal/versions.ts \
-     && grep -q 'TERMS_VERSION = "2026-09-15"' src/data/legal/versions.ts && echo 1 || echo 0)"
+  "$(grep -q 'PRIVACY_POLICY_VERSION = "2026-09-15"' src/data/legal/versions.ts \
+     && grep -q 'TERMS_VERSION = "2026-09-15.2"' src/data/legal/versions.ts && echo 1 || echo 0)"
 tc "5b.  → and the server carries all three versions distinctly" \
-  "$(grep -q '"terms": "2026-09-15"' public/api/data/legal.json \
-     && grep -q '"privacy_policy": "2026-09-14"' public/api/data/legal.json \
-     && grep -q '"refund_policy": "2026-09-15"' public/api/data/legal.json && echo 1 || echo 0)"
+  "$(grep -q '"terms": "2026-09-15.2"' public/api/data/legal.json \
+     && grep -q '"privacy_policy": "2026-09-15"' public/api/data/legal.json \
+     && grep -q '"refund_policy": "2026-09-15.2"' public/api/data/legal.json && echo 1 || echo 0)"
 
 t "6. a new order snapshots the new version" 201 \
   "$(post order '{'"$CN"',"firstName":"New","lastName":"N","email":"dl-new@example.com",'"$MOMENT_LINE"',"story":"x"}')"
@@ -112,7 +112,7 @@ tc "10. NO historical order is retroactively moved to the new version" \
   "$([ "$(q "SELECT terms_version FROM order_consents WHERE order_id=$OID_OLD")" = "$OLD" ] \
     && [ "$(q "SELECT COUNT(*) FROM order_consents WHERE terms_version='$OLD'")" -ge "1" ] && echo 1 || echo 0)"
 t "11. a version MCB never published is still refused" 422 \
-  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2027-01-01",'"$CRUISE"',"firstName":"B","lastName":"B","email":"dl-bad@example.com",'"$MOMENT_LINE"',"story":"x"}')"
+  "$(post order '{"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true,"CREATIVE_AUTHORITY":true},"creativeAuthorityVersion":"2026-09-15","termsVersion":"2027-01-01",'"$CRUISE"',"firstName":"B","lastName":"B","email":"dl-bad@example.com",'"$MOMENT_LINE"',"story":"x"}')"
 
 stub_reset
 pay "$OID_NEW"; pay "$OID_OLD"
@@ -151,10 +151,12 @@ tc "22. the planning-recommendation clause was removed by the Founder" \
   "$(grep -q 'That is a planning recommendation, not a delivery promise' src/data/legal/terms.ts && echo 0 || echo 1)"
 tc "22b.  → and the constant still exists for the product cards to use" \
   "$(grep -q 'RECOMMENDED_PLANNING_DAYS = 15' src/data/legal/delivery.ts && echo 1 || echo 0)"
-tc "23. Moment keeps a one-hour digital turnaround" \
-  "$(grep -qE 'turnaround: \{ basis: "DIGITAL_TURNAROUND", label: "[^"]*within 1 hour" \}' $PRODUCTS && echo 1 || echo 0)"
-tc "24.  → modelled as a different KIND of timing" \
-  "$(python3 -c 'import json,sys;print(1 if "1 hour" in json.load(open(sys.argv[1]))["products"]["moment"]["turnaround"] else 0)' $CATALOGUE)"
+# Single Creative Authority: a Moment is revealed once quality-checked; no
+# number of minutes or hours is promised.
+tc "23. Moment keeps a digital turnaround, revealed after MCB's quality check" \
+  "$(grep -qE 'turnaround: \{ basis: "DIGITAL_TURNAROUND", label: MOMENT_REVEAL_TIMING \}' $PRODUCTS && echo 1 || echo 0)"
+tc "24.  → modelled as a different KIND of timing, with no hour promised" \
+  "$(python3 -c 'import json,sys,re;t=json.load(open(sys.argv[1]))["products"]["moment"]["turnaround"];print(1 if "quality check" in t and not re.search(r"\d|hour",t) else 0)' $CATALOGUE)"
 tc "25. Keepsake and Journey are MADE_TO_ORDER" \
   "$(awk '/^export const KEEPSAKE/,/^};/' $PRODUCTS | grep -q 'turnaround: MADE_TO_ORDER' \
      && awk '/^export const JOURNEY/,/^};/' $PRODUCTS | grep -q 'turnaround: MADE_TO_ORDER' && echo 1 || echo 0)"
@@ -279,8 +281,8 @@ tc "74. an acceptance clause exists in the Terms" \
   "$(grep -q 'id: "acceptance"' src/data/legal/terms.ts && echo 1 || echo 0)"
 tc "75.  → in the Founder's own wording" \
   "$(grep -q 'we record which version you accepted along with the date and time' src/data/legal/terms.ts && echo 1 || echo 0)"
-tc "76. NO second consent checkbox was added — still exactly three" \
-  "$([ "$(grep -c '^    id: "' src/data/legal/consent.ts)" = "3" ] && echo 1 || echo 0)"
+tc "76. exactly four consent checkboxes: terms, service start, digital content and Creative Authority" \
+  "$([ "$(grep -c '^    id: "' src/data/legal/consent.ts)" = "4" ] && grep -q 'id: "CREATIVE_AUTHORITY"' src/data/legal/consent.ts && echo 1 || echo 0)"
 tc "77. the terms consent points at clause 7 rather than a route the Terms deny" \
   "$(grep -q 'our position on cancelling and refunds' src/data/legal/consent.ts && echo 1 || echo 0)"
 tc "78. nothing is pre-ticked" \

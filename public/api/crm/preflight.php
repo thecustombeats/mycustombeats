@@ -112,9 +112,23 @@ try {
     $add('sprint5_migration_applied', 'FAIL', 'The database could not be checked.');
 }
 
-// Customer approval and progress links are HMACs under token_secret.
+try {
+    $columns = db()->query(
+        "SELECT COUNT(*) FROM information_schema.columns
+          WHERE table_schema = DATABASE()
+            AND ((table_name = 'order_production' AND column_name IN ('qc_passed_at','revealed_at','supplier_purchase_authorised_by'))
+              OR (table_name = 'order_consents' AND column_name IN ('creative_authority_version','creative_authority_accepted_at')))"
+    )->fetchColumn();
+    $add('creative_authority_migration_applied', (int) $columns === 5 ? 'PASS' : 'FAIL',
+        'db/migrations/2026-09-15-single-creative-authority.sql must be applied (after a backup). Orders cannot record the Creative Authority consent without it.');
+} catch (PDOException $e) {
+    error_log('MCB preflight: database check failed: ' . $e->getMessage());
+    $add('creative_authority_migration_applied', 'FAIL', 'The database could not be checked.');
+}
+
+// Customer order and reveal links are HMACs under token_secret.
 $add('customer_links_secret', strlen((string) mcb_setting('token_secret', '')) >= 32 ? 'PASS' : 'FAIL',
-    'token_secret must be at least 32 random characters: customer approval and order links depend on it.');
+    'token_secret must be at least 32 random characters: customer order and reveal links depend on it.');
 
 // ---- Generated data ------------------------------------------------------------
 foreach (['catalogue.json', 'legal.json', 'personalisation.json', 'operations.json'] as $file) {

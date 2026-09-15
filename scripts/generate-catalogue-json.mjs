@@ -122,7 +122,6 @@ for (const product of PRODUCTS) {
     active: product.active,
     online_checkout: product.onlineCheckout,
     requires_personalisation: product.requiresPersonalisation,
-    revisions: product.revisions,
     turnaround: product.turnaround?.label ?? null,
     analytics_category: product.analyticsCategory,
     skus: product.variants.map((v) => v.sku),
@@ -178,6 +177,9 @@ const body = {
     max_quantity_per_line: ORDER_LIMITS.maxQuantityPerLine,
     primary_category: "SONG_EXPERIENCE",
     priority_replacement_sku: PRIORITY_REPLACEMENT_SKU,
+    artwork_preparation_sku: catalogue.ARTWORK_PREPARATION_SKU,
+    photo_artwork_product_ids: [...catalogue.PHOTO_ARTWORK_PRODUCT_IDS],
+    artwork_photo_min_px: catalogue.ARTWORK_PHOTO_MIN_PX,
   },
   products,
   skus,
@@ -200,6 +202,7 @@ const legalOut = {
     refund_policy: legal.REFUND_POLICY_VERSION,
     privacy_policy: legal.PRIVACY_POLICY_VERSION,
     terms_effective_date: legal.TERMS_EFFECTIVE_DATE,
+    creative_authority_consent: legal.CREATIVE_AUTHORITY_CONSENT_VERSION,
     known_terms_versions: [...legal.KNOWN_TERMS_VERSIONS],
   },
   consents: Object.fromEntries(
@@ -216,9 +219,9 @@ const legalOut = {
     initial_stage: legal.INITIAL_STAGE,
     stages: legal.PRODUCTION_STAGES.map((stage) => ({
       stage: stage.stage,
-      revisions_open: stage.revisionsOpen,
+      current: stage.current,
+      quality_checked: stage.qualityChecked,
     })),
-    approval_channels: [...legal.APPROVAL_CHANNELS],
   },
 };
 
@@ -254,19 +257,16 @@ const personalisationOut = {
 /* operations.json                                                     */
 /* ------------------------------------------------------------------ */
 
-for (const id of Object.keys(operations.INCLUDED_REVISIONS)) {
-  if (!products[id] || !products[id].revisions) fail(`included revisions for ${id} have no approved catalogue wording`);
-}
 for (const id of Object.keys(operations.CREATIVE_TARGET_HOURS)) {
-  if (!products[id] || !products[id].turnaround) fail(`creative target for ${id} has no approved turnaround`);
+  if (!products[id] || products[id].category !== "SONG_EXPERIENCE") fail(`creative target for ${id} is not a song experience`);
 }
 
 const operationsOut = {
   _generated: "Do not edit. Generated from src/data/operations.ts by scripts/generate-catalogue-json.mjs",
   states: operations.OPERATIONAL_STATES.map((s) => ({ state: s.state, workflows: [...s.workflows], next_action: s.nextAction })),
-  included_revisions: Object.fromEntries(
-    Object.entries(operations.INCLUDED_REVISIONS).map(([id, r]) => [id, { count: r.count, per: r.per }])
-  ),
+  qc_checklist: operations.QC_CHECKLIST.map((item) => ({ id: item.id, applies_to: item.appliesTo })),
+  qc_fail_reasons: [...operations.QC_FAIL_REASONS],
+  reopen_reasons: [...operations.REOPEN_REASONS],
   customer_stages: Object.fromEntries(
     Object.entries(operations.CUSTOMER_STAGES).map(([w, stages]) => [w, stages.map((s) => ({ id: s.id, states: [...s.states] }))])
   ),
@@ -295,7 +295,7 @@ const operationsOut = {
 const SITE = "https://www.mycustombeats.com";
 const addOnIds = new Set(catalogue.addOnProducts().map((p) => p.id));
 const feedProducts = PRODUCTS.filter(
-  (p) => p.active && p.public && p.commercialModel !== "STORED_VALUE" && (p.route !== null || addOnIds.has(p.id))
+  (p) => p.active && p.public && p.commercialModel !== "STORED_VALUE" && (p.route !== null || addOnIds.has(p.id) || p.id === "artwork-preparation")
 );
 // Photographs that show the product itself. Lifestyle and display-wall images
 // (Moment, Keepsake, Bespoke) are deliberately not offered as product images.
@@ -312,7 +312,7 @@ const personalisationFor = (product, variant) => {
       required: true,
       unit: unitWord(product.id),
       count: variant.songCount,
-      each: { story_max_characters: rules.STORY_MAX, about_max_characters: rules.ABOUT_MAX, music_style: "catalogued style, own words, or MCB's choice", photo: "optional" },
+      each: { story_max_characters: rules.STORY_MAX, about_max_characters: rules.ABOUT_MAX, music_style: "catalogued style, own words, or MCB's choice", photo: product.id === "moment" ? "optional" : "at least one per record; square, 2500 × 2500 pixels or larger preferred" },
     };
   }
   if (product.id === "personalised-music-plaque") {
@@ -320,6 +320,9 @@ const personalisationFor = (product, variant) => {
   }
   if (product.id === "lyrics-frame") {
     return { required: true, unit: "frame", count: 1, each: { lyrics_from: "one song in the same order", heading_max_characters: rules.FRAME_HEADING_MAX } };
+  }
+  if (product.id === "artwork-preparation") {
+    return { required: false, unit: null, count: null, each: { applies_to: "a Keepsake or Journey order whose photograph is not artwork-ready" } };
   }
   if (product.id === "priority-replacement") {
     return { required: false, unit: null, count: null, each: { applies_to: "one eligible Keepsake in the same order" } };
@@ -350,6 +353,8 @@ const publicCatalogueBody = {
     note: "Orders are placed by the customer on the website. The server validates every personalisation, records the customer's consent, prices the order and takes payment through Stripe Checkout. This file grants no ability to order, reserve or pay.",
     song_experience_required: "Every order includes at least one Moment, Keepsake or Journey.",
     priority_replacement: "At most one per eligible Keepsake in the same order.",
+    creative_process: "Single creative authority: the customer supplies the story, preferences and photographs and authorises MCB to make the creative decisions. No drafts are sent for approval and no subjective revisions are included. MCB quality-checks every order before a digital reveal or physical production. Statutory rights that cannot legally be excluded are unaffected.",
+    artwork_preparation: "Keepsake and Journey artwork needs a customer photograph; square and at least 2500 × 2500 pixels is preferred. The optional MCB Artwork Preparation Service is added once per order, before payment, when a photograph is not artwork-ready.",
     max_lines: ORDER_LIMITS.maxLines,
     delivery: "Physical items: the delivery charge for the destination is confirmed before payment. Where delivery for an item or destination cannot yet be confirmed online, MCB confirms it with the customer first and online payment is not offered for that order.",
   },
@@ -372,7 +377,6 @@ const publicCatalogueBody = {
       availability_note: product.variants.some((v) => v.fulfilment === "PHYSICAL") && product.turnaround?.basis !== "MADE_TO_ORDER"
         ? "Sourced for each order; MCB confirms availability and delivery with the partner. No stock level is claimed."
         : null,
-      included_revisions: product.revisions,
       disclosures: [...product.disclosures],
       requires_song_experience_in_order: orderable && product.category !== "SONG_EXPERIENCE",
       variants: quoted

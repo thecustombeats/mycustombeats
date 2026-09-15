@@ -1459,3 +1459,49 @@ CREATE TABLE IF NOT EXISTS rate_limit_hits (
   PRIMARY KEY (id),
   KEY idx_rate_limit_hits (scope, ip_hash, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- Single Creative Authority (15 September 2026)
+-- ---------------------------------------------------------------------
+-- Applied as the same statements as
+-- db/migrations/2026-09-15-single-creative-authority.sql, so a fresh install
+-- and a migrated database end in exactly the same shape.
+-- ---------------------------------------------------------------------
+
+ALTER TABLE order_production
+  MODIFY COLUMN stage ENUM('CREATIVE','SONG_READY','AWAITING_APPROVAL',
+                           'REVISION_REQUESTED','APPROVED',
+                           'PRODUCTION_LOCKED','FULFILMENT','COMPLETED',
+                           'QUALITY_CHECK','QC_PASSED')
+                      NOT NULL DEFAULT 'CREATIVE',
+  ADD COLUMN IF NOT EXISTS qc_submitted_at   DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS qc_passed_at      DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS qc_passed_by      VARCHAR(160) NULL,
+  ADD COLUMN IF NOT EXISTS qc_checklist      VARCHAR(1000) NULL,
+  ADD COLUMN IF NOT EXISTS qc_failed_count   SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS reveal_url        VARCHAR(500) NULL,
+  ADD COLUMN IF NOT EXISTS revealed_at       DATETIME NULL,
+  ADD COLUMN IF NOT EXISTS supplier_purchase_authorised_by ENUM('BELLA','LEWIS') NULL;
+
+ALTER TABLE order_production DROP CONSTRAINT IF EXISTS chk_production_approval;
+ALTER TABLE order_production DROP CONSTRAINT IF EXISTS chk_production_evidence;
+ALTER TABLE order_production ADD CONSTRAINT chk_production_evidence CHECK (
+  stage IN ('CREATIVE','SONG_READY','AWAITING_APPROVAL','REVISION_REQUESTED','QUALITY_CHECK')
+  OR qc_passed_at IS NOT NULL
+  OR (approved_at IS NOT NULL AND approval_channel IS NOT NULL)
+);
+
+ALTER TABLE order_consents
+  ADD COLUMN IF NOT EXISTS creative_authority_version     VARCHAR(32) NULL,
+  ADD COLUMN IF NOT EXISTS creative_authority_accepted_at DATETIME NULL;
+
+ALTER TABLE customer_communications
+  MODIFY COLUMN message_type ENUM('PAYMENT_CONFIRMATION','CONCIERGE_ACKNOWLEDGEMENT',
+                      'PRODUCTION_UPDATE','COMPLETION','REVIEW_REQUEST',
+                      'REFERRAL_INVITATION','MARKETING',
+                      'APPROVAL_REQUIRED','CHANGES_RECEIVED','APPROVAL_CONFIRMED',
+                      'DISPATCHED','FOLLOW_UP',
+                      'CREATION_READY','IN_PRODUCTION') NOT NULL;
+
+ALTER TABLE order_service_requests
+  MODIFY COLUMN kind ENUM('DAMAGED_OR_FAULTY','DELIVERY_PROBLEM','QUESTION','INCORRECT_DETAIL') NOT NULL;

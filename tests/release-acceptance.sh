@@ -101,7 +101,9 @@ t "automation events are read-only (POST refused)" 405 "$(code -X POST "$BASE/ap
 
 section "7. PRIVATE LINKS AND ENUMERATION"
 t "order progress cannot be opened by MCB reference" 404 "$(code -X POST "$BASE/api/order-progress" -H 'Content-Type: application/json' -H "Origin: $ORIGIN" -d '{"reference":"MCB-2026-000001","token":"MCB-2026-000001"}')"
-t "approval cannot be opened by order number" 404 "$(code -X POST "$BASE/api/order-approval" -H 'Content-Type: application/json' -H "Origin: $ORIGIN" -d '{"order_id":1,"token":"1"}')"
+# Customer approval is retired: the old endpoint answers every request the same
+# non-actionable way and discloses nothing about any order.
+tc "the retired approval endpoint opens nothing by order number: same answer, no order data" "$(curl -s -X POST "$BASE/api/order-approval" -H 'Content-Type: application/json' -H "Origin: $ORIGIN" -d '{"order_id":1,"token":"1"}' | python3 -c 'import json,sys;d=json.load(sys.stdin);print(1 if d.get("retired") is True and set(d)=={"retired","message"} else 0)')"
 t "order status with a wrong checkout token is the same 404 as no order" "404|404" "$(code -X POST "$BASE/api/order-status" -H 'Content-Type: application/json' -H "Origin: $ORIGIN" -d '{"orderId":1,"checkoutToken":"x"}')|$(code -X POST "$BASE/api/order-status" -H 'Content-Type: application/json' -H "Origin: $ORIGIN" -d '{"orderId":999999,"checkoutToken":"x"}')"
 t "order reference lookups require a real session id shape" 400 "$(code "$BASE/api/order-reference?session_id=1%27%20OR%201%3D1")"
 q "DELETE FROM rate_limit_hits"

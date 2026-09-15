@@ -3,7 +3,7 @@
  * POST /api/order-support — tell MCB something is wrong, or ask a question,
  * from the private order page.
  *
- * REQUEST  { token, kind: "DAMAGED_OR_FAULTY" | "DELIVERY_PROBLEM" | "QUESTION",
+ * REQUEST  { token, kind: "DAMAGED_OR_FAULTY" | "DELIVERY_PROBLEM" | "INCORRECT_DETAIL" | "QUESTION",
  *            item?: "item-1", priorityReplacement?: bool, description }
  *
  * ─────────────────────────────────────────────────────────────────────────
@@ -39,8 +39,11 @@ $physical = order_workflow($row) === 'PHYSICAL';
 
 $errors = [];
 $kind = is_string($body['kind'] ?? null) ? $body['kind'] : '';
-if (!in_array($kind, ['DAMAGED_OR_FAULTY', 'DELIVERY_PROBLEM', 'QUESTION'], true)
-    || (!$physical && $kind !== 'QUESTION')) {
+// INCORRECT_DETAIL: a genuine error (a name, date or photograph different from
+// what the customer supplied). It is a support request for staff to check; it
+// never reopens production by itself.
+if (!in_array($kind, ['DAMAGED_OR_FAULTY', 'DELIVERY_PROBLEM', 'INCORRECT_DETAIL', 'QUESTION'], true)
+    || (!$physical && !in_array($kind, ['QUESTION', 'INCORRECT_DETAIL'], true))) {
     $errors['kind'] = 'Please choose what this is about.';
 }
 $description = operations_text($body['description'] ?? null, 2000);

@@ -35,6 +35,8 @@ export type Category =
   | "PERSONALISED_DECOR"
   | "PLAYER"
   | "PROTECTION"
+  /** An optional service that prepares a customer's photograph for artwork. */
+  | "ARTWORK_SERVICE"
   | "EDUCATION"
   | "GIFT";
 
@@ -110,6 +112,7 @@ export type ProductId =
   | "antique-brass-gramophone"
   | "portable-suitcase-record-player"
   | "priority-replacement"
+  | "artwork-preparation"
   | "cruise-ship-dj-bible"
   | "gift-voucher";
 
@@ -146,7 +149,6 @@ export interface Product {
   readonly deliveryClass: DeliveryClass | null;
   /** The customer-facing timing line, or null when none is approved. */
   readonly turnaround: { readonly basis: DeliveryBasis; readonly label: string } | null;
-  readonly revisions: string | null;
   readonly schemaType: SchemaType;
   /** The variant property a ProductGroup varies by, for structured data. */
   readonly variesBy: "size" | "songCount" | "level" | null;

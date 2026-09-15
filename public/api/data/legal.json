@@ -1,11 +1,13 @@
 {
   "_generated": "Do not edit. Generated from src/data/legal/ by scripts/generate-catalogue-json.mjs",
   "versions": {
-    "terms": "2026-09-15",
-    "refund_policy": "2026-09-15",
-    "privacy_policy": "2026-09-14",
+    "terms": "2026-09-15.2",
+    "refund_policy": "2026-09-15.2",
+    "privacy_policy": "2026-09-15",
     "terms_effective_date": "2026-09-15",
+    "creative_authority_consent": "2026-09-15",
     "known_terms_versions": [
+      "2026-09-15.2",
       "2026-09-15",
       "2026-09-09.4",
       "2026-09-09.2",
@@ -21,6 +23,9 @@
     },
     "DIGITAL_CONTENT": {
       "applies_to": "DIGITAL_DELIVERY"
+    },
+    "CREATIVE_AUTHORITY": {
+      "applies_to": "ALWAYS"
     }
   },
   "customer_copy": {
@@ -37,43 +42,54 @@
     "stages": [
       {
         "stage": "CREATIVE",
-        "revisions_open": true
+        "current": true,
+        "quality_checked": false
       },
       {
-        "stage": "SONG_READY",
-        "revisions_open": true
+        "stage": "QUALITY_CHECK",
+        "current": true,
+        "quality_checked": false
       },
       {
-        "stage": "AWAITING_APPROVAL",
-        "revisions_open": true
-      },
-      {
-        "stage": "REVISION_REQUESTED",
-        "revisions_open": true
-      },
-      {
-        "stage": "APPROVED",
-        "revisions_open": false
+        "stage": "QC_PASSED",
+        "current": true,
+        "quality_checked": true
       },
       {
         "stage": "PRODUCTION_LOCKED",
-        "revisions_open": false
+        "current": true,
+        "quality_checked": true
       },
       {
         "stage": "FULFILMENT",
-        "revisions_open": false
+        "current": true,
+        "quality_checked": true
       },
       {
         "stage": "COMPLETED",
-        "revisions_open": false
+        "current": true,
+        "quality_checked": true
+      },
+      {
+        "stage": "SONG_READY",
+        "current": false,
+        "quality_checked": false
+      },
+      {
+        "stage": "AWAITING_APPROVAL",
+        "current": false,
+        "quality_checked": false
+      },
+      {
+        "stage": "REVISION_REQUESTED",
+        "current": false,
+        "quality_checked": false
+      },
+      {
+        "stage": "APPROVED",
+        "current": false,
+        "quality_checked": true
       }
-    ],
-    "approval_channels": [
-      "WEBSITE",
-      "EMAIL",
-      "WHATSAPP",
-      "PHONE",
-      "IN_PERSON"
     ]
   }
 }

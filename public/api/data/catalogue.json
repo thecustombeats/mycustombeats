@@ -1,13 +1,19 @@
 {
   "_generated": "Do not edit. Generated from src/data/catalogue/ by scripts/generate-catalogue-json.mjs",
-  "catalogue_hash": "095597e5b69bc0cb682b716c0bca33119681a40f49520eb078fc9429b9fabe54",
+  "catalogue_hash": "898530d07d9d419a2b33768604e7618f2136214985edd98113ed7680cec5df79",
   "schema_version": 2,
   "currency": "GBP",
   "rules": {
     "max_lines": 20,
     "max_quantity_per_line": 50,
     "primary_category": "SONG_EXPERIENCE",
-    "priority_replacement_sku": "priority-replacement"
+    "priority_replacement_sku": "priority-replacement",
+    "artwork_preparation_sku": "artwork-preparation",
+    "photo_artwork_product_ids": [
+      "keepsake",
+      "journey"
+    ],
+    "artwork_photo_min_px": 2500
   },
   "products": {
     "moment": {
@@ -17,8 +23,7 @@
       "active": true,
       "online_checkout": true,
       "requires_personalisation": true,
-      "revisions": "1 revision",
-      "turnaround": "Target delivery within 1 hour",
+      "turnaround": "Revealed to you as soon as it has passed our quality check",
       "analytics_category": "Song Experience",
       "skus": [
         "moment"
@@ -31,7 +36,6 @@
       "active": true,
       "online_checkout": true,
       "requires_personalisation": true,
-      "revisions": "1 refinement per song",
       "turnaround": "Allow at least 15 working days for personalised production and delivery",
       "analytics_category": "Song Experience",
       "skus": [
@@ -48,7 +52,6 @@
       "active": true,
       "online_checkout": true,
       "requires_personalisation": true,
-      "revisions": "1 refinement per song",
       "turnaround": "Allow at least 15 working days for personalised production and delivery",
       "analytics_category": "Song Experience",
       "skus": [
@@ -63,7 +66,6 @@
       "active": true,
       "online_checkout": false,
       "requires_personalisation": true,
-      "revisions": "Refinement continues until the agreed scope is met",
       "turnaround": "Timeline agreed with you during the consultation",
       "analytics_category": "Commission",
       "skus": []
@@ -75,7 +77,6 @@
       "active": true,
       "online_checkout": false,
       "requires_personalisation": false,
-      "revisions": null,
       "turnaround": null,
       "analytics_category": "Live Performance",
       "skus": []
@@ -87,7 +88,6 @@
       "active": true,
       "online_checkout": true,
       "requires_personalisation": true,
-      "revisions": null,
       "turnaround": "Allow at least 15 working days for personalised production and delivery",
       "analytics_category": "Personalised Decor",
       "skus": [
@@ -101,7 +101,6 @@
       "active": true,
       "online_checkout": true,
       "requires_personalisation": true,
-      "revisions": null,
       "turnaround": "Allow at least 15 working days for personalised production and delivery",
       "analytics_category": "Personalised Decor",
       "skus": [
@@ -119,7 +118,6 @@
       "active": true,
       "online_checkout": true,
       "requires_personalisation": false,
-      "revisions": null,
       "turnaround": null,
       "analytics_category": "Player",
       "skus": [
@@ -133,7 +131,6 @@
       "active": true,
       "online_checkout": true,
       "requires_personalisation": false,
-      "revisions": null,
       "turnaround": null,
       "analytics_category": "Player",
       "skus": [
@@ -147,7 +144,6 @@
       "active": true,
       "online_checkout": true,
       "requires_personalisation": false,
-      "revisions": null,
       "turnaround": null,
       "analytics_category": "Player",
       "skus": [
@@ -161,11 +157,23 @@
       "active": true,
       "online_checkout": true,
       "requires_personalisation": false,
-      "revisions": null,
       "turnaround": null,
       "analytics_category": "Protection",
       "skus": [
         "priority-replacement"
+      ]
+    },
+    "artwork-preparation": {
+      "name": "MCB Artwork Preparation Service",
+      "commercial_model": "FIXED",
+      "category": "ARTWORK_SERVICE",
+      "active": true,
+      "online_checkout": true,
+      "requires_personalisation": false,
+      "turnaround": null,
+      "analytics_category": "Artwork Service",
+      "skus": [
+        "artwork-preparation"
       ]
     },
     "cruise-ship-dj-bible": {
@@ -175,7 +183,6 @@
       "active": true,
       "online_checkout": false,
       "requires_personalisation": false,
-      "revisions": null,
       "turnaround": null,
       "analytics_category": "Education",
       "skus": [
@@ -191,7 +198,6 @@
       "active": false,
       "online_checkout": false,
       "requires_personalisation": false,
-      "revisions": null,
       "turnaround": null,
       "analytics_category": "Gift",
       "skus": []
@@ -449,6 +455,19 @@
       "currency": "GBP",
       "orderable": true,
       "category": "PROTECTION",
+      "fulfilment": "SERVICE",
+      "delivery_class": null,
+      "song_count": null,
+      "vinyl": null,
+      "priority_replacement_eligible": false
+    },
+    "artwork-preparation": {
+      "product_id": "artwork-preparation",
+      "name": "MCB Artwork Preparation Service",
+      "price_minor": 1500,
+      "currency": "GBP",
+      "orderable": true,
+      "category": "ARTWORK_SERVICE",
       "fulfilment": "SERVICE",
       "delivery_class": null,
       "song_count": null,

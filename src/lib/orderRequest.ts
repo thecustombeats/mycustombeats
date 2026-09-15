@@ -6,7 +6,7 @@
  * in it (they follow as uploads) and neither is anything for analytics.
  */
 
-import { PRIVACY_POLICY_VERSION, REFUND_POLICY_VERSION, TERMS_VERSION, type ConsentId } from "../data/legal";
+import { CREATIVE_AUTHORITY_CONSENT_VERSION, PRIVACY_POLICY_VERSION, REFUND_POLICY_VERSION, TERMS_VERSION, type ConsentId } from "../data/legal";
 import type { ContactDetails } from "./createFlow";
 import { draftLines, personalisationPayload, type OrderDraft } from "./personalisation";
 
@@ -27,6 +27,7 @@ export const buildOrderRequest = (
   termsVersion: TERMS_VERSION,
   refundPolicyVersion: REFUND_POLICY_VERSION,
   privacyPolicyVersion: PRIVACY_POLICY_VERSION,
+  creativeAuthorityVersion: CREATIVE_AUTHORITY_CONSENT_VERSION,
   ...(requiresShipping
     ? {
         shippingName: contact.shippingName.trim(),

@@ -292,6 +292,14 @@ function validate_personalisation(mixed $raw, OrderPricing $pricing): Personalis
             ];
         }
 
+        // Single Creative Authority: a record's artwork is created by MCB from
+        // the customer's photograph, so each Keepsake and Journey needs one.
+        if (in_array($songLine['product_id'], $rules['photo_artwork_product_ids'] ?? [], true)
+            && $plannedMemories !== [] && !in_array(true, array_column($plannedMemories, 'photo_requested'), true)) {
+            $what = $songLine['product_id'] === 'journey' ? 'your Journey' : ($multiUnit && count($units) > 1 ? "Keepsake {$unitNo}" : 'your Keepsake');
+            $errors["{$key}.photo"] = "Please add a photograph for the artwork of {$what}.";
+        }
+
         $plannedUnits[] = ['priority_replacement' => $priority === true, 'memories' => $plannedMemories];
     }
 
@@ -372,6 +380,7 @@ function validate_personalisation(mixed $raw, OrderPricing $pricing): Personalis
         $sku = $line['sku'];
         $accounted = match (true) {
             $sku === $songSku, $sku === $prSku, $sku === $plaqueSku => true,
+            $sku === ($rules['artwork_preparation_sku'] ?? null) => true,
             $line['product_id'] === 'lyrics-frame' => ($frameCounts[$sku] ?? 0) === $line['quantity'],
             $line['category'] === 'PLAYER' => true,
             default => false,

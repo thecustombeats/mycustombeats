@@ -197,6 +197,15 @@ function price_order_lines(mixed $requested): OrderPricing
     if (!$hasPrimary) {
         return OrderPricing::refused('no_song_experience', 'Please choose a Moment, Keepsake or Journey.');
     }
+    // The Artwork Preparation Service: once per order, and only where MCB
+    // creates artwork from a photograph (Keepsake, Journey).
+    $artworkSku = $rules['artwork_preparation_sku'] ?? null;
+    foreach ($lines as $l) {
+        if ($l['sku'] === $artworkSku
+            && ($l['quantity'] !== 1 || array_intersect(array_column($lines, 'product_id'), $rules['photo_artwork_product_ids'] ?? []) === [])) {
+            return OrderPricing::refused('artwork_preparation_ineligible', 'MCB Artwork Preparation can be added once to a Keepsake or Journey order.');
+        }
+    }
     if ($priorityUnits > $eligibleUnits) {
         return OrderPricing::refused(
             'priority_replacement_ineligible',

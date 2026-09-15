@@ -7,7 +7,7 @@
         "DIGITAL",
         "PHYSICAL"
       ],
-      "next_action": "Check the order and start the creative work."
+      "next_action": "Check the brief and start the creative work."
     },
     {
       "state": "CREATIVE.PENDING",
@@ -15,7 +15,7 @@
         "DIGITAL",
         "PHYSICAL"
       ],
-      "next_action": "Start the creative work."
+      "next_action": "Check the brief and start the creative work."
     },
     {
       "state": "CREATIVE.IN_PROGRESS",
@@ -23,38 +23,29 @@
         "DIGITAL",
         "PHYSICAL"
       ],
-      "next_action": "Finish the music and mark it ready."
+      "next_action": "Finish the work and send it to the quality check."
     },
     {
-      "state": "CREATIVE.READY",
+      "state": "QUALITY_CHECK",
       "workflows": [
         "DIGITAL",
         "PHYSICAL"
       ],
-      "next_action": "Send it to the customer for approval."
+      "next_action": "Run the quality checklist: pass it, or fail it back for an internal correction."
     },
     {
-      "state": "CUSTOMER_APPROVAL.REQUIRED",
-      "workflows": [
-        "DIGITAL",
-        "PHYSICAL"
-      ],
-      "next_action": "Wait for the customer, or record an approval they gave another way."
-    },
-    {
-      "state": "CUSTOMER_APPROVAL.CHANGES_REQUESTED",
-      "workflows": [
-        "DIGITAL",
-        "PHYSICAL"
-      ],
-      "next_action": "Read the requested changes, make them and mark the music ready again."
-    },
-    {
-      "state": "CUSTOMER_APPROVAL.APPROVED",
+      "state": "REVEAL.READY",
       "workflows": [
         "DIGITAL"
       ],
-      "next_action": "Nothing to make or send. Follow up, then complete."
+      "next_action": "Send the reveal to the customer."
+    },
+    {
+      "state": "REVEALED",
+      "workflows": [
+        "DIGITAL"
+      ],
+      "next_action": "Follow up when it is due, then complete."
     },
     {
       "state": "FULFILMENT.NOT_REQUIRED",
@@ -75,7 +66,7 @@
       "workflows": [
         "PHYSICAL"
       ],
-      "next_action": "Place the supplier order by hand, then confirm it here."
+      "next_action": "Bella or Lewis authorises the partner purchase; place it by hand, then confirm it here."
     },
     {
       "state": "FULFILMENT.CONFIRMED",
@@ -115,20 +106,78 @@
       "next_action": null
     }
   ],
-  "included_revisions": {
-    "moment": {
-      "count": 1,
-      "per": "UNIT"
+  "qc_checklist": [
+    {
+      "id": "correct_order",
+      "applies_to": "ALL"
     },
-    "keepsake": {
-      "count": 1,
-      "per": "SONG"
+    {
+      "id": "names",
+      "applies_to": "ALL"
     },
-    "journey": {
-      "count": 1,
-      "per": "SONG"
+    {
+      "id": "details",
+      "applies_to": "ALL"
+    },
+    {
+      "id": "no_other_customer",
+      "applies_to": "ALL"
+    },
+    {
+      "id": "song_version",
+      "applies_to": "ALL"
+    },
+    {
+      "id": "spelling",
+      "applies_to": "ALL"
+    },
+    {
+      "id": "sku",
+      "applies_to": "ALL"
+    },
+    {
+      "id": "no_output_defect",
+      "applies_to": "ALL"
+    },
+    {
+      "id": "quality_standard",
+      "applies_to": "ALL"
+    },
+    {
+      "id": "photographs",
+      "applies_to": "PHYSICAL"
+    },
+    {
+      "id": "artwork_dimensions",
+      "applies_to": "PHYSICAL"
+    },
+    {
+      "id": "production_files",
+      "applies_to": "PHYSICAL"
+    },
+    {
+      "id": "delivery_information",
+      "applies_to": "PHYSICAL"
     }
-  },
+  ],
+  "qc_fail_reasons": [
+    "NAMES",
+    "DETAILS",
+    "OTHER_CUSTOMER_MATERIAL",
+    "AUDIO",
+    "ARTWORK",
+    "SPELLING",
+    "PRODUCTION_FILES",
+    "SKU",
+    "DELIVERY_INFORMATION",
+    "QUALITY",
+    "OTHER"
+  ],
+  "reopen_reasons": [
+    "MCB_CORRECTION",
+    "REPLACEMENT",
+    "OTHER"
+  ],
   "customer_stages": {
     "DIGITAL": [
       {
@@ -141,27 +190,21 @@
       {
         "id": "creating",
         "states": [
-          "CREATIVE.IN_PROGRESS",
-          "CREATIVE.READY",
-          "CUSTOMER_APPROVAL.CHANGES_REQUESTED"
+          "CREATIVE.IN_PROGRESS"
         ]
       },
       {
-        "id": "listen",
+        "id": "quality",
         "states": [
-          "CUSTOMER_APPROVAL.REQUIRED"
+          "QUALITY_CHECK",
+          "REVEAL.READY"
         ]
       },
       {
-        "id": "approved",
+        "id": "ready",
         "states": [
-          "CUSTOMER_APPROVAL.APPROVED",
-          "FOLLOW_UP.DUE"
-        ]
-      },
-      {
-        "id": "complete",
-        "states": [
+          "REVEALED",
+          "FOLLOW_UP.DUE",
           "COMPLETED"
         ]
       }
@@ -177,15 +220,13 @@
       {
         "id": "creating",
         "states": [
-          "CREATIVE.IN_PROGRESS",
-          "CREATIVE.READY",
-          "CUSTOMER_APPROVAL.CHANGES_REQUESTED"
+          "CREATIVE.IN_PROGRESS"
         ]
       },
       {
-        "id": "listen",
+        "id": "quality",
         "states": [
-          "CUSTOMER_APPROVAL.REQUIRED"
+          "QUALITY_CHECK"
         ]
       },
       {
@@ -206,43 +247,30 @@
         "id": "delivered",
         "states": [
           "DELIVERED",
-          "FOLLOW_UP.DUE"
-        ]
-      },
-      {
-        "id": "complete",
-        "states": [
+          "FOLLOW_UP.DUE",
           "COMPLETED"
         ]
       }
     ]
   },
   "creative_target_hours": {
-    "moment": 1
+    "moment": 24,
+    "keepsake": 24,
+    "journey": 24
   },
   "priority_replacement_claim_window_days": 7,
   "lifecycle_templates": {
-    "APPROVAL_REQUIRED": {
-      "trigger": "CUSTOMER.APPROVAL.REQUIRED",
+    "CREATION_READY": {
+      "trigger": "REVEALED",
       "auto_send": true,
       "workflows": [
-        "DIGITAL",
-        "PHYSICAL"
+        "DIGITAL"
       ]
     },
-    "CHANGES_RECEIVED": {
-      "trigger": "CUSTOMER.CHANGES.REQUESTED",
+    "IN_PRODUCTION": {
+      "trigger": "FULFILMENT.CONFIRMED",
       "auto_send": true,
       "workflows": [
-        "DIGITAL",
-        "PHYSICAL"
-      ]
-    },
-    "APPROVAL_CONFIRMED": {
-      "trigger": "CUSTOMER.APPROVAL.APPROVED",
-      "auto_send": true,
-      "workflows": [
-        "DIGITAL",
         "PHYSICAL"
       ]
     },
@@ -272,9 +300,11 @@
   },
   "automation_events": [
     "ORDER.PAID",
-    "CREATIVE.READY",
-    "CUSTOMER.APPROVAL.REQUIRED",
-    "CUSTOMER.APPROVAL.APPROVED",
+    "ORDER.READY_FOR_PROCESSING",
+    "QUALITY_CHECK.READY",
+    "QUALITY_CHECK.PASSED",
+    "QUALITY_CHECK.FAILED",
+    "REVEALED",
     "FULFILMENT.READY",
     "DISPATCHED",
     "DELIVERED",
@@ -303,12 +333,24 @@
       "label": "Missing information",
       "priority": 1
     },
-    "CHANGES_REQUESTED": {
-      "label": "Changes requested",
+    "INCORRECT_DETAIL": {
+      "label": "Incorrect detail reported",
+      "priority": 1
+    },
+    "NEW_ORDER": {
+      "label": "New order ready for processing",
       "priority": 2
     },
     "CREATIVE_WORK": {
       "label": "Creative work",
+      "priority": 2
+    },
+    "QUALITY_CHECK": {
+      "label": "Quality check due",
+      "priority": 2
+    },
+    "REVEAL_READY": {
+      "label": "Ready to reveal",
       "priority": 2
     },
     "FULFILMENT_READY": {
@@ -334,10 +376,6 @@
     "MCB_LIVE_ENQUIRY": {
       "label": "MCB LIVE enquiry",
       "priority": 2
-    },
-    "APPROVAL_REQUIRED": {
-      "label": "Waiting for customer approval",
-      "priority": 3
     },
     "FOLLOW_UP_DUE": {
       "label": "Follow-up due",

@@ -170,7 +170,7 @@ export default function Occasions() {
           <h2 className="text-4xl text-center font-light mb-6">How It Works</h2>
           <p className="text-center text-black/75 max-w-xl mx-auto mb-12">A simple, guided process designed to turn your story into something unforgettable.</p>
           <div className="grid md:grid-cols-4 gap-10 text-center">
-            {["Tell us your story", "We craft your song", "Refine it together", "Receive your keepsake"].map((step, i) => (
+            {["Tell us your story", "Trust us with the creativity", "We check every detail", "Experience the reveal"].map((step, i) => (
               <div key={i}>
                 <div className="text-3xl mb-4">0{i + 1}</div>
                 <p className="text-black/75">{step}</p>

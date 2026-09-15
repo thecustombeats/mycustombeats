@@ -164,3 +164,33 @@ function inspect_uploaded_image(string $path, int $size): ?array
     }
     return ['mime' => $mime, 'width' => min($width, 65535), 'height' => min($height, 65535)];
 }
+
+/**
+ * Whether an uploaded memory photo may be used for this order's artwork.
+ *
+ * True when the order has no photo-created artwork (a Moment), when the
+ * customer chose the Artwork Preparation Service, or when the photograph is
+ * square within 1% and at least the artwork minimum on both sides.
+ *
+ * @param array{mime:string, width:?int, height:?int} $image
+ */
+function artwork_photo_is_acceptable(PDO $pdo, int $orderId, array $image): bool
+{
+    $rules = catalogue_data()['rules'];
+    $stmt = $pdo->prepare('SELECT item_id, product_id FROM order_items WHERE order_id = :id');
+    $stmt->execute([':id' => $orderId]);
+    $rows = $stmt->fetchAll();
+    if (array_intersect(array_column($rows, 'product_id'), $rules['photo_artwork_product_ids'] ?? []) === []) {
+        return true;
+    }
+    if (in_array($rules['artwork_preparation_sku'] ?? '', array_column($rows, 'item_id'), true)) {
+        return true;
+    }
+    $w = $image['width'];
+    $h = $image['height'];
+    $min = (int) ($rules['artwork_photo_min_px'] ?? 2500);
+    if (!is_int($w) || !is_int($h) || $w < $min || $h < $min) {
+        return false;
+    }
+    return abs($w - $h) <= (int) floor(max($w, $h) * 0.01);
+}

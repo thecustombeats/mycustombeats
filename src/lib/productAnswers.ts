@@ -8,14 +8,18 @@
  */
 
 import {
+  ARTWORK_PHOTO_MIN_PX,
+  ARTWORK_PREPARATION,
   JOURNEY,
   KEEPSAKE,
   MOMENT,
   PERSONALISED_MUSIC_PLAQUE,
   STANDARD_VINYL_NOT_PICTURE_DISC,
+  formatMoney,
   type Variant,
 } from "../data/catalogue";
 import { DAMAGE_GUIDANCE, DAMAGE_GUIDANCE_NOT_A_CONDITION, FULFILMENT_POSITION, MADE_TO_ORDER_NOTE, SEPARATE_PARCELS_NOTE } from "../data/legal/delivery";
+import { CREATIVE_AUTHORITY_SUMMARY, CREATIVE_PROMISE, PREFERENCE_VS_PROBLEM } from "../data/legal/production";
 
 export interface Answer {
   question: string;
@@ -35,17 +39,42 @@ const recordLine = (v: Variant): string => {
   return `${records} ${v.vinyl.sizeInches}-inch ${kind}${v.vinyl.pictureDisc ? "" : plural}${v.vinyl.gatefold ? " in a gatefold sleeve" : ""}`;
 };
 
-/** What happens after an order is paid — the Sprint 5 workflow, in plain English. */
+/** What happens after an order is paid — the Single Creative Authority journey, in plain English. */
 export const AFTER_YOU_ORDER: Answer = {
   question: "What happens after I order?",
   answer:
-    "You receive an email with your MCB reference. We write and produce your music from the story you shared, then send you a private link to listen. You approve it or tell us what you would like changed. A digital song is then yours to keep; a record is made for you and posted, with tracking where the carrier provides it. The emails we send about your music include a private link to your order page, where you can follow each stage.",
+    "You receive an email with your MCB reference, and personalised production begins. We create your music and artwork from the story, preferences and photographs you gave us, and our team checks every detail. Then comes the reveal: a digital song is revealed by a private link; a record is made for you, posted, and arrives as the surprise, with tracking where the carrier provides it. The emails we send include a private link to your order page, where you can follow each stage.",
 };
 
-export const HOW_APPROVAL_WORKS: Answer = {
-  question: "How does approval work?",
+export const HOW_MCB_CREATES: Answer = {
+  question: "How does MCB create my song?",
+  answer: `${CREATIVE_PROMISE} You tell us your story, choose your sound and upload your photograph; then you trust us with the creativity. ${CREATIVE_AUTHORITY_SUMMARY}`,
+};
+
+export const WILL_I_RECEIVE_A_DRAFT: Answer = {
+  question: "Will I receive a draft?",
   answer:
-    "When your music is ready we email you a private link. On that page you listen, then choose \"I'm happy — approve it\" or \"I'd like some changes\" and tell us what to adjust. Nothing is treated as approved until you say so. For a record, approval is the point after which we begin making it, so the music can no longer be changed. If anything arrives damaged or faulty, tell us — your normal consumer rights are not affected.",
+    "No — and that's deliberate. We don't send drafts for approval or run revision rounds. Instead, our team checks your song and artwork carefully against what you gave us before anything is revealed or made, so your finished creation can be a genuine surprise.",
+};
+
+export const THE_REVEAL: Answer = {
+  question: "How does the reveal work?",
+  answer: `For a ${MOMENT.name}, we email you when your finished song is ready and it plays on your private order page. For a ${KEEPSAKE.name} or ${JOURNEY.name}, your record is made once it has passed our quality check and arrives as the reveal — we don't send the song beforehand.`,
+};
+
+export const IF_MCB_GETS_A_DETAIL_WRONG: Answer = {
+  question: "What if MCB gets an objective detail wrong?",
+  answer: `${PREFERENCE_VS_PROBLEM.problem} Tell us from your private order page ("Something in my song or artwork is incorrect") or reply to any of our emails. ${PREFERENCE_VS_PROBLEM.statutory}`,
+};
+
+export const IF_I_WOULD_HAVE_CHOSEN_DIFFERENTLY: Answer = {
+  question: "What if I would personally have chosen something differently?",
+  answer: `${PREFERENCE_VS_PROBLEM.preference} ${PREFERENCE_VS_PROBLEM.specification}`,
+};
+
+export const WHAT_PHOTOGRAPH: Answer = {
+  question: "What photograph should I upload?",
+  answer: `For a ${KEEPSAKE.name} or ${JOURNEY.name}, MCB creates your artwork from your photograph, so at least one is needed for each record. A clear, well-lit square photo of at least ${ARTWORK_PHOTO_MIN_PX} × ${ARTWORK_PHOTO_MIN_PX} pixels works best — larger is welcome. If yours isn't artwork-ready, choose another, or add the optional ${ARTWORK_PREPARATION.name} for ${ARTWORK_PREPARATION.variants[0] ? formatMoney(ARTWORK_PREPARATION.variants[0].price) : ""} before you pay. Not every photograph can be prepared to print quality. For a ${MOMENT.name}, a photo is optional.`,
 };
 
 /** Founder-approved: MCB is the seller and the only contact. */
@@ -86,21 +115,21 @@ export const PLAQUE_PLAYS_MUSIC: Answer = {
 
 export const MOMENT_DELIVERY: Answer = {
   question: `How is a ${MOMENT.name} delivered?`,
-  answer: `Digitally, with nothing to post: ${(MOMENT.variants[0]?.features ?? []).filter((f) => /delivery/i.test(f)).join(", ").toLowerCase()}. It includes ${(MOMENT.revisions ?? "").toLowerCase()}.`,
+  answer: `Digitally, with nothing to post: ${(MOMENT.variants[0]?.features ?? []).filter((f) => /delivery/i.test(f)).join(", ").toLowerCase()}. It is revealed to you with a private link once it has passed our quality check.`,
 };
 
 /** Quick answers and the most relevant article for each product page. */
 export const PRODUCT_PAGE_ANSWERS: Readonly<Record<"moment" | "keepsake" | "journey", { answers: readonly Answer[]; article: { slug: string; title: string } }>> = {
   moment: {
-    answers: [MOMENT_DELIVERY, AFTER_YOU_ORDER, HOW_APPROVAL_WORKS],
+    answers: [MOMENT_DELIVERY, HOW_MCB_CREATES, THE_REVEAL, IF_I_WOULD_HAVE_CHOSEN_DIFFERENTLY],
     article: { slug: "turn-a-special-memory-into-a-personalised-song", title: "How to turn a special memory into a personalised song" },
   },
   keepsake: {
-    answers: [WHAT_IS_A_PICTURE_DISC_KEEPSAKE, KEEPSAKE_SONG_CAPACITY, KEEPSAKE_VS_JOURNEY, HOW_APPROVAL_WORKS, WHO_MAKES_AND_DELIVERS, IF_IT_ARRIVES_DAMAGED],
+    answers: [WHAT_IS_A_PICTURE_DISC_KEEPSAKE, KEEPSAKE_SONG_CAPACITY, KEEPSAKE_VS_JOURNEY, WILL_I_RECEIVE_A_DRAFT, WHAT_PHOTOGRAPH, WHO_MAKES_AND_DELIVERS, IF_IT_ARRIVES_DAMAGED],
     article: { slug: "picture-disc-keepsakes-music-and-memories-you-can-hold", title: "Picture disc keepsakes: music and memories you can hold" },
   },
   journey: {
-    answers: [JOURNEY_NOT_PICTURE_DISC, KEEPSAKE_VS_JOURNEY, AFTER_YOU_ORDER, WHO_MAKES_AND_DELIVERS, IF_IT_ARRIVES_DAMAGED],
+    answers: [JOURNEY_NOT_PICTURE_DISC, KEEPSAKE_VS_JOURNEY, AFTER_YOU_ORDER, WHAT_PHOTOGRAPH, WHO_MAKES_AND_DELIVERS, IF_IT_ARRIVES_DAMAGED],
     article: { slug: "preserve-cruise-memories-after-you-return-home", title: "How to preserve the memories of a cruise long after you return home" },
   },
 };

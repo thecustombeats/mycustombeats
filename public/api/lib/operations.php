@@ -5,8 +5,10 @@
  * ─────────────────────────────────────────────────────────────────────────
  * ONE RECORD OF WHERE AN ORDER HAS GOT TO
  * ─────────────────────────────────────────────────────────────────────────
- * Payment: `orders.status`. The work: `order_production.stage`, whose rules
- * about when refinements close live in legal.json. The physical side:
+ * Payment: `orders.status`. The work: `order_production.stage` — creation,
+ * MCB's internal quality check and, for a digital order, the reveal
+ * (`revealed_at`). There is no customer approval stage (Single Creative
+ * Authority, 15 September 2026). The physical side:
  * `order_production.fulfilment_state`. The operational state an operator or a
  * customer sees is DERIVED from those columns here (and mirrored in
  * src/data/operations.ts); it is never stored, so it cannot disagree with them.
@@ -14,7 +16,7 @@
  * ─────────────────────────────────────────────────────────────────────────
  * AUTOMATE THE NORMAL, SURFACE THE EXCEPTIONS
  * ─────────────────────────────────────────────────────────────────────────
- * Every move is an explicit staff action or customer response, checked
+ * Every move is an explicit staff action, checked
  * against the current state inside a locked transaction, audited in
  * `order_events` and, where the template says so, followed by one idempotent
  * email. Nothing here orders from a supplier, refunds, charges or promises a
@@ -63,9 +65,10 @@ function operations_data(): array
 
 const MCB_OPERATIONS_COLUMNS = 'o.id, o.customer_id, o.status, o.fulfilment_type, o.mcb_reference,
         o.personalisation_status, o.stripe_livemode, o.created_at,
-        p.id AS production_id, p.stage, p.revisions_used, p.approved_at, p.approval_channel,
+        p.id AS production_id, p.stage, p.approved_at, p.approval_channel, p.approval_round,
         p.production_locked_at, p.completed_at, p.creative_started_at, p.creative_ready_at,
-        p.approval_round, p.approval_requested_at, p.approval_preview_url, p.changes_requested_at,
+        p.qc_submitted_at, p.qc_passed_at, p.qc_passed_by, p.qc_checklist, p.qc_failed_count,
+        p.reveal_url, p.revealed_at, p.supplier_purchase_authorised_by,
         p.fulfilment_state, p.fulfilment_pending_reason, p.fulfilment_ready_at, p.fulfilment_confirmed_at,
         p.fulfilment_reference, p.carrier, p.tracking_reference, p.tracking_url, p.dispatched_on,
         p.delivery_delayed_at, p.delivered_on, p.follow_up_due_at, p.follow_up_done_at,
@@ -118,6 +121,12 @@ function follow_up_is_due(array $row, ?int $now = null): bool
     return strtotime($row['follow_up_due_at'] . ' UTC') <= ($now ?? time());
 }
 
+/** Stages awaiting MCB's quality check, including legacy approval-model stages. */
+const MCB_QC_PENDING_STAGES = ['QUALITY_CHECK', 'SONG_READY', 'AWAITING_APPROVAL', 'REVISION_REQUESTED'];
+
+/** Stages whose work has passed the quality check (APPROVED is the legacy equivalent). */
+const MCB_QC_PASSED_STAGES = ['QC_PASSED', 'APPROVED'];
+
 /**
  * The operational state, or null for an order that is not paid (payment state
  * is `orders.status` and is reported separately).
@@ -131,23 +140,24 @@ function operational_state(array $row, ?int $now = null): ?string
     if ($stage === null) {
         return 'ORDER.PAID';
     }
-
-    switch ($stage) {
-        case 'CREATIVE':
-            return ($row['creative_started_at'] ?? null) === null ? 'CREATIVE.PENDING' : 'CREATIVE.IN_PROGRESS';
-        case 'SONG_READY':
-            return 'CREATIVE.READY';
-        case 'AWAITING_APPROVAL':
-            return 'CUSTOMER_APPROVAL.REQUIRED';
-        case 'REVISION_REQUESTED':
-            return 'CUSTOMER_APPROVAL.CHANGES_REQUESTED';
-        case 'COMPLETED':
-            return 'COMPLETED';
+    if ($stage === 'CREATIVE') {
+        return ($row['creative_started_at'] ?? null) === null ? 'CREATIVE.PENDING' : 'CREATIVE.IN_PROGRESS';
+    }
+    if (in_array($stage, MCB_QC_PENDING_STAGES, true)) {
+        return 'QUALITY_CHECK';
+    }
+    if ($stage === 'COMPLETED') {
+        return 'COMPLETED';
     }
 
-    // APPROVED, PRODUCTION_LOCKED, FULFILMENT
+    // QC_PASSED (or legacy APPROVED), PRODUCTION_LOCKED, FULFILMENT
     if (order_workflow($row) === 'DIGITAL') {
-        return follow_up_is_due($row, $now) ? 'FOLLOW_UP.DUE' : 'CUSTOMER_APPROVAL.APPROVED';
+        // A legacy digital approval was heard by the customer: treat it as revealed.
+        $revealed = ($row['revealed_at'] ?? null) !== null || $stage === 'APPROVED';
+        if (!$revealed) {
+            return 'REVEAL.READY';
+        }
+        return follow_up_is_due($row, $now) ? 'FOLLOW_UP.DUE' : 'REVEALED';
     }
 
     return match (effective_fulfilment_state($row)) {
@@ -179,41 +189,6 @@ function next_action_for(?string $state): ?string
         }
     }
     return null;
-}
-
-/**
- * Included revisions for the whole order, or null when it cannot be stated.
- *
- * Summed over the order's song units from the numeric allowances generated
- * from the catalogue wording ("1 revision", "1 refinement per song"). Any
- * song unit without one — or an order with no units at all, from before
- * per-memory persistence — makes the answer UNKNOWN rather than a guess.
- */
-function included_revision_allowance(PDO $pdo, int $orderId): ?int
-{
-    $stmt = $pdo->prepare("SELECT product_id, song_count FROM order_units WHERE order_id = :id AND kind = 'SONG'");
-    $stmt->execute([':id' => $orderId]);
-    $units = $stmt->fetchAll();
-    if ($units === []) {
-        return null;
-    }
-    $rules = operations_data()['included_revisions'] ?? [];
-    $total = 0;
-    foreach ($units as $unit) {
-        $rule = $rules[$unit['product_id']] ?? null;
-        if ($rule === null) {
-            return null;
-        }
-        if ($rule['per'] === 'SONG') {
-            if ($unit['song_count'] === null) {
-                return null;
-            }
-            $total += (int) $rule['count'] * (int) $unit['song_count'];
-        } else {
-            $total += (int) $rule['count'];
-        }
-    }
-    return $total;
 }
 
 /* ------------------------------------------------------------------ */
@@ -403,7 +378,7 @@ function operations_past_date(mixed $value): ?string
 /* Transitions shared by staff actions and customer responses          */
 /* ------------------------------------------------------------------ */
 
-/** Days after delivery (or digital approval) before the follow-up is due. */
+/** Days after delivery (or a digital reveal) before the follow-up is due. */
 function follow_up_delay_days(): int
 {
     return max(0, min((int) mcb_setting('operations.follow_up_delay_days', 0), 90));
@@ -457,101 +432,68 @@ function fulfilment_pending_column(string $blocker): string
     return in_array($blocker, ['DELIVERY_ADDRESS', 'PERSONALISATION', 'CUSTOMER_CONTACT'], true) ? $blocker : 'OTHER';
 }
 
-/**
- * The customer (or staff on their behalf) approves the current version.
- * Returns the lifecycle messages to send once the transaction commits.
- *
- * @return list<array{0:string,1:string}>
- */
-function approve_work(PDO $pdo, array $row, string $channel, string $approvedBy, ?string $reference): array
+/** The quality-check items required for an order of this workflow (operations.json). */
+function required_qc_items(string $workflow): array
 {
-    $orderId = (int) $row['id'];
-    $round   = (int) $row['approval_round'];
-    $item    = $round > 0 ? 'Approval round ' . $round : 'Approved before an approval link was sent';
-
-    $pdo->prepare(
-        "UPDATE order_production
-            SET stage = 'APPROVED', approved_at = UTC_TIMESTAMP(), approval_channel = :channel,
-                approval_reference = :ref, approved_item = :item, approved_by = :by
-          WHERE order_id = :oid"
-    )->execute([':channel' => $channel, ':ref' => $reference, ':item' => $item, ':by' => $approvedBy, ':oid' => $orderId]);
-
-    $reopen = (int) $row['reopen_count'];
-    record_order_event($pdo, $orderId, 'CUSTOMER.APPROVAL.APPROVED', ['round' => $round, 'channel' => $channel], "approved:{$reopen}:{$round}");
-
-    if (order_workflow($row) === 'DIGITAL') {
-        $pdo->prepare(
-            "UPDATE order_production
-                SET fulfilment_state = 'NOT_REQUIRED',
-                    follow_up_due_at = UTC_TIMESTAMP() + INTERVAL :days DAY, follow_up_done_at = NULL
-              WHERE order_id = :oid"
-        )->execute([':days' => follow_up_delay_days(), ':oid' => $orderId]);
-        record_order_event($pdo, $orderId, 'FOLLOW_UP.DUE', ['after_days' => follow_up_delay_days()], "follow-up-due:{$reopen}");
-    } else {
-        $blocker = fulfilment_blocker($pdo, $row);
-        if ($blocker === null) {
-            $pdo->prepare(
-                "UPDATE order_production
-                    SET fulfilment_state = 'READY', fulfilment_pending_reason = NULL, fulfilment_ready_at = UTC_TIMESTAMP()
-                  WHERE order_id = :oid"
-            )->execute([':oid' => $orderId]);
-            record_order_event($pdo, $orderId, 'FULFILMENT.READY', [], "fulfilment-ready:{$reopen}");
-        } else {
-            $pdo->prepare(
-                "UPDATE order_production SET fulfilment_state = 'PENDING', fulfilment_pending_reason = :reason WHERE order_id = :oid"
-            )->execute([':reason' => fulfilment_pending_column($blocker), ':oid' => $orderId]);
-            record_order_event($pdo, $orderId, 'FULFILMENT.PENDING', ['reason' => $blocker]);
+    $items = [];
+    foreach (operations_data()['qc_checklist'] ?? [] as $item) {
+        if ($item['applies_to'] === 'ALL' || ($item['applies_to'] === 'PHYSICAL' && $workflow === 'PHYSICAL')) {
+            $items[] = (string) $item['id'];
         }
     }
-
-    return [['APPROVAL_CONFIRMED', "round-{$reopen}-{$round}"]];
+    return $items;
 }
 
 /**
- * Records a change request for the current round. Returns null when this
- * round already has one (a repeated submission), otherwise the messages.
- *
- * @return list<array{0:string,1:string}>|null
+ * After a passed quality check: a physical order becomes ready for the
+ * partner order (or waits on what is missing); a digital one needs nothing
+ * made. Customer approval plays no part.
  */
-function record_changes(PDO $pdo, array $row, string $channel, ?string $feedback, ?string $recordedBy): ?array
+function after_quality_check_passed(PDO $pdo, array $row): void
 {
-    $orderId   = (int) $row['id'];
-    $round     = (int) $row['approval_round'];
-    $allowance = included_revision_allowance($pdo, $orderId);
-    $used      = (int) $row['revisions_used'] + 1;
-    $within    = $allowance === null ? 'UNKNOWN' : ($used <= $allowance ? 'YES' : 'NO');
-
-    try {
-        $pdo->prepare(
-            'INSERT INTO order_change_requests (order_id, approval_round, channel, feedback, within_allowance, recorded_by, created_at)
-             VALUES (:oid, :round, :channel, :feedback, :within, :by, UTC_TIMESTAMP())'
-        )->execute([
-            ':oid' => $orderId, ':round' => $round, ':channel' => $channel,
-            ':feedback' => $feedback, ':within' => $within, ':by' => $recordedBy,
-        ]);
-    } catch (PDOException $e) {
-        if (is_duplicate_error($e)) {
-            return null;
-        }
-        throw $e;
+    $orderId = (int) $row['id'];
+    $reopen  = (int) $row['reopen_count'];
+    if (order_workflow($row) === 'DIGITAL') {
+        $pdo->prepare("UPDATE order_production SET fulfilment_state = 'NOT_REQUIRED' WHERE order_id = :oid")
+            ->execute([':oid' => $orderId]);
+        return;
     }
+    $blocker = fulfilment_blocker($pdo, $row);
+    if ($blocker === null) {
+        $pdo->prepare(
+            "UPDATE order_production
+                SET fulfilment_state = 'READY', fulfilment_pending_reason = NULL, fulfilment_ready_at = UTC_TIMESTAMP()
+              WHERE order_id = :oid"
+        )->execute([':oid' => $orderId]);
+        record_order_event($pdo, $orderId, 'FULFILMENT.READY', [], "fulfilment-ready:{$reopen}");
+    } else {
+        $pdo->prepare(
+            "UPDATE order_production SET fulfilment_state = 'PENDING', fulfilment_pending_reason = :reason WHERE order_id = :oid"
+        )->execute([':reason' => fulfilment_pending_column($blocker), ':oid' => $orderId]);
+        record_order_event($pdo, $orderId, 'FULFILMENT.PENDING', ['reason' => $blocker]);
+    }
+}
 
+/**
+ * The digital reveal: one-way. Records it, starts the follow-up clock and
+ * returns the CREATION_READY message to send after commit.
+ *
+ * @return list<array{0:string,1:string}>
+ */
+function reveal_creation(PDO $pdo, array $row, string $staff, bool $sendEmail): array
+{
+    $orderId = (int) $row['id'];
+    $reopen  = (int) $row['reopen_count'];
+    ensure_status_token($pdo, $orderId, $staff);
     $pdo->prepare(
         "UPDATE order_production
-            SET stage = 'REVISION_REQUESTED', revisions_used = :used, changes_requested_at = UTC_TIMESTAMP()
+            SET revealed_at = UTC_TIMESTAMP(),
+                follow_up_due_at = UTC_TIMESTAMP() + INTERVAL :days DAY, follow_up_done_at = NULL
           WHERE order_id = :oid"
-    )->execute([':used' => $used, ':oid' => $orderId]);
-
-    // The link is NOT revoked: a second press of the same form must say
-    // "already received", not "link expired". It can no longer approve
-    // anything, because the stage has moved on; the next version gets a new
-    // link, which revokes this one.
-    record_order_event($pdo, $orderId, 'CUSTOMER.CHANGES.REQUESTED', [
-        'round' => $round, 'channel' => $channel, 'revisions_used' => $used,
-        'included' => $allowance, 'within_allowance' => $within,
-    ], "changes:{$row['reopen_count']}:{$round}");
-
-    return [['CHANGES_RECEIVED', "round-{$row['reopen_count']}-{$round}"]];
+    )->execute([':days' => follow_up_delay_days(), ':oid' => $orderId]);
+    record_order_event($pdo, $orderId, 'REVEALED', ['by' => $staff, 'emailed' => $sendEmail], "revealed:{$reopen}");
+    record_order_event($pdo, $orderId, 'FOLLOW_UP.DUE', ['after_days' => follow_up_delay_days()], "follow-up-due:{$reopen}");
+    return $sendEmail ? [['CREATION_READY', "reveal-{$reopen}"]] : [];
 }
 
 /* ------------------------------------------------------------------ */
@@ -559,12 +501,15 @@ function record_changes(PDO $pdo, array $row, string $channel, ?string $feedback
 /* ------------------------------------------------------------------ */
 
 const MCB_STAFF_ACTIONS = [
-    'START_CREATIVE', 'MARK_CREATIVE_READY', 'REQUEST_APPROVAL', 'REISSUE_APPROVAL_LINK',
-    'RECORD_APPROVAL', 'RECORD_CHANGES_REQUEST', 'SET_FULFILMENT_READY', 'CONFIRM_FULFILMENT',
-    'CONFIRM_FULFILMENT_REVIEW', 'MARK_DISPATCHED', 'UPDATE_TRACKING', 'MARK_DELIVERY_DELAYED', 'MARK_DELIVERED',
+    'START_CREATIVE', 'SEND_TO_QUALITY_CHECK', 'PASS_QUALITY_CHECK', 'FAIL_QUALITY_CHECK', 'SEND_REVEAL',
+    'SET_FULFILMENT_READY', 'CONFIRM_FULFILMENT_REVIEW', 'CONFIRM_FULFILMENT',
+    'MARK_DISPATCHED', 'UPDATE_TRACKING', 'MARK_DELIVERY_DELAYED', 'MARK_DELIVERED',
     'RECORD_FOLLOW_UP', 'MARK_COMPLETED', 'REOPEN', 'ISSUE_STATUS_LINK', 'REVOKE_LINKS',
     'ADD_NOTE', 'UPDATE_SERVICE_REQUEST',
 ];
+
+/** Actions of the retired customer-approval model. Refused with an explanation. */
+const MCB_RETIRED_STAFF_ACTIONS = ['MARK_CREATIVE_READY', 'REQUEST_APPROVAL', 'REISSUE_APPROVAL_LINK', 'RECORD_APPROVAL', 'RECORD_CHANGES_REQUEST'];
 
 /**
  * Performs one staff action inside a locked transaction.
@@ -573,6 +518,9 @@ const MCB_STAFF_ACTIONS = [
  */
 function perform_staff_action(int $orderId, string $action, array $in, string $staff): array
 {
+    if (in_array($action, MCB_RETIRED_STAFF_ACTIONS, true)) {
+        throw new OperationsException('action_retired', 'Customer approval has been retired. Send the work to MCB\'s quality check instead.', 410);
+    }
     if (!in_array($action, MCB_STAFF_ACTIONS, true)) {
         throw new OperationsException('unknown_action', 'That action is not recognised.', 422);
     }
@@ -621,76 +569,92 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 record_order_event($pdo, $orderId, 'CREATIVE.IN_PROGRESS', ['by' => $staff], "creative-started:{$reopen}");
                 break;
 
-            case 'MARK_CREATIVE_READY':
-                if (!in_array($stage, ['CREATIVE', 'REVISION_REQUESTED'], true)) {
-                    $refuse('Only work in progress, or work with requested changes, can be marked ready.');
+            case 'SEND_TO_QUALITY_CHECK':
+                if ($stage !== 'CREATIVE') {
+                    $refuse('Only work being created can be sent to the quality check.');
                 }
-                $update("stage = 'SONG_READY', creative_ready_at = UTC_TIMESTAMP(), creative_started_at = COALESCE(creative_started_at, UTC_TIMESTAMP())");
-                $next = (int) $row['approval_round'] + 1;
-                record_order_event($pdo, $orderId, 'CREATIVE.READY', ['by' => $staff, 'for_round' => $next], "creative-ready:{$reopen}:{$next}");
+                $update("stage = 'QUALITY_CHECK', creative_ready_at = UTC_TIMESTAMP(), qc_submitted_at = UTC_TIMESTAMP(),
+                         creative_started_at = COALESCE(creative_started_at, UTC_TIMESTAMP())");
+                $attempt = (int) $row['qc_failed_count'];
+                record_order_event($pdo, $orderId, 'QUALITY_CHECK.READY', ['by' => $staff, 'attempt' => $attempt + 1], "qc-ready:{$reopen}:{$attempt}");
                 break;
 
-            case 'REQUEST_APPROVAL':
-                if ($stage !== 'SONG_READY') {
-                    $refuse('Mark the music ready before sending it for approval.');
+            case 'PASS_QUALITY_CHECK':
+                if (!in_array($stage, MCB_QC_PENDING_STAGES, true)) {
+                    $refuse('Only work waiting for the quality check can pass it.');
                 }
-                $preview = operations_https_url($in['preview_url'] ?? null);
-                if ($preview === null) {
-                    throw new OperationsException('invalid_preview_url', 'Add the private https link where the customer can listen.', 422);
+                $checklist = $in['checklist'] ?? null;
+                $required  = required_qc_items(order_workflow($row));
+                $missing   = array_values(array_filter($required, static fn (string $id): bool => !is_array($checklist) || ($checklist[$id] ?? null) !== true));
+                if ($missing !== []) {
+                    throw new OperationsException('qc_checklist_incomplete', 'Tick every quality check before passing it. Still to check: ' . strtolower(str_replace('_', ' ', implode(', ', $missing))) . '.', 422);
                 }
-                $round = (int) $row['approval_round'] + 1;
+                $revealUrl = null;
+                if (!$physical) {
+                    $revealUrl = operations_https_url($in['reveal_url'] ?? null);
+                    if ($revealUrl === null) {
+                        throw new OperationsException('invalid_reveal_url', 'Add the private https link to the finished song you checked.', 422);
+                    }
+                }
                 $update(
-                    "stage = 'AWAITING_APPROVAL', approval_round = :round, approval_requested_at = UTC_TIMESTAMP(), approval_preview_url = :url",
-                    [':round' => $round, ':url' => $preview]
+                    "stage = 'QC_PASSED', qc_passed_at = UTC_TIMESTAMP(), qc_passed_by = :by, qc_checklist = :list, reveal_url = :url",
+                    [':by' => $staff, ':list' => json_encode(['checked' => $required], JSON_UNESCAPED_SLASHES), ':url' => $revealUrl]
                 );
-                $token = issue_access_token($pdo, $orderId, 'APPROVAL', $round, $staff);
-                $result['links']['approval'] = access_link('APPROVAL', $token);
-                $result['links']['status']   = access_link('STATUS', ensure_status_token($pdo, $orderId, $staff));
-                record_order_event($pdo, $orderId, 'CUSTOMER.APPROVAL.REQUIRED', ['round' => $round, 'by' => $staff], "approval-required:{$reopen}:{$round}");
-                if (($in['send_email'] ?? true) !== false) {
-                    $result['messages'][] = ['APPROVAL_REQUIRED', "round-{$reopen}-{$round}"];
+                revoke_access_tokens($pdo, $orderId, 'APPROVAL');
+                record_order_event($pdo, $orderId, 'QUALITY_CHECK.PASSED', ['by' => $staff], "qc-passed:{$reopen}");
+                after_quality_check_passed($pdo, $row);
+                if (!$physical && ($in['reveal_now'] ?? true) !== false) {
+                    $result['messages'] = reveal_creation($pdo, $row, $staff, ($in['send_email'] ?? true) !== false);
+                    $result['links']['status'] = access_link('STATUS', ensure_status_token($pdo, $orderId, $staff));
                 }
                 break;
 
-            case 'REISSUE_APPROVAL_LINK':
-                if ($stage !== 'AWAITING_APPROVAL') {
-                    $refuse('There is no approval waiting for the customer.');
+            case 'FAIL_QUALITY_CHECK':
+                if (!in_array($stage, MCB_QC_PENDING_STAGES, true)) {
+                    $refuse('Only work waiting for the quality check can fail it.');
                 }
-                $token = issue_access_token($pdo, $orderId, 'APPROVAL', (int) $row['approval_round'], $staff);
-                $result['links']['approval'] = access_link('APPROVAL', $token);
-                record_order_event($pdo, $orderId, 'ACCESS.APPROVAL_LINK_REISSUED', ['round' => (int) $row['approval_round'], 'by' => $staff]);
+                $reason = (string) ($in['reason'] ?? '');
+                if (!in_array($reason, operations_data()['qc_fail_reasons'] ?? [], true)) {
+                    throw new OperationsException('invalid_reason', 'Choose why the quality check failed.', 422);
+                }
+                $note = operations_text($in['note'] ?? null, 2000);
+                if ($note !== null) {
+                    $pdo->prepare('INSERT INTO order_staff_notes (order_id, note, staff, created_at) VALUES (:oid, :note, :staff, UTC_TIMESTAMP())')
+                        ->execute([':oid' => $orderId, ':note' => 'Quality check failed: ' . $note, ':staff' => $staff]);
+                }
+                $update("stage = 'CREATIVE', qc_submitted_at = NULL, qc_failed_count = qc_failed_count + 1,
+                         creative_started_at = COALESCE(creative_started_at, UTC_TIMESTAMP())");
+                record_order_event($pdo, $orderId, 'QUALITY_CHECK.FAILED', ['by' => $staff, 'reason' => $reason, 'attempt' => (int) $row['qc_failed_count'] + 1]);
                 break;
 
-            case 'RECORD_APPROVAL':
-                if (!in_array($stage, ['SONG_READY', 'AWAITING_APPROVAL'], true)) {
-                    $refuse('An approval can only be recorded for finished work that has not been approved.');
+            case 'SEND_REVEAL':
+                if ($physical) {
+                    $refuse('A physical order is revealed when it is delivered.');
                 }
-                $channel = (string) ($in['channel'] ?? '');
-                if (!in_array($channel, ['EMAIL', 'WHATSAPP', 'PHONE', 'IN_PERSON'], true)) {
-                    throw new OperationsException('invalid_channel', 'Say how the customer approved: EMAIL, WHATSAPP, PHONE or IN_PERSON.', 422);
+                if (!in_array($stage, MCB_QC_PASSED_STAGES, true) || $row['revealed_at'] !== null) {
+                    $refuse('Only work that has passed the quality check and has not been revealed can be revealed.');
                 }
-                $result['messages'] = approve_work($pdo, $row, $channel, $staff, operations_line($in['reference'] ?? null, 255));
-                break;
-
-            case 'RECORD_CHANGES_REQUEST':
-                if (!in_array($stage, ['SONG_READY', 'AWAITING_APPROVAL'], true)) {
-                    $refuse('Changes can only be recorded for finished work that has not been approved.');
+                if ($stage === 'APPROVED') {
+                    $refuse('This order was completed under the retired approval model and has already been heard by the customer.');
                 }
-                $channel = (string) ($in['channel'] ?? '');
-                if (!in_array($channel, ['EMAIL', 'WHATSAPP', 'PHONE', 'IN_PERSON'], true)) {
-                    throw new OperationsException('invalid_channel', 'Say how the customer asked: EMAIL, WHATSAPP, PHONE or IN_PERSON.', 422);
+                $url = $row['reveal_url'] ?? null;
+                if (($in['reveal_url'] ?? null) !== null) {
+                    $url = operations_https_url($in['reveal_url']);
+                    if ($url === null) {
+                        throw new OperationsException('invalid_reveal_url', 'The reveal link must be an https address.', 422);
+                    }
+                    $update('reveal_url = :url', [':url' => $url]);
                 }
-                $messages = record_changes($pdo, $row, $channel, operations_text($in['summary'] ?? null, 2000), $staff);
-                if ($messages === null) {
-                    $result['outcome'] = 'unchanged';
-                } else {
-                    $result['messages'] = $messages;
+                if ($url === null) {
+                    throw new OperationsException('invalid_reveal_url', 'Add the private https link to the finished song.', 422);
                 }
+                $result['messages'] = reveal_creation($pdo, $row, $staff, ($in['send_email'] ?? true) !== false);
+                $result['links']['status'] = access_link('STATUS', ensure_status_token($pdo, $orderId, $staff));
                 break;
 
             case 'SET_FULFILMENT_READY':
-                if (!$physical || $stage !== 'APPROVED' || $fulfil !== 'PENDING') {
-                    $refuse('Only an approved physical order that is waiting on something can be marked ready.');
+                if (!$physical || !in_array($stage, MCB_QC_PASSED_STAGES, true) || $fulfil !== 'PENDING') {
+                    $refuse('Only a physical order that has passed the quality check and is waiting on something can be marked ready.');
                 }
                 $blocker = fulfilment_blocker($pdo, $row);
                 if ($blocker !== null) {
@@ -722,26 +686,35 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 $pdo->prepare('INSERT INTO order_staff_notes (order_id, note, staff, created_at) VALUES (:oid, :note, :staff, UTC_TIMESTAMP())')
                     ->execute([':oid' => $orderId, ':note' => 'Availability and delivery confirmed: ' . $summary, ':staff' => $staff]);
                 record_order_event($pdo, $orderId, 'FULFILMENT.REVIEW_CONFIRMED', ['by' => $staff], "fulfilment-review:{$reopen}");
-                // An approved order waiting only on this moves on by itself.
-                if ($stage === 'APPROVED' && $fulfil === 'PENDING' && fulfilment_blocker($pdo, $row) === null) {
+                // A quality-checked order waiting only on this moves on by itself.
+                if (in_array($stage, MCB_QC_PASSED_STAGES, true) && $fulfil === 'PENDING' && fulfilment_blocker($pdo, $row) === null) {
                     $update("fulfilment_state = 'READY', fulfilment_pending_reason = NULL, fulfilment_ready_at = UTC_TIMESTAMP()");
                     record_order_event($pdo, $orderId, 'FULFILMENT.READY', ['by' => $staff], "fulfilment-ready:{$reopen}");
                 }
                 break;
 
             case 'CONFIRM_FULFILMENT':
-                if (!$physical || $stage !== 'APPROVED' || $fulfil !== 'READY') {
-                    $refuse('Confirm the physical order only once the music is approved and fulfilment is ready.');
+                if (!$physical || !in_array($stage, MCB_QC_PASSED_STAGES, true) || $fulfil !== 'READY') {
+                    $refuse('Confirm the physical order only once the work has passed the quality check and fulfilment is ready.');
                 }
                 if (fulfilment_review_pending($pdo, $orderId)) {
                     $refuse('Confirm availability, the destination and the actual delivery cost with the partner before placing this order.');
                 }
+                // Supplier expenditure is human-authorised: Bella or Lewis.
+                $authorisedBy = (string) ($in['purchase_authorised_by'] ?? '');
+                if (!in_array($authorisedBy, ['BELLA', 'LEWIS'], true)) {
+                    throw new OperationsException('purchase_authorisation_required', 'Say who authorised the partner purchase: BELLA or LEWIS.', 422);
+                }
                 $update(
                     "stage = 'PRODUCTION_LOCKED', production_locked_at = COALESCE(production_locked_at, UTC_TIMESTAMP()),
-                     fulfilment_state = 'CONFIRMED', fulfilment_confirmed_at = UTC_TIMESTAMP(), fulfilment_reference = :ref",
-                    [':ref' => operations_line($in['fulfilment_reference'] ?? null, 120)]
+                     fulfilment_state = 'CONFIRMED', fulfilment_confirmed_at = UTC_TIMESTAMP(), fulfilment_reference = :ref,
+                     supplier_purchase_authorised_by = :auth",
+                    [':ref' => operations_line($in['fulfilment_reference'] ?? null, 120), ':auth' => $authorisedBy]
                 );
-                record_order_event($pdo, $orderId, 'FULFILMENT.CONFIRMED', ['by' => $staff], "fulfilment-confirmed:{$reopen}");
+                record_order_event($pdo, $orderId, 'FULFILMENT.CONFIRMED', ['by' => $staff, 'authorised_by' => $authorisedBy], "fulfilment-confirmed:{$reopen}");
+                if (($in['send_email'] ?? true) !== false) {
+                    $result['messages'][] = ['IN_PRODUCTION', "in-production-{$reopen}"];
+                }
                 break;
 
             case 'MARK_DISPATCHED':
@@ -820,27 +793,31 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
             case 'MARK_COMPLETED':
                 $ok = $physical
                     ? $fulfil === 'DELIVERED'
-                    : in_array($stage, ['APPROVED', 'PRODUCTION_LOCKED', 'FULFILMENT'], true) && $row['approved_at'] !== null;
+                    : ($stage === 'QC_PASSED' && $row['revealed_at'] !== null) || ($stage === 'APPROVED' && $row['approved_at'] !== null);
                 if (!$ok) {
-                    $refuse($physical ? 'A physical order is completed after delivery is recorded.' : 'A digital order is completed after the customer has approved it.');
+                    $refuse($physical ? 'A physical order is completed after delivery is recorded.' : 'A digital order is completed after it has been revealed.');
                 }
                 $update("stage = 'COMPLETED', completed_at = UTC_TIMESTAMP()");
                 record_order_event($pdo, $orderId, 'ORDER.COMPLETED', ['by' => $staff, 'follow_up_done' => $row['follow_up_done_at'] !== null], "completed:{$reopen}");
                 break;
 
             case 'REOPEN':
-                if (!in_array($stage, ['APPROVED', 'PRODUCTION_LOCKED', 'FULFILMENT', 'COMPLETED'], true)) {
-                    $refuse('Only approved, locked, dispatched or completed work can be reopened.');
+                if (!in_array($stage, ['QC_PASSED', 'APPROVED', 'PRODUCTION_LOCKED', 'FULFILMENT', 'COMPLETED'], true)) {
+                    $refuse('Only quality-checked, placed, dispatched or completed work can be reopened.');
                 }
+                // No customer-request reopen: a creative preference does not reopen production.
                 $reason = (string) ($in['reason'] ?? '');
-                if (!in_array($reason, ['CUSTOMER_REQUEST', 'MCB_CORRECTION', 'REPLACEMENT', 'OTHER'], true)) {
-                    throw new OperationsException('invalid_reason', 'Give a reason: CUSTOMER_REQUEST, MCB_CORRECTION, REPLACEMENT or OTHER.', 422);
+                $reasons = operations_data()['reopen_reasons'] ?? [];
+                if (!in_array($reason, $reasons, true)) {
+                    throw new OperationsException('invalid_reason', 'Give a reason: ' . implode(', ', $reasons) . '.', 422);
                 }
                 if (in_array($fulfil, ['CONFIRMED', 'DISPATCHED', 'DELIVERED'], true)) {
                     $result['warning'] = 'The physical order was already placed. Reopening does not cancel or change anything with a supplier.';
                 }
                 $update(
-                    "stage = 'SONG_READY', fulfilment_state = NULL, fulfilment_pending_reason = NULL,
+                    "stage = 'CREATIVE', creative_started_at = UTC_TIMESTAMP(), qc_submitted_at = NULL, qc_passed_at = NULL,
+                     qc_passed_by = NULL, qc_checklist = NULL, reveal_url = NULL, revealed_at = NULL,
+                     supplier_purchase_authorised_by = NULL, fulfilment_state = NULL, fulfilment_pending_reason = NULL,
                      fulfilment_ready_at = NULL, fulfilment_confirmed_at = NULL, fulfilment_reference = NULL,
                      carrier = NULL, tracking_reference = NULL, tracking_url = NULL, dispatched_on = NULL,
                      delivery_delayed_at = NULL, delivered_on = NULL, follow_up_due_at = NULL,

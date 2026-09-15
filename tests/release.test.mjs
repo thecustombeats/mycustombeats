@@ -195,9 +195,10 @@ test("visible answers agree with the catalogue", () => {
 test("the FAQ shows the new answers and its FAQPage schema mirrors exactly what is visible", () => {
   const html = M.render("FAQ", "/faq");
   const page = text(html);
-  for (const q of [M.answers.AFTER_YOU_ORDER, M.answers.HOW_APPROVAL_WORKS, M.answers.JOURNEY_NOT_PICTURE_DISC, M.answers.PLAQUE_PLAYS_MUSIC, M.answers.KEEPSAKE_SONG_CAPACITY]) {
+  for (const q of [M.answers.AFTER_YOU_ORDER, M.answers.HOW_MCB_CREATES, M.answers.WILL_I_RECEIVE_A_DRAFT, M.answers.THE_REVEAL, M.answers.IF_MCB_GETS_A_DETAIL_WRONG, M.answers.IF_I_WOULD_HAVE_CHOSEN_DIFFERENTLY, M.answers.WHAT_PHOTOGRAPH, M.answers.JOURNEY_NOT_PICTURE_DISC, M.answers.PLAQUE_PLAYS_MUSIC, M.answers.KEEPSAKE_SONG_CAPACITY]) {
     assert.ok(page.includes(q.question), q.question);
   }
+  assert.doesNotMatch(page, /How does approval work|Can I request changes|Refinement or remake|refinements? (are|is) included|approve (it|your)/i);
   const faq = ld(html).flatMap(nodes).find((n) => n["@type"] === "FAQPage");
   for (const item of faq.mainEntity) assert.ok(page.includes(item.name), item.name);
 });

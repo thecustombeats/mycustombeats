@@ -23,7 +23,7 @@ tc() { local name="$1" ok="$2"
   if [ "$ok" = "1" ]; then printf "  PASS  %-66s\n" "$name"; PASS=$((PASS+1));
   else printf "  FAIL  %-66s\n" "$name"; FAIL=$((FAIL+1)); FAILED+=("$name"); fi }
 
-CONSENT='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2026-09-09.4","cruiseCompanions":"My husband David"'
+CONSENT='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true,"CREATIVE_AUTHORITY":true},"creativeAuthorityVersion":"2026-09-15","termsVersion":"2026-09-09.4","cruiseCompanions":"My husband David"'
 
 # What Stripe would report for this order: the server's saved total in pence.
 order_minor() { q "SELECT total_minor FROM orders WHERE id=$1"; }
@@ -314,12 +314,12 @@ tc "67. no browser switch can open checkout; the server decides and ships closed
 tc "68. dynamic checkout is still OFF in the config template" \
   "$(grep -q "'checkout_sessions_enabled' => false" public/api/config.example.php && echo 1 || echo 0)"
 
-tc "69. the Terms moved only for the launch closure edition, keeping the Founder's edition resolvable" \
-  "$(grep -q 'TERMS_VERSION = "2026-09-15"' src/data/legal/versions.ts && grep -q 'version: "2026-09-09.4"' src/data/legal/versions.ts && echo 1 || echo 0)"
+tc "69. the Terms moved to the Single Creative Authority edition, keeping earlier editions resolvable" \
+  "$(grep -q 'TERMS_VERSION = "2026-09-15.2"' src/data/legal/versions.ts && grep -q 'version: "2026-09-15"' src/data/legal/versions.ts && grep -q 'version: "2026-09-09.4"' src/data/legal/versions.ts && echo 1 || echo 0)"
 
-tc "70. Refunds moved with the Terms (2026-09-15); Privacy stays at the 14 September edition" \
-  "$(grep -q 'REFUND_POLICY_VERSION = "2026-09-15"' src/data/legal/versions.ts \
-     && grep -q 'PRIVACY_POLICY_VERSION = "2026-09-14"' src/data/legal/versions.ts && echo 1 || echo 0)"
+tc "70. Refunds moved with the Terms (2026-09-15.2); Privacy moved to 2026-09-15 on its own content change" \
+  "$(grep -q 'REFUND_POLICY_VERSION = "2026-09-15.2"' src/data/legal/versions.ts \
+     && grep -q 'PRIVACY_POLICY_VERSION = "2026-09-15"' src/data/legal/versions.ts && echo 1 || echo 0)"
 
 tc "71. the production stage lock is unchanged" \
   "$(grep -q "'CREATIVE','SONG_READY','AWAITING_APPROVAL'" db/schema.sql \
@@ -341,8 +341,9 @@ tc "75. Resend behaviour is unchanged — the closure sends no mail" \
 tc "76. the review URL is still configuration and still empty" \
   "$(grep -A3 "'reviews'" public/api/config.example.php | grep -q "'url' => ''" && echo 1 || echo 0)"
 
-tc "77. earlier migrations are untouched; Sprint 4 and Sprint 5 additive migrations follow" \
-  "$([ "$(ls db/migrations/*.sql | wc -l | tr -d ' ')" = "10" ] \
+tc "77. earlier migrations are untouched; Sprint 4, Sprint 5 and Single Creative Authority additive migrations follow" \
+  "$([ "$(ls db/migrations/*.sql | wc -l | tr -d ' ')" = "11" ] && [ -f db/migrations/2026-09-15-single-creative-authority.sql ] \
+     && git diff --quiet e2d83387 -- db/migrations/2026-09-14-sprint5-operations.sql \
      && [ -f db/migrations/2026-09-14-canonical-catalogue.sql ] && [ -f db/migrations/2026-09-14-sprint4-order-persistence.sql ] \
      && [ -f db/migrations/2026-09-14-sprint5-operations.sql ] \
      && git diff --quiet 056f783d -- db/migrations/2026-08-31-mcb-reference.sql db/migrations/2026-09-09-*.sql db/migrations/2026-09-14-canonical-catalogue.sql \

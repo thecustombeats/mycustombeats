@@ -336,6 +336,9 @@ try {
             'livemode'     => is_bool($livemode) ? $livemode : null,
         ], 'received:' . substr($sessionId, 0, 100));
         record_order_event($pdo, $orderId, 'ORDER.PAID', ['reference' => $reference], 'paid');
+        // Single Creative Authority: verified payment is the order commitment.
+        // Personalised production may begin now; no approval is awaited.
+        record_order_event($pdo, $orderId, 'ORDER.READY_FOR_PROCESSING', [], 'ready-for-processing');
         record_order_event($pdo, $orderId, 'CUSTOMER.CONFIRMATION.DUE', [], 'confirmation-due');
 
         // The only place affiliate sales are ever incremented. Stripe is the

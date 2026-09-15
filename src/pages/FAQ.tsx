@@ -6,7 +6,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Helmet } from "react-helmet-async";
-import { DELIVERY_CONFIRMED_FIRST_NOTE, REFINEMENT_DEFINITION, RECOMMENDED_PLANNING_DAYS } from '../data/legal';
+import { DELIVERY_CONFIRMED_FIRST_NOTE, RECOMMENDED_PLANNING_DAYS } from '../data/legal';
 import {
   BESPOKE,
   JOURNEY,
@@ -19,13 +19,11 @@ import {
   STANDARD_VINYL_NOT_PICTURE_DISC,
   formatMoney,
   publicProducts,
-  songExperiences,
   type Product,
   type Variant,
 } from '../data/catalogue';
 import { faqPageStructuredData } from '../lib/seo';
-import { refinementOrRemake } from '../lib/productDetail';
-import { AFTER_YOU_ORDER, HOW_APPROVAL_WORKS, IF_IT_ARRIVES_DAMAGED, JOURNEY_NOT_PICTURE_DISC, KEEPSAKE_SONG_CAPACITY, PLAQUE_PLAYS_MUSIC, WHAT_IS_A_PICTURE_DISC_KEEPSAKE, WHO_MAKES_AND_DELIVERS } from '../lib/productAnswers';
+import { AFTER_YOU_ORDER, HOW_MCB_CREATES, IF_IT_ARRIVES_DAMAGED, IF_MCB_GETS_A_DETAIL_WRONG, IF_I_WOULD_HAVE_CHOSEN_DIFFERENTLY, THE_REVEAL, WHAT_PHOTOGRAPH, WILL_I_RECEIVE_A_DRAFT, JOURNEY_NOT_PICTURE_DISC, KEEPSAKE_SONG_CAPACITY, PLAQUE_PLAYS_MUSIC, WHAT_IS_A_PICTURE_DISC_KEEPSAKE, WHO_MAKES_AND_DELIVERS } from '../lib/productAnswers';
 
 /* ------------------------------------------------------------------ */
 /* Catalogue phrasing                                                  */
@@ -67,10 +65,10 @@ const variantLine = (variant: Variant): string =>
 
 const variantList = (product: Product): string => listOf(product.variants.map(variantLine));
 
-/** A variant's approved inclusions, without the timing and refinement lines stated elsewhere. */
+/** A variant's inclusions, without the timing line stated elsewhere. */
 const inclusions = (product: Product, variant: Variant): string =>
   variant.features
-    .filter((f) => f !== product.turnaround?.label && f !== product.revisions)
+    .filter((f) => f !== product.turnaround?.label)
     .map((f, i) => (i === 0 ? f : lower(f)))
     .join('; ');
 
@@ -90,9 +88,6 @@ const MOMENT_VARIANT = MOMENT.variants[0];
 const PLAQUE_VARIANT = PERSONALISED_MUSIC_PLAQUE.variants[0];
 const PRIORITY_VARIANT = PRIORITY_REPLACEMENT.variants[0];
 const PLAYERS = publicProducts().filter((p) => p.category === 'PLAYER');
-const PRICED_EXPERIENCES = songExperiences().filter((p) => p.revisions);
-
-const [REFINEMENT_MEANING, REMAKE_MEANING, MCB_CHOOSES] = refinementOrRemake({ revisions: null });
 
 /**
  * Visible FAQ content. The FAQPage structured data below is generated from
@@ -106,7 +101,7 @@ const faqs: { question: string; answer: string }[] = [
   {
     question: 'How does a personalised song work?',
     answer:
-      'You choose an experience, tell us about the moment or person it is for, and pick a mood and genre. You do not need to write lyrics. We shape your words into a song, send it to you, and refine it with the refinements included in your experience.',
+      'You choose an experience, tell us about the moment or person it is for, pick a style or let us choose, and upload your photograph where your artwork needs one. You do not need to write lyrics. You trust us with the creativity: we shape your words into a finished song, check every detail, and reveal it to you.',
   },
   {
     question: 'How much does a personalised song cost?',
@@ -119,15 +114,15 @@ const faqs: { question: string; answer: string }[] = [
   },
   {
     question: `What is ${MOMENT.name}?`,
-    answer: `${MOMENT.name} is ${MOMENT_VARIANT ? formatMoney(MOMENT_VARIANT.price) : ''}. ${MOMENT.shortDescription} It includes ${MOMENT_VARIANT ? lower(inclusions(MOMENT, MOMENT_VARIANT)) : ''}, with ${MOMENT.revisions ?? ''}. ${turnaround(MOMENT)}.`,
+    answer: `${MOMENT.name} is ${MOMENT_VARIANT ? formatMoney(MOMENT_VARIANT.price) : ''}. ${MOMENT.shortDescription} It includes ${MOMENT_VARIANT ? lower(inclusions(MOMENT, MOMENT_VARIANT)) : ''}. ${turnaround(MOMENT)}.`,
   },
   {
     question: `What is ${KEEPSAKE.name}?`,
-    answer: `${KEEPSAKE.shortDescription} There are ${KEEPSAKE.variants.length} options: ${variantList(KEEPSAKE)}. Each includes personalised picture-disc artwork. There is no limit on how many you order — choose a separate ${KEEPSAKE.name} for different memories, or for different days of a journey. Refinements: ${lower(KEEPSAKE.revisions ?? '')}. ${turnaround(KEEPSAKE)}.`,
+    answer: `${KEEPSAKE.shortDescription} There are ${KEEPSAKE.variants.length} options: ${variantList(KEEPSAKE)}. Each includes personalised picture-disc artwork. There is no limit on how many you order — choose a separate ${KEEPSAKE.name} for different memories, or for different days of a journey. MCB creates the artwork from your photograph. ${turnaround(KEEPSAKE)}.`,
   },
   {
     question: `What is ${JOURNEY.name}?`,
-    answer: `${JOURNEY.shortDescription} ${JOURNEY.variants.map((v) => `${JOURNEY.name} — ${v.label} is ${formatMoney(v.price)}: ${lower(inclusions(JOURNEY, v))}.`).join(' ')} ${STANDARD_VINYL_NOT_PICTURE_DISC}. Refinements: ${lower(JOURNEY.revisions ?? '')}. ${turnaround(JOURNEY)}.`,
+    answer: `${JOURNEY.shortDescription} ${JOURNEY.variants.map((v) => `${JOURNEY.name} — ${v.label} is ${formatMoney(v.price)}: ${lower(inclusions(JOURNEY, v))}.`).join(' ')} ${STANDARD_VINYL_NOT_PICTURE_DISC}. MCB creates the artwork from your photograph. ${turnaround(JOURNEY)}.`,
   },
   {
     question: `What is ${BESPOKE.name}?`,
@@ -159,7 +154,7 @@ const faqs: { question: string; answer: string }[] = [
      * Fifteen working days is how long to ALLOW, and the answer says which
      * parts of that MCB controls and which it does not.
      */
-    answer: `${MOMENT.name}: ${lower(turnaround(MOMENT))} — we write, produce and send it ourselves, with nothing to manufacture and no carrier involved. For ${KEEPSAKE.name} and ${JOURNEY.name}, allow at least ${RECOMMENDED_PLANNING_DAYS} working days: that covers writing, recording, production, your refinements, manufacturing and postage. It is a planning guide rather than a guaranteed arrival date, because the carrier's leg is not ours to control.`,
+    answer: `${MOMENT.name}: ${lower(turnaround(MOMENT))} — we write, produce, check and reveal it ourselves, with nothing to manufacture and no carrier involved. For ${KEEPSAKE.name} and ${JOURNEY.name}, allow at least ${RECOMMENDED_PLANNING_DAYS} working days: that covers writing, recording, production, our quality check, manufacturing and postage. It is a planning guide rather than a guaranteed arrival date, because the carrier's leg is not ours to control.`,
   },
   {
     question: 'I need it for a specific date. Can you guarantee it?',
@@ -187,24 +182,20 @@ const faqs: { question: string; answer: string }[] = [
   },
   PLAQUE_PLAYS_MUSIC,
   AFTER_YOU_ORDER,
-  HOW_APPROVAL_WORKS,
+  HOW_MCB_CREATES,
+  WILL_I_RECEIVE_A_DRAFT,
+  THE_REVEAL,
+  IF_MCB_GETS_A_DETAIL_WRONG,
+  IF_I_WOULD_HAVE_CHOSEN_DIFFERENTLY,
+  WHAT_PHOTOGRAPH,
   {
     question: 'Do I need to write lyrics?',
     answer:
       'No. Share thoughts, notes or memories and our producers shape them into music. You provide the story, we craft the song.',
   },
   {
-    question: 'Can I request changes?',
-    /** Entitlements READ FROM THE CATALOGUE (`product.revisions`), not restated. */
-    answer: `Yes — every experience includes refinements. ${listOf(PRICED_EXPERIENCES.map((p) => `${p.name}: ${lower(p.revisions ?? '')}`))}. ${REFINEMENT_DEFINITION} If what you would like is genuinely a different piece of work, we will tell you and quote for it rather than absorbing it or refusing it quietly.`,
-  },
-  {
-    question: 'Refinement or remake?',
-    answer: `${REFINEMENT_MEANING} ${REMAKE_MEANING}`,
-  },
-  {
     question: 'What if I ask MCB to choose the style?',
-    answer: `${MCB_CHOOSES} If you already have a style in mind, simply choose it when you create your memory — every song on your order can have its own.`,
+    answer: `You are trusting our creative judgement: the musical direction becomes ours to choose and part of the reveal. If you already have a style in mind, simply choose it when you create your memory — a style you choose is part of what you ask for, and every song on your order can have its own.`,
   },
   {
     question: 'Is delivery included?',
@@ -213,14 +204,14 @@ const faqs: { question: string; answer: string }[] = [
   WHO_MAKES_AND_DELIVERS,
   IF_IT_ARRIVES_DAMAGED,
   {
-    question: 'When can I no longer change my order?',
+    question: 'When does personalised production begin?',
     answer:
-      'Once you have approved your work and we have started anything irreversible — pressing a record or printing — your order is locked and the included refinements are closed. That is about changes of mind. If something arrives damaged, faulty or not as described, contact MCB — we\'ll deal with it for you whether the order is locked or not, and your normal consumer rights are not affected.',
+      "As soon as your payment is confirmed. Because we create from exactly what you give us, please check names, spellings, dates and photographs before you pay. If something is objectively wrong with what we supplied — or damaged, faulty or not as described — contact MCB and we'll deal with it for you; your normal consumer rights are not affected.",
   },
   {
     question: 'Can I upload photos for album artwork?',
     answer:
-      'Yes. Photo uploads are optional and used solely for artwork creation. We can create custom artwork inspired by your photos or based on your story.',
+      'Yes — for a Keepsake or Journey it is required, because MCB creates your artwork from your photograph. Photographs are used only to create your order. For a Moment a photo is optional.',
   },
   {
     question: 'Can I get a refund?',
@@ -230,7 +221,7 @@ const faqs: { question: string; answer: string }[] = [
      * described a cancellation route the contract no longer offers.
      */
     answer:
-      'Please read clause 7 of our Terms before you order: there is no cancellation of the product service after payment, and a no refund policy for a change of mind. That does not affect your rights if an item arrives damaged, faulty or not as described — clauses 8 and 17 explain what to do, and we\'ll handle it for you.',
+      'Please read clauses 6 and 7 of our Terms before you order. Personalised production begins when your payment is confirmed, so there is no cancellation for a change of mind or a different creative preference, as permitted by applicable law. That does not affect your rights if something is genuinely wrong, or an item arrives damaged, faulty or not as described — clauses 6, 8 and 17 explain what to do, and we\'ll handle it for you.',
   },
 
   {

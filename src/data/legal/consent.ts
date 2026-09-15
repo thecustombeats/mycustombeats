@@ -1,5 +1,9 @@
 /**
- * CONSENT AT CHECKOUT — three separate acts, kept separate.
+ * CONSENT AT CHECKOUT — four separate acts, kept separate.
+ *
+ * The fourth, CREATIVE_AUTHORITY, was added for the Single Creative Authority
+ * customer journey (15 September 2026): the customer gives MCB the creative
+ * decisions, and there is no draft or approval stage after payment.
  *
  * ─────────────────────────────────────────────────────────────────────────
  * WHY NOT ONE CHECKBOX
@@ -11,8 +15,7 @@
  * Under UK distance-selling rules a consumer ordinarily has a 14-day
  * cancellation period. Two of the things MCB does routinely interact with it:
  *
- *   • MCB starts the creative work immediately — a Moment is delivered inside
- *     an hour. Beginning a service inside the cancellation period is
+ *   • MCB starts personalised production as soon as payment is confirmed. Beginning a service inside the cancellation period is
  *     something the customer has to ask for.
  *   • MCB supplies digital content inside that period, and the customer's
  *     right to cancel digital content ends when supply begins WITH their
@@ -27,7 +30,7 @@
  * A NOTE ON "REQUIRED"
  * ─────────────────────────────────────────────────────────────────────────
  * The service-start acknowledgement is required to place an order, because
- * MCB genuinely cannot deliver a one-hour Moment while also waiting fourteen
+ * MCB begins personalised production at payment and cannot also wait fourteen
  * days to begin. That is honest, but it is only honest if the customer can
  * see exactly what they are agreeing to before they agree — which is why the
  * wording below states the consequence in the same sentence as the request,
@@ -55,10 +58,19 @@ export type ConsentId =
    * period ends the right to cancel it. Only asked where the order actually
    * includes digital delivery.
    */
-  | "DIGITAL_CONTENT";
+  | "DIGITAL_CONTENT"
+  /**
+   * SINGLE CREATIVE AUTHORITY (15 September 2026): the customer authorises
+   * MCB to make the creative and production decisions, understanding there
+   * are no drafts for approval and no subjective revisions. Asked of every
+   * order. NEEDS PROFESSIONAL LEGAL REVIEW — see `review.ts`.
+   */
+  | "CREATIVE_AUTHORITY";
 
 export interface ConsentDefinition {
   id: ConsentId;
+  /** A short heading shown above the sentence, where one is approved. */
+  heading?: string;
   /** The sentence beside the checkbox. Plain, and complete on its own. */
   label: string;
   /** The consequence, said in full rather than linked to. */
@@ -92,7 +104,7 @@ export const CONSENTS: readonly ConsentDefinition[] = [
      * to be caught out by.
      */
     detail:
-      "These explain what is included, how refinements work, when your order can no longer be changed, that delivery times are estimates, and our position on cancelling and refunds — please read clause 7.",
+      "These explain what is included, how MCB's creative authority works, when personalised production begins, that delivery times are estimates, and our position on cancelling and refunds — please read clauses 4 to 7.",
     error:
       "Please confirm you have read and agree to our terms before placing your order.",
     appliesTo: "ALWAYS",
@@ -116,7 +128,7 @@ export const CONSENTS: readonly ConsentDefinition[] = [
     label:
       "Please start work on my order straight away.",
     detail:
-      "We begin as soon as you order — that is how a Moment arrives within the hour. Clause 7 of our Terms explains what that means for cancelling, and we would rather you read it before you buy than afterwards.",
+      "Personalised production begins as soon as your payment is confirmed, so we can create and reveal your work quickly. Clause 7 of our Terms explains what that means for cancelling, and we would rather you read it before you buy than afterwards.",
     error:
       "We need you to ask us to begin before we can start your order. Without this we cannot start work for 14 days.",
     appliesTo: "ALWAYS",
@@ -130,6 +142,17 @@ export const CONSENTS: readonly ConsentDefinition[] = [
     error:
       "Please confirm you understand this before we send you digital music files.",
     appliesTo: "DIGITAL_DELIVERY",
+  },
+  {
+    id: "CREATIVE_AUTHORITY",
+    heading: "Creative Authority & Personalised Production",
+    /** Founder-approved wording (15 September 2026). NEEDS PROFESSIONAL LEGAL REVIEW. */
+    label:
+      "I understand that MCB™ will use the information, preferences and photographs I provide to independently create my personalised song and custom artwork. I authorise MCB™ to make the creative and production decisions required to complete my order. I understand that I will not receive song or artwork drafts for creative approval and that subjective creative revisions are not included in my order. Once personalised production begins, cancellation/refund rights may be limited as permitted by applicable law. This does not affect any statutory rights that cannot legally be excluded.",
+    detail:
+      "Please check the names, spellings, dates, places, story, music choices and photographs you have given us before you pay — MCB creates from exactly what you provide.",
+    error: "Please confirm the Creative Authority & Personalised Production statement before placing your order.",
+    appliesTo: "ALWAYS",
   },
 ];
 
@@ -168,4 +191,5 @@ export const INITIAL_CONSENT_STATE: Readonly<Record<ConsentId, boolean>> = {
   TERMS: false,
   SERVICE_START: false,
   DIGITAL_CONTENT: false,
+  CREATIVE_AUTHORITY: false,
 };

@@ -46,7 +46,8 @@ export const addOnProducts = (): readonly Product[] =>
     (product) =>
       product.onlineCheckout &&
       product.category !== "SONG_EXPERIENCE" &&
-      product.category !== "PROTECTION"
+      product.category !== "PROTECTION" &&
+      product.category !== "ARTWORK_SERVICE"
   );
 
 export const isQuoted = (product: Pick<Product, "commercialModel">): boolean =>
@@ -116,6 +117,10 @@ export type OrderPreview =
   | { ok: false; reason: string };
 
 export const PRIORITY_REPLACEMENT_SKU = "priority-replacement";
+export const ARTWORK_PREPARATION_SKU = "artwork-preparation";
+
+/** Products whose artwork is created from a customer photograph (vinyl artwork). */
+export const PHOTO_ARTWORK_PRODUCT_IDS: ReadonlySet<string> = new Set(["keepsake", "journey"]);
 
 /**
  * Prices lines using the same rules the server enforces
@@ -130,6 +135,7 @@ export const previewOrder = (requests: readonly OrderLineRequest[]): OrderPrevie
   let eligibleUnits = 0;
   let priorityUnits = 0;
   let hasSongExperience = false;
+  let hasPhotoArtwork = false;
 
   for (const request of requests) {
     if (seen.has(request.sku)) return { ok: false, reason: "duplicate_sku" };
@@ -140,6 +146,8 @@ export const previewOrder = (requests: readonly OrderLineRequest[]): OrderPrevie
       return { ok: false, reason: "invalid_quantity" };
     }
     if (ref.product.category === "SONG_EXPERIENCE") hasSongExperience = true;
+    if (PHOTO_ARTWORK_PRODUCT_IDS.has(ref.product.id)) hasPhotoArtwork = true;
+    if (ref.variant.sku === ARTWORK_PREPARATION_SKU && request.quantity !== 1) return { ok: false, reason: "artwork_preparation_ineligible" };
     if (ref.variant.priorityReplacementEligible) eligibleUnits += request.quantity;
     if (ref.variant.sku === PRIORITY_REPLACEMENT_SKU) priorityUnits += request.quantity;
     lines.push({
@@ -156,6 +164,7 @@ export const previewOrder = (requests: readonly OrderLineRequest[]): OrderPrevie
 
   if (!hasSongExperience) return { ok: false, reason: "no_song_experience" };
   if (priorityUnits > eligibleUnits) return { ok: false, reason: "priority_replacement_ineligible" };
+  if (seen.has(ARTWORK_PREPARATION_SKU) && !hasPhotoArtwork) return { ok: false, reason: "artwork_preparation_ineligible" };
 
   return {
     ok: true,

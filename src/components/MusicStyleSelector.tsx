@@ -360,10 +360,8 @@ const MusicStyleSelector = ({
               </span>
               {isMcbChoice && (
                 <span className="mt-2 block text-sm leading-relaxed text-espresso/75">
-                  You're trusting our creative judgement for this song. Refinements
-                  within that direction are included; if you later want an entirely
-                  different genre once the song is produced, that becomes a remake
-                  rather than a refinement.
+                  You're trusting our creative judgement for this song — the musical
+                  direction is ours to choose, and it becomes part of the reveal.
                 </span>
               )}
             </span>

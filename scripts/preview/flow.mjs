@@ -80,7 +80,7 @@ await step("continue to review", () => click(byText("button", "Continue to revie
 await sleep(900);
 await step("heading", () => ev(`document.querySelector("h1").textContent`));
 await step("total", () => ev(`[...document.querySelectorAll("dd")].map(d => d.textContent).filter(t => t.startsWith("£")).join(" ")`));
-await step("remake note", () => ev(`document.body.textContent.includes("remake rather than a refinement")`));
+await step("creative authority note", () => ev(`document.body.textContent.includes("part of the reveal")`));
 await step("pay without consent", () => click(byText("button", "Continue to secure payment")));
 await sleep(500);
 await step("consent errors", () => ev(`document.querySelectorAll('[data-field=consents] [role=alert]').length`));

@@ -282,8 +282,10 @@ function post_payment_email_text(array $payload): string
     $lines[] = '';
     $lines[] = 'What happens next';
     $lines[] = '';
-    $lines[] = 'Our team will now begin processing your custom music experience. '
-             . 'We will be in touch if we need anything further from you.';
+    $lines[] = 'Our creative team now begins creating your personalised music experience from the '
+             . 'story, preferences and photographs you gave us. Every order is quality-checked by MCB '
+             . 'before it is revealed or made. We will only be in touch if something we '
+             . 'need is missing.';
 
     if (($payload['delivery'] ?? null) !== null && $payload['delivery'] !== '') {
         $lines[] = '';
@@ -399,7 +401,7 @@ TERMS;
     <p style="margin:0 0 24px;">Please keep this reference for all future correspondence with My Custom Beats.</p>
 
     <p style="margin:0 0 8px;font-weight:bold;">What happens next</p>
-    <p style="margin:0;">Our team will now begin processing your custom music experience. We will be in touch if we need anything further from you.</p>
+    <p style="margin:0;">Our creative team now begins creating your personalised music experience from the story, preferences and photographs you gave us. Every order is quality-checked by MCB before it is revealed or made. We will only be in touch if something we need is missing.</p>
     {$deliveryLine}
     {$termsBlock}
 

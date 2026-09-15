@@ -1,8 +1,8 @@
 import { Check } from "lucide-react";
 import { Link } from "react-router-dom";
-import { PRIORITY_REPLACEMENT, formatMinor, getProduct, getVariant, type OrderPreview } from "../../data/catalogue";
+import { ARTWORK_PREPARATION, PRIORITY_REPLACEMENT, formatMinor, getProduct, getVariant, type OrderPreview } from "../../data/catalogue";
 import { getCountry } from "../../data/countries";
-import { CONSENTS, DELIVERY_CONFIRMED_FIRST_NOTE, FULFILMENT_POSITION, SEPARATE_PARCELS_NOTE, TERMS_VERSION, getConsent, requiredConsents, type ConsentId } from "../../data/legal";
+import { CHECK_YOUR_DETAILS, CONSENTS, CREATIVE_PROMISE, DELIVERY_CONFIRMED_FIRST_NOTE, FULFILMENT_POSITION, SEPARATE_PARCELS_NOTE, TERMS_VERSION, getConsent, requiredConsents, type ConsentId } from "../../data/legal";
 import { OCCASIONS, type OccasionId } from "../../data/occasions";
 import { hasDigitalDelivery, type ContactDetails, type StepId } from "../../lib/createFlow";
 import type { Quote } from "../../lib/orderApi";
@@ -33,6 +33,12 @@ const listNames = (names: readonly string[]): string =>
 
 const EditLink = ({ onClick, label }: { onClick: () => void; label: string }) => (
   <button type="button" onClick={onClick} className="min-h-11 text-base font-medium text-gold-deep underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep">
+    {label}
+  </button>
+);
+
+const EditLinkLight = ({ onClick, label }: { onClick: () => void; label: string }) => (
+  <button type="button" onClick={onClick} className="mt-3 min-h-11 text-base font-medium text-gold underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
     {label}
   </button>
 );
@@ -79,14 +85,14 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
         ))}
         {anyMcbChoice && (
           <p className="mt-5 rounded-xl bg-ivory p-4 text-base leading-relaxed text-espresso/80">
-            Where you've asked MCB to choose the style, you're trusting our creative judgement. Refinements within that direction are included; asking for an entirely different genre after the song is produced is a remake rather than a refinement.{" "}
-            <Link to="/faq" target="_blank" className="font-medium text-gold-deep underline underline-offset-4">Refinement or remake?</Link>
+            Where you've asked MCB to choose the style, the musical direction is ours to choose — it becomes part of the reveal.{" "}
+            <Link to="/faq" target="_blank" className="font-medium text-gold-deep underline underline-offset-4">How MCB creates</Link>
           </p>
         )}
       </section>
 
       {/* ---- Finishing touches ---- */}
-      {(draft.plaques.length > 0 || draft.frames.length > 0 || draft.players.length > 0 || prCount > 0) && (
+      {(draft.plaques.length > 0 || draft.frames.length > 0 || draft.players.length > 0 || prCount > 0 || draft.artworkPreparation) && (
         <section aria-labelledby="review-extras" className="rounded-2xl bg-white p-5 sm:p-7">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2 id="review-extras" className="!text-3xl text-ink">Finishing touches</h2>
@@ -103,6 +109,7 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
             {draft.players.map((player) => (
               <li key={player.sku}>{getProduct(getVariant(player.sku)?.product.id ?? "")?.name ?? player.sku}{player.quantity > 1 ? ` × ${player.quantity}` : ""}</li>
             ))}
+            {draft.artworkPreparation && <li>{ARTWORK_PREPARATION.name} — chosen by you, once for this order</li>}
             {prCount > 0 && (
               <li>
                 {PRIORITY_REPLACEMENT.name}:{" "}
@@ -207,6 +214,11 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
       {/* ---- Consent ---- */}
       <fieldset className="space-y-4" data-field="consents">
         <legend className="mb-2 font-serif text-2xl text-ink">Before we begin</legend>
+        <div className="rounded-2xl bg-ink p-5 text-ivory sm:p-6">
+          <p className="font-serif text-2xl !text-ivory">{CREATIVE_PROMISE}</p>
+          <p className="mt-2 text-base leading-relaxed text-ivory/90">{CHECK_YOUR_DETAILS}</p>
+          <EditLinkLight onClick={() => goTo("story")} label="Check your story and photographs" />
+        </div>
         {CONSENTS.filter((consent) => required.includes(consent.id)).map((consent) => {
           const id = `consent-${consent.id}`;
           const error = showErrors && !consents[consent.id] ? getConsent(consent.id)?.error ?? "Please confirm this to continue." : undefined;
@@ -226,6 +238,7 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
                   <Check aria-hidden="true" strokeWidth={3.5} className="pointer-events-none absolute h-4 w-4 text-white opacity-0 peer-checked:opacity-100" />
                 </span>
                 <span>
+                  {consent.heading && <span className="mb-1 block font-serif text-xl text-ink">{consent.heading}</span>}
                   <span className="block text-base leading-relaxed text-ink">{consent.label}</span>
                   <span id={`${id}-detail`} className="mt-1 block text-sm leading-relaxed text-espresso/70">{consent.detail}</span>
                   {consent.id === "TERMS" && (

@@ -212,8 +212,6 @@ $moneyRow = $money->fetch();
 $lines = $pdo->prepare('SELECT item_id AS sku, item_name AS name, category, quantity, unit_minor FROM order_items WHERE order_id = :id ORDER BY id');
 $lines->execute([':id' => $orderId]);
 
-$changes = $pdo->prepare('SELECT approval_round, channel, feedback, within_allowance, recorded_by, created_at FROM order_change_requests WHERE order_id = :id ORDER BY id');
-$changes->execute([':id' => $orderId]);
 
 $service = $pdo->prepare(
     'SELECT s.id, s.kind, s.priority_replacement_requested, s.eligibility, s.description, s.status, s.resolution,
@@ -283,24 +281,31 @@ json_response(200, [
         'stage'             => $row['stage'],
         'personalisation'   => $row['personalisation_status'],
         'creative'          => ['started_at' => $row['creative_started_at'], 'ready_at' => $row['creative_ready_at']],
-        'approval'          => [
-            'round'        => (int) ($row['approval_round'] ?? 0),
-            'requested_at' => $row['approval_requested_at'],
-            'preview_url'  => $row['approval_preview_url'],
-            'approved_at'  => $row['approved_at'],
-            'channel'      => $row['approval_channel'],
+        'quality_check'     => [
+            'submitted_at' => $row['qc_submitted_at'],
+            'passed_at'    => $row['qc_passed_at'],
+            'passed_by'    => $row['qc_passed_by'],
+            'checklist'    => $row['qc_checklist'] === null ? null : json_decode((string) $row['qc_checklist'], true),
+            'failed_count' => (int) ($row['qc_failed_count'] ?? 0),
+            'items'        => array_map(static fn (string $id): string => $id, required_qc_items(order_workflow($row))),
         ],
-        'revisions'         => [
-            'included' => included_revision_allowance($pdo, $orderId),
-            'used'     => (int) ($row['revisions_used'] ?? 0),
-            'requests' => $changes->fetchAll(),
-        ],
+        'reveal'            => order_workflow($row) === 'DIGITAL' ? [
+            'url'         => $row['reveal_url'],
+            'revealed_at' => $row['revealed_at'],
+        ] : null,
+        // Evidence from the retired customer-approval model, kept for historical records only.
+        'legacy_approval'   => $row['approved_at'] !== null || (int) ($row['approval_round'] ?? 0) > 0 ? [
+            'approved_at' => $row['approved_at'],
+            'channel'     => $row['approval_channel'],
+            'rounds'      => (int) ($row['approval_round'] ?? 0),
+        ] : null,
         'fulfilment'        => [
             'state'          => effective_fulfilment_state($row),
             'pending_reason' => $row['fulfilment_pending_reason'],
             'ready_at'       => $row['fulfilment_ready_at'],
             'confirmed_at'   => $row['fulfilment_confirmed_at'],
             'reference'      => $row['fulfilment_reference'],
+            'purchase_authorised_by' => $row['supplier_purchase_authorised_by'],
             // Availability, destination and delivery cost confirmed with the partner.
             'review_required'  => $reviewRequired,
             'review_confirmed' => $reviewConfirmed,

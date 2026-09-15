@@ -470,7 +470,8 @@ const variantProperties = (product: Product, variant: Variant): Node[] => {
     // Stated only where included; the absence of a claim is not a claim.
     if (variant.artworkIncluded) props.push(property("Personalised artwork included", true));
     if (variant.masteringIncluded) props.push(property("Mastering included", true));
-    if (product.revisions) props.push(property("Revisions", product.revisions));
+    // The creative model, stated plainly: no drafts for approval; MCB quality-checks every order.
+    if (product.category === "SONG_EXPERIENCE") props.push(property("Creative process", "Created by MCB from your story; quality-checked; revealed when finished"));
   }
 
   // Approximate sizes are not published until they are verified.

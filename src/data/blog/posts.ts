@@ -77,17 +77,17 @@ export const BLOG_POSTS: readonly BlogPost[] = [
       { type: "h2", id: "choose-a-style", text: "5. Choose a style — or let us choose" },
       { type: "p", text: "Think about the music the person already loves, or the atmosphere of the moment. A beach wedding might suit something acoustic and relaxed; a big family birthday might want something upbeat enough to sing along to. If you are not sure, you can ask us to choose, and we will pick a style that suits the story you have told." },
 
-      { type: "h2", id: "photos", text: "6. Add a photo if it helps" },
-      { type: "p", text: `For a record, a photograph can become part of the artwork. ${KEEPSAKE.name} comes with personalised picture-disc artwork, and ${JOURNEY.name} includes personalised album artwork that can include your approved photograph. Choose a clear, well-lit image that you are happy to see printed large.` },
+      { type: "h2", id: "photos", text: "6. Upload your photograph" },
+      { type: "p", text: `For a record, MCB creates the artwork from your photograph: ${KEEPSAKE.name} picture-disc artwork and ${JOURNEY.name} album artwork both need at least one. A square photo of at least 2500 × 2500 pixels works best; if yours isn't, you can choose another or add MCB Artwork Preparation before you pay. For ${MOMENT.name}, a photo is optional.` },
 
       { type: "h2", id: "what-happens-next", text: "7. What happens after you share it" },
       { type: "ol", items: [
-        "We read your story and write lyrics from it.",
-        "We record and produce the song in the style you chose.",
-        "We send it to you to listen to. If something is not quite right — a line, the pace, the feel of a section — you can ask for a change.",
-        "Once you approve it, a digital song is yours to keep and share; a record is then made for you.",
+        "You trust us with the creativity: we read your story and write lyrics from it.",
+        "We record and produce the song in the style you chose, or the one we chose for you.",
+        "Our team checks every detail against what you gave us — names, dates, places and photographs.",
+        "Then comes the reveal: a digital song arrives by private link; a record is made for you and arrives as the surprise. There are no drafts to approve.",
       ] },
-      { type: "p", text: `${MOMENT.name} is our digital song, with ${(MOMENT.revisions ?? "").toLowerCase()} included. ${KEEPSAKE.name} and ${JOURNEY.name} are physical records made to order; for those, allow at least ${RECOMMENDED_PLANNING_DAYS} working days, and tell us before you order if you need it for a particular date.` },
+      { type: "p", text: `Because we create from exactly what you share, check names, spellings and dates carefully before you pay. ${KEEPSAKE.name} and ${JOURNEY.name} are physical records made to order; for those, allow at least ${RECOMMENDED_PLANNING_DAYS} working days, and tell us before you order if you need it for a particular date.` },
 
       { type: "h2", id: "choosing-a-format", text: "Digital song, picture disc or album?" },
       { type: "ul", items: [
@@ -257,7 +257,7 @@ export const BLOG_POSTS: readonly BlogPost[] = [
       { type: "p", text: "If your record arrives damaged or faulty, tell us as soon as you can and we will help. Your normal consumer rights are not affected." },
 
       { type: "h2", id: "planning", text: "Planning ahead" },
-      { type: "p", text: `Each Keepsake is made to order: the music is written and produced, you approve it, and then the record is made. Allow at least ${RECOMMENDED_PLANNING_DAYS} working days, and if you need it for a specific date, tell us before you order.` },
+      { type: "p", text: `Each Keepsake is made to order: the music is written and produced, our team checks it, and then the record is made — and arrives as the reveal. Allow at least ${RECOMMENDED_PLANNING_DAYS} working days, and if you need it for a specific date, tell us before you order.` },
 
       { type: "h2", id: "summary", text: "In short" },
       { type: "p", text: "A picture disc turns a personalised song into an object: a record you can play, with your memory set into the disc. Choose a size for the number of songs you want, pick a clear and simple photograph, keep it out of heat and sunlight — and it will keep the moment in the room for years." },

@@ -103,6 +103,18 @@ if ($image === null) {
     json_error(415, 'photo_type_not_accepted', 'Please choose a JPEG, PNG, WebP or HEIC photo.');
 }
 
+/**
+ * ARTWORK-READY PHOTOGRAPHS (Single Creative Authority). Keepsake and Journey
+ * artwork is created by MCB from the customer's photograph, so a memory photo
+ * on those orders must be square (within 1%) and at least 2500 × 2500 pixels —
+ * larger is welcome — unless the order already includes the MCB Artwork
+ * Preparation Service, chosen by the customer before payment. A photo whose
+ * size cannot be read (HEIC) cannot be confirmed as artwork-ready.
+ */
+if ($target['column'] === 'memory_id' && !artwork_photo_is_acceptable(db(), (int) $order['id'], $image)) {
+    json_error(422, 'photo_not_artwork_ready', 'This photograph is not artwork-ready: please choose a square photo of at least 2500 × 2500 pixels, or add the MCB Artwork Preparation Service before you pay.');
+}
+
 
 $storedName = bin2hex(random_bytes(32));
 $destination = $directory . '/' . $storedName;

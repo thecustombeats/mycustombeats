@@ -80,7 +80,9 @@ for u, us in enumerate(units_spec):
         {k: v for k, v in {
             "story": m.get("story", f"Unit {u+1}, memory {i+1}: the evening on deck."),
             "about": m.get("about", ""), "occasion": m.get("occasion", ""),
-            "style": style(m.get("style", "MCB")), "photo": m.get("photo", False)}.items()}
+            "style": style(m.get("style", "MCB")),
+            # Keepsake and Journey artwork is created from a photograph: by default the first memory has one.
+            "photo": m.get("photo", i == 0 and skus[us.get("sku", sku)]["product_id"] in ("keepsake", "journey") and not spec.get("no_photo"))}.items()}
         for i, m in enumerate(mems)]})
 plaques = [{"songTitle": f"Our Song {i+1}", "artist": "The Band"} for i in range(spec.get("plaques", 0))]
 frames = [{"sku": f[0], "unit": f[1], "memory": f[2], "heading": f[3] if len(f) > 3 else ""} for f in spec.get("frames", [])]
@@ -92,10 +94,11 @@ lines += [{"sku": s, "quantity": n} for s, n in fc.items()]
 lines += [{"sku": p[0], "quantity": p[1]} for p in spec.get("players", [])]
 pr = sum(1 for u in units if u["priorityReplacement"])
 if pr: lines.append({"sku": "priority-replacement", "quantity": pr})
+if spec.get("artwork_prep"): lines.append({"sku": "artwork-preparation", "quantity": 1})
 body = {
     "firstName": "Tx", "lastName": "Customer", "email": spec.get("email", "tx@example.com"),
     "whatsapp": "+447000000456",
-    "consents": {"TERMS": True, "SERVICE_START": True, "DIGITAL_CONTENT": True}, "termsVersion": "2026-09-09.4",
+    "consents": {"TERMS": True, "SERVICE_START": True, "DIGITAL_CONTENT": True, "CREATIVE_AUTHORITY": True}, "creativeAuthorityVersion": "2026-09-15", "termsVersion": "2026-09-09.4",
     "lines": spec.get("lines_override", lines),
     "personalisation": spec.get("personalisation_override", {"units": units, "plaques": plaques, "frames": frames}),
 }
@@ -114,6 +117,15 @@ order() {
   CODE=$(post_json order "$(build_order "$1")")
   cp /tmp/tx.json /tmp/order.json
   OID=$(jget order_id /tmp/order.json); TOK=$(jget checkout_token /tmp/order.json)
+  # Unless the spec says "manual_photos", upload an artwork-ready photograph for
+  # every memory slot the order expects, and refresh the saved summary.
+  if [ "$CODE" = "201" ] && ! printf '%s' "$1" | grep -q '"manual_photos"'; then
+    local slots; slots=$(python3 -c 'import json;print(" ".join(s for s in (json.load(open("/tmp/order.json")).get("missing_uploads") or []) if s.startswith("memory:")))' 2>/dev/null)
+    if [ -n "$slots" ]; then
+      for slot in $slots; do upload "$OID" "$TOK" "$slot" "$FIX/photo-2500.jpg" >/dev/null; done
+      python3 -c 'import json;o=json.load(open("/tmp/order.json"));u=json.load(open("/tmp/tx.json"));o.update({k:u[k] for k in ("personalisation_status","missing_uploads","checkout_blocker") if k in u});json.dump(o,open("/tmp/order.json","w"))' 2>/dev/null
+    fi
+  fi
 }
 session() { release_limits; post_json checkout/session "{\"orderId\":$1,\"checkoutToken\":\"$2\"}"; }
 status_of() { post_json order-status "{\"orderId\":$1,\"checkoutToken\":\"$2\"}"; }
@@ -214,7 +226,7 @@ tc "  → outcome recorded" "$(grep -q '"outcome":"recorded"' /tmp/wh.json && ec
 GREF=$(q "SELECT mcb_reference FROM orders WHERE id=$GOID")
 tc "  → order PAID, in TEST mode" "$([ "$(q "SELECT CONCAT(status,'|',stripe_livemode) FROM orders WHERE id=$GOID")" = "PAID|0" ] && echo 1 || echo 0)"
 tc "  → exactly one MCB reference, MCB-YYYY-NNNNNN" "$(echo "$GREF" | grep -qE '^MCB-[0-9]{4}-[0-9]{6}$' && echo 1 || echo 0)"
-tc "  → audit: PAYMENT.RECEIVED, ORDER.PAID, CUSTOMER.CONFIRMATION.DUE and SENT" "$([ "$(q "SELECT GROUP_CONCAT(event_type ORDER BY id) FROM order_events WHERE order_id=$GOID AND event_type NOT IN ('ORDER.CREATED','PERSONALISATION.COMPLETE','CHECKOUT.SESSION_CREATED')")" = "PAYMENT.RECEIVED,ORDER.PAID,CUSTOMER.CONFIRMATION.DUE,CUSTOMER.CONFIRMATION.SENT" ] && echo 1 || echo 0)"
+tc "  → audit: PAYMENT.RECEIVED, ORDER.PAID, ORDER.READY_FOR_PROCESSING, CUSTOMER.CONFIRMATION.DUE and SENT" "$([ "$(q "SELECT GROUP_CONCAT(event_type ORDER BY id) FROM order_events WHERE order_id=$GOID AND event_type NOT IN ('ORDER.CREATED','PERSONALISATION.COMPLETE','CHECKOUT.SESSION_CREATED')")" = "PAYMENT.RECEIVED,ORDER.PAID,ORDER.READY_FOR_PROCESSING,CUSTOMER.CONFIRMATION.DUE,CUSTOMER.CONFIRMATION.SENT" ] && echo 1 || echo 0)"
 tc "  → one confirmation email, with the reference and no story text" "$([ "$(mail_count)" = "$((MAIL0+1))" ] && mail_log | tail -1 | grep -q "$GREF" && ! mail_log | tail -1 | grep -qiE 'Sinatra|captain|Motown' && echo 1 || echo 0)"
 curl -s -o /tmp/ref.json "$BASE/order-reference?session_id=$GSID_DB"
 tc "confirmation page data only after PAID: reference and purchase from the server" "$([ "$(jget reference /tmp/ref.json)" = "$GREF" ] && [ "$(jget status /tmp/ref.json)" = "PAID" ] && [ "$(jget purchase.value_minor /tmp/ref.json)" = "1500" ] && echo 1 || echo 0)"
@@ -311,7 +323,7 @@ restore_config
 
 # ===========================================================================
 section "4. PHYSICAL KEEPSAKE — PHOTO, PRIORITY REPLACEMENT, DELIVERY, PAYMENT"
-order '{"sku":"keepsake-7-picture-disc","email":"keepsake-e2e@example.com","units":[{"pr":true,"memories":[{"story":"Our first dance at sea.","style":"custom:Big band swing","photo":true}]}]}'
+order '{"sku":"keepsake-7-picture-disc","email":"keepsake-e2e@example.com","manual_photos":true,"units":[{"pr":true,"memories":[{"story":"Our first dance at sea.","style":"custom:Big band swing","photo":true}]}]}'
 KOID=$OID; KTOK=$TOK
 tc "the 7-inch Keepsake with a promised photo is saved AWAITING_UPLOADS" "$([ "$CODE" = "201" ] && [ "$(jget personalisation_status /tmp/order.json)" = "AWAITING_UPLOADS" ] && [ "$(jget missing_uploads /tmp/order.json)" = '["memory:1:1"]' ] && echo 1 || echo 0)"
 tc "  → custom style stored as the customer's own words" "$([ "$(q "SELECT CONCAT(style_choice,'|',style_label) FROM order_memories WHERE order_id=$KOID")" = "CUSTOM|Big band swing" ] && echo 1 || echo 0)"
@@ -319,7 +331,7 @@ KSUB=$(( $(price keepsake-7-picture-disc) + $(price priority-replacement) ))
 tc "  → subtotal = Keepsake + Priority Replacement; total adds the quoted delivery" "$([ "$(jget subtotal_minor /tmp/order.json)" = "$KSUB" ] && [ "$(jget total_minor /tmp/order.json)" = "$((KSUB + $(jget delivery.minor /tmp/order.json)))" ] && [ "$(jget delivery.test_only /tmp/order.json)" = "true" ] && echo 1 || echo 0)"
 t "checkout waits for the photo" 409 "$(session $KOID $KTOK)"
 tc "  → awaiting_uploads, and Stripe was not called" "$(body | grep -q 'awaiting_uploads' && echo 1 || echo 0)"
-t "the photo is uploaded against its memory" 201 "$(upload $KOID $KTOK memory:1:1 $FIX/photo-8x8.jpg)"
+t "the artwork-ready photo is uploaded against its memory" 201 "$(upload $KOID $KTOK memory:1:1 $FIX/photo-2500.jpg)"
 tc "  → personalisation COMPLETE, nothing missing, ready to pay" "$([ "$(jget personalisation_status)" = "COMPLETE" ] && [ "$(jget missing_uploads)" = "[]" ] && [ "$(jget checkout_blocker)" = "null" ] && echo 1 || echo 0)"
 tc "  → stored once, attached to that memory, as a JPEG" "$([ "$(q "SELECT CONCAT(COUNT(*),'|',MAX(mime_type)) FROM order_uploads up JOIN order_memories m ON m.id=up.memory_id WHERE up.order_id=$KOID")" = "1|image/jpeg" ] && echo 1 || echo 0)"
 stub_reset
@@ -346,7 +358,7 @@ t "  → without the key the brief is refused" 401 "$(curl -s -o /dev/null -w '%
 
 order '{"sku":"keepsake-12-picture-disc","email":"twelve-e2e@example.com","units":[{"memories":[{"story":"Day 1 — Sailaway","style":"1980s"},{"story":"Day 3 — First Port","style":"Jazz"},{"story":"Day 5 — Formal Night","style":"MCB"},{"story":"Day 8 — Sunset at Sea","style":"custom:Sea shanty"}]}]}'
 T12=$OID
-tc "a 12-inch Keepsake with four memories is ready to pay without photos" "$([ "$CODE" = "201" ] && [ "$(jget personalisation_status /tmp/order.json)" = "COMPLETE" ] && [ "$(session $T12 $TOK)" = "200" ] && echo 1 || echo 0)"
+tc "a 12-inch Keepsake with four memories and its artwork photograph is ready to pay" "$([ "$CODE" = "201" ] && [ "$(jget personalisation_status /tmp/order.json)" = "COMPLETE" ] && [ "$(session $T12 $TOK)" = "200" ] && echo 1 || echo 0)"
 tc "  → four memories, in order, each with its own style choice" "$([ "$(q "SELECT GROUP_CONCAT(CONCAT(sequence,':',style_choice,':',IFNULL(style_label,'-')) ORDER BY sequence) FROM order_memories WHERE order_id=$T12")" = "1:STYLE:1980s,2:STYLE:Jazz,3:MCB_CHOICE:-,4:CUSTOM:Sea shanty" ] && echo 1 || echo 0)"
 
 # ===========================================================================
@@ -434,7 +446,9 @@ tc "two experiences in one order are refused" "$([ "$S" = "422" ] && body | grep
 
 # ===========================================================================
 section "8. UPLOADS"
-order '{"sku":"journey-6","email":"uploads@example.com","units":[{"memories":[{"photo":true},{"photo":true},{},{},{},{}]}]}'
+# Artwork Preparation is on this order, so the file-safety checks below are
+# exercised with small test images; artwork-ready sizing is section 8c.
+order '{"sku":"journey-6","email":"uploads@example.com","artwork_prep":true,"manual_photos":true,"units":[{"memories":[{"photo":true},{"photo":true},{},{},{},{}]}]}'
 UOID=$OID; UTOK=$TOK
 t "a valid WebP is accepted" 201 "$(upload $UOID $UTOK memory:1:1 $FIX/photo-8x8.webp photo.webp)"
 printf 'this is plainly not an image\n' > /tmp/not-image.jpg
@@ -467,10 +481,40 @@ tc "upload responses never carry a path, file name or storage id" "$(grep -qE '[
 
 
 # ===========================================================================
+section "8c. ARTWORK-READY PHOTOGRAPHS AND THE £15 ARTWORK PREPARATION SERVICE"
+S=$(post_json order "$(build_order '{"sku":"keepsake-7-picture-disc","email":"no-photo@example.com","no_photo":true}')")
+tc "a Keepsake without any photograph is refused: MCB creates the artwork from it" "$([ "$S" = "422" ] && body | grep -q 'Please add a photograph for the artwork' && echo 1 || echo 0)"
+release_limits
+S=$(post_json order "$(build_order '{"sku":"journey-6","email":"no-photo-j@example.com","no_photo":true}')")
+tc "  → and a Journey likewise" "$([ "$S" = "422" ] && body | grep -q 'artwork of your Journey' && echo 1 || echo 0)"
+order '{"sku":"moment","email":"moment-nophoto@example.com"}'
+tc "  → a Moment's photograph stays optional" "$([ "$CODE" = "201" ] && [ "$(jget personalisation_status /tmp/order.json)" = "COMPLETE" ] && echo 1 || echo 0)"
+order '{"sku":"keepsake-7-picture-disc","email":"artwork-ready@example.com","manual_photos":true}'
+AROID=$OID; ARTOK=$TOK
+t "a small photograph is refused as not artwork-ready" 422 "$(upload $AROID $ARTOK memory:1:1 $FIX/photo-8x8.jpg)"
+tc "  → in plain words, offering another photo or Artwork Preparation" "$(body | grep -q 'photo_not_artwork_ready' && body | grep -q 'MCB Artwork Preparation Service' && echo 1 || echo 0)"
+t "a non-square 3000 × 2000 photograph is refused" 422 "$(upload $AROID $ARTOK memory:1:1 $FIX/photo-3000x2000.jpg)"
+t "  → the customer can upload another: a square 2500 × 2500 passes" 201 "$(upload $AROID $ARTOK memory:1:1 $FIX/photo-2500.png photo.png)"
+t "  → and a larger square 3000 × 3000 is not rejected for being larger" 201 "$(upload $AROID $ARTOK memory:1:1 $FIX/photo-3000.jpg)"
+tc "  → still one photo for that memory, and the order is ready" "$([ "$(q "SELECT COUNT(*) FROM order_uploads WHERE order_id=$AROID")" = "1" ] && [ "$(jget checkout_blocker)" = "null" ] && echo 1 || echo 0)"
+order '{"sku":"keepsake-7-picture-disc","email":"artwork-prep@example.com","artwork_prep":true,"manual_photos":true}'
+APOID=$OID; APTOK=$TOK
+tc "with the Artwork Preparation Service chosen, the £15 is priced by the server" "$([ "$CODE" = "201" ] && [ "$(jget subtotal_minor /tmp/order.json)" = "$(( $(price keepsake-7-picture-disc) + 1500 ))" ] && [ "$(q "SELECT CONCAT(item_id,':',quantity,':',unit_minor) FROM order_items WHERE order_id=$APOID AND item_id='artwork-preparation'")" = "artwork-preparation:1:1500" ] && echo 1 || echo 0)"
+t "  → and an unsuitable photograph is then accepted for MCB to prepare" 201 "$(upload $APOID $APTOK memory:1:1 $FIX/photo-3000x2000.jpg)"
+release_limits
+S=$(post_json order "$(build_order '{"sku":"moment","email":"prep-moment@example.com","artwork_prep":true}')")
+tc "the service is refused on a Moment (no photo artwork)" "$([ "$S" = "422" ] && body | grep -q 'artwork_preparation_ineligible' && echo 1 || echo 0)"
+release_limits
+S=$(post_json order "$(build_order '{"sku":"keepsake-7-picture-disc","email":"prep-twice@example.com","lines_override":[{"sku":"keepsake-7-picture-disc","quantity":1},{"sku":"artwork-preparation","quantity":2}]}')")
+tc "  → and more than once per order" "$([ "$S" = "422" ] && body | grep -q 'artwork_preparation_ineligible' && echo 1 || echo 0)"
+t "a forged price for the service is ignored: the quote is the catalogue's" 200 "$(post_json order-quote '{"lines":[{"sku":"keepsake-7-picture-disc","quantity":1},{"sku":"artwork-preparation","quantity":1,"unit_minor":1}],"shippingCountryCode":"GB"}')"
+tc "  → subtotal includes exactly £15" "$([ "$(jget subtotal_minor)" = "$(( $(price keepsake-7-picture-disc) + 1500 ))" ] && echo 1 || echo 0)"
+
+# ===========================================================================
 section "8b. PRIVATE STORAGE OR NO UPLOAD — PRODUCTION FAILS CLOSED"
 DEV_FILES_BEFORE=$(docker exec mcb-api sh -c 'ls /tmp/mcb-uploads-dev | wc -l' | tr -d ' ')
 WEBROOT_FILES_BEFORE=$(docker exec mcb-api sh -c 'find /var/www/html -type f | wc -l' | tr -d ' ')
-order '{"sku":"moment","email":"storage-prod@example.com","units":[{"memories":[{"photo":true}]}]}'
+order '{"sku":"moment","email":"storage-prod@example.com","manual_photos":true,"units":[{"memories":[{"photo":true}]}]}'
 SOID=$OID; STOK=$TOK
 with_config "\$c['uploads']['development_storage'] = false;"
 t "production with no private storage: the upload is refused" 503 "$(upload $SOID $STOK memory:1:1 $FIX/photo-8x8.jpg)"

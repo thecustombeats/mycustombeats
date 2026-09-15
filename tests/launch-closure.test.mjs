@@ -117,12 +117,13 @@ test("the Founder-approved delivery position and damage guidance are used verbat
   assert.ok(!/ours to put right/.test(customerText));
 });
 
-test("Terms and Refunds 2026-09-15 remove the internal contradictions without touching clauses 18 and 20", () => {
-  assert.equal(legal.TERMS_VERSION, "2026-09-15");
-  assert.equal(legal.REFUND_POLICY_VERSION, "2026-09-15");
+test("Terms and Refunds keep the launch-closure fixes without touching clauses 18 and 20", () => {
+  // Superseded the same day by the Single Creative Authority edition; the launch-closure fixes carry forward.
+  assert.equal(legal.TERMS_VERSION, "2026-09-15.2");
+  assert.equal(legal.REFUND_POLICY_VERSION, "2026-09-15.2");
+  assert.ok(legal.KNOWN_TERMS_VERSIONS.includes("2026-09-15"));
   assert.ok(legal.KNOWN_TERMS_VERSIONS.includes("2026-09-09.4"), "orders under the Founder's edition still resolve");
   const clause = (id) => legal.TERMS_CLAUSES.find((c) => c.id === id).body.join(" ");
-  assert.match(clause("refinements"), /Once you have approved a song, no further refinements/);
   assert.match(clause("cancellation"), /does not affect your rights if an item arrives damaged, faulty or not as described/);
   assert.ok(!/courier damages|take this up with the courier|reasonable customer service price/.test(clause("if-we-get-it-wrong")));
   assert.ok(clause("if-we-get-it-wrong").includes(legal.DAMAGE_GUIDANCE));
@@ -137,8 +138,8 @@ test("Terms and Refunds 2026-09-15 remove the internal contradictions without to
   assert.ok(!/24 hours|matter for the courier|discount price/.test(refunds));
   assert.ok(refunds.includes(legal.DAMAGE_GUIDANCE));
   const server = JSON.parse(read("public/api/data/legal.json"));
-  assert.equal(server.versions.terms, "2026-09-15");
-  assert.equal(server.versions.refund_policy, "2026-09-15");
+  assert.equal(server.versions.terms, "2026-09-15.2");
+  assert.equal(server.versions.refund_policy, "2026-09-15.2");
   // Priority Replacement's 7-day window is still only about the optional service.
   assert.match(read("src/pages/PriorityReplacement.tsx"), /not a time limit on your statutory rights/);
 });

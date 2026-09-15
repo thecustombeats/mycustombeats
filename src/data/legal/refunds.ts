@@ -39,6 +39,7 @@
  */
 
 import { DAMAGE_GUIDANCE, DAMAGE_GUIDANCE_NOT_A_CONDITION, FULFILMENT_POSITION, SEPARATE_PARCELS_NOTE } from "./delivery";
+import { PREFERENCE_VS_PROBLEM } from "./production";
 
 /*
  * LAUNCH CLOSURE EDITION 2026-09-15: the damage section follows the Terms'
@@ -58,27 +59,34 @@ export interface RefundSection {
 }
 
 export const REFUNDS_INTRO =
-  "Everything we make is made for one person, and we start as soon as you order. Our Terms set out what that means for changing or cancelling an order — please read clause 7 before you buy.";
+  "Everything we make is made for one person, and personalised production begins as soon as your payment is confirmed. Our Terms set out what that means for cancelling — please read clauses 4 to 7 before you buy.";
 
 export const REFUND_SECTIONS: readonly RefundSection[] = [
   {
     heading: "Cancelling",
     question: "Can I cancel after paying?",
     body: [
-      "No. There is no cancellation of the product service after payment, and there is a no refund policy for a change of mind. This is set out in clause 7 of our Terms.",
-      "That does not affect your rights if an item arrives damaged, faulty or not as described — see below.",
-      "Because of that, please make sure you are happy with what you are ordering — and with the timing — before you pay. If you are unsure about anything, ask us first.",
+      "Personalised production begins when your payment is confirmed, so there is no cancellation of the product service after payment and a no refund policy for a change of mind. Once personalised production begins, cancellation and refund rights may be limited as permitted by applicable law. This is set out in clause 7 of our Terms.",
+      "That does not affect your rights if something is genuinely wrong with what we supplied — see below.",
+      "Because of that, please check your details, story and photographs, and the timing, before you pay. If you are unsure about anything, ask us first.",
     ],
     clause: "cancellation",
   },
   {
-    heading: "After you have approved your work",
-    question: "I approved it, and now I want it different.",
+    heading: "If you would have chosen differently",
+    question: "It isn't quite how I imagined it.",
+    body: [PREFERENCE_VS_PROBLEM.preference, PREFERENCE_VS_PROBLEM.specification],
+    clause: "preference-and-problems",
+  },
+  {
+    heading: "If we got something wrong",
+    question: "You used the wrong name / the wrong photograph.",
     body: [
-      "Once you have approved your work and we have begun manufacturing, your included refinements are closed and the order is locked.",
-      "After that point, a change to the creative work is a new piece of work.",
+      PREFERENCE_VS_PROBLEM.problem,
+      "Tell us from your private order page or by email as soon as you can, and we'll look into it straight away.",
+      PREFERENCE_VS_PROBLEM.statutory,
     ],
-    clause: "production-lock",
+    clause: "preference-and-problems",
   },
   {
     heading: "If it arrives damaged",
@@ -102,7 +110,7 @@ export const REFUND_SECTIONS: readonly RefundSection[] = [
     question: "What about a concierge commission?",
     body: [
       "A Bespoke enquiry is not a purchase, so there is nothing to cancel and nothing has been charged.",
-      "Once a proposal is agreed, that commission's own written terms are what apply.",
+      "Scope, deliverables and price are agreed with you before payment. Once your commission enters personalised production, the creative decisions are entrusted to MCB, as with every MCB order.",
     ],
     clause: "cancellation",
   },

@@ -37,7 +37,7 @@ Describing these requirements grants nothing. The server still validates every f
 | Retrieve saved order | `POST /api/order-status` | website | checkout token |
 | Create checkout | `POST /api/checkout/session` | website | returns a Stripe-hosted URL; the customer pays there |
 | Order progress | `POST /api/order-progress` | customer link | secret link token only |
-| Approve / request changes | `POST /api/order-approval` | customer link | must remain a human customer decision |
+| ~~Approve / request changes~~ | `POST /api/order-approval` | — | **Retired** (Single Creative Authority, 15 Sept 2026): records nothing |
 | MCB LIVE enquiry | `POST /api/live/enquiry` | website | no quote, availability or deposit |
 | Bespoke enquiry | `POST /api/concierge/enquiry` | website | no price |
 
@@ -52,9 +52,10 @@ Internal, CRM-key only, read-only (POST → 405), no side effects, ordered by id
 | Event | Meaning |
 |---|---|
 | `ORDER.PAID` | Stripe confirmed payment; MCB reference issued |
-| `CREATIVE.READY` | Music finished internally, not yet with the customer |
-| `CUSTOMER.APPROVAL.REQUIRED` | Private listening/approval link issued for a round |
-| `CUSTOMER.APPROVAL.APPROVED` | Customer (or staff on their behalf) approved |
+| ~~`CREATIVE.READY`~~ (retired) | Music finished internally, not yet with the customer |
+| `ORDER.READY_FOR_PROCESSING` | Verified payment: the new order is ready for MCB's creative team |
+| `QUALITY_CHECK.READY` / `.PASSED` / `.FAILED` | MCB's internal quality check (never customer-facing) |
+| `REVEALED` | A digital creation was revealed to the customer |
 | `FULFILMENT.READY` | Physical order may be placed with a supplier **by a person** |
 | `DISPATCHED` | Staff recorded dispatch |
 | `DELIVERED` | Staff recorded delivery |

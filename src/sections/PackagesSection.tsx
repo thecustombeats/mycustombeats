@@ -44,7 +44,7 @@ const CARDS: readonly CardContent[] = [
     image: PACKAGE_IMAGERY.moment,
     imageAlt: "A glass raised at sunset over the sea",
     proposition: "One beautiful memory, turned into a personalised song and delivered digitally — ready to play, send or share.",
-    facts: compact([songRange(MOMENT), MOMENT.variants[0] && formatLine(MOMENT.variants[0]), MOMENT.revisions]),
+    facts: compact([songRange(MOMENT), MOMENT.variants[0] && formatLine(MOMENT.variants[0]), "Revealed with a private link"]),
     cta: `Create a ${MOMENT.name}`,
     secondary: { label: `About ${MOMENT.name}`, to: MOMENT.route ?? "/moment", track: true },
   },

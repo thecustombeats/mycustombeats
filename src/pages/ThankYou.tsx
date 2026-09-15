@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, Clock, HelpCircle } from "lucide-react";
-import { getProduct, getVariant } from "../data/catalogue";
+import { getVariant } from "../data/catalogue";
 import { trackPurchase, type ConfirmedPurchase } from "../lib/analytics";
 import { Helmet } from "react-helmet-async";
 import ShareMcb from "../components/ShareMcb";
@@ -116,28 +116,27 @@ const parsePurchase = (raw: unknown, reference: string): ConfirmedPurchase | nul
  *
  * Chosen from the SERVER's confirmed purchase, never from anything this device
  * remembers. A Moment keeps the fast promise the catalogue already makes for
- * it (its approved turnaround label, verbatim). A Keepsake or Journey is made
+ * it (revealed once quality-checked). A Keepsake or Journey is made
  * to order, so this page gives no timeline for it: MCB keeps the customer
  * updated instead. Until the purchase is confirmed, the wording is general.
  */
 const nextSteps = (purchase: ConfirmedPurchase | null): string[] => {
   const products = new Set(purchase?.items.map((item) => item.productId) ?? []);
-  const help = "If we need anything more from you, we'll be in touch.";
+  const help = "There's nothing more you need to do — we'll only be in touch if something we need is missing.";
   if (products.has("journey")) {
-    return ["We'll now begin creating your Journey, and we'll keep you updated as your songs and your record progress.", help];
+    return ["Personalised production has begun. We'll create your Journey, check every detail, and your record will arrive as the reveal.", help];
   }
   if (products.has("keepsake")) {
-    return ["We'll now begin creating your MCB experience, and we'll keep you updated as your music and your Keepsake progress.", help];
+    return ["Personalised production has begun. We'll create your music and artwork, check every detail, and your Keepsake will arrive as the reveal.", help];
   }
   if (products.has("moment")) {
-    const turnaround = getProduct("moment")?.turnaround?.label;
     return [
       "We've received your story, and we're now creating your Moment.",
-      ...(turnaround ? [`${turnaround} — we'll send your song to the email address you gave us.`] : []),
+      "Once it has passed our quality check, we'll email you a private link to experience the reveal.",
       help,
     ];
   }
-  return ["We'll now begin creating your MCB experience, and we'll keep you updated as it progresses.", help];
+  return ["Personalised production has begun. We'll keep you updated as it progresses.", help];
 };
 
 /**

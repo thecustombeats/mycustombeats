@@ -6,7 +6,7 @@
 import { getVariant, type OrderPreview } from "../data/catalogue";
 import { getCountry } from "../data/countries";
 import { requiredConsents, type ConsentId } from "../data/legal";
-import { addOnIssues, isSongSku, storyIssues, type OrderDraft } from "./personalisation";
+import { addOnIssues, isSongSku, photoIssues, storyIssues, type OrderDraft, type PhotoCheck } from "./personalisation";
 
 export const STEPS = [
   { id: "choose", label: "Choose", title: "Choose your experience" },
@@ -83,13 +83,14 @@ export const stepBlockers = (
   preview: OrderPreview,
   photoIds: ReadonlySet<string>,
   contact: ContactDetails,
-  consents: Record<ConsentId, boolean>
+  consents: Record<ConsentId, boolean>,
+  photoChecks: ReadonlyMap<string, PhotoCheck> = new Map()
 ): string[] => {
   switch (step) {
     case "choose":
       return isSongSku(draft.sku) && getVariant(draft.sku) ? [] : ["Choose which experience you would like."];
     case "story":
-      return storyIssues(draft).map((issue) => issue.message);
+      return [...storyIssues(draft).map((issue) => issue.message), ...photoIssues(draft, photoIds, photoChecks).map((issue) => issue.message)];
     case "extras":
       return addOnIssues(draft, photoIds).map((issue) => issue.message);
     case "details":
@@ -107,10 +108,11 @@ export const furthestReachableStep = (
   preview: OrderPreview,
   photoIds: ReadonlySet<string>,
   contact: ContactDetails,
-  consents: Record<ConsentId, boolean>
+  consents: Record<ConsentId, boolean>,
+  photoChecks: ReadonlyMap<string, PhotoCheck> = new Map()
 ): number => {
   for (let i = 0; i < STEPS.length - 1; i++) {
-    if (stepBlockers(STEPS[i].id, draft, preview, photoIds, contact, consents).length > 0) return i;
+    if (stepBlockers(STEPS[i].id, draft, preview, photoIds, contact, consents, photoChecks).length > 0) return i;
   }
   return STEPS.length - 1;
 };

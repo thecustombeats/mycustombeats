@@ -199,6 +199,7 @@ if ($missingConsents !== []) {
  * The document versions the customer accepted: stored as claimed, but only if
  * MCB actually published them.
  */
+$creativeAuthorityVersion = '';
 $termsVersion   = trim((string) ($body['termsVersion'] ?? ''));
 $refundVersion  = trim((string) ($body['refundPolicyVersion'] ?? ''));
 $privacyVersion = trim((string) ($body['privacyPolicyVersion'] ?? ''));
@@ -206,6 +207,13 @@ $privacyVersion = trim((string) ($body['privacyPolicyVersion'] ?? ''));
 if ($missingConsents === []) {
     if ($termsVersion === '' || !legal_version_is_known($termsVersion)) {
         $v->fail('termsVersion', 'We could not confirm which version of our terms you accepted. Please reload the page and try again.');
+    }
+    // The Creative Authority statement: the page must have shown the version
+    // MCB publishes now. A stale page is asked to reload rather than recorded
+    // as accepting wording it may not have displayed.
+    $creativeAuthorityVersion = (string) (legal_versions()['creative_authority_consent'] ?? '');
+    if ($creativeAuthorityVersion === '' || ($body['creativeAuthorityVersion'] ?? null) !== $creativeAuthorityVersion) {
+        $v->fail('consents', 'Please reload the page and confirm the Creative Authority & Personalised Production statement again.');
     }
     if ($refundVersion === '')  { $refundVersion  = $termsVersion; }
     if ($privacyVersion === '') { $privacyVersion = $termsVersion; }
@@ -279,7 +287,7 @@ try {
         $pricing, $fulfilment, $totalMinor, $attribution,
         $brief, $address, $termsVersion, $refundVersion, $privacyVersion,
         $hasDigitalDelivery, $referral, $checkoutTokenFor, $idempotencyHash, $requestHash,
-        $subtotalMinor, $delivery, $personalisation, $personalisationStatus
+        $subtotalMinor, $delivery, $personalisation, $personalisationStatus, $creativeAuthorityVersion
     ): int {
         // Upsert on the UNIQUE email. first_source_* is written once.
         $stmt = $pdo->prepare(
@@ -361,12 +369,14 @@ try {
                 terms_accepted_at,
                 service_start_requested, service_start_at,
                 digital_content_required, digital_content_ack, digital_content_ack_at,
+                creative_authority_version, creative_authority_accepted_at,
                 ip_hash, user_agent
              ) VALUES (
                 :oid, :tv, :rv, :pv,
                 UTC_TIMESTAMP(),
                 :ssr, UTC_TIMESTAMP(),
                 :dcr, :dca, :dcat,
+                :cav, UTC_TIMESTAMP(),
                 :iph, :ua
              )'
         )->execute([
@@ -378,6 +388,7 @@ try {
             ':dcr'  => $hasDigitalDelivery ? 1 : 0,
             ':dca'  => $hasDigitalDelivery ? 1 : null,
             ':dcat' => $hasDigitalDelivery ? gmdate('Y-m-d H:i:s') : null,
+            ':cav'  => $creativeAuthorityVersion,
             ':iph'  => hash_ip(client_ip()),
             ':ua'   => mb_substr((string) (client_user_agent() ?? ''), 0, 255) ?: null,
         ]);

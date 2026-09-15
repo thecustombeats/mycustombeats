@@ -24,7 +24,7 @@ tc() { local name="$1" ok="$2"
   if [ "$ok" = "1" ]; then printf "  PASS  %-64s\n" "$name"; PASS=$((PASS+1));
   else printf "  FAIL  %-64s\n" "$name"; FAIL=$((FAIL+1)); FAILED+=("$name"); fi }
 
-CONSENT='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true},"termsVersion":"2026-09-09.4","cruiseCompanions":"My husband David"'
+CONSENT='"consents":{"TERMS":true,"SERVICE_START":true,"DIGITAL_CONTENT":true,"CREATIVE_AUTHORITY":true},"creativeAuthorityVersion":"2026-09-15","termsVersion":"2026-09-09.4","cruiseCompanions":"My husband David"'
 # Every order POST carries a fresh Idempotency-Key unless the test sets IDEM.
 idem() { echo "test-$(openssl rand -hex 16)"; }
 post_raw() { curl -s -o /tmp/lc.json -w '%{http_code}' -X POST "$BASE/$1" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -H "Idempotency-Key: ${IDEM:-$(idem)}" -d "$2"; }
@@ -58,6 +58,26 @@ release_order_limit() { q "UPDATE order_consents SET ip_hash = NULL" >/dev/null 
 K="test_crm_key_not_real_000000000000000000000"
 crm()  { curl -s -o /tmp/lc.json -w '%{http_code}' "$BASE/$1" -H "Authorization: Bearer $K"; }
 crmp() { curl -s -o /tmp/lc.json -w '%{http_code}' -X POST "$BASE/$1" -H "Authorization: Bearer $K" -H "Content-Type: application/json" -H "Origin: $ORIGIN" -d "$2"; }
+# A digital order completed the Single Creative Authority way: MCB's quality
+# check, a reveal (no email here), then completion. Prints the last status code.
+QC_ALL='"checklist":{"correct_order":true,"names":true,"details":true,"no_other_customer":true,"song_version":true,"spelling":true,"sku":true,"no_output_defect":true,"quality_standard":true}'
+QC_PHYS='"checklist":{"correct_order":true,"names":true,"details":true,"no_other_customer":true,"song_version":true,"spelling":true,"sku":true,"no_output_defect":true,"quality_standard":true,"photographs":true,"artwork_dimensions":true,"production_files":true,"delivery_information":true}'
+act_lc() { crmp crm/order-action "{\"order_id\":$1,\"action\":\"$2\",\"staff\":\"Ops\"${3:+,$3}}"; }
+complete_digital() {
+  local today; today=$(date -u +%Y-%m-%d)
+  act_lc "$1" SEND_TO_QUALITY_CHECK >/dev/null
+  if [ "$(q "SELECT fulfilment_type FROM orders WHERE id=$1")" = "PHYSICAL" ]; then
+    # Test setup: these lifecycle orders use the older single-brief form.
+    q "UPDATE orders SET personalisation_status='COMPLETE' WHERE id=$1" >/dev/null
+    act_lc "$1" PASS_QUALITY_CHECK "$QC_PHYS" >/dev/null
+    act_lc "$1" CONFIRM_FULFILMENT '"purchase_authorised_by":"BELLA","send_email":false' >/dev/null
+    act_lc "$1" MARK_DISPATCHED "\"carrier\":\"Royal Mail\",\"dispatched_on\":\"$today\",\"send_email\":false" >/dev/null
+    act_lc "$1" MARK_DELIVERED "\"delivered_on\":\"$today\"" >/dev/null
+  else
+    act_lc "$1" PASS_QUALITY_CHECK "$QC_ALL,\"reveal_url\":\"https://listen.example.test/lc\",\"send_email\":false" >/dev/null
+  fi
+  act_lc "$1" MARK_COMPLETED
+}
 stub() { docker exec mcb-api sh -c "echo '$1' > /tmp/resend-mode"; }
 stub_reset() { docker exec mcb-api sh -c 'rm -f /tmp/resend-stub.log'; }
 stub_count() { docker exec mcb-api sh -c 'grep -c "" /tmp/resend-stub.log 2>/dev/null || echo 0'; }
@@ -210,12 +230,12 @@ t "44. a review request is refused before completion" 409 \
   "$(crmp crm/review-request '{"order_id":'"$OID_A"'}')"
 tc "45.  → because paying is not receiving" \
   "$(body | grep -q 'not_eligible' && echo 1 || echo 0)"
-t "46. completion is an authorised operational action" 200 \
-  "$(crmp crm/production '{"order_id":'"$OID_A"',"stage":"COMPLETED","approval_channel":"EMAIL","approved_by":"Ops"}')"
+t "46. completion is an authorised operational action, after MCB's quality check and reveal" 200 \
+  "$(complete_digital "$OID_A")"
 tc "47.  → and records its own timestamp" \
-  "$([ -n "$(q "SELECT completed_at FROM order_production WHERE order_id=$OID_A")" ] && echo 1 || echo 0)"
+  "$(C=$(q "SELECT IFNULL(completed_at,'NULL') FROM order_production WHERE order_id=$OID_A"); [ -n "$C" ] && [ "$C" != NULL ] && echo 1 || echo 0)"
 tc "48. the public browser cannot mark an order complete" \
-  "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/crm/production" -H 'Content-Type: application/json' -H "Origin: $ORIGIN" -d '{"order_id":'"$OID_A"',"stage":"COMPLETED"}' | grep -q '^401$' && echo 1 || echo 0)"
+  "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/crm/order-action" -H 'Content-Type: application/json' -H "Origin: $ORIGIN" -d '{"order_id":'"$OID_A"',"action":"MARK_COMPLETED","staff":"x"}' | grep -q '^401$' && echo 1 || echo 0)"
 tc "49. completion is documented as MCB's judgement, not carrier tracking" \
   "$(grep -q 'not a delivery confirmation' db/schema.sql && echo 1 || echo 0)"
 
@@ -250,7 +270,7 @@ echo ""
 echo "================ 8. PROVIDER FAILURE IS ISOLATED ================"
 OID_F=$(mkorder "Fay" "lc-fay@example.com" moment "")
 paynow "$OID_F"
-crmp crm/production '{"order_id":'"$OID_F"',"stage":"COMPLETED","approval_channel":"EMAIL"}' >/dev/null
+complete_digital "$OID_F" >/dev/null
 stub http_fail
 t "63. a provider rejection is reported, not hidden" 502 "$(crmp crm/review-request '{"order_id":'"$OID_F"'}')"
 tc "64.  → the order is still COMPLETED" \
@@ -349,7 +369,7 @@ paynow "$OID_P"
 q "UPDATE orders SET stripe_session_id='cs_test_share_p' WHERE id=$OID_P" >/dev/null
 tc "100. a paid but incomplete order is offered no share link" \
   "$(get "order-reference?session_id=cs_test_share_p" >/dev/null; body | grep -q '"referral":null' && echo 1 || echo 0)"
-crmp crm/production '{"order_id":'"$OID_P"',"stage":"COMPLETED","approval_channel":"EMAIL"}' >/dev/null
+complete_digital "$OID_P" >/dev/null
 tc "101.  → and is offered one once it completes" \
   "$(get "order-reference?session_id=cs_test_share_p" >/dev/null; body | grep -q '"referral":"MCB-R-' && echo 1 || echo 0)"
 tc "102. the thank-you page renders it only when the server sends one" \
@@ -377,8 +397,8 @@ tc "110. Bespoke still cannot be ordered" \
   "$(post order '{'"$CONSENT"',"firstName":"F","lastName":"P","email":"lc-fpo@example.com","lines":[{"sku":"bespoke","quantity":1}],"story":"x"}' | grep -q '^422$' && body | grep -q '"error":"unknown_sku"' && echo 1 || echo 0)"
 tc "111. legal consent is still required" \
   "$(post order '{"firstName":"N","lastName":"C","email":"lc-nc@example.com",'"$MOMENT_LINE"',"story":"x"}' | grep -q '^422$' && echo 1 || echo 0)"
-tc "112. the production lock still closes revisions on approval" \
-  "$(crm "crm/production?order=$OID_A" >/dev/null; body | grep -q '"revisions_open":false' && echo 1 || echo 0)"
+tc "112. a completed order passed MCB's quality check; no customer approval was involved" \
+  "$(crm "crm/production?order=$OID_A" >/dev/null; body | grep -q '"quality_checked":true' && [ "$(q "SELECT CONCAT(IFNULL(approved_at,'none'),'|',IF(qc_passed_at IS NULL,'no','yes'))  FROM order_production WHERE order_id=$OID_A")" = "none|yes" ] && echo 1 || echo 0)"
 tc "113. no live Stripe host is contacted by the lifecycle code" \
   "$(prose public/api/lib/referral.php public/api/lib/lifecycle.php | grep -q 'api.stripe.com' && echo 0 || echo 1)"
 tc "114. no Stripe secret in browser source" \

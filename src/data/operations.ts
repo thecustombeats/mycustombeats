@@ -2,27 +2,33 @@
  * MCB OPERATIONS — what happens after payment, as data.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * ONE STATE MODEL, BUILT ON THE ONE THAT ALREADY EXISTS
+ * SINGLE CREATIVE AUTHORITY (15 September 2026)
  * ─────────────────────────────────────────────────────────────────────────
- * Payment stays in `orders.status` (PENDING, PAID, PAYMENT_REVIEW …). The work
- * stays in `order_production.stage` (legal/production.ts), which already
- * decides when included refinements close. Sprint 5 adds the physical side —
- * `order_production.fulfilment_state` — and a few timestamps, and derives the
- * operational state below from those columns. Nothing stores the operational
- * state a second time, so it cannot disagree with the columns it describes.
+ * CUSTOMER INPUT → CREATIVE-AUTHORITY CONSENT → PAYMENT → NEW ORDER READY FOR
+ * PROCESSING → MCB CREATION → INTERNAL QUALITY CHECK → QC PASSED →
+ * (physical) MANUFACTURING / FULFILMENT → CUSTOMER REVEAL → FOLLOW-UP.
  *
- *   stage CREATIVE (not started)          → CREATIVE.PENDING
+ * There is no customer approval loop. Payment stays in `orders.status`; the
+ * work is `order_production.stage`; the physical side is
+ * `order_production.fulfilment_state`; the reveal is `revealed_at`. The
+ * operational state below is DERIVED from those columns and never stored.
+ *
+ *   no production row                     → ORDER.PAID
+ *   stage CREATIVE (not started)          → CREATIVE.PENDING   (new order ready for processing)
  *   stage CREATIVE (started)              → CREATIVE.IN_PROGRESS
- *   stage SONG_READY                      → CREATIVE.READY
- *   stage AWAITING_APPROVAL               → CUSTOMER_APPROVAL.REQUIRED
- *   stage REVISION_REQUESTED              → CUSTOMER_APPROVAL.CHANGES_REQUESTED
- *   stage APPROVED, digital               → CUSTOMER_APPROVAL.APPROVED, then FOLLOW_UP.DUE
- *   stage APPROVED, fulfilment PENDING    → FULFILMENT.PENDING
- *   stage APPROVED, fulfilment READY      → FULFILMENT.READY
+ *   stage QUALITY_CHECK                   → QUALITY_CHECK
+ *   stage QC_PASSED, digital, not revealed → REVEAL.READY
+ *   stage QC_PASSED, digital, revealed    → REVEALED, then FOLLOW_UP.DUE
+ *   stage QC_PASSED, fulfilment PENDING   → FULFILMENT.PENDING
+ *   stage QC_PASSED, fulfilment READY     → FULFILMENT.READY
  *   stage PRODUCTION_LOCKED (CONFIRMED)   → FULFILMENT.CONFIRMED
  *   stage FULFILMENT, DISPATCHED          → DISPATCHED
  *   stage FULFILMENT, DELIVERED           → DELIVERED, then FOLLOW_UP.DUE
  *   stage COMPLETED                       → COMPLETED
+ *
+ * Legacy stages from the retired approval model (historical and test records
+ * only): SONG_READY, AWAITING_APPROVAL and REVISION_REQUESTED read as
+ * QUALITY_CHECK; APPROVED reads as QC_PASSED (a digital one as REVEALED).
  *
  * The PHP twin is public/api/lib/operations.php; tests/operations.test.mjs and
  * tests/operations-acceptance.sh hold the two to the same table.
@@ -36,10 +42,9 @@ export type OperationalState =
   | "ORDER.PAID"
   | "CREATIVE.PENDING"
   | "CREATIVE.IN_PROGRESS"
-  | "CREATIVE.READY"
-  | "CUSTOMER_APPROVAL.REQUIRED"
-  | "CUSTOMER_APPROVAL.CHANGES_REQUESTED"
-  | "CUSTOMER_APPROVAL.APPROVED"
+  | "QUALITY_CHECK"
+  | "REVEAL.READY"
+  | "REVEALED"
   | "FULFILMENT.NOT_REQUIRED"
   | "FULFILMENT.PENDING"
   | "FULFILMENT.READY"
@@ -62,20 +67,19 @@ export interface StateDefinition {
 }
 
 export const OPERATIONAL_STATES: readonly StateDefinition[] = [
-  { state: "ORDER.PAID", workflows: ["DIGITAL", "PHYSICAL"], staff: "Paid. No production record yet (an order from before the production table).", nextAction: "Check the order and start the creative work." },
-  { state: "CREATIVE.PENDING", workflows: ["DIGITAL", "PHYSICAL"], staff: "Paid and waiting for the creative work to start.", nextAction: "Start the creative work." },
-  { state: "CREATIVE.IN_PROGRESS", workflows: ["DIGITAL", "PHYSICAL"], staff: "The music is being written and produced.", nextAction: "Finish the music and mark it ready." },
-  { state: "CREATIVE.READY", workflows: ["DIGITAL", "PHYSICAL"], staff: "Finished internally and not yet with the customer.", nextAction: "Send it to the customer for approval." },
-  { state: "CUSTOMER_APPROVAL.REQUIRED", workflows: ["DIGITAL", "PHYSICAL"], staff: "With the customer to listen to and approve.", nextAction: "Wait for the customer, or record an approval they gave another way." },
-  { state: "CUSTOMER_APPROVAL.CHANGES_REQUESTED", workflows: ["DIGITAL", "PHYSICAL"], staff: "The customer has asked for changes.", nextAction: "Read the requested changes, make them and mark the music ready again." },
-  { state: "CUSTOMER_APPROVAL.APPROVED", workflows: ["DIGITAL"], staff: "The customer has approved their song.", nextAction: "Nothing to make or send. Follow up, then complete." },
+  { state: "ORDER.PAID", workflows: ["DIGITAL", "PHYSICAL"], staff: "New order ready for processing (no production record yet).", nextAction: "Check the brief and start the creative work." },
+  { state: "CREATIVE.PENDING", workflows: ["DIGITAL", "PHYSICAL"], staff: "New order ready for processing.", nextAction: "Check the brief and start the creative work." },
+  { state: "CREATIVE.IN_PROGRESS", workflows: ["DIGITAL", "PHYSICAL"], staff: "MCB is creating the song and artwork.", nextAction: "Finish the work and send it to the quality check." },
+  { state: "QUALITY_CHECK", workflows: ["DIGITAL", "PHYSICAL"], staff: "Created, and waiting for MCB's internal quality check.", nextAction: "Run the quality checklist: pass it, or fail it back for an internal correction." },
+  { state: "REVEAL.READY", workflows: ["DIGITAL"], staff: "Quality check passed. The reveal has not been sent.", nextAction: "Send the reveal to the customer." },
+  { state: "REVEALED", workflows: ["DIGITAL"], staff: "Revealed to the customer.", nextAction: "Follow up when it is due, then complete." },
   { state: "FULFILMENT.NOT_REQUIRED", workflows: ["DIGITAL"], staff: "Digital: nothing physical to make.", nextAction: null },
-  { state: "FULFILMENT.PENDING", workflows: ["PHYSICAL"], staff: "Approved, but something is missing before the Keepsake can be made.", nextAction: "Resolve what is missing, then mark fulfilment ready." },
-  { state: "FULFILMENT.READY", workflows: ["PHYSICAL"], staff: "Approved and ready for the physical order to be placed.", nextAction: "Place the supplier order by hand, then confirm it here." },
+  { state: "FULFILMENT.PENDING", workflows: ["PHYSICAL"], staff: "Quality check passed, but something is missing before the keepsake can be made.", nextAction: "Resolve what is missing, then mark fulfilment ready." },
+  { state: "FULFILMENT.READY", workflows: ["PHYSICAL"], staff: "Quality check passed and ready for the physical order to be placed.", nextAction: "Bella or Lewis authorises the partner purchase; place it by hand, then confirm it here." },
   { state: "FULFILMENT.CONFIRMED", workflows: ["PHYSICAL"], staff: "The physical order is placed. It can no longer be changed.", nextAction: "When it is sent, record the dispatch and tracking." },
   { state: "DISPATCHED", workflows: ["PHYSICAL"], staff: "Sent to the customer.", nextAction: "When delivery is confirmed, mark it delivered." },
-  { state: "DELIVERED", workflows: ["PHYSICAL"], staff: "Delivery confirmed by a person.", nextAction: "Follow up, then complete." },
-  { state: "FOLLOW_UP.DUE", workflows: ["DIGITAL", "PHYSICAL"], staff: "Delivered or approved, and a follow-up is due.", nextAction: "Check in with the customer, record the follow-up, then complete." },
+  { state: "DELIVERED", workflows: ["PHYSICAL"], staff: "Delivered: the reveal.", nextAction: "Follow up, then complete." },
+  { state: "FOLLOW_UP.DUE", workflows: ["DIGITAL", "PHYSICAL"], staff: "Revealed or delivered, and a follow-up is due.", nextAction: "Check in with the customer, record the follow-up, then complete." },
   { state: "COMPLETED", workflows: ["DIGITAL", "PHYSICAL"], staff: "MCB regards the commission as complete.", nextAction: null },
 ];
 
@@ -97,55 +101,72 @@ export interface CustomerStage {
  */
 export const CUSTOMER_STAGES: Readonly<Record<Workflow, readonly CustomerStage[]>> = {
   DIGITAL: [
-    { id: "received", title: "Order received", description: "We have your order and your story.", states: ["ORDER.PAID", "CREATIVE.PENDING"] },
-    { id: "creating", title: "Creating your song", description: "We are writing and producing your song.", states: ["CREATIVE.IN_PROGRESS", "CREATIVE.READY", "CUSTOMER_APPROVAL.CHANGES_REQUESTED"] },
-    { id: "listen", title: "Ready for you to listen", description: "We have sent you a link to listen and tell us what you think.", states: ["CUSTOMER_APPROVAL.REQUIRED"] },
-    { id: "approved", title: "Approved", description: "You have approved your song.", states: ["CUSTOMER_APPROVAL.APPROVED", "FOLLOW_UP.DUE"] },
-    { id: "complete", title: "Complete", description: "Your Moment is complete.", states: ["COMPLETED"] },
+    { id: "received", title: "Order received", description: "We have your order, your story and your preferences.", states: ["ORDER.PAID", "CREATIVE.PENDING"] },
+    { id: "creating", title: "Creating your memory", description: "Our creative team is turning your story into your song.", states: ["CREATIVE.IN_PROGRESS"] },
+    { id: "quality", title: "Quality check", description: "We're checking every detail before your reveal.", states: ["QUALITY_CHECK", "REVEAL.READY"] },
+    { id: "ready", title: "Your creation is ready", description: "Your finished MCB creation is waiting for you.", states: ["REVEALED", "FOLLOW_UP.DUE", "COMPLETED"] },
   ],
   PHYSICAL: [
-    { id: "received", title: "Order received", description: "We have your order and your story.", states: ["ORDER.PAID", "CREATIVE.PENDING"] },
-    { id: "creating", title: "Creating your music", description: "We are writing and producing your music.", states: ["CREATIVE.IN_PROGRESS", "CREATIVE.READY", "CUSTOMER_APPROVAL.CHANGES_REQUESTED"] },
-    { id: "listen", title: "Ready for you to listen", description: "We have sent you a link to listen and approve your music.", states: ["CUSTOMER_APPROVAL.REQUIRED"] },
-    { id: "making", title: "Making your keepsake", description: "Your music is approved and we're coordinating the making of your keepsake.", states: ["FULFILMENT.PENDING", "FULFILMENT.READY", "FULFILMENT.CONFIRMED"] },
+    { id: "received", title: "Order received", description: "We have your order, your story, your preferences and your photographs.", states: ["ORDER.PAID", "CREATIVE.PENDING"] },
+    { id: "creating", title: "Creating your memory", description: "Our creative team is creating your music and artwork.", states: ["CREATIVE.IN_PROGRESS"] },
+    { id: "quality", title: "Quality check", description: "We're checking every detail before your keepsake is made.", states: ["QUALITY_CHECK"] },
+    { id: "making", title: "Being made", description: "Your keepsake is being made.", states: ["FULFILMENT.PENDING", "FULFILMENT.READY", "FULFILMENT.CONFIRMED"] },
     { id: "on-its-way", title: "On its way", description: "Your order has been sent. If it includes more than one item, they may arrive in separate parcels.", states: ["DISPATCHED"] },
-    { id: "delivered", title: "Delivered", description: "Your order has been delivered.", states: ["DELIVERED", "FOLLOW_UP.DUE"] },
-    { id: "complete", title: "Complete", description: "Your order is complete.", states: ["COMPLETED"] },
+    { id: "delivered", title: "Delivered", description: "Your keepsake has arrived — we hope you love the reveal.", states: ["DELIVERED", "FOLLOW_UP.DUE", "COMPLETED"] },
   ],
 };
 
 /* ------------------------------------------------------------------ */
-/* Included revisions                                                  */
+/* Internal quality control                                            */
 /* ------------------------------------------------------------------ */
 
 /**
- * The allowance, as numbers, for the products whose approved catalogue wording
- * states one: "1 revision" (Moment) and "1 refinement per song" (Keepsake,
- * Journey). tests/operations.test.mjs checks each entry against that wording.
- *
- * Nothing else has a number. Bespoke refinement "continues until the agreed
- * scope is met", which is a proposal term rather than a count, so it is
- * surfaced to staff as UNKNOWN rather than given an invented figure.
+ * The checklist a person at MCB completes before anything is revealed or
+ * made. INTERNAL: never shown to a customer. `appliesTo` PHYSICAL items are
+ * required only for orders with something physical.
  */
-export const INCLUDED_REVISIONS: Readonly<Record<string, { readonly count: number; readonly per: "UNIT" | "SONG" }>> = {
-  moment: { count: 1, per: "UNIT" },
-  keepsake: { count: 1, per: "SONG" },
-  journey: { count: 1, per: "SONG" },
-};
+export const QC_CHECKLIST: readonly { readonly id: string; readonly label: string; readonly appliesTo: "ALL" | "PHYSICAL" }[] = [
+  { id: "correct_order", label: "Correct customer and order", appliesTo: "ALL" },
+  { id: "names", label: "Names represented exactly as supplied", appliesTo: "ALL" },
+  { id: "details", label: "Dates, places and details match what was supplied", appliesTo: "ALL" },
+  { id: "no_other_customer", label: "Nothing from another customer's order", appliesTo: "ALL" },
+  { id: "song_version", label: "Correct song file and version", appliesTo: "ALL" },
+  { id: "spelling", label: "Spelling checked", appliesTo: "ALL" },
+  { id: "sku", label: "Correct product and SKU", appliesTo: "ALL" },
+  { id: "no_output_defect", label: "No obvious defect in the output", appliesTo: "ALL" },
+  { id: "quality_standard", label: "Meets MCB's quality standard", appliesTo: "ALL" },
+  { id: "photographs", label: "The customer's own photograph(s) used", appliesTo: "PHYSICAL" },
+  { id: "artwork_dimensions", label: "Artwork dimensions correct for the production partner", appliesTo: "PHYSICAL" },
+  { id: "production_files", label: "Production files correct", appliesTo: "PHYSICAL" },
+  { id: "delivery_information", label: "Delivery information correct", appliesTo: "PHYSICAL" },
+];
+
+/** Why a quality check failed. The work returns to creation for an internal correction. */
+export const QC_FAIL_REASONS: readonly string[] = [
+  "NAMES", "DETAILS", "OTHER_CUSTOMER_MATERIAL", "AUDIO", "ARTWORK", "SPELLING", "PRODUCTION_FILES", "SKU", "DELIVERY_INFORMATION", "QUALITY", "OTHER",
+];
+
+/**
+ * Why staff reopen finished work. There is no customer-request reopen: a
+ * customer's creative preference does not reopen production.
+ */
+export const REOPEN_REASONS: readonly string[] = ["MCB_CORRECTION", "REPLACEMENT", "OTHER"];
 
 /* ------------------------------------------------------------------ */
 /* Overdue                                                             */
 /* ------------------------------------------------------------------ */
 
 /**
- * Hours after payment by which the music should be with the customer, for the
- * products that have an approved numeric target. The Moment's catalogue line
- * is "Target delivery within 1 hour". Made-to-order products have no approved
- * number; their threshold is a server setting (`operations.overdue_after_days`)
- * and is inactive until someone sets it.
+ * INTERNAL operational objectives, in hours after payment, used only to flag
+ * an order as overdue in the staff queue. Not a customer promise: the site
+ * promises no number of minutes or hours. A Moment is revealed as quickly as
+ * creation and the quality check allow; other personalised work aims to be
+ * ready for the quality check within about a day, subject to workload.
  */
 export const CREATIVE_TARGET_HOURS: Readonly<Record<string, number>> = {
-  moment: 1,
+  moment: 24,
+  keepsake: 24,
+  journey: 24,
 };
 
 export { PRIORITY_REPLACEMENT_CLAIM_WINDOW_DAYS };
@@ -155,9 +176,8 @@ export { PRIORITY_REPLACEMENT_CLAIM_WINDOW_DAYS };
 /* ------------------------------------------------------------------ */
 
 export type LifecycleMessageType =
-  | "APPROVAL_REQUIRED"
-  | "CHANGES_RECEIVED"
-  | "APPROVAL_CONFIRMED"
+  | "CREATION_READY"
+  | "IN_PRODUCTION"
   | "DISPATCHED"
   | "FOLLOW_UP"
   | "REVIEW_REQUEST";
@@ -167,19 +187,23 @@ export interface LifecycleTemplate {
   /** The automation event that makes this message relevant. */
   readonly trigger: string;
   /**
-   * Sent by the server as part of the staff action or customer response that
-   * raises the trigger. False: only ever sent when a person asks for it.
+   * Sent by the server as part of the staff action that raises the trigger.
+   * False: only ever sent when a person asks for it.
    */
   readonly autoSend: boolean;
   readonly workflows: readonly Workflow[];
   readonly purpose: string;
 }
 
+/**
+ * Every customer message is ONE-WAY: nothing asks the customer to approve,
+ * reply or choose before MCB continues. The retired APPROVAL_REQUIRED,
+ * CHANGES_RECEIVED and APPROVAL_CONFIRMED messages are no longer sent.
+ */
 export const LIFECYCLE_TEMPLATES: readonly LifecycleTemplate[] = [
-  { type: "APPROVAL_REQUIRED", trigger: "CUSTOMER.APPROVAL.REQUIRED", autoSend: true, workflows: ["DIGITAL", "PHYSICAL"], purpose: "The private link to listen and approve or ask for changes." },
-  { type: "CHANGES_RECEIVED", trigger: "CUSTOMER.CHANGES.REQUESTED", autoSend: true, workflows: ["DIGITAL", "PHYSICAL"], purpose: "Confirms the change request arrived." },
-  { type: "APPROVAL_CONFIRMED", trigger: "CUSTOMER.APPROVAL.APPROVED", autoSend: true, workflows: ["DIGITAL", "PHYSICAL"], purpose: "Confirms the approval and says what happens next." },
-  { type: "DISPATCHED", trigger: "DISPATCHED", autoSend: true, workflows: ["PHYSICAL"], purpose: "Says the order has been sent, with tracking where MCB has it." },
+  { type: "CREATION_READY", trigger: "REVEALED", autoSend: true, workflows: ["DIGITAL"], purpose: "The reveal: your MCB creation is ready, with a private link to your order page where it plays." },
+  { type: "IN_PRODUCTION", trigger: "FULFILMENT.CONFIRMED", autoSend: true, workflows: ["PHYSICAL"], purpose: "A one-way note that the keepsake is being made." },
+  { type: "DISPATCHED", trigger: "DISPATCHED", autoSend: true, workflows: ["PHYSICAL"], purpose: "Your order is on the way, with tracking where MCB has it." },
   { type: "FOLLOW_UP", trigger: "FOLLOW_UP.DUE", autoSend: false, workflows: ["DIGITAL", "PHYSICAL"], purpose: "A personal check-in, sent when staff choose." },
   { type: "REVIEW_REQUEST", trigger: "ORDER.COMPLETED", autoSend: false, workflows: ["DIGITAL", "PHYSICAL"], purpose: "Asks for a review, only for a completed order and only when a review URL is configured." },
 ];
@@ -195,9 +219,11 @@ export const LIFECYCLE_TEMPLATES: readonly LifecycleTemplate[] = [
  */
 export const AUTOMATION_EVENTS: readonly string[] = [
   "ORDER.PAID",
-  "CREATIVE.READY",
-  "CUSTOMER.APPROVAL.REQUIRED",
-  "CUSTOMER.APPROVAL.APPROVED",
+  "ORDER.READY_FOR_PROCESSING",
+  "QUALITY_CHECK.READY",
+  "QUALITY_CHECK.PASSED",
+  "QUALITY_CHECK.FAILED",
+  "REVEALED",
   "FULFILMENT.READY",
   "DISPATCHED",
   "DELIVERED",
@@ -212,9 +238,11 @@ export const AUTOMATION_EVENTS: readonly string[] = [
 
 export type QueueKind =
   | "MISSING_INFORMATION"
+  | "NEW_ORDER"
   | "CREATIVE_WORK"
-  | "APPROVAL_REQUIRED"
-  | "CHANGES_REQUESTED"
+  | "QUALITY_CHECK"
+  | "REVEAL_READY"
+  | "INCORRECT_DETAIL"
   | "PAYMENT_REVIEW"
   | "FULFILMENT_READY"
   | "SUPPLIER_ACTION"
@@ -233,14 +261,16 @@ export const QUEUE_KINDS: Readonly<Record<QueueKind, { readonly label: string; r
   OVERDUE: { label: "Overdue", priority: 1 },
   DELIVERY_DELAY: { label: "Delivery delayed", priority: 1 },
   MISSING_INFORMATION: { label: "Missing information", priority: 1 },
-  CHANGES_REQUESTED: { label: "Changes requested", priority: 2 },
+  INCORRECT_DETAIL: { label: "Incorrect detail reported", priority: 1 },
+  NEW_ORDER: { label: "New order ready for processing", priority: 2 },
   CREATIVE_WORK: { label: "Creative work", priority: 2 },
+  QUALITY_CHECK: { label: "Quality check due", priority: 2 },
+  REVEAL_READY: { label: "Ready to reveal", priority: 2 },
   FULFILMENT_READY: { label: "Ready to order from supplier", priority: 2 },
   SUPPLIER_ACTION: { label: "Waiting to dispatch", priority: 2 },
   SUPPORT: { label: "Customer question", priority: 2 },
   MESSAGE_FAILED: { label: "Email not sent", priority: 2 },
   BESPOKE_ENQUIRY: { label: "Bespoke enquiry", priority: 2 },
   MCB_LIVE_ENQUIRY: { label: "MCB LIVE enquiry", priority: 2 },
-  APPROVAL_REQUIRED: { label: "Waiting for customer approval", priority: 3 },
   FOLLOW_UP_DUE: { label: "Follow-up due", priority: 3 },
 };

@@ -104,11 +104,32 @@ test("a Moment has one memory that is open straight away", () => {
   assert.ok(text(html).includes("Your memory"));
 });
 
-test("choosing MCB's style explains refinement versus remake for that memory", () => {
+test("choosing MCB's style explains that the musical direction is MCB's to choose — no refinement promise", () => {
   const draft = P.updateMemory(draftFor("journey-6"), "unit-1-memory-1", { style: "MCB Choice" });
   const t = text(render(UI.StepStory, { draft, setDraft: noop, photos: new Map(), setPhoto: noop, showErrors: false, onStyleEvent: noop }));
   assert.match(t, /trusting our creative judgement/);
-  assert.match(t, /remake rather than a refinement/);
+  assert.match(t, /part of the reveal/);
+  assert.doesNotMatch(t, /refinement|remake|revision/i);
+});
+
+test("a Keepsake or Journey needs a photograph; an unready photo offers another photo or the £15 Artwork Preparation Service", () => {
+  const draft = draftFor("keepsake-7-picture-disc");
+  const id = draft.units[0].memories[0].id;
+  assert.deepEqual(P.photoIssues(draft, new Set(), new Map()).map((i) => i.kind), ["missing"]);
+  assert.deepEqual(P.photoIssues(draft, new Set([id]), new Map([[id, { width: 2500, height: 2500 }]])), []);
+  assert.deepEqual(P.photoIssues(draft, new Set([id]), new Map([[id, { width: 4000, height: 4020 }]])), [], "a larger square photo passes");
+  assert.deepEqual(P.photoIssues(draft, new Set([id]), new Map([[id, { width: 3000, height: 2000 }]])).map((i) => i.kind), ["not_ready"]);
+  assert.deepEqual(P.photoIssues(draft, new Set([id]), new Map([[id, null]])).map((i) => i.kind), ["not_ready"], "an unreadable photo is not confirmed");
+  const prepared = { ...draft, artworkPreparation: true };
+  assert.deepEqual(P.photoIssues(prepared, new Set([id]), new Map([[id, { width: 800, height: 600 }]])), []);
+  assert.deepEqual(P.draftLines(prepared).at(-1), { sku: "artwork-preparation", quantity: 1 });
+  assert.equal(P.draftLines(draft).some((l) => l.sku === "artwork-preparation"), false, "never preselected");
+  assert.deepEqual(P.photoIssues(draftFor("moment"), new Set(), new Map()), [], "a Moment's photo stays optional");
+  const html = render(UI.StepStory, { draft, setDraft: noop, photos: new Map([[id, new Blob()]]), photoChecks: new Map([[id, { width: 1200, height: 900 }]]), setPhoto: noop, showErrors: false, onStyleEvent: noop });
+  const t = text(html);
+  assert.match(t, /isn't artwork-ready/);
+  assert.match(t, /Add MCB Artwork Preparation Service — £15/);
+  assert.match(t, /Not every photograph can be prepared to print quality/);
 });
 
 test("the plaque asks for a photo, song title and artist, and says it does not play music", () => {

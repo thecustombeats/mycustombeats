@@ -58,14 +58,14 @@ export const DELIVERY_STAGES: readonly DeliveryStageDefinition[] = [
     stage: "CREATIVE_TURNAROUND",
     label: "Creating your work",
     meaning:
-      "Writing, recording and producing your personalised music, including the refinements you ask for.",
+      "Writing, recording and producing your personalised music and artwork, and checking it carefully before anything is revealed or made.",
     withinMcbControl: true,
   },
   {
     stage: "PRODUCTION",
     label: "Making it",
     meaning:
-      "Pressing, printing, framing or engraving, once you have approved the work.",
+      "Pressing, printing, framing or engraving, once your work has passed our quality check.",
     // MCB chooses and instructs the manufacturer, so this is its
     // responsibility even though another company does the pressing.
     withinMcbControl: true,
@@ -200,9 +200,9 @@ export const DAMAGE_GUIDANCE_NOT_A_CONDITION =
 export const SEPARATE_PARCELS_NOTE =
   "If your order includes more than one physical item, they may be made by different specialist partners and arrive in separate parcels, on different days, each with its own tracking where the carrier provides it. That's expected — your order page shows what has been sent.";
 
-/** Personalised keepsakes enter production after approval. */
+/** Personalised keepsakes are made after MCB's internal quality check. */
 export const MADE_TO_ORDER_NOTE =
-  "Personalised keepsakes are made to order. Once you approve your music, we place your keepsake into production, and after that it can no longer be changed. This does not affect your rights if anything arrives damaged, faulty or not as described.";
+  "Personalised keepsakes are made to order. Personalised production begins when your payment is confirmed; once your music and artwork have passed our quality check we place your keepsake into production, and it arrives as the reveal. This does not affect your rights if anything arrives damaged, faulty or not as described.";
 
 /**
  * Where MCB must confirm delivery before payment (availability-sensitive

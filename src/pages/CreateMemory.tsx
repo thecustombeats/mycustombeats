@@ -65,7 +65,9 @@ import {
   serialiseDraft,
   uploadSlots,
   type OrderDraft,
+  type PhotoCheck,
 } from "../lib/personalisation";
+import { readPhotoSize } from "../lib/photoSize";
 import StepChoose from "./create/StepChoose";
 import StepDetails from "./create/StepDetails";
 import StepExtras from "./create/StepExtras";
@@ -115,6 +117,8 @@ const CreateMemory = () => {
     return found && draftHasContent(found) ? found : null;
   });
   const [photos, setPhotos] = useState<ReadonlyMap<string, File>>(new Map());
+  const [photoChecks, setPhotoChecks] = useState<ReadonlyMap<string, PhotoCheck>>(new Map());
+  const photoFiles = useRef(new Map<string, File>());
   const [contact, setContact] = useState<ContactDetails>(EMPTY_CONTACT);
   const [consents, setConsents] = useState<Record<ConsentId, boolean>>({ ...INITIAL_CONSENT_STATE });
   const [showErrors, setShowErrors] = useState(false);
@@ -133,7 +137,7 @@ const CreateMemory = () => {
   const photoIds = useMemo(() => new Set(photos.keys()), [photos]);
   const product = getProduct(draft.productId);
 
-  const reachable = furthestReachableStep(draft, preview, photoIds, contact, consents);
+  const reachable = furthestReachableStep(draft, preview, photoIds, contact, consents, photoChecks);
   const requested = params.get("step");
   const step: StepId = isStepId(requested) && stepIndex(requested) <= reachable ? requested : STEPS[Math.min(stepIndex(isStepId(requested) ? requested : "choose"), reachable)].id;
   const current = stepIndex(step);
@@ -147,6 +151,20 @@ const CreateMemory = () => {
       else next.delete(id);
       return next;
     });
+    if (file) photoFiles.current.set(id, file);
+    else photoFiles.current.delete(id);
+    setPhotoChecks((existing) => {
+      const next = new Map(existing);
+      next.delete(id);
+      return next;
+    });
+    if (file) {
+      // Measured in this browser; the result only counts if the photo is still the one chosen.
+      void readPhotoSize(file).then((check) => {
+        if (photoFiles.current.get(id) !== file) return;
+        setPhotoChecks((existing) => new Map(existing).set(id, check));
+      });
+    }
   }, []);
 
   // ---- Autosave the words (never photos or contact details) ----------------
@@ -329,7 +347,7 @@ const CreateMemory = () => {
           ? "Opening secure payment…"
           : "Continue to secure payment";
 
-  const blockers = stepBlockers(step, draft, preview, photoIds, contact, consents);
+  const blockers = stepBlockers(step, draft, preview, photoIds, contact, consents, photoChecks);
 
   const focusFirstProblem = () =>
     window.setTimeout(() => {
@@ -380,6 +398,8 @@ const CreateMemory = () => {
     }
     setSaved(null);
     setPhotos(new Map());
+    setPhotoChecks(new Map());
+    photoFiles.current.clear();
     setDraftState(emptyDraft());
     goTo("choose");
   };
@@ -519,6 +539,7 @@ const CreateMemory = () => {
                 draft={draft}
                 setDraft={setDraft}
                 photos={photos}
+                photoChecks={photoChecks}
                 setPhoto={setPhoto}
                 showErrors={showErrors}
                 onStyleEvent={(event, styleId) => trackEvent(`music_${event}`, styleId ? { style_id: styleId } : undefined)}

@@ -6,13 +6,15 @@
     "url": "https://www.mycustombeats.com"
   },
   "currency": "GBP",
-  "catalogue_hash": "095597e5b69bc0cb682b716c0bca33119681a40f49520eb078fc9429b9fabe54",
+  "catalogue_hash": "898530d07d9d419a2b33768604e7618f2136214985edd98113ed7680cec5df79",
   "how_to_order": "https://www.mycustombeats.com/create",
   "ordering_rules": {
     "automated_ordering": false,
     "note": "Orders are placed by the customer on the website. The server validates every personalisation, records the customer's consent, prices the order and takes payment through Stripe Checkout. This file grants no ability to order, reserve or pay.",
     "song_experience_required": "Every order includes at least one Moment, Keepsake or Journey.",
     "priority_replacement": "At most one per eligible Keepsake in the same order.",
+    "creative_process": "Single creative authority: the customer supplies the story, preferences and photographs and authorises MCB to make the creative decisions. No drafts are sent for approval and no subjective revisions are included. MCB quality-checks every order before a digital reveal or physical production. Statutory rights that cannot legally be excluded are unaffected.",
+    "artwork_preparation": "Keepsake and Journey artwork needs a customer photograph; square and at least 2500 × 2500 pixels is preferred. The optional MCB Artwork Preparation Service is added once per order, before payment, when a photograph is not artwork-ready.",
     "max_lines": 20,
     "delivery": "Physical items: the delivery charge for the destination is confirmed before payment. Where delivery for an item or destination cannot yet be confirmed online, MCB confirms it with the customer first and online payment is not offered for that order."
   },
@@ -28,9 +30,8 @@
       "image_url": null,
       "availability": "ORDERABLE_ONLINE",
       "enquiry_url": null,
-      "timing": "Target delivery within 1 hour",
+      "timing": "Revealed to you as soon as it has passed our quality check",
       "availability_note": null,
-      "included_revisions": "1 revision",
       "disclosures": [],
       "requires_song_experience_in_order": false,
       "variants": [
@@ -67,10 +68,9 @@
           "features": [
             "1 personalised song",
             "Customised lyrics from your story",
-            "Choose your mood and style",
-            "1 revision",
-            "MP4 delivery",
-            "Target delivery within 1 hour"
+            "Choose your mood and style, or let MCB choose",
+            "A private reveal link to your finished song",
+            "MP4 delivery"
           ],
           "order_url": "https://www.mycustombeats.com/create?sku=moment"
         }
@@ -89,7 +89,6 @@
       "enquiry_url": null,
       "timing": "Allow at least 15 working days for personalised production and delivery",
       "availability_note": null,
-      "included_revisions": "1 refinement per song",
       "disclosures": [],
       "requires_song_experience_in_order": false,
       "variants": [
@@ -121,7 +120,7 @@
               "story_max_characters": 300,
               "about_max_characters": 120,
               "music_style": "catalogued style, own words, or MCB's choice",
-              "photo": "optional"
+              "photo": "at least one per record; square, 2500 × 2500 pixels or larger preferred"
             }
           },
           "add_ons": {
@@ -130,7 +129,7 @@
           "features": [
             "4 personalised songs",
             "12-inch picture disc",
-            "Personalised picture-disc artwork",
+            "Picture-disc artwork created by MCB from your photograph",
             "Allow at least 15 working days for personalised production and delivery"
           ],
           "order_url": "https://www.mycustombeats.com/create?sku=keepsake-12-picture-disc"
@@ -163,7 +162,7 @@
               "story_max_characters": 300,
               "about_max_characters": 120,
               "music_style": "catalogued style, own words, or MCB's choice",
-              "photo": "optional"
+              "photo": "at least one per record; square, 2500 × 2500 pixels or larger preferred"
             }
           },
           "add_ons": {
@@ -172,7 +171,7 @@
           "features": [
             "3 personalised songs",
             "10-inch picture disc",
-            "Personalised picture-disc artwork",
+            "Picture-disc artwork created by MCB from your photograph",
             "Allow at least 15 working days for personalised production and delivery"
           ],
           "order_url": "https://www.mycustombeats.com/create?sku=keepsake-10-picture-disc"
@@ -205,7 +204,7 @@
               "story_max_characters": 300,
               "about_max_characters": 120,
               "music_style": "catalogued style, own words, or MCB's choice",
-              "photo": "optional"
+              "photo": "at least one per record; square, 2500 × 2500 pixels or larger preferred"
             }
           },
           "add_ons": {
@@ -214,7 +213,7 @@
           "features": [
             "1 personalised song",
             "10-inch heart-shaped picture disc",
-            "Personalised picture-disc artwork",
+            "Picture-disc artwork created by MCB from your photograph",
             "Allow at least 15 working days for personalised production and delivery"
           ],
           "order_url": "https://www.mycustombeats.com/create?sku=keepsake-10-heart-picture-disc"
@@ -247,7 +246,7 @@
               "story_max_characters": 300,
               "about_max_characters": 120,
               "music_style": "catalogued style, own words, or MCB's choice",
-              "photo": "optional"
+              "photo": "at least one per record; square, 2500 × 2500 pixels or larger preferred"
             }
           },
           "add_ons": {
@@ -256,7 +255,7 @@
           "features": [
             "1 personalised song",
             "7-inch picture disc",
-            "Personalised picture-disc artwork",
+            "Picture-disc artwork created by MCB from your photograph",
             "Allow at least 15 working days for personalised production and delivery"
           ],
           "order_url": "https://www.mycustombeats.com/create?sku=keepsake-7-picture-disc"
@@ -276,7 +275,6 @@
       "enquiry_url": null,
       "timing": "Allow at least 15 working days for personalised production and delivery",
       "availability_note": null,
-      "included_revisions": "1 refinement per song",
       "disclosures": [
         "Standard vinyl — not a Picture Disc"
       ],
@@ -310,7 +308,7 @@
               "story_max_characters": 300,
               "about_max_characters": 120,
               "music_style": "catalogued style, own words, or MCB's choice",
-              "photo": "optional"
+              "photo": "at least one per record; square, 2500 × 2500 pixels or larger preferred"
             }
           },
           "add_ons": {
@@ -320,7 +318,7 @@
             "6 personalised songs",
             "A different music style for each song if you wish",
             "Standard 12-inch vinyl record — not a Picture Disc",
-            "Personalised album artwork, which can include your approved photograph",
+            "Album artwork created by MCB from your photograph",
             "Mastering",
             "Allow at least 15 working days for personalised production and delivery"
           ],
@@ -354,7 +352,7 @@
               "story_max_characters": 300,
               "about_max_characters": 120,
               "music_style": "catalogued style, own words, or MCB's choice",
-              "photo": "optional"
+              "photo": "at least one per record; square, 2500 × 2500 pixels or larger preferred"
             }
           },
           "add_ons": {
@@ -364,7 +362,7 @@
             "12 personalised songs",
             "A different music style for each song if you wish",
             "Double 12-inch standard vinyl in a gatefold sleeve — not a Picture Disc",
-            "Personalised gatefold artwork, which can include your approved photograph",
+            "Gatefold artwork created by MCB from your photograph",
             "Mastering",
             "Allow at least 15 working days for personalised production and delivery"
           ],
@@ -385,9 +383,9 @@
       "enquiry_url": "https://www.mycustombeats.com/bespoke",
       "timing": "Timeline agreed with you during the consultation",
       "availability_note": null,
-      "included_revisions": "Refinement continues until the agreed scope is met",
       "disclosures": [
-        "Individually quoted"
+        "Individually quoted",
+        "Scope, deliverables and price are agreed with you before payment. Once your commission enters personalised production, the creative decisions are entrusted to MCB."
       ],
       "requires_song_experience_in_order": false,
       "variants": []
@@ -405,7 +403,6 @@
       "enquiry_url": "https://www.mycustombeats.com/mcb-live",
       "timing": null,
       "availability_note": null,
-      "included_revisions": null,
       "disclosures": [
         "Individually quoted"
       ],
@@ -425,7 +422,6 @@
       "enquiry_url": null,
       "timing": "Allow at least 15 working days for personalised production and delivery",
       "availability_note": null,
-      "included_revisions": null,
       "disclosures": [
         "This plaque does not play music.",
         "The song and artist you choose are shown for display only. MCB does not supply, sell, stream or license that recording."
@@ -481,7 +477,6 @@
       "enquiry_url": null,
       "timing": "Allow at least 15 working days for personalised production and delivery",
       "availability_note": null,
-      "included_revisions": null,
       "disclosures": [],
       "requires_song_experience_in_order": true,
       "variants": [
@@ -660,7 +655,6 @@
       "enquiry_url": null,
       "timing": null,
       "availability_note": "Sourced for each order; MCB confirms availability and delivery with the partner. No stock level is claimed.",
-      "included_revisions": null,
       "disclosures": [],
       "requires_song_experience_in_order": true,
       "variants": [
@@ -705,7 +699,6 @@
       "enquiry_url": null,
       "timing": null,
       "availability_note": "Sourced for each order; MCB confirms availability and delivery with the partner. No stock level is claimed.",
-      "included_revisions": null,
       "disclosures": [],
       "requires_song_experience_in_order": true,
       "variants": [
@@ -750,7 +743,6 @@
       "enquiry_url": null,
       "timing": null,
       "availability_note": "Sourced for each order; MCB confirms availability and delivery with the partner. No stock level is claimed.",
-      "included_revisions": null,
       "disclosures": [],
       "requires_song_experience_in_order": true,
       "variants": [
@@ -795,7 +787,6 @@
       "enquiry_url": null,
       "timing": null,
       "availability_note": null,
-      "included_revisions": null,
       "disclosures": [
         "Your normal consumer rights are not affected. You do not need to buy MCB Priority Replacement to exercise any rights you already have for faulty, damaged or misdescribed goods.",
         "Optional and never pre-selected. Priced per eligible individual Keepsake."
@@ -822,6 +813,55 @@
             "count": null,
             "each": {
               "applies_to": "one eligible Keepsake in the same order"
+            }
+          },
+          "add_ons": {
+            "priority_replacement_eligible": false
+          },
+          "features": [],
+          "order_url": null
+        }
+      ]
+    },
+    {
+      "id": "artwork-preparation",
+      "name": "MCB Artwork Preparation Service",
+      "description": "If your photograph isn't square or is smaller than 2500 × 2500 pixels, our team prepares it for your artwork — cropping, resizing and adjusting it as far as the original allows.",
+      "positioning": "For a photograph that isn't artwork-ready, MCB prepares it for your record's artwork.",
+      "product_type": "ARTWORK_SERVICE",
+      "commercial_model": "FIXED",
+      "url": "https://www.mycustombeats.com/products",
+      "image_url": null,
+      "availability": "ORDERABLE_ONLINE",
+      "enquiry_url": null,
+      "timing": null,
+      "availability_note": null,
+      "disclosures": [
+        "Optional, chosen by you before payment, once per order.",
+        "Not every photograph can be prepared to print quality. If yours can't, we'll ask you for another photograph."
+      ],
+      "requires_song_experience_in_order": true,
+      "variants": [
+        {
+          "sku": "artwork-preparation",
+          "name": "MCB Artwork Preparation Service",
+          "label": "Per order",
+          "price": {
+            "amount": "15.00",
+            "minor_units": 1500,
+            "currency": "GBP"
+          },
+          "orderable_online": true,
+          "fulfilment": "SERVICE",
+          "shipping_required": false,
+          "song_capacity": null,
+          "format": null,
+          "personalisation": {
+            "required": false,
+            "unit": null,
+            "count": null,
+            "each": {
+              "applies_to": "a Keepsake or Journey order whose photograph is not artwork-ready"
             }
           },
           "add_ons": {

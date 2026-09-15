@@ -46,7 +46,7 @@ import { McbButtonLink } from "../components/mcb/McbButton";
 import ProductHeroVisual from "../components/product/ProductHeroVisual";
 import ResponsiveImage from "../components/ResponsiveImage";
 import { IMAGES } from "../data/imagery";
-import RefinementOrRemake from "../components/product/RefinementOrRemake";
+import HowMcbCreates from "../components/product/HowMcbCreates";
 import { PRODUCT_PAGE_ANSWERS } from "../lib/productAnswers";
 
 type ProductPageId = Extract<ProductId, "moment" | "keepsake" | "journey">;
@@ -260,12 +260,10 @@ const ProductDetail = ({ product }: { product: Product }) => {
                 <dd className="m-0 text-base text-espresso/80">{product.turnaround.label}</dd>
               </div>
             )}
-            {product.revisions && (
-              <div className="grid gap-1 py-4 sm:grid-cols-[11rem_1fr] sm:gap-6">
-                <dt className="text-base font-semibold text-ink">Refinements</dt>
-                <dd className="m-0 text-base text-espresso/80">{product.revisions}</dd>
-              </div>
-            )}
+            <div className="grid gap-1 py-4 sm:grid-cols-[11rem_1fr] sm:gap-6">
+              <dt className="text-base font-semibold text-ink">Creative process</dt>
+              <dd className="m-0 text-base text-espresso/80">You provide the memories; MCB creates, checks and reveals the finished work.</dd>
+            </div>
             <div className="grid gap-1 py-4 sm:grid-cols-[11rem_1fr] sm:gap-6">
               <dt className="text-base font-semibold text-ink">Delivery</dt>
               <dd className="m-0 text-base text-espresso/80">{physical ? DELIVERY_NOTE : "Delivered digitally."}</dd>
@@ -290,7 +288,7 @@ const ProductDetail = ({ product }: { product: Product }) => {
           </dl>
 
           <div className="mt-6">
-            <RefinementOrRemake product={product} />
+            <HowMcbCreates />
           </div>
 
           <p className={`mt-8 ${bodyText}`}>

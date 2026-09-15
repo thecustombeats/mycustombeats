@@ -60,7 +60,7 @@
  * correctly, it reads unambiguously, and it does not require anyone to learn
  * a versioning convention to understand which came first.
  */
-export const TERMS_VERSION = "2026-09-15";
+export const TERMS_VERSION = "2026-09-15.2";
 
 /**
  * MOVED to `2026-09-14`, separately from the Terms.
@@ -78,7 +78,7 @@ export const TERMS_VERSION = "2026-09-15";
  * MOVED to `2026-09-15` with the Terms (launch closure): its damage and
  * cancelling sections restate the corrected clauses 7, 8 and 17.
  */
-export const REFUND_POLICY_VERSION = "2026-09-15";
+export const REFUND_POLICY_VERSION = "2026-09-15.2";
 
 /**
  * MOVED to `2026-09-14`, because the Privacy Policy content changed again.
@@ -93,7 +93,12 @@ export const REFUND_POLICY_VERSION = "2026-09-15";
  * founder and legal review BEFORE production deployment. See the internal
  * register (`review.ts`).
  */
-export const PRIVACY_POLICY_VERSION = "2026-09-14";
+/**
+ * MOVED to `2026-09-15` (Single Creative Authority): approval links and change
+ * requests removed from the data list; the quality-check record and the
+ * Creative Authority acceptance added. Needs the same founder/legal review.
+ */
+export const PRIVACY_POLICY_VERSION = "2026-09-15";
 
 /**
  * When this version takes effect for NEW orders.
@@ -103,6 +108,13 @@ export const PRIVACY_POLICY_VERSION = "2026-09-14";
  * Greenwich, which is a silly way to be wrong about a contractual date.
  */
 export const TERMS_EFFECTIVE_DATE = "2026-09-15";
+
+/**
+ * The Creative Authority & Personalised Production statement accepted at
+ * checkout. Versioned on its own, because it is recorded against every order
+ * separately from the Terms.
+ */
+export const CREATIVE_AUTHORITY_CONSENT_VERSION = "2026-09-15";
 
 /** Human-readable form of the effective date, for the page furniture. */
 export const TERMS_EFFECTIVE_DATE_DISPLAY = "15 September 2026";
@@ -116,8 +128,8 @@ export const TERMS_EFFECTIVE_DATE_DISPLAY = "15 September 2026";
  * would misstate its own history. Plain strings, for the same timezone reason
  * as `TERMS_EFFECTIVE_DATE`.
  */
-export const PRIVACY_EFFECTIVE_DATE = "2026-09-14";
-export const PRIVACY_EFFECTIVE_DATE_DISPLAY = "14 September 2026";
+export const PRIVACY_EFFECTIVE_DATE = "2026-09-15";
+export const PRIVACY_EFFECTIVE_DATE_DISPLAY = "15 September 2026";
 export const REFUND_EFFECTIVE_DATE = "2026-09-15";
 export const REFUND_EFFECTIVE_DATE_DISPLAY = "15 September 2026";
 
@@ -132,6 +144,20 @@ export const SUPERSEDED_POLICY_VERSIONS: readonly {
   superseded: string;
   summary: string;
 }[] = [
+  {
+    document: "REFUND",
+    version: "2026-09-15",
+    superseded: "2026-09-15.2",
+    summary:
+      "The launch-closure Refunds edition. Superseded the same day by 2026-09-15.2 (Single Creative Authority): the approval section removed; creative preference and genuine problems explained; cancelling tied to personalised production beginning at payment. Orders placed under this version recorded it.",
+  },
+  {
+    document: "PRIVACY",
+    version: "2026-09-14",
+    superseded: "2026-09-15",
+    summary:
+      "The Sprint 2–7 Privacy edition. Superseded by 2026-09-15 (Single Creative Authority): approval links and change requests removed, the quality-check record and Creative Authority acceptance added. Orders placed under this version recorded it.",
+  },
   {
     document: "PRIVACY",
     version: "2026-09-09.3",
@@ -171,6 +197,13 @@ export const SUPERSEDED_VERSIONS: readonly {
   superseded: string;
   summary: string;
 }[] = [
+  {
+    version: "2026-09-15",
+    effective: "2026-09-15",
+    superseded: "2026-09-15",
+    summary:
+      "The launch-closure edition (clauses 4, 7, 8, 17 and 23 corrected). Superseded the same day by 2026-09-15.2, in which the Founders retired customer approval and refinements: clauses 4–6 became Creative Authority, Personalised production and the reveal, and Creative preference and genuine problems; clause 7 ties cancelling to production beginning at payment; clause 9 adds responsibility for supplied information. Orders accepted under this version remain governed by it.",
+  },
   {
     version: "2026-09-09.4",
     effective: "2026-09-09",

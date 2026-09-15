@@ -12,6 +12,10 @@ interface MemoryEditorProps {
   storyPrompt: string;
   photoHint: string;
   photo: File | undefined;
+  /** The product's artwork is created from the customer's photograph. */
+  photoRequired?: boolean;
+  /** Whether the chosen photograph is artwork-ready, in words. */
+  photoNote?: string;
   onPhoto: (file: File | undefined) => void;
   onChange: (change: Partial<Omit<MemoryDraft, "id">>) => void;
   errors: Partial<Record<MemoryField, string>>;
@@ -19,7 +23,7 @@ interface MemoryEditorProps {
 }
 
 /** Everything we need for one song: the memory, who it's for, a photo and a style. */
-const MemoryEditor = ({ memory, label, storyPrompt, photoHint, photo, onPhoto, onChange, errors, onStyleEvent }: MemoryEditorProps) => {
+const MemoryEditor = ({ memory, label, storyPrompt, photoHint, photo, photoRequired = false, photoNote, onPhoto, onChange, errors, onStyleEvent }: MemoryEditorProps) => {
   const uid = useId();
   const storyId = `${uid}-story`;
   const counterId = `${uid}-counter`;
@@ -100,7 +104,10 @@ const MemoryEditor = ({ memory, label, storyPrompt, photoHint, photo, onPhoto, o
         </div>
       </div>
 
-      <PhotoField label="A photo for this memory" hint={photoHint} file={photo} onChange={onPhoto} />
+      <div>
+        <PhotoField label={photoRequired ? "A photograph for your artwork" : "A photo for this memory"} hint={photoHint} file={photo} onChange={onPhoto} required={photoRequired} />
+        {photoNote && <p className="mt-2 text-sm text-espresso/80" aria-live="polite">{photoNote}</p>}
+      </div>
 
       <MusicStyleSelector
         heading={`Music style — ${label}`}
