@@ -18,7 +18,9 @@
 | `crm/fulfilment` | GET | CRM key; INTERNAL economics, routes, scorecards and health — never public, never in notifications; evidence downloads need a staff name and are audited |
 | `crm/command-centre` | GET/POST | CRM key and staff name; no-store, noindex; read model only, plus the two quality decisions (audited: FOUNDER.QUALITY_REVIEWED); search text never recorded; list views carry safe names (first name + initial) and no story, photo, address or email |
 | `crm/video` | GET/POST | CRM key and staff name; every file download logged (`video_access_log`; audio references also in `creative_access_log`); cross-order registration refused; candidate and master files private (random names, 0600) |
-| `crm/*` (all 22 endpoints) | GET/POST | CRM key (Bearer, constant-time compare); no browser cookie |
+| `crm/support` | GET/POST | CRM key and staff name; no-store, noindex; case views audited (`SUPPORT.CASE_VIEWED`); remedy and refund decisions need the founder's own code (same limits and audit as a supplier purchase); no refund, payout or purchase API; card-like text and key-shaped refund references refused |
+| `order-support`, `order-support-case`, `order-evidence` | POST | same-origin, rate-limited, STATUS link token; another order's case is not found; the customer view never contains internal notes, system lines, staff names, priority, classification, remedies or economics; message and evidence content never reaches analytics, emails or order events |
+| `crm/*` (all 23 endpoints) | GET/POST | CRM key (Bearer, constant-time compare); no browser cookie |
 | `crm/notifications` | GET/POST | CRM key **or** the separate `notifications.worker_key`, which can do nothing else; claim tokens are one-time (stored as SHA-256) |
 | `product-availability` | GET | public; catalogue identifiers only |
 | `AUTHORISE_SUPPLIER_PURCHASE` (via `crm/order-action`) | POST | CRM key **and** the founder's own code (`password_verify` against a config hash); 5 refusals per order per 15 min → 429; refusals audited without the code. A notification deep link carries only `#order=…&action=…` and authorises nothing |

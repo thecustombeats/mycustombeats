@@ -40,7 +40,7 @@ require_once __DIR__ . '/lifecycle.php';
  * ONE-WAY messages only. The retired approval emails (APPROVAL_REQUIRED,
  * CHANGES_RECEIVED, APPROVAL_CONFIRMED) are no longer sendable.
  */
-const MCB_LIFECYCLE_TYPES = ['CREATION_READY', 'IN_PRODUCTION', 'DISPATCHED', 'ADDITIONAL_PARCEL_DISPATCHED', 'DELIVERY_UPDATE', 'DELIVERED', 'VIDEO_READY', 'FOLLOW_UP'];
+const MCB_LIFECYCLE_TYPES = ['CREATION_READY', 'IN_PRODUCTION', 'DISPATCHED', 'ADDITIONAL_PARCEL_DISPATCHED', 'DELIVERY_UPDATE', 'DELIVERED', 'VIDEO_READY', 'SUPPORT_RESPONSE', 'FOLLOW_UP'];
 
 /** First name only, as a greeting. Control characters cannot reach a header or body. */
 function lifecycle_first_name(string $name): string
@@ -133,6 +133,15 @@ function lifecycle_message_content(string $type, array $c): array
                 "If anything in it is genuinely wrong — a name, a photograph or a detail different from what you gave us — just reply to this email and we'll look into it.",
             ],
             ['Watch your Memory Music Video', $c['status_link']],
+        ],
+        // The reply stays on the private page: the email never carries the message, a note or the case details.
+        'SUPPORT_RESPONSE' => [
+            "We've replied to your message — {$ref}",
+            [
+                "Thank you for getting in touch. We've replied to your message about your order.",
+                "You can read our reply, and answer it if you'd like to, on your private order page.",
+            ],
+            ['Read our reply', $c['status_link']],
         ],
         'FOLLOW_UP' => [
             "How is everything? — {$ref}",
@@ -338,7 +347,7 @@ function send_lifecycle_message(PDO $pdo, int $orderId, string $type, string $de
             'subject'  => $content['subject'],
             'html'     => $content['html'],
             'text'     => $content['text'],
-            'reply_to' => 'support@mycustombeats.com',
+            'reply_to' => mcb_support_address(),
         ], 'mcb-' . ($testMode ? 'test-' : '') . strtolower($type) . '-' . $orderId . '-' . $dedupeKey);
 
         if (!$sent['ok']) {

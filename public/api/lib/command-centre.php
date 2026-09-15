@@ -24,6 +24,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/operations.php';
 require_once __DIR__ . '/operations-queue.php';
+require_once __DIR__ . '/customer-care.php';
 
 /** Engineering operational state → the founder's word for it. The engineering state stays underneath. */
 const CC_FOUNDER_STAGES = [
@@ -229,6 +230,14 @@ function cc_approvals(PDO $pdo, array $orders, array $economics): array
             'action' => ['label' => 'Review & decide', 'open' => 'decide'],
         ];
     }
+    // Customer care decisions only Bella or Lewis make: money-bearing remedies and refunds.
+    foreach (care_founder_decisions($pdo) as $d) {
+        if (!isset($orders[$d['order_id']])) {
+            continue;
+        }
+        $pending[] = ['kind' => $d['kind'], 'title' => $d['title'], 'order' => cc_order_summary($orders[$d['order_id']]), 'since' => $d['since'],
+            'facts' => $d['facts'], 'action' => ['label' => 'Review & decide', 'open' => 'care', 'case_id' => $d['case_id']]];
+    }
     $done = [];
     foreach ($pdo->query(
         "SELECT e.order_id, o.mcb_reference, JSON_VALUE(e.detail, '$.founder') AS founder, e.created_at
@@ -244,6 +253,7 @@ function cc_approvals(PDO $pdo, array $orders, array $economics): array
     )->fetchAll() as $a) {
         $done[] = ['kind' => 'EXCEPTION_DECISION', 'title' => ucfirst(strtolower(str_replace('_', ' ', (string) $a['resolution']))), 'reference' => $a['mcb_reference'], 'order_id' => (int) $a['order_id'], 'decided_by' => $a['resolution_authorised_by'], 'decided_at' => $a['resolved_at']];
     }
+    $done = array_merge($done, care_founder_decided($pdo));
     usort($done, static fn (array $a, array $b): int => strcmp((string) $b['decided_at'], (string) $a['decided_at']));
     return ['pending' => $pending, 'decided' => array_slice($done, 0, 30)];
 }
@@ -328,8 +338,8 @@ function cc_attention(PDO $pdo, array $orders, array $economics, array $quality,
         $facts = ['item' => 'Memory Music Video for song ' . (int) $v['sequence']];
         if ($v['status'] === 'INPUT_REQUIRED' && strtotime($v['created_at'] . ' UTC') < time() - 48 * 3600) {
             $card('VIDEO_INPUT_REQUIRED', 'Video input required', 3, cc_order_summary($orders[$oid]), $v['created_at'], 'Open order', 'card', $facts + ['problem' => 'CUSTOMER_PHOTOGRAPHS_NOT_RECEIVED']);
-        } elseif ($v['status'] === 'READY' && $v['waiting_on'] === 'DURATION_REVIEW') {
-            $card('VIDEO_EXCEPTION', 'Video duration review required', 2, cc_order_summary($orders[$oid]), $v['updated_at'], 'Open order', 'card', $facts + ['problem' => 'SONG_LONGER_THAN_PLANNING_MAXIMUM']);
+        } elseif ($v['status'] === 'READY' && $v['waiting_on'] === 'PROVIDER_VERIFICATION') {
+            $card('VIDEO_EXCEPTION', 'Video length needs platform verification', 2, cc_order_summary($orders[$oid]), $v['updated_at'], 'Open order', 'card', $facts + ['problem' => 'VIDEO_DURATION_PROVIDER_VERIFICATION_REQUIRED']);
         } elseif (in_array($v['status'], ['PRODUCTION_REQUIRED', 'REWORK_REQUIRED'], true)) {
             $card('VIDEO_PRODUCTION_REQUIRED', 'Video production required', 2, cc_order_summary($orders[$oid]), $v['updated_at'], 'Open order', 'card', $facts);
         } elseif ($v['status'] === 'EXCEPTION' && $v['exception_reason'] !== 'CANCELLED_BEFORE_PRODUCTION') {
@@ -348,9 +358,21 @@ function cc_attention(PDO $pdo, array $orders, array $economics, array $quality,
             'facts' => ['remaining' => $videoCapacity['remaining'], 'planned' => $videoCapacity['planned'], 'period' => $videoCapacity['period_key'], 'label' => $videoCapacity['label']],
             'action' => ['label' => 'Open videos', 'open' => 'videos']];
     }
+    // Ordinary support work is attention, never approval. Only cases where MCB owes the next step.
     foreach (cc_customer_problems($pdo, $orders) as $p) {
-        if ($p['kind'] !== 'QUESTION') {
-            $cards[] = ['kind' => 'CUSTOMER_SUPPORT', 'title' => 'Customer needs help: ' . strtolower($p['label']), 'priority' => 1, 'order' => $p['order'], 'since' => $p['since'], 'facts' => [], 'action' => ['label' => 'Open order', 'open' => 'card']];
+        if ($p['case_id'] === null || !$p['needs_mcb']) {
+            continue;
+        }
+        $title = $p['privacy_review'] ? 'Privacy review required' : ($p['overdue'] ? 'Overdue reply: ' : 'Customer needs help: ') . ($p['privacy_review'] ? '' : strtolower($p['label']));
+        $cards[] = ['kind' => $p['privacy_review'] ? 'PRIVACY_REVIEW' : 'CUSTOMER_SUPPORT', 'title' => $title,
+            'priority' => $p['privacy_review'] || $p['priority'] === 'URGENT' || $p['overdue'] ? 1 : ($p['priority'] === 'IMPORTANT' ? 2 : 3),
+            'order' => $p['order'], 'since' => $p['since'], 'facts' => ['problem' => $p['kind'], 'case_id' => $p['case_id']],
+            'action' => ['label' => 'Open case', 'open' => 'care', 'case_id' => $p['case_id']]];
+    }
+    foreach (care_health($pdo) as $f) {
+        if (in_array($f['check'], ['REPLACEMENT_APPROVED_NOT_ACTIONED', 'REFUND_AUTHORISED_NOT_RECORDED', 'RESOLVED_WITH_BLOCKING_EXCEPTION'], true) && isset($orders[$f['order_id']])) {
+            $cards[] = ['kind' => 'CUSTOMER_SUPPORT', 'title' => CARE_HEALTH_LABELS[$f['check']], 'priority' => 2, 'order' => cc_order_summary($orders[$f['order_id']]), 'since' => null,
+                'facts' => ['problem' => $f['check'], 'case_id' => $f['case_id']], 'action' => ['label' => 'Open case', 'open' => 'care', 'case_id' => $f['case_id']]];
         }
     }
     foreach ($health['stranded'] as $s) {
@@ -363,25 +385,32 @@ function cc_attention(PDO $pdo, array $orders, array $economics, array $quality,
 }
 
 /**
- * Customers who need help. An unresolved report stays here whatever stage the
+ * Customers who need help. An unresolved case stays here whatever stage the
  * order has reached — a completed order is not a resolved complaint.
  */
 function cc_customer_problems(PDO $pdo, array $orders): array
 {
-    $rank = ['DAMAGED_OR_FAULTY' => 1, 'WRONG_ITEM' => 2, 'MANUFACTURING_DEFECT' => 3, 'DELIVERY_PROBLEM' => 4, 'INCORRECT_DETAIL' => 5, 'QUESTION' => 7];
-    $labels = ['DAMAGED_OR_FAULTY' => 'Damaged item', 'WRONG_ITEM' => 'Wrong item', 'MANUFACTURING_DEFECT' => 'Manufacturing defect', 'DELIVERY_PROBLEM' => 'Delivery issue', 'INCORRECT_DETAIL' => 'Incorrect detail', 'QUESTION' => 'Question'];
+    $types = care_case_types();
+    $rank = ['URGENT' => 1, 'IMPORTANT' => 2, 'NORMAL' => 3];
     $out = [];
-    foreach ($pdo->query("SELECT id, order_id, kind, status, created_at FROM order_service_requests WHERE status IN ('OPEN','IN_REVIEW') ORDER BY created_at")->fetchAll() as $s) {
-        if (isset($orders[(int) $s['order_id']])) {
-            $out[] = ['case_id' => (int) $s['id'], 'kind' => $s['kind'], 'label' => $labels[$s['kind']] ?? 'Support request', 'rank' => $rank[$s['kind']] ?? 6,
-                'status' => $s['status'], 'since' => $s['created_at'], 'order' => cc_order_summary($orders[(int) $s['order_id']])];
+    $open = "'" . implode("','", care_data()['open_statuses']) . "'";
+    foreach ($pdo->query("SELECT * FROM order_service_requests WHERE status IN ({$open}) ORDER BY created_at")->fetchAll() as $s) {
+        if (!isset($orders[(int) $s['order_id']])) {
+            continue;
         }
+        $due = care_due($s);
+        $privacy = $s['privacy_review'] === 'PRIVACY_REVIEW_REQUIRED';
+        $out[] = ['case_id' => (int) $s['id'], 'kind' => $s['kind'], 'label' => $types[$s['kind']]['label'] ?? 'Support request',
+            'rank' => $privacy ? 0 : ($rank[$s['priority']] ?? 3), 'priority' => $s['priority'], 'status' => $s['status'],
+            'status_label' => ucfirst(strtolower(str_replace('_', ' ', $s['status']))), 'needs_mcb' => $s['status'] !== 'WAITING_FOR_CUSTOMER',
+            'overdue' => $due['overdue'] ?? false, 'privacy_review' => $privacy, 'since' => $s['status_since'] ?? $s['created_at'], 'order' => cc_order_summary($orders[(int) $s['order_id']])];
     }
-    // Open delivery and support exceptions with no customer report behind them (e.g. a lost parcel the customer has not reported).
-    $delivery = "'" . implode("','", array_diff(fulfilment_data()['delivery_exception_types'], ['PARCEL_LOST'])) . "'";
+    // Open delivery exceptions with no case behind them (e.g. a lost parcel the customer has not reported).
+    $delivery = "'" . implode("','", fulfilment_data()['delivery_exception_types']) . "'";
     foreach ($pdo->query("SELECT id, order_id, type, created_at FROM fulfilment_exceptions WHERE status = 'OPEN' AND service_request_id IS NULL AND type IN ({$delivery}) ORDER BY created_at")->fetchAll() as $x) {
         if (isset($orders[(int) $x['order_id']])) {
-            $out[] = ['case_id' => null, 'kind' => 'DELIVERY_EXCEPTION', 'label' => 'Delivery issue', 'rank' => 4, 'status' => 'OPEN', 'since' => $x['created_at'], 'order' => cc_order_summary($orders[(int) $x['order_id']])];
+            $out[] = ['case_id' => null, 'exception_id' => (int) $x['id'], 'kind' => 'DELIVERY_EXCEPTION', 'label' => 'Delivery issue', 'rank' => 2, 'priority' => 'IMPORTANT', 'status' => 'OPEN',
+                'status_label' => 'No case yet', 'needs_mcb' => true, 'overdue' => false, 'privacy_review' => false, 'since' => $x['created_at'], 'order' => cc_order_summary($orders[(int) $x['order_id']])];
         }
     }
     usort($out, static fn (array $a, array $b): int => [$a['rank'], (string) $a['since']] <=> [$b['rank'], (string) $b['since']]);
@@ -404,31 +433,50 @@ function cc_revenue(PDO $pdo, ?int $now = null): array
                 SUM(IF(o.stripe_livemode = 1, 0, o.total_minor)) AS test_minor,
                 SUM(IF(o.stripe_livemode = 1, 1, 0)) AS live_orders,
                 SUM(IF(o.stripe_livemode = 1, 0, 1)) AS test_orders,
-                SUM(IF(o.status = 'REFUNDED' AND o.stripe_livemode = 1, o.total_minor, 0)) AS refunded_minor,
-                SUM(IF(o.status = 'REFUNDED', 1, 0)) AS refunded_orders
+                SUM(IF(o.status = 'REFUNDED' AND o.stripe_livemode = 1 AND NOT EXISTS (SELECT 1 FROM refund_reviews rr WHERE rr.order_id = o.id AND rr.status = 'RECORDED'), o.total_minor, 0)) AS legacy_refunded_minor,
+                SUM(IF(o.status = 'REFUNDED' AND NOT EXISTS (SELECT 1 FROM refund_reviews rr WHERE rr.order_id = o.id AND rr.status = 'RECORDED'), 1, 0)) AS legacy_refunded_orders
            FROM order_events e JOIN orders o ON o.id = e.order_id
           WHERE e.dedupe_key = 'paid' AND e.created_at >= :start
           GROUP BY o.currency"
+    );
+    // Refunds MCB has recorded (made outside its system), in the period they were recorded, live payments only.
+    // A partial refund reduces net paid by its amount and never counts the order as refunded.
+    $refundStmt = $pdo->prepare(
+        "SELECT rr.order_id, o.total_minor,
+                SUM(IF(rr.recorded_at >= :start, rr.amount_minor, 0)) AS in_period,
+                SUM(IF(rr.recorded_at >= :start2 AND rr.refund_type = 'PARTIAL', rr.amount_minor, 0)) AS partial_in_period,
+                SUM(rr.amount_minor) AS all_time
+           FROM refund_reviews rr JOIN orders o ON o.id = rr.order_id
+          WHERE rr.status = 'RECORDED' AND rr.currency = 'GBP' AND o.stripe_livemode = 1
+          GROUP BY rr.order_id, o.total_minor"
     );
     foreach ($starts as $key => $start) {
         $stmt->execute([':start' => $start]);
         $rows = $stmt->fetchAll();
         $gbp = array_values(array_filter($rows, static fn (array $r): bool => $r['currency'] === 'GBP'))[0] ?? null;
         $gross = (int) ($gbp['live_minor'] ?? 0);
-        $refunds = (int) ($gbp['refunded_minor'] ?? 0);
+        $refundStmt->execute([':start' => $start, ':start2' => $start]);
+        $recorded = array_filter($refundStmt->fetchAll(), static fn (array $r): bool => (int) $r['in_period'] > 0);
+        $recordedMinor = array_sum(array_map(static fn (array $r): int => (int) $r['in_period'], $recorded));
+        $partialMinor = array_sum(array_map(static fn (array $r): int => (int) $r['partial_in_period'], $recorded));
+        $fullyRefunded = count(array_filter($recorded, static fn (array $r): bool => (int) $r['all_time'] >= (int) $r['total_minor']));
+        $refunds = $recordedMinor + (int) ($gbp['legacy_refunded_minor'] ?? 0);
         $out[$key] = [
             'currency' => 'GBP',
             'gross_paid_minor' => $gross,
             'refunds_minor' => $refunds,
+            'full_refunds_minor' => $refunds - $partialMinor,
+            'partial_refunds_minor' => $partialMinor,
             'net_paid_minor' => $gross - $refunds,
             'paid_orders' => (int) ($gbp['live_orders'] ?? 0),
-            'refunded_orders' => (int) ($gbp['refunded_orders'] ?? 0),
+            'refunded_orders' => $fullyRefunded + (int) ($gbp['legacy_refunded_orders'] ?? 0),
+            'partially_refunded_orders' => count($recorded) - $fullyRefunded,
             'test_paid_minor' => (int) ($gbp['test_minor'] ?? 0),
             'test_orders' => (int) ($gbp['test_orders'] ?? 0),
             'other_currencies' => array_values(array_map(static fn (array $r): array => ['currency' => $r['currency'], 'gross_paid_minor' => (int) $r['live_minor']], array_filter($rows, static fn (array $r): bool => $r['currency'] !== 'GBP'))),
         ];
     }
-    return $out + ['refunds_note' => 'Refunds are shown only where an order is recorded as REFUNDED (full order value; no partial refund is recorded). TEST payments are rehearsals, never revenue.', 'timezone' => 'UTC'];
+    return $out + ['refunds_note' => 'Refunds are those MCB has recorded in the period, full and partial (each refund is decided by Bella or Lewis and made outside MCB\'s system). A partial refund reduces net paid by its amount and never counts the whole order as refunded. TEST payments are rehearsals, never revenue.', 'timezone' => 'UTC'];
 }
 
 /**
@@ -514,6 +562,12 @@ function cc_health(PDO $pdo): array
         ['key' => 'failed_automation', 'label' => 'Customer emails that failed to send', 'count' => $one("SELECT COUNT(*) FROM customer_communications WHERE status = 'FAILED'")],
         ['key' => 'configuration_missing', 'label' => 'Configuration missing', 'count' => count($missing), 'detail' => $missing],
     ];
+    // No customer abandoned.
+    $care = care_health($pdo);
+    foreach (CARE_HEALTH_LABELS as $check => $label) {
+        $found = array_values(array_filter($care, static fn (array $f): bool => $f['check'] === $check));
+        $items[] = ['key' => 'support_' . strtolower($check), 'label' => $label, 'count' => count($found), 'detail' => array_values(array_unique(array_map(static fn (array $f): string => (string) $f['reference'], $found)))];
+    }
     $needed = array_values(array_filter($items, static fn (array $i): bool => $i['count'] > 0));
     return [
         'status' => $needed === [] ? 'ALL_GOOD' : 'ACTION_NEEDED',
@@ -576,6 +630,11 @@ function cc_readiness(PDO $pdo): array
         $low === [] ? 'This server allows the configured file sizes; confirm on the live host.' : 'This server allows smaller files than MCB production needs.');
 
     $out[] = $item('legal_review', 'Legal review', 'NEEDS_EXTERNAL_VERIFICATION', 'Retention periods, consent wording and terms still need professional legal review.');
+
+    $out[] = $item('customer_care_mailbox', 'Customer care mailbox', 'NEEDS_FOUNDER_ACTION',
+        'Replies to MCB emails go to ' . mcb_support_address() . '. Confirm it receives mail, and keep support@mycustombeats.com forwarding to it for replies to earlier emails.');
+    $out[] = $item('support_retention', 'Support records retention', 'NEEDS_EXTERNAL_VERIFICATION',
+        'Support messages, evidence, refund records and privacy reviews are kept until a retention policy is set (legal review required).');
 
     $live = (int) $pdo->query("SELECT COUNT(*) FROM orders WHERE status IN ('PAID','REFUNDED') AND stripe_livemode = 1")->fetchColumn();
     $out[] = $item('live_payment', 'Live payment verification', $live > 0 ? 'READY' : 'NEEDS_EXTERNAL_VERIFICATION',
@@ -651,7 +710,7 @@ function cc_overview(PDO $pdo, string $periodKey, ?int $now = null): array
     }
     $inPeriod = array_filter($orders, static fn (array $r): bool => cc_in_period($r, $period));
     $count = static fn (callable $f): int => count(array_filter($orders, $f));
-    $problemKinds = ['DELIVERY_EXCEPTION', 'FULFILMENT_EXCEPTION', 'MANUFACTURING_DATA', 'ARTWORK_EXCEPTION', 'CREATIVE_EXCEPTION', 'CUSTOMER_SUPPORT', 'STRANDED_ORDER', 'FOUNDER_DECISION', 'VIDEO_EXCEPTION'];
+    $problemKinds = ['DELIVERY_EXCEPTION', 'FULFILMENT_EXCEPTION', 'MANUFACTURING_DATA', 'ARTWORK_EXCEPTION', 'CREATIVE_EXCEPTION', 'CUSTOMER_SUPPORT', 'PRIVACY_REVIEW', 'STRANDED_ORDER', 'FOUNDER_DECISION', 'VIDEO_EXCEPTION'];
     $revenue = cc_revenue($pdo, $now);
     $profit = cc_profit($orders, $economics, $period);
 
@@ -675,6 +734,7 @@ function cc_overview(PDO $pdo, string $periodKey, ?int $now = null): array
         'pipeline' => array_map(static fn (string $s): array => ['stage' => $s, 'label' => CC_STAGE_LABELS[$s], 'count' => $pipeline[$s]], CC_PIPELINE),
         'attention' => $attention,
         'customers' => $customers,
+        'customer_care' => care_command_summary($pdo),
         'revenue' => $revenue,
         'profit' => $profit,
         'approvals' => ['pending' => count($approvals['pending'])],
@@ -761,7 +821,7 @@ function cc_order_card(PDO $pdo, int $orderId): ?array
     $physical = order_workflow($row) === 'PHYSICAL';
     $controller = $physical ? fulfilment_order_record($pdo, $row) : null;
     $economics = cc_latest_economics($pdo)[$orderId] ?? [];
-    $problems = $all("SELECT kind, status, created_at FROM order_service_requests WHERE order_id = :o AND status IN ('OPEN','IN_REVIEW')", [':o' => $orderId]);
+    $problems = $all("SELECT id, kind, status, priority, created_at FROM order_service_requests WHERE order_id = :o AND status IN ('NEW','REVIEWING','WAITING_FOR_MCB','WAITING_FOR_CUSTOMER','RESOLUTION_IN_PROGRESS')", [':o' => $orderId]);
     $openExceptions = $controller === null ? [] : array_values(array_filter($controller['exceptions'], static fn (array $x): bool => $x['status'] === 'OPEN'));
     $jobs = $all('SELECT id, track_number, status, lyric_version, current_master_id FROM creative_jobs WHERE order_id = :o ORDER BY track_number', [':o' => $orderId]);
     $titles = [];
@@ -796,7 +856,8 @@ function cc_order_card(PDO $pdo, int $orderId): ?array
         'customer' => [
             'name' => $meta['name'],
             'email' => $meta['email'],
-            'open_problems' => array_map(static fn (array $p): array => ['kind' => $p['kind'], 'status' => $p['status'], 'since' => $p['created_at']], $problems),
+            'open_problems' => array_map(static fn (array $p): array => ['case_id' => (int) $p['id'], 'kind' => $p['kind'], 'status' => $p['status'], 'priority' => $p['priority'], 'since' => $p['created_at']], $problems),
+            'money' => care_money_facts($pdo, $orderId),
             'emails' => $all('SELECT message_type, status, sent_at FROM customer_communications WHERE order_id = :o ORDER BY id', [':o' => $orderId]),
         ],
         'financial' => [

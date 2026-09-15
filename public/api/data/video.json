@@ -14,10 +14,9 @@
   "duration_statuses": [
     "PENDING_AUDIO_MASTER",
     "VIDEO_DURATION_ELIGIBLE",
-    "VIDEO_DURATION_REVIEW_REQUIRED"
+    "VIDEO_DURATION_PROVIDER_VERIFICATION_REQUIRED"
   ],
   "duration_decisions": [
-    "PROCEED_FULL_SONG",
     "ESCALATE_TO_FOUNDERS"
   ],
   "capacity_period_models": [

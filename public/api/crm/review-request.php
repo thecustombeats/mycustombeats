@@ -56,7 +56,7 @@ $outcome = send_review_request(db(), $orderId);
 $status = match ($outcome) {
     'sent', 'already_sent' => 200,
     // The order is fine; the request is not applicable or not possible yet.
-    'not_eligible'         => 409,
+    'not_eligible', 'recovery_cooling' => 409,
     'not_configured'       => 503,
     default                => 502,
 };

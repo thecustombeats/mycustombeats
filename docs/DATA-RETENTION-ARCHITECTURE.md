@@ -47,3 +47,7 @@ Supplier orders (references, actual costs, operator and founder), shipments and 
 
 Customer video photographs (with a hash of the rights statement they confirmed), video candidates, Video Masters, video access logs, capacity reservations and offer counters (no personal data) are stored privately (`mcb-uploads/video/`). **No retention period is set** — NEEDS PROFESSIONAL LEGAL REVIEW. Nothing is deleted automatically.
 
+
+## Customer care material (16 September 2026)
+
+Customer care records are private staff records: support cases (`order_service_requests`, with priority, classification, privacy review, sentiment, root cause and outcome), the case thread (`support_case_messages`: the customer's messages, MCB's replies, internal notes and system lines), support evidence, remedies (`support_remedies`), refund review records (`refund_reviews`) and privacy reviews. **No retention period is set for any of them** — `LEGAL_REVIEW_REQUIRED` for support communications, evidence, refund records, privacy incidents and customer-content records (`customer-care.json` `retention`). Nothing is deleted automatically. The schema keeps each kind in its own table so a policy can later be applied per kind.

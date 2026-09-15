@@ -207,6 +207,7 @@ ROOTQ s5b < db/migrations/2026-09-15-creative-factory.sql 2>/dev/null
 ROOTQ s5b < db/migrations/2026-09-15-production-file-factory.sql 2>/dev/null
 ROOTQ s5b < db/migrations/2026-09-15-fulfilment-controller.sql 2>/dev/null
 ROOTQ s5b < db/migrations/2026-09-15-memory-music-video.sql 2>/dev/null
+ROOTQ s5b < db/migrations/2026-09-16-customer-care.sql 2>/dev/null
 dumpdb() { for tb in $(ROOTQ -N -e "SHOW TABLES" "$1"); do ROOTQ -N -e "SHOW CREATE TABLE \`$tb\`" "$1" | sed 's/AUTO_INCREMENT=[0-9]* //'; done; }
 tc "the Sprint 5, Single Creative Authority and Automation Foundation migrations apply to the Sprint 4 schema, and again (idempotent)" "$([ "$M1" = 0 ] && [ "$M2" = 0 ] && [ "$M3" = 0 ] && [ "$M4" = 0 ] && [ "$M5" = 0 ] && [ "$M6" = 0 ] && echo 1 || echo 0)"
 tc "a migrated database is identical to a fresh db/schema.sql" "$([ "$(dumpdb s5a | shasum)" = "$(dumpdb s5b | shasum)" ] && [ "$(dumpdb s5a | grep -c .)" -gt 25 ] && echo 1 || echo 0)"
@@ -317,6 +318,8 @@ t "MARK_COMPLETED" "COMPLETED" "$(act $MO MARK_COMPLETED >/dev/null; jget state)
 J20="{\"token\":\"$S1\"}"
 tc "  → the customer's page keeps the reveal, every stage done" "$(post_json order-progress "$J20" >/dev/null; [ "$(jget stage)" = ready ] && [ "$(jget reveal.url)" = "https://listen.example.test/moment-v1" ] && python3 -c 'import json,sys;sys.exit(0 if all(s["status"]=="done" for s in json.load(open("/tmp/tx.json"))["stages"]) else 1)' && echo 1 || echo 0)"
 J21="{\"order_id\":$MO}"
+t "no review request while the customer has an open support case (recovery cooling)" "409|recovery_cooling" "$(crmpost crm/review-request "$J21")|$(jget outcome)"
+q "UPDATE order_service_requests SET status='CLOSED', review_request_hold_until = UTC_TIMESTAMP() - INTERVAL 1 DAY WHERE order_id=$MO" >/dev/null
 t "the review request works for the completed order (review URL from config)" 200 "$(crmpost crm/review-request "$J21")"
 tc "the Moment's audit trail tells the story in order, with no customer text and no customer approval" "$(E=$(events_of $MO); echo "$E" | grep -q 'ORDER.PAID.*ORDER.READY_FOR_PROCESSING.*CREATIVE.IN_PROGRESS.*QUALITY_CHECK.READY.*QUALITY_CHECK.FAILED.*QUALITY_CHECK.READY.*QUALITY_CHECK.PASSED.*REVEALED.*ORDER.COMPLETED.*FOLLOW_UP.DUE.*FOLLOW_UP.DONE' && ! echo "$E" | grep -q 'CUSTOMER.APPROVAL\|CUSTOMER.CHANGES' && [ "$(q "SELECT COUNT(*) FROM order_events WHERE order_id=$MO AND (detail LIKE '%lanterns%' OR detail LIKE '%@%' OR detail LIKE '%MP3%' OR detail LIKE '%Nancy%')")" = 0 ] && echo 1 || echo 0)"
 

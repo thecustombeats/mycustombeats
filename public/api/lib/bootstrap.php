@@ -81,6 +81,18 @@ function mcb_config(): array
 }
 
 /** Convenience accessor: mcb_setting('app.debug', false) */
+/**
+ * MCB's one customer-care address: where customers write and where replies to
+ * MCB emails go. hello@mycustombeats.com unless the server configures
+ * `mail.support_address` (an invalid value falls back rather than breaking mail).
+ * MCB LIVE's WhatsApp is separate and is never ordinary order support.
+ */
+function mcb_support_address(): string
+{
+    $configured = trim((string) mcb_setting('mail.support_address', ''));
+    return filter_var($configured, FILTER_VALIDATE_EMAIL) !== false ? $configured : 'hello@mycustombeats.com';
+}
+
 function mcb_setting(string $path, mixed $default = null): mixed
 {
     $value = mcb_config();

@@ -262,6 +262,29 @@ HTML;
 }
 
 /**
+ * Recovery cooling: no review request while the customer has an open support
+ * case, or soon after a support case was resolved (support.review_cooling_days,
+ * default in customer-care.json). Returns the reason, or null.
+ */
+function review_request_recovery_hold(PDO $pdo, int $orderId): ?string
+{
+    $stmt = $pdo->prepare(
+        "SELECT SUM(status IN ('NEW','REVIEWING','WAITING_FOR_MCB','WAITING_FOR_CUSTOMER','RESOLUTION_IN_PROGRESS')) AS open_cases,
+                SUM(review_request_hold_until IS NOT NULL AND review_request_hold_until > UTC_TIMESTAMP()) AS cooling
+           FROM order_service_requests WHERE order_id = :o"
+    );
+    $stmt->execute([':o' => $orderId]);
+    $r = $stmt->fetch();
+    if ((int) ($r['open_cases'] ?? 0) > 0) {
+        return 'This customer has an open support case. Resolve it before asking for a review.';
+    }
+    if ((int) ($r['cooling'] ?? 0) > 0) {
+        return 'This customer\'s problem was resolved recently. Give it time before asking for a review.';
+    }
+    return null;
+}
+
+/**
  * Sends the review request for one completed order.
  *
  * NEVER THROWS, and a failure here changes nothing about the order. The work
@@ -275,6 +298,9 @@ function send_review_request(PDO $pdo, int $orderId): string
     $recipient = lifecycle_recipient($pdo, $orderId);
     if ($recipient === null) {
         return 'not_eligible';
+    }
+    if (review_request_recovery_hold($pdo, $orderId) !== null) {
+        return 'recovery_cooling';
     }
 
     $url = review_url();
@@ -310,7 +336,7 @@ function send_review_request(PDO $pdo, int $orderId): string
         'subject'  => $message['subject'],
         'html'     => $message['html'],
         'text'     => $message['text'],
-        'reply_to' => 'support@mycustombeats.com',
+        'reply_to' => mcb_support_address(),
     ];
 
     $endpoint = trim((string) mcb_setting('resend.api_url', '')) ?: MCB_RESEND_ENDPOINT;

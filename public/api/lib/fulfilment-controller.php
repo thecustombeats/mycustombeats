@@ -364,6 +364,17 @@ function raise_fulfilment_exception(PDO $pdo, int $orderId, string $type, array 
     if (!in_array($type, fulfilment_data()['fulfilment_exception_types'], true)) {
         throw new OperationsException('invalid_exception_type', 'That exception type is not recognised.', 422);
     }
+    // Customer impact already has a case: the exception joins it rather than starting a parallel one.
+    if (($fields['service_request_id'] ?? null) === null) {
+        $kinds = in_array($type, fulfilment_data()['delivery_exception_types'], true) ? ['DELIVERY_PROBLEM']
+            : match ($type) { 'PARCEL_DAMAGED' => ['DAMAGED_OR_FAULTY'], 'WRONG_ITEM' => ['WRONG_ITEM'], 'MANUFACTURING_DEFECT' => ['MANUFACTURING_DEFECT'], default => [] };
+        if ($kinds !== []) {
+            $case = $pdo->prepare("SELECT id FROM order_service_requests WHERE order_id = :o AND kind IN ('" . implode("','", $kinds) . "')
+                                     AND status IN ('NEW','REVIEWING','WAITING_FOR_MCB','WAITING_FOR_CUSTOMER','RESOLUTION_IN_PROGRESS') ORDER BY id DESC LIMIT 1");
+            $case->execute([':o' => $orderId]);
+            $fields['service_request_id'] = ($id = $case->fetchColumn()) === false ? null : (int) $id;
+        }
+    }
     $stmt = $pdo->prepare(
         'INSERT IGNORE INTO fulfilment_exceptions (order_id, type, shipment_id, supplier_order_id, service_request_id, blocking, next_action, detail, opened_by, dedupe_key, created_at)
          VALUES (:o, :t, :sh, :so, :sr, :b, :n, :d, :by, :k, UTC_TIMESTAMP())'

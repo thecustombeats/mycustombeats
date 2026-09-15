@@ -87,6 +87,10 @@ export interface OrderProgress {
   }[];
   items: { key: string; name: string; priority_replacement: { request_by: string | null } | null }[];
   open_requests: number;
+  /** MCB customer care: the customer's own conversations with MCB. Never internal notes, priority or remedies. */
+  support?: SupportCase[];
+  /** What this order's customer can ask for help with, in their words. */
+  support_kinds?: { kind: SupportKind; label: string }[];
   /** MCB Memory Music Video™: plain states; the film itself only once revealed. */
   videos?: {
     video_job_id: number | null;
@@ -113,12 +117,45 @@ export interface RetiredApprovalView {
 
 export const fetchRetiredApproval = (token: string) => post<RetiredApprovalView>("/api/order-approval", { token });
 
-export type SupportKind = "DAMAGED_OR_FAULTY" | "WRONG_ITEM" | "MANUFACTURING_DEFECT" | "DELIVERY_PROBLEM" | "INCORRECT_DETAIL" | "QUESTION";
+export type SupportKind =
+  | "QUESTION"
+  | "DELIVERY_PROBLEM"
+  | "DAMAGED_OR_FAULTY"
+  | "WRONG_ITEM"
+  | "MANUFACTURING_DEFECT"
+  | "INCORRECT_DETAIL"
+  | "VIDEO_PROBLEM"
+  | "DIGITAL_DELIVERY_PROBLEM"
+  | "OTHER";
+
+export type DigitalIssue = "ACCESS" | "PLAYBACK" | "DOWNLOAD" | "EXPIRED_LINK" | "WRONG_FILE" | "CORRUPT_FILE";
+
+export interface SupportCase {
+  case_id: number;
+  type: string;
+  opened_on: string;
+  status_label: string;
+  next_step: string;
+  needs_you: boolean;
+  summary: string | null;
+  latest_response: { from: "MCB"; body: string; at: string } | null;
+  thread: { from: "YOU" | "MCB"; body: string; at: string }[];
+  can_add_evidence: boolean;
+  satisfaction: { question: string; asked: boolean; answer: "YES" | "NO" | null };
+}
 
 export const sendSupportRequest = (
   token: string,
-  request: { kind: SupportKind; item?: string; priorityReplacement?: boolean; description: string }
-) => post<{ received: true; message: string; request_id: number; evidence: { accepted: string[]; required: false } | null }>("/api/order-support", { token, ...request });
+  request: { kind: SupportKind; item?: string; issue?: DigitalIssue; otherCustomerDetails?: boolean; priorityReplacement?: boolean; description: string }
+) => post<{ received: true; message: string; request_id: number; case_id: number; evidence: { accepted: string[]; required: false } | null }>("/api/order-support", { token, ...request });
+
+/** The customer writes on one of their own cases. */
+export const sendCaseMessage = (token: string, caseId: number, message: string) =>
+  post<{ received: true; message: string }>("/api/order-support-case", { token, case_id: caseId, action: "message", message });
+
+/** "Did we resolve this for you?" — optional, once. */
+export const sendCaseSatisfaction = (token: string, caseId: number, answer: "YES" | "NO") =>
+  post<{ received: true; message: string }>("/api/order-support-case", { token, case_id: caseId, action: "satisfaction", answer });
 
 export type EvidenceKind = "PARCEL_PHOTO" | "PRODUCT_PHOTO" | "UNBOXING_VIDEO_REFERENCE" | "OTHER";
 

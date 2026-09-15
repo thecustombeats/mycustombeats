@@ -150,12 +150,13 @@ test("customer messages: new parcel, delay and delivered messages; one-way; MCB 
   for (const t of ["ADDITIONAL_PARCEL_DISPATCHED", "DELIVERY_UPDATE", "DELIVERED"]) assert.match(messages, new RegExp(`'${t}' => \\[`));
   assert.doesNotMatch(messages, /contact (the )?(supplier|partner|manufacturer)|whatsapp/i);
   assert.match(messages, /nothing you need to arrange with anyone else/);
-  assert.match(messages, /'reply_to' => 'support@mycustombeats\.com'/);
+  assert.match(messages, /'reply_to' => mcb_support_address\(\)/);
 });
 
 test("support: wrong item and manufacturing defect cases; evidence private and optional", () => {
   const support = read("public/api/order-support.php");
-  assert.match(support, /'WRONG_ITEM', 'MANUFACTURING_DEFECT'/);
+  const care = read("public/api/lib/customer-care.php");
+  assert.match(care, /'WRONG_ITEM' => 'WRONG_ITEM', 'MANUFACTURING_DEFECT' => 'MANUFACTURING_DEFECT'/);
   assert.match(support, /'required' => false/);
   const evidence = read("public/api/order-evidence.php");
   assert.match(evidence, /never a condition of\s*\n?\s*\* getting help/);
@@ -163,7 +164,7 @@ test("support: wrong item and manufacturing defect cases; evidence private and o
   assert.match(evidence, /enforce_scoped_rate_limit/);
   assert.match(evidence, /inspect_uploaded_image/);
   assert.match(evidence, /@chmod\(\$dir \. '\/' \. \$storedName, 0600\)/);
-  assert.match(read("src/pages/YourOrder.tsx"), /It is not needed for us to help you/);
+  assert.match(read("src/pages/order/SupportSection.tsx"), /It is not needed for us to help you/);
 });
 
 test("substitution: an ordinary product is never substituted silently; the pop-up card alternative is a separate recorded rule", () => {

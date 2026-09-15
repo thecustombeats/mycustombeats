@@ -524,13 +524,14 @@ const Operations = () => {
                   )}
 
                   {order.service_requests.length > 0 && (
-                    <Section title="Customer reports and questions">
+                    <Section title="Customer cases">
                       <ul className="m-0 list-none space-y-3 p-0">
                         {order.service_requests.map((s: Json) => (
                           <li key={s.id}>
                             <p className="text-sm text-espresso/75">#{s.id} · {humanise(s.kind)}{s.item ? ` · ${s.item}` : ""} · {s.status}{s.priority_replacement_requested ? ` · Priority Replacement: ${humanise(s.eligibility)}` : ""}</p>
                             <p className="whitespace-pre-wrap">{s.description}</p>
-                            {(s.status === "OPEN" || s.status === "IN_REVIEW") && (
+                            <a className={`${ghost} mt-2`} href={`/operations/customer-care#case=${s.id}`}>Open in Customer Care</a>
+                            {["NEW", "REVIEWING", "WAITING_FOR_MCB", "WAITING_FOR_CUSTOMER", "RESOLUTION_IN_PROGRESS"].includes(s.status) && (
                               <div className="mt-2 flex flex-wrap gap-2">
                                 {["REPLACEMENT_ARRANGED", "RESENT_OR_REPAIRED", "ANSWERED", "NO_ACTION_NEEDED"].map((resolution) => (
                                   <button key={resolution} className={ghost} onClick={async () => {

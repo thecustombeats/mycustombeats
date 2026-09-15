@@ -434,7 +434,7 @@ function deliver_via_resend(array $payload, string $apiKey, string $from, string
         'subject'  => post_payment_email_subject($payload),
         'html'     => post_payment_email_html($payload),
         'text'     => post_payment_email_text($payload),
-        'reply_to' => 'support@mycustombeats.com',
+        'reply_to' => mcb_support_address(),
     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
     if ($body === false) {

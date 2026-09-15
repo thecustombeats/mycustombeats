@@ -330,8 +330,8 @@ function video_set_job(PDO $pdo, int $jobId, array $fields): void
 
 /**
  * Moves a job forward where the facts allow: inputs confirmed → READY; audio
- * master present and within the planning maximum (or a person decided to
- * proceed) → PRODUCTION_REQUIRED with the master's lineage recorded.
+ * master present and within the planning maximum → PRODUCTION_REQUIRED with
+ * the master's lineage recorded. Longer songs wait for platform verification.
  */
 function video_refresh_job(PDO $pdo, int $jobId): array
 {
@@ -352,17 +352,19 @@ function video_refresh_job(PDO $pdo, int $jobId): array
         return $job;
     }
     $seconds = $master['duration_ms'] === null ? null : (int) $master['duration_ms'] / 1000;
+    // Longer than the planning maximum: no film is promised or started for it until the
+    // platform's real limit is verified. Staff can only escalate; the song is never edited.
     $eligible = $seconds !== null && $seconds <= video_max_seconds();
-    if (!$eligible && $job['duration_decision'] !== 'PROCEED_FULL_SONG') {
-        if ($job['duration_status'] !== 'VIDEO_DURATION_REVIEW_REQUIRED') {
-            video_set_job($pdo, $jobId, ['duration_status' => 'VIDEO_DURATION_REVIEW_REQUIRED', 'waiting_on' => 'DURATION_REVIEW', 'audio_duration_ms' => $master['duration_ms']]);
-            record_order_event($pdo, (int) $job['order_id'], 'VIDEO.DURATION_REVIEW_REQUIRED', ['video_job_id' => $jobId, 'seconds' => $seconds === null ? null : (int) round($seconds)], "video-duration-review:{$jobId}:{$master['id']}");
+    if (!$eligible) {
+        if ($job['duration_status'] !== 'VIDEO_DURATION_PROVIDER_VERIFICATION_REQUIRED') {
+            video_set_job($pdo, $jobId, ['duration_status' => 'VIDEO_DURATION_PROVIDER_VERIFICATION_REQUIRED', 'waiting_on' => 'PROVIDER_VERIFICATION', 'audio_duration_ms' => $master['duration_ms']]);
+            record_order_event($pdo, (int) $job['order_id'], 'VIDEO.DURATION_PROVIDER_VERIFICATION_REQUIRED', ['video_job_id' => $jobId, 'seconds' => $seconds === null ? null : (int) round($seconds), 'planning_maximum_seconds' => video_max_seconds(), 'verification' => video_data()['planning_limits']['verification']], "video-duration-review:{$jobId}:{$master['id']}");
         }
         return video_job_row($pdo, $jobId);
     }
     video_set_job($pdo, $jobId, [
         'status' => 'PRODUCTION_REQUIRED', 'waiting_on' => 'PRODUCTION',
-        'duration_status' => $eligible ? 'VIDEO_DURATION_ELIGIBLE' : 'VIDEO_DURATION_REVIEW_REQUIRED',
+        'duration_status' => 'VIDEO_DURATION_ELIGIBLE',
         'audio_master_id' => (int) $master['id'], 'audio_master_version' => (int) $master['version'],
         'audio_master_sha256' => $master['sha256'], 'audio_duration_ms' => $master['duration_ms'],
     ]);
@@ -638,19 +640,20 @@ function video_staff_action(PDO $pdo, int $orderId, int $jobId, string $action, 
             video_set_job($pdo, $jobId, ['visual_direction' => $direction]);
             break;
         case 'DURATION_REVIEW':
-            if ($job['duration_status'] !== 'VIDEO_DURATION_REVIEW_REQUIRED' || $job['status'] !== 'READY') {
+            if ($job['duration_status'] !== 'VIDEO_DURATION_PROVIDER_VERIFICATION_REQUIRED' || $job['status'] !== 'READY') {
                 throw new OperationsException('invalid_transition', 'This song does not need a duration review.', 409);
             }
             $decision = $in['decision'] ?? null;
+            if ($decision === 'PROCEED_FULL_SONG') {
+                // Not offered until the platform's maximum length is verified: MCB does not promise a longer film.
+                throw new OperationsException('provider_verification_required', 'A film longer than ' . intdiv(video_max_seconds(), 60) . ' minutes cannot be promised until the platform\'s maximum length is verified. Escalate to the Founders; the song is never shortened.', 409);
+            }
             if (!in_array($decision, video_data()['duration_decisions'], true)) {
-                throw new OperationsException('invalid_decision', 'Decide: proceed with the full song, or escalate to the Founders. The song itself is never shortened.', 422);
+                throw new OperationsException('invalid_decision', 'Escalate to the Founders. The song itself is never shortened.', 422);
             }
-            video_set_job($pdo, $jobId, ['duration_decision' => $decision]);
-            if ($decision === 'ESCALATE_TO_FOUNDERS') {
-                video_set_job($pdo, $jobId, ['status' => 'EXCEPTION', 'waiting_on' => 'FOUNDERS', 'exception_reason' => 'SONG_LONGER_THAN_PLANNING_MAXIMUM']);
-                record_order_event($pdo, $orderId, 'VIDEO.EXCEPTION', ['video_job_id' => $jobId, 'reason' => 'DURATION'], "video-exception-duration:{$jobId}");
-                notify_founders_about_order($pdo, 'VIDEO_EXCEPTION', $orderId, "video-duration:{$jobId}", ['reason' => 'SONG_LONGER_THAN_PLANNING_MAXIMUM']);
-            }
+            video_set_job($pdo, $jobId, ['duration_decision' => $decision, 'status' => 'EXCEPTION', 'waiting_on' => 'FOUNDERS', 'exception_reason' => 'SONG_LONGER_THAN_PLANNING_MAXIMUM']);
+            record_order_event($pdo, $orderId, 'VIDEO.EXCEPTION', ['video_job_id' => $jobId, 'reason' => 'DURATION_PROVIDER_VERIFICATION_REQUIRED'], "video-exception-duration:{$jobId}");
+            notify_founders_about_order($pdo, 'VIDEO_EXCEPTION', $orderId, "video-duration:{$jobId}", ['reason' => 'SONG_LONGER_THAN_PLANNING_MAXIMUM']);
             break;
         case 'START_PRODUCTION':
             if (!in_array($job['status'], ['PRODUCTION_REQUIRED', 'REWORK_REQUIRED'], true)) {
@@ -743,7 +746,7 @@ function video_signature_valid(int $orderId, int $masterId, int $exp, int $d, st
 function video_customer_view(PDO $pdo, int $orderId): array
 {
     $stmt = $pdo->prepare(
-        'SELECT j.id, j.status, j.current_video_master_id, j.revealed_at, m.sequence AS song, e.status AS entitlement_status,
+        'SELECT j.id, j.status, j.waiting_on, j.current_video_master_id, j.revealed_at, m.sequence AS song, e.status AS entitlement_status,
                 (SELECT COUNT(*) FROM video_media vm WHERE vm.video_job_id = j.id) AS photographs
            FROM video_entitlements e LEFT JOIN video_jobs j ON j.entitlement_id = e.id JOIN order_memories m ON m.id = e.memory_id
           WHERE e.order_id = :o AND e.status <> :cancelled ORDER BY e.id'
@@ -753,7 +756,7 @@ function video_customer_view(PDO $pdo, int $orderId): array
         'video_job_id' => $v['id'] === null ? null : (int) $v['id'],
         'song' => (int) $v['song'],
         'status' => match (true) {
-            $v['entitlement_status'] === 'CAPACITY_EXCEPTION' => 'BEING_ARRANGED',
+            $v['entitlement_status'] === 'CAPACITY_EXCEPTION', $v['status'] === 'EXCEPTION', $v['waiting_on'] === 'PROVIDER_VERIFICATION' => 'BEING_ARRANGED',
             $v['status'] === 'INPUT_REQUIRED' => 'PHOTOGRAPHS_WANTED',
             $v['status'] === 'REVEALED' => 'READY',
             default => 'BEING_MADE',

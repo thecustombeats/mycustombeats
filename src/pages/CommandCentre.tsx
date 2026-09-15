@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Helmet } from "react-helmet-async";
 import { useLocation } from "react-router-dom";
-import { READINESS_LABELS, ago, commandLink, humanise, money, parseCommandLink, type Json, type View } from "../lib/commandCentre";
+import { READINESS_LABELS, ago, commandLink, humanise, money, parseCommandLink, type Json, type View, careCaseHref } from "../lib/commandCentre";
 import OrderView from "./command-centre/OrderView";
 import { ActionCard, OrderRow, Panel, Status, Tile } from "./command-centre/ui";
 import { card, eyebrow, field, primary, secondary } from "./command-centre/styles";
@@ -234,6 +234,7 @@ const CommandCentre = () => {
                               <dl className="mt-2 grid grid-cols-[1fr_auto] gap-y-1 text-base">
                                 <dt>Gross paid</dt><dd className="m-0 text-right font-semibold">{money(r.gross_paid_minor)}</dd>
                                 <dt>Refunds</dt><dd className="m-0 text-right">{money(r.refunds_minor)}</dd>
+                                {r.partial_refunds_minor > 0 && <><dt className="text-sm text-ink/70">of which partial</dt><dd className="m-0 text-right text-sm text-ink/70">{money(r.partial_refunds_minor)}</dd></>}
                                 <dt className="font-semibold">Net paid</dt><dd className="m-0 text-right font-semibold">{money(r.net_paid_minor)}</dd>
                                 <dt className="text-sm text-ink/70">Paid orders</dt><dd className="m-0 text-right text-sm text-ink/70">{r.paid_orders}</dd>
                               </dl>
@@ -245,7 +246,8 @@ const CommandCentre = () => {
                       <p className="text-sm text-ink/70">{overview.revenue.refunds_note}</p>
                     </Panel>
                     <Profit profit={overview.profit} />
-                    <Panel id="customers-summary" title="Customers needing help">
+                    <Panel id="customers-summary" title="Customers needing help" aside={<a className={secondary} href="/operations/customer-care">Open Customer Care</a>}>
+                      {overview.customer_care && <CareSummary summary={overview.customer_care} />}
                       <CustomerList customers={overview.customers} />
                     </Panel>
                     <Panel id="health-summary" title="MCB system health" aside={<Status good={overview.health.status === "ALL_GOOD"} label={overview.health.label} />}>
@@ -303,7 +305,7 @@ const CommandCentre = () => {
               <>
                 <h1 className="font-serif text-4xl text-ink">Approvals</h1>
                 <p className="text-base">Only decisions that need Bella or Lewis. Everyday staff tasks are not listed here.</p>
-                {!data ? <p role="status">Loading…</p> : (
+                {!data?.pending ? <p role="status">Loading…</p> : (
                   <>
                     <Panel id="pending" title="Waiting for a founder">
                       {data.pending.length === 0 ? <p className={card}>No decisions are waiting.</p> : <div className="grid grid-cols-1 gap-3 md:grid-cols-2">{data.pending.map((a: Json, i: number) => <ActionCard key={i} item={{ ...a, title: a.kind === "SUPPLIER_PURCHASE" ? "Purchase approval required" : a.title, kind: a.kind === "SUPPLIER_PURCHASE" ? "PURCHASE_APPROVAL" : a.kind, priority: 1 }} />)}</div>}
@@ -334,13 +336,13 @@ const CommandCentre = () => {
             ) : link.view === "customers" ? (
               <>
                 <h1 className="font-serif text-4xl text-ink">Customers needing help</h1>
-                <p>Every unresolved customer problem stays here until it is resolved, even when the order itself is complete.</p>
-                {!data ? <p role="status">Loading…</p> : <CustomerList customers={data.customers} />}
+                <p>Every unresolved customer problem stays here until it is resolved, even when the order itself is complete. Replies and remedies are handled in <a className="font-semibold underline" href="/operations/customer-care">Customer Care</a>.</p>
+                {!data?.customers ? <p role="status">Loading…</p> : <>{data.summary && <CareSummary summary={data.summary} />}<CustomerList customers={data.customers} /></>}
               </>
             ) : link.view === "health" ? (
               <>
                 <h1 className="font-serif text-4xl text-ink">Health &amp; readiness</h1>
-                {!data ? <p role="status">Loading…</p> : (
+                {!data?.health ? <p role="status">Loading…</p> : (
                   <>
                     <Panel id="health" title="MCB system health" aside={<Status good={data.health.status === "ALL_GOOD"} label={data.health.label} />}>
                       <HealthList items={data.health.items} />
@@ -444,15 +446,28 @@ const CustomerList = ({ customers }: { customers: Json[] }) =>
     <ul className="m-0 list-none space-y-2 p-0">
       {customers.map((c: Json, i: number) => (
         <li key={i} className={`${card} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
-          <div>
-            <p className="font-semibold">{c.label} · {c.order.reference}</p>
-            <p className="text-sm">{c.order.customer} · open {ago(c.since)} · order stage: {c.order.stage_label}</p>
+          <div className="min-w-0">
+            <p className="font-semibold">{c.privacy_review ? "Privacy review · " : ""}{c.label} · {c.order.reference}</p>
+            <p className="text-sm">{c.order.customer} · {humanise(c.priority)} · {c.status_label}{c.overdue ? " · reply overdue" : ""} · {ago(c.since)} · order stage: {c.order.stage_label}</p>
           </div>
-          <a className={primary} href={commandLink({ view: "customers", order: c.order.reference, open: "card" })}>Open<span className="sr-only"> {c.order.reference}</span></a>
+          <a className={primary} href={careCaseHref(c.case_id)}>{c.case_id ? "Open case" : "Open customer care"}<span className="sr-only"> {c.order.reference}</span></a>
         </li>
       ))}
     </ul>
   );
+
+const CareSummary = ({ summary }: { summary: Json }) => (
+  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <Tile label="New cases" value={summary.new_cases} />
+    <Tile label="Urgent" value={summary.urgent} emphasis={summary.urgent > 0} />
+    <Tile label="Overdue MCB reply" value={summary.overdue_mcb_response} emphasis={summary.overdue_mcb_response > 0} />
+    <Tile label="Privacy review required" value={summary.privacy_review_required} emphasis={summary.privacy_review_required > 0} />
+    <Tile label="Replacement approval required" value={summary.replacement_approval_required} emphasis={summary.replacement_approval_required > 0} />
+    <Tile label="Refund decision required" value={summary.refund_decision_required} emphasis={summary.refund_decision_required > 0} />
+    <Tile label="Unresolved delivery issues" value={summary.unresolved_delivery_issue} />
+    <Tile label="Open cases" value={summary.open_cases} />
+  </div>
+);
 
 const HealthList = ({ items }: { items: Json[] }) => (
   <ul className="m-0 grid list-none grid-cols-1 gap-2 p-0 md:grid-cols-2">

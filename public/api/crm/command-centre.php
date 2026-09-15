@@ -60,7 +60,7 @@ try {
                 $orders = cc_paid_orders($pdo);
                 json_response(200, cc_approvals($pdo, $orders, cc_latest_economics($pdo)));
             case 'customers':
-                json_response(200, ['customers' => cc_customer_problems($pdo, cc_paid_orders($pdo))]);
+                json_response(200, ['customers' => cc_customer_problems($pdo, cc_paid_orders($pdo)), 'summary' => care_command_summary($pdo)]);
             case 'health':
                 json_response(200, cc_health($pdo));
             case 'readiness':

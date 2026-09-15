@@ -82,7 +82,8 @@ test("planning limits and platform: founder-supplied, pending verification, manu
   assert.equal(V.SONG_MAX_SECONDS, 300);
   assert.deepEqual([...V.VIDEO_PRODUCTION_METHODS], ["MANUAL"]);
   assert.deepEqual({ ...V.VIDEO_PLATFORM }, { decision: "FOUNDER_SELECTED", account: "NOT_OPENED", integration: "PENDING", videoCapabilities: "PENDING_EXTERNAL_VERIFICATION" });
-  assert.deepEqual([...V.VIDEO_DURATION_DECISIONS], ["PROCEED_FULL_SONG", "ESCALATE_TO_FOUNDERS"], "no shortening option exists");
+  assert.deepEqual([...V.VIDEO_DURATION_DECISIONS], ["ESCALATE_TO_FOUNDERS"], "no shortening option, and no full-song promise until the platform limit is verified");
+  assert.ok(V.VIDEO_DURATION_STATUSES.includes("VIDEO_DURATION_PROVIDER_VERIFICATION_REQUIRED"));
   assert.deepEqual([...V.VIDEO_JOB_STATUSES], ["INPUT_REQUIRED", "READY", "PRODUCTION_REQUIRED", "PRODUCTION_IN_PROGRESS", "CANDIDATE_READY", "QUALITY_CHECK_REQUIRED", "REWORK_REQUIRED", "READY_FOR_REVEAL", "REVEALED", "EXCEPTION"]);
   assert.ok(!V.VIDEO_JOB_STATUSES.some((s) => /APPROV/.test(s)), "no customer approval stage");
   const json = JSON.parse(read("public/api/data/video.json"));

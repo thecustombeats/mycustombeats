@@ -5,12 +5,19 @@
  * Built only from an order already resolved from a valid STATUS link. Plain
  * facts the customer already has: their reference, what they bought, where it
  * has got to, and tracking MCB has recorded. Never a name, email, address,
- * story, quality-check detail, note, amount, database id or supplier detail.
+ * story, quality-check detail, note, amount or supplier detail. The only
+ * numbers are a video job and a support case number, which work only
+ * together with this order's own link.
+ *
+ * Support cases (lib/customer-care.php) show the customer's own messages and
+ * MCB's replies, a plain status and the next step — never internal notes,
+ * priority, classification, remedies, staff names or anything about suppliers.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/operations.php';
+require_once __DIR__ . '/customer-care.php';
 
 /**
  * The order's physical items as the customer can refer to them — "item-1",
@@ -133,7 +140,7 @@ function customer_progress(PDO $pdo, int $orderId): array
         }
     }
 
-    $open = $pdo->prepare("SELECT COUNT(*) FROM order_service_requests WHERE order_id = :id AND status IN ('OPEN','IN_REVIEW')");
+    $open = $pdo->prepare("SELECT COUNT(*) FROM order_service_requests WHERE order_id = :id AND status IN ('NEW','REVIEWING','WAITING_FOR_MCB','WAITING_FOR_CUSTOMER','RESOLUTION_IN_PROGRESS')");
     $open->execute([':id' => $orderId]);
 
     return [
@@ -158,6 +165,8 @@ function customer_progress(PDO $pdo, int $orderId): array
         'parcels'       => $shipped ? customer_parcels($pdo, $orderId) : [],
         // MCB Memory Music Video: plain states; the film itself only once revealed.
         'videos'        => video_customer_view($pdo, $orderId),
+        'support'       => care_customer_cases($pdo, $orderId),
+        'support_kinds' => care_customer_kinds($pdo, $orderId),
         'items'         => $items,
         'open_requests' => (int) $open->fetchColumn(),
     ];

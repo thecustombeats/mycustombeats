@@ -1,22 +1,18 @@
-import { useEffect, useId, useState } from "react";
-import type { FormEvent } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link, useLocation } from "react-router-dom";
 import { Check } from "lucide-react";
 import { DAMAGE_GUIDANCE, DAMAGE_GUIDANCE_NOT_A_CONDITION, SEPARATE_PARCELS_NOTE } from "../data/legal/delivery";
 import { CUSTOMER_STAGES } from "../data/operations";
 import VideoSection from "./order/VideoSection";
+import SupportSection from "./order/SupportSection";
 import {
   LinkError,
   fetchProgress,
   formatDay,
   safeExternalUrl,
-  sendSupportEvidence,
-  sendSupportRequest,
   tokenFromHash,
-  type EvidenceKind,
   type OrderProgress,
-  type SupportKind,
 } from "../lib/customerOrder";
 
 /**
@@ -29,188 +25,8 @@ import {
  */
 
 const card = "rounded-3xl border border-ink/10 bg-white p-6 md:p-8";
-const label = "block text-base font-semibold text-ink";
-const field =
-  "mt-2 w-full min-h-12 rounded-xl border border-ink/25 bg-white px-4 py-3 text-base text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2";
 const button =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-ink px-8 py-3 text-base font-semibold text-ivory transition-colors hover:bg-[#1c2d40] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2 disabled:opacity-70";
-
-/** Optional evidence after a report. Helpful, never a condition of getting help. */
-const AddEvidence = ({ token, requestId }: { token: string; requestId: number }) => {
-  const ids = useId();
-  const [kind, setKind] = useState<EvidenceKind>("PARCEL_PHOTO");
-  const [photo, setPhoto] = useState<File | null>(null);
-  const [reference, setReference] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
-  const isVideo = kind === "UNBOXING_VIDEO_REFERENCE";
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    setSending(true);
-    setError(null);
-    try {
-      const result = await sendSupportEvidence(token, requestId, { kind, ...(photo && !isVideo ? { photo } : {}), ...(reference.trim() ? { reference: reference.trim() } : {}) });
-      setStatus(result.message);
-      setPhoto(null);
-      setReference("");
-    } catch (e) {
-      setError(e instanceof LinkError ? Object.values(e.fields)[0] ?? e.message : "We couldn't add that just now. Your report is safe with us.");
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <form onSubmit={submit} className="mt-6 space-y-4 border-t border-ink/10 pt-6" aria-labelledby={`${ids}-heading`}>
-      <h3 id={`${ids}-heading`} className="font-serif text-xl text-ink">Add a photo (optional)</h3>
-      <p className="text-base leading-relaxed">A photo of the parcel or the item helps us put things right quickly. It is not needed for us to help you.</p>
-      <div>
-        <label htmlFor={`${ids}-kind`} className={label}>What is it?</label>
-        <select id={`${ids}-kind`} value={kind} onChange={(e) => setKind(e.target.value as EvidenceKind)} className={field}>
-          <option value="PARCEL_PHOTO">A photo of the parcel</option>
-          <option value="PRODUCT_PHOTO">A photo of the item</option>
-          <option value="UNBOXING_VIDEO_REFERENCE">I recorded the opening (tell us where it is)</option>
-          <option value="OTHER">Something else</option>
-        </select>
-      </div>
-      {!isVideo && (
-        <div>
-          <label htmlFor={`${ids}-photo`} className={label}>Photo (JPEG, PNG, WebP or HEIC, up to 10 MB)</label>
-          <input id={`${ids}-photo`} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} className={field} />
-        </div>
-      )}
-      <div>
-        <label htmlFor={`${ids}-reference`} className={label}>{isVideo ? "Where is the recording? We'll ask for it by email if we need it." : "Anything to add (optional)"}</label>
-        <input id={`${ids}-reference`} value={reference} maxLength={500} onChange={(e) => setReference(e.target.value)} className={field} />
-      </div>
-      {status && <p role="status" className="text-base font-semibold text-ink">{status}</p>}
-      {error && <p role="alert" className="rounded-xl bg-[#FDECEC] px-4 py-3 text-base font-semibold text-[#9B2C2C]">{error}</p>}
-      <button type="submit" disabled={sending || (!photo && !reference.trim())} className={button}>{sending ? "Adding…" : "Add to my report"}</button>
-    </form>
-  );
-};
-
-const ReportProblem = ({ token, progress }: { token: string; progress: OrderProgress }) => {
-  const ids = useId();
-  const physical = progress.workflow === "PHYSICAL";
-  const [kind, setKind] = useState<SupportKind>(physical ? "DAMAGED_OR_FAULTY" : "INCORRECT_DETAIL");
-  const [item, setItem] = useState(progress.items[0]?.key ?? "");
-  const [priority, setPriority] = useState(false);
-  const [description, setDescription] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<string | null>(null);
-  const [caseId, setCaseId] = useState<number | null>(null);
-  const [sending, setSending] = useState(false);
-
-  const chosen = progress.items.find((i) => i.key === item);
-  const offersPriority = physical && kind === "DAMAGED_OR_FAULTY" && chosen?.priority_replacement;
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (description.trim().length < 10) {
-      setError("Please tell us a little more (at least 10 characters).");
-      return;
-    }
-    setSending(true);
-    setError(null);
-    try {
-      const result = await sendSupportRequest(token, {
-        kind,
-        ...(physical && ["DAMAGED_OR_FAULTY", "WRONG_ITEM", "MANUFACTURING_DEFECT", "DELIVERY_PROBLEM"].includes(kind) && item ? { item } : {}),
-        ...(offersPriority ? { priorityReplacement: priority } : {}),
-        description: description.trim(),
-      });
-      setDone(result.message);
-      setCaseId(result.evidence ? result.request_id : null);
-    } catch (e) {
-      setError(e instanceof LinkError ? Object.values(e.fields)[0] ?? e.message : "We couldn't send that just now. Please try again.");
-    } finally {
-      setSending(false);
-    }
-  };
-
-  if (done) {
-    return (
-      <div role="status" className={card}>
-        <h2 className="font-serif text-2xl text-ink">Thank you</h2>
-        <p className="mt-3 text-lg leading-relaxed">{done}</p>
-        {caseId !== null && <AddEvidence token={token} requestId={caseId} />}
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={submit} className={`${card} space-y-6`} aria-labelledby={`${ids}-heading`}>
-      <h2 id={`${ids}-heading`} className="font-serif text-2xl text-ink">
-        Something wrong, or a question?
-      </h2>
-      <fieldset>
-          <legend className={label}>What is it about?</legend>
-          <div className="mt-3 grid gap-3">
-            {(physical
-              ? ([
-                  ["DAMAGED_OR_FAULTY", "Something arrived damaged or faulty"],
-                  ["WRONG_ITEM", "I received the wrong item"],
-                  ["MANUFACTURING_DEFECT", "The item has a fault in how it was made"],
-                  ["DELIVERY_PROBLEM", "A problem with delivery"],
-                  ["INCORRECT_DETAIL", "Something in my song or artwork is incorrect"],
-                  ["QUESTION", "A question"],
-                ] as const)
-              : ([
-                  ["INCORRECT_DETAIL", "Something in my song is incorrect"],
-                  ["QUESTION", "A question"],
-                ] as const)
-            ).map(([value, text]) => (
-              <label key={value} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border-2 px-4 py-3 text-base text-ink ${kind === value ? "border-gold-dark bg-gold/10" : "border-ink/15"}`}>
-                <input type="radio" name={`${ids}-kind`} value={value} checked={kind === value} onChange={() => setKind(value)} className="h-5 w-5 accent-[#856823]" />
-                {text}
-              </label>
-            ))}
-          </div>
-          {kind === "INCORRECT_DETAIL" && (
-            <p className="mt-3 text-base leading-relaxed text-espresso/80">
-              For example a name, date, place or photograph different from what you gave us. Because you entrusted the creative choices to MCB, a different personal preference isn't treated as an error — but please tell us about anything that is genuinely wrong.
-            </p>
-          )}
-        </fieldset>
-      {physical && kind !== "QUESTION" && kind !== "INCORRECT_DETAIL" && progress.items.length > 0 && (
-        <div>
-          <label htmlFor={`${ids}-item`} className={label}>Which item?</label>
-          <select id={`${ids}-item`} value={item} onChange={(e) => setItem(e.target.value)} className={field}>
-            {progress.items.map((i) => (
-              <option key={i.key} value={i.key}>{i.name}</option>
-            ))}
-          </select>
-        </div>
-      )}
-      {offersPriority && (
-        <label className="flex min-h-12 cursor-pointer items-start gap-3 rounded-xl border border-ink/15 px-4 py-3 text-base text-ink">
-          <input type="checkbox" checked={priority} onChange={(e) => setPriority(e.target.checked)} className="mt-1 h-5 w-5 accent-[#856823]" />
-          <span>
-            Request MCB Priority Replacement for this item
-            {chosen?.priority_replacement?.request_by && (
-              <span className="block text-espresso/75">Requests for this service can be made until {formatDay(chosen.priority_replacement.request_by)}.</span>
-            )}
-          </span>
-        </label>
-      )}
-      <div>
-        <label htmlFor={`${ids}-description`} className={label}>Tell us what happened</label>
-        <textarea id={`${ids}-description`} rows={5} maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} className={field} aria-describedby={`${ids}-help`} />
-        <p id={`${ids}-help`} className="mt-2 text-base text-espresso/75">
-          {physical ? "If something is damaged, we may ask you for a photo by email. " : ""}We will reply by email.
-        </p>
-      </div>
-      {physical && (
-        <p className="text-base leading-relaxed text-espresso/80">Your normal consumer rights are not affected, whether or not you chose MCB Priority Replacement.</p>
-      )}
-      {error && <p role="alert" className="rounded-xl bg-[#FDECEC] px-4 py-3 text-base font-semibold text-[#9B2C2C]">{error}</p>}
-      <button type="submit" disabled={sending} className={button}>{sending ? "Sending…" : "Send"}</button>
-    </form>
-  );
-};
 
 const YourOrder = () => {
   const { hash } = useLocation();
@@ -227,6 +43,12 @@ const YourOrder = () => {
     return () => {
       cancelled = true;
     };
+  }, [token]);
+
+  /** After the customer writes to MCB, the page shows the conversation as it now stands. */
+  const reload = useCallback(() => {
+    if (!token) return;
+    fetchProgress(token).then(setProgress).catch(() => undefined);
   }, [token]);
 
   const definitions = progress ? CUSTOMER_STAGES[progress.workflow] : [];
@@ -367,11 +189,7 @@ const YourOrder = () => {
               </section>
             )}
 
-            {progress.open_requests > 0 && (
-              <p className="text-lg" role="status">We have your message and will reply by email.</p>
-            )}
-
-            <ReportProblem token={token as string} progress={progress} />
+            <SupportSection token={token as string} progress={progress} onChanged={reload} />
 
             <p className="text-base text-espresso/80">
               Need anything else? Email <a className="font-semibold text-ink underline" href="mailto:hello@mycustombeats.com">hello@mycustombeats.com</a> or see our <Link className="font-semibold text-ink underline" to="/faq">FAQ</Link>.

@@ -42,6 +42,9 @@ export const commandLink = (link: Partial<CommandLink>): string => {
   return `#${params.toString()}`;
 };
 
+/** The customer care console for one case (or its list when the item has no case yet). Opening it performs nothing. */
+export const careCaseHref = (caseId: number | null | undefined): string => (caseId ? `/operations/customer-care#case=${caseId}` : "/operations/customer-care#filter=needs_mcb");
+
 /** £149.99, or the plain truth when the figure is not known. */
 export const money = (minor: number | null | undefined, currency = "GBP"): string => {
   if (minor === null || minor === undefined) return "— Awaiting data";

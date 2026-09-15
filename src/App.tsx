@@ -33,6 +33,7 @@ const YourOrder = lazy(() => import("./pages/YourOrder"));
 const Approve = lazy(() => import("./pages/Approve"));
 const Operations = lazy(() => import("./pages/Operations"));
 const CommandCentre = lazy(() => import("./pages/CommandCentre"));
+const CustomerCare = lazy(() => import("./pages/CustomerCare"));
 
 import Terms from "./pages/legal/Terms";
 import Privacy from "./pages/legal/Privacy";
@@ -379,6 +380,7 @@ function App() {
         <Route path="/approve" element={<Layout><Approve /></Layout>} />
         {/* Staff console, CRM key required by every request it makes. */}
         <Route path="/operations" element={<Operations />} />
+        <Route path="/operations/customer-care" element={<CustomerCare />} />
         {/* Founder Command Centre: staff/founder only, CRM key required, no analytics. */}
         <Route path="/command-centre" element={<CommandCentre />} />
         <Route path="/artist-thank-you" element={<Layout><ArtistThankYou /></Layout>} />

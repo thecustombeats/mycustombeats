@@ -128,7 +128,7 @@ It never shows a story, photograph, street address, contact detail or secret.
 ## 10. Customer page and messages
 
 - **Customer page.** Progress stays ORDER RECEIVED / CREATING YOUR MEMORY / QUALITY CHECK / BEING MADE / ON THE WAY / DELIVERED. With more than one parcel it lists each parcel as *Being made*, *On its way* or *Delivered*, with carrier and tracking. It never shows a partner, route, cost, founder, QC detail or exception. Lost or cancelled parcels are not shown.
-- **Messages.** All one-way; replies go to support@mycustombeats.com, never WhatsApp.
+- **Messages.** All one-way; replies go to the customer care address (hello@mycustombeats.com since 16 September 2026), never WhatsApp.
   - IN_PRODUCTION
   - DISPATCHED
   - ADDITIONAL_PARCEL_DISPATCHED (auto)

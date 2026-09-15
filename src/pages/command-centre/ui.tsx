@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ago, commandLink, money, humanise, type Json } from "../../lib/commandCentre";
+import { ago, careCaseHref, commandLink, money, humanise, type Json } from "../../lib/commandCentre";
 import { card, eyebrow, primary } from "./styles";
 
 export const Panel = ({ id, title, children, aside }: { id: string; title: string; children: ReactNode; aside?: ReactNode }) => (
@@ -44,7 +44,17 @@ export const ActionCard = ({ item }: { item: Json }) => {
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm text-ink">
         <dt className="font-semibold">Customer</dt><dd className="m-0">{o.customer}</dd>
-        {item.kind === "PURCHASE_APPROVAL" ? (
+        {item.kind === "REFUND_DECISION" ? (
+          <>
+            <dt className="font-semibold">Refund</dt><dd className="m-0">{humanise(f.refund_type)} · {money(f.amount_minor, o.currency)}</dd>
+            <dt className="font-semibold">Customer paid</dt><dd className="m-0">{money(f.customer_paid_minor, o.currency)}{o.test_payment ? " (TEST)" : ""}</dd>
+          </>
+        ) : item.kind === "SUPPORT_REMEDY" ? (
+          <>
+            <dt className="font-semibold">Remedy</dt><dd className="m-0">{humanise(f.remedy)}</dd>
+            <dt className="font-semibold">Costs MCB</dt><dd className="m-0">{humanise(f.costs_mcb)}</dd>
+          </>
+        ) : item.kind === "PURCHASE_APPROVAL" ? (
           <>
             <dt className="font-semibold">Customer paid</dt><dd className="m-0">{money(f.customer_paid_minor, o.currency)}{o.test_payment ? " (TEST)" : ""}</dd>
             <dt className="font-semibold">Expected fulfilment</dt><dd className="m-0">{money(f.expected_fulfilment_minor, o.currency)}</dd>
@@ -61,7 +71,7 @@ export const ActionCard = ({ item }: { item: Json }) => {
         )}
         <dt className="font-semibold">Waiting</dt><dd className="m-0">{ago(item.since)}</dd>
       </dl>
-      <a className={`${primary} self-start`} href={item.action.open === "final" ? `/operations#order=${o.reference}&action=PASS_QUALITY_CHECK` : commandLink({ view: "orders", order: o.reference, open: item.action.open })}>
+      <a className={`${primary} self-start`} href={item.action.open === "care" ? careCaseHref(item.action.case_id) : item.action.open === "final" ? `/operations#order=${o.reference}&action=PASS_QUALITY_CHECK` : commandLink({ view: "orders", order: o.reference, open: item.action.open })}>
         {item.action.label}<span className="sr-only"> for {o.reference}</span>
       </a>
     </article>

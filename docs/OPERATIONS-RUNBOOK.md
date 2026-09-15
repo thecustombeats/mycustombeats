@@ -200,3 +200,15 @@ Full record: `docs/MEMORY-MUSIC-VIDEO-20260915.md`.
 - Check it (Command Centre → Quality check, or the staff console): pass, send back for internal rework (the customer is not contacted), or escalate. Then **reveal**: the customer is emailed and watches or downloads privately.
 - Capacity (Command Centre → Videos) is a planning figure pending platform verification. A customer who cancels before production can have their space released (with a reason); no refund is made by the system.
 
+## 18. Customer Care (16 September 2026)
+
+Full record: `docs/CUSTOMER-CARE-20260916.md`. Console: **/operations/customer-care** (CRM key and your name).
+
+- Start with **Needs MCB** and **Urgent**. We aim to reply within one working day; overdue cases are marked and appear in the Command Centre.
+- Open a case: read the conversation, reply (start from a template, then make it personal), and choose what happens next. The customer reads it on their order page; the email only says MCB has replied. Use internal notes for anything the customer should not see.
+- **Something incorrect?** Check it against what the customer supplied, then classify: an objective MCB error can be corrected (through REOPEN / MCB_CORRECTION); a creative preference is answered warmly and is never a revision.
+- **Someone else's details?** It is urgent and needs a privacy review. Never tell the customer who; record what you checked and did.
+- **Replacements and refunds** are prepared here and decided by Bella or Lewis with their code. Nothing is bought or refunded by the system: place an authorised replacement through fulfilment; make an authorised refund in the payment dashboard, then record it (with its reference and date).
+- **Link not working?** Issue a fresh private link (it replaces the old one) and send it to the customer.
+- **Video won't play or is wrong?** A remake is for an objective error only; it sends the same video back to rework and never takes another customer's space.
+- Resolve with the outcome and the root cause (not blame). No review is requested while a case is open or soon after it is resolved.

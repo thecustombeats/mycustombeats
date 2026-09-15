@@ -164,8 +164,18 @@ Each line is an exact mismatch between current wording and actual site behaviour
 |---|---|---|
 | 47 | Moment price — **decided (15 September 2026)**: Moment is £15 GBP; with one optional Memory Music Video (£49) the order is £64. | Decided |
 | 48 | Verify the video platform's real allowance (videos per period), how and when it resets, the maximum video/song length, output formats and resolution, commercial-use and privacy terms and cost, then set `video.capacity_per_period` and mark the period basis VERIFIED. Until then: 45 and 4 minutes are planning figures. | F + external |
-| 49 | Songs longer than 4 minutes (MCB allows up to 5): proceed with the full song, or another approach once the platform is verified. Nothing shortens the song automatically. | F |
+| 49 | Songs longer than 4 minutes (MCB allows up to 5): until the platform's maximum length is verified, no full-song film is promised — staff escalate to the Founders (`VIDEO_DURATION_PROVIDER_VERIFICATION_REQUIRED`). Nothing shortens the song. | F + external |
 | 50 | Cancellation and refund wording for personalised video production — NEEDS PROFESSIONAL LEGAL REVIEW. | L |
 | 51 | Whether to open "join the next available video period" to customers (the architecture exists; nothing is charged for a future period without the customer's explicit agreement). | F |
 | 52 | Price testing (£49 / £59 / £69): metrics are collected; no price changes automatically. | F |
 
+## 12. Customer Care & Recovery (16 September 2026) — items for the Founders
+
+| # | Item | Class |
+|---|---|---|
+| 53 | Customer care mailbox: confirm hello@mycustombeats.com receives mail (replies to every MCB email now go there), and keep support@mycustombeats.com forwarding to it for replies to earlier emails. Optionally set `mail.support_address`. | F |
+| 54 | Retention periods for support messages, evidence, refund records and privacy reviews — NEEDS PROFESSIONAL LEGAL REVIEW (nothing is deleted meanwhile). | L |
+| 55 | Privacy incidents (another customer's details sent to someone): who is notified and when, and any reporting obligations — NEEDS PROFESSIONAL LEGAL REVIEW. The system records the review; it draws no legal conclusion. | L |
+| 56 | Refunds are decided by Bella or Lewis in Customer Care and made in the payment provider's dashboard, then recorded. Confirm this manual flow (no refund API is connected). | F |
+| 57 | Recovery cooling period before any review request after a resolved problem (default 30 days, `support.review_cooling_days`). | F |
+| 58 | Cancellation and refund wording for personalised items, and when a creative preference could ever justify goodwill — NEEDS PROFESSIONAL LEGAL REVIEW. Nothing is offered automatically. | L |

@@ -267,6 +267,7 @@ git show cf92949f:db/schema.sql | ROOTQ fcb 2>/dev/null
 ROOTQ fcb < db/migrations/2026-09-15-fulfilment-controller.sql 2>/dev/null; F1=$?
 ROOTQ fcb < db/migrations/2026-09-15-fulfilment-controller.sql 2>/dev/null; F2=$?
 ROOTQ fcb < db/migrations/2026-09-15-memory-music-video.sql 2>/dev/null
+ROOTQ fcb < db/migrations/2026-09-16-customer-care.sql 2>/dev/null
 dumpdb() { for tb in $(ROOTQ -N -e "SHOW TABLES" "$1"); do ROOTQ -N -e "SHOW CREATE TABLE \`$tb\`" "$1" | sed 's/AUTO_INCREMENT=[0-9]* //'; done; }
 tc "the Fulfilment Controller migration applies to the previous schema, twice, and equals a fresh schema" "$([ "$F1" = 0 ] && [ "$F2" = 0 ] && [ "$(dumpdb fca | shasum)" = "$(dumpdb fcb | shasum)" ] && echo 1 || echo 0)"
 ROOTQ -e 'DROP DATABASE fca; DROP DATABASE fcb;' 2>/dev/null
@@ -437,7 +438,7 @@ t "an unboxing video is a reference, not an upload" "201|UNBOXING_VIDEO_REFERENC
 printf '<?php echo 1; ?>' > /tmp/fc-evil.jpg
 t "a non-image file is refused" "415" "$(ev -F "token=$BTOK" -F "request_id=$REQ" -F kind=PRODUCT_PHOTO -F "photo=@/tmp/fc-evil.jpg;filename=product.jpg")"
 t "without a token nothing is added" "404" "$(ev -F "token=nope" -F "request_id=$REQ" -F kind=PARCEL_PHOTO -F "reference=x")"
-t "  → missing evidence never closes or refuses the case" "OPEN" "$(q "SELECT status FROM order_service_requests WHERE id=$REQ")"
+t "  → missing evidence never closes or refuses the case" "NEW" "$(q "SELECT status FROM order_service_requests WHERE id=$REQ")"
 EVID=$(q "SELECT id FROM support_evidence WHERE service_request_id=$REQ AND stored_name IS NOT NULL LIMIT 1")
 t "evidence downloads need the CRM key and a staff name, and are audited" "401|422|200|1" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/$FC?evidence_id=$EVID&staff=X")|$(crm "$FC?evidence_id=$EVID")|$(curl -s -o /dev/null -w '%{http_code}' "$BASE/$FC?evidence_id=$EVID&staff=Support%20Tester" -H "Authorization: Bearer $CRMKEY")|$(evcount $OB SUPPORT.EVIDENCE_DOWNLOADED)"
 ctl $OB
@@ -445,6 +446,9 @@ t "the workspace lists the evidence and the cases" "2|3" "$(ctlj 'len(d["evidenc
 
 section "8. REVIEW REQUEST AND MARKETING PERMISSION ARE SEPARATE"
 t "a review request offering an incentive is refused" "422|incentive_refused" "$(act $OB RECORD_REVIEW_REQUEST '"channel":"WHATSAPP","incentive_offered":true')|$(jget error)"
+t "no review is requested while the customer's support case is open (recovery cooling)" "409|recovery_cooling" "$(act $OB RECORD_REVIEW_REQUEST '"channel":"WHATSAPP"')|$(jget error)"
+# The cases are resolved and the cooling period has passed.
+q "UPDATE order_service_requests SET status='CLOSED', review_request_hold_until = UTC_TIMESTAMP() - INTERVAL 1 DAY WHERE order_id=$OB" >/dev/null
 t "a review requested by WhatsApp is recorded, once" "200|1" "$(act $OB RECORD_REVIEW_REQUEST '"channel":"WHATSAPP"')|$(act $OB RECORD_REVIEW_REQUEST '"channel":"WHATSAPP"' >/dev/null; evcount $OB REVIEW.REQUESTED)"
 t "  → a review request grants no content permission" "0" "$(q "SELECT COUNT(*) FROM customer_content_permissions WHERE order_id=$OB")"
 t "a permission without evidence of consent is refused" "422|permission_evidence_required" "$(act $OB RECORD_CONTENT_PERMISSION '"scope":"PHOTOGRAPHS","status":"GRANTED"')|$(jget error)"

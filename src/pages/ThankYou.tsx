@@ -535,7 +535,7 @@ export default function ThankYou() {
           </Link>
 
           <a
-            href="mailto:support@mycustombeats.com"
+            href="mailto:hello@mycustombeats.com"
             className={`rounded-lg border border-white/50 px-8 py-3 text-center font-semibold transition hover:bg-white/10 ${TEXT_PRIMARY}`}
           >
             Contact Support

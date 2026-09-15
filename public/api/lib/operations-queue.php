@@ -277,7 +277,7 @@ function operations_queue(PDO $pdo, ?int $now = null): array
     foreach ($pdo->query(
         "SELECT s.id, s.order_id, s.kind, s.status, s.eligibility, s.priority_replacement_requested, s.created_at, o.mcb_reference, o.fulfilment_type
            FROM order_service_requests s JOIN orders o ON o.id = s.order_id
-          WHERE s.status IN ('OPEN','IN_REVIEW') ORDER BY s.id LIMIT 500"
+          WHERE s.status IN ('NEW','REVIEWING','WAITING_FOR_MCB','RESOLUTION_IN_PROGRESS') ORDER BY s.id LIMIT 500"
     )->fetchAll() as $r) {
         $kind = match ($r['kind']) {
             'DAMAGED_OR_FAULTY' => 'REPLACEMENT_REQUEST',
@@ -289,6 +289,10 @@ function operations_queue(PDO $pdo, ?int $now = null): array
                 ? 'Damaged or faulty item, Priority Replacement requested: ' . strtolower(str_replace('_', ' ', (string) $r['eligibility'])) . '.'
                 : 'Damaged or faulty item reported.',
             'DELIVERY_PROBLEM' => 'Delivery problem reported.',
+            'WRONG_ITEM' => 'Wrong item reported.',
+            'MANUFACTURING_DEFECT' => 'Manufacturing problem reported.',
+            'VIDEO_PROBLEM' => 'Video problem reported.',
+            'DIGITAL_DELIVERY_PROBLEM' => 'Digital delivery problem reported.',
             'INCORRECT_DETAIL' => 'The customer reports something incorrect in their song or artwork. Check it against what they supplied: an MCB error is corrected (reopen: MCB_CORRECTION); a creative preference is not a revision.',
             default => 'Question from the customer.',
         };

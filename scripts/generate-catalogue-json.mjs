@@ -37,6 +37,7 @@ const TARGETS = {
   creative: join(root, "public/api/data/creative.json"),
   fulfilment: join(root, "public/api/data/fulfilment.json"),
   video: join(root, "public/api/data/video.json"),
+  customerCare: join(root, "public/api/data/customer-care.json"),
 };
 
 const fail = (message) => {
@@ -68,6 +69,7 @@ try {
       join(root, "src/data/production/creative.ts"),
       join(root, "src/data/production/fulfilment.ts"),
       join(root, "src/data/production/video.ts"),
+      join(root, "src/data/production/customer-care.ts"),
       "--outDir", tmp,
       "--rootDir", join(root, "src/data"),
       "--module", "esnext",
@@ -112,6 +114,7 @@ const artwork = await import(pathToFileURL(join(tmp, "production/artwork.js")).h
 const creative = await import(pathToFileURL(join(tmp, "production/creative.js")).href);
 const fulfilment = await import(pathToFileURL(join(tmp, "production/fulfilment.js")).href);
 const video = await import(pathToFileURL(join(tmp, "production/video.js")).href);
+const care = await import(pathToFileURL(join(tmp, "production/customer-care.js")).href);
 rmSync(tmp, { recursive: true, force: true });
 
 const { PRODUCTS, ORDER_LIMITS, PRIORITY_REPLACEMENT_SKU, validateCatalogue } = catalogue;
@@ -576,6 +579,63 @@ const videoOut = {
   capacity_low_threshold: video.VIDEO_CAPACITY_LOW_THRESHOLD,
 };
 
+// ---- Customer Care & Recovery ------------------------------------------------
+const careKinds = care.SUPPORT_CASE_TYPES.map((t) => t.kind);
+if (new Set(careKinds).size !== careKinds.length) fail("customer care: duplicate case type");
+for (const t of care.SUPPORT_CASE_TYPES) {
+  if (!care.SUPPORT_PRIORITIES.includes(t.priority)) fail(`customer care: ${t.kind} has an unknown priority`);
+  if (!["ANY", "PHYSICAL", "VIDEO"].includes(t.applies)) fail(`customer care: ${t.kind} applies to an unknown order kind`);
+}
+if (care.SUPPORT_EMAIL !== "hello@mycustombeats.com") fail("customer care: ordinary order support is hello@mycustombeats.com");
+for (const r of care.SUPPORT_REMEDIES) {
+  if (!["YES", "NO", "UNKNOWN"].includes(r.costsMcb)) fail(`customer care: remedy ${r.type} has an unknown cost flag`);
+}
+const refundRemedy = care.SUPPORT_REMEDIES.find((r) => r.type === "REFUND_REVIEW_REQUIRED");
+if (!refundRemedy || !refundRemedy.founder) fail("customer care: a refund is always a founder decision");
+for (const t of care.SUPPORT_TEMPLATES) {
+  if (/supplier|partner|manufacturer|factory|prodigi|kunaki|whatsapp|guarantee|refund|compensation|discount|voucher|credit|legally|liable|AI\b|automat/i.test(t.body)) {
+    fail(`customer care: template ${t.key} mentions something a customer should never be told in a template`);
+  }
+}
+for (const [k, v] of Object.entries(care.SUPPORT_RETENTION)) {
+  if (v !== "LEGAL_REVIEW_REQUIRED") fail(`customer care: retention for ${k} cannot be set before legal review`);
+}
+const customerCareOut = {
+  _generated: "Do not edit. INTERNAL. Generated from src/data/production/customer-care.ts by scripts/generate-catalogue-json.mjs",
+  support_email: care.SUPPORT_EMAIL,
+  case_types: care.SUPPORT_CASE_TYPES.map((t) => ({ kind: t.kind, label: t.label, applies: t.applies, priority: t.priority })),
+  digital_issues: care.SUPPORT_DIGITAL_ISSUES.map((i) => ({ issue: i.issue, label: i.label })),
+  statuses: [...care.SUPPORT_CASE_STATUSES],
+  awaiting_mcb: [...care.SUPPORT_AWAITING_MCB],
+  open_statuses: [...care.SUPPORT_OPEN_STATUSES],
+  customer_status: Object.fromEntries(Object.entries(care.SUPPORT_CUSTOMER_STATUS).map(([k, v]) => [k, { label: v.label, next: v.next }])),
+  service_target: {
+    customer_wording: care.SUPPORT_SERVICE_TARGET.customerWording,
+    first_response_working_days: care.SUPPORT_SERVICE_TARGET.firstResponseWorkingDays,
+    urgent_review_hours: care.SUPPORT_SERVICE_TARGET.urgentReviewHours,
+    resolution_stall_working_days: care.SUPPORT_SERVICE_TARGET.resolutionStallWorkingDays,
+    replacement_action_working_days: care.SUPPORT_SERVICE_TARGET.replacementActionWorkingDays,
+    refund_record_working_days: care.SUPPORT_SERVICE_TARGET.refundRecordWorkingDays,
+  },
+  priorities: [...care.SUPPORT_PRIORITIES],
+  classifications: [...care.SUPPORT_CLASSIFICATIONS],
+  classification_guidance: { ...care.SUPPORT_CLASSIFICATION_GUIDANCE },
+  privacy_review: [...care.SUPPORT_PRIVACY_REVIEW],
+  sentiments: [...care.SUPPORT_SENTIMENTS],
+  root_causes: [...care.SUPPORT_ROOT_CAUSES],
+  recovery_outcomes: [...care.SUPPORT_RECOVERY_OUTCOMES],
+  remedies: care.SUPPORT_REMEDIES.map((r) => ({ type: r.type, founder: r.founder, costs_mcb: r.costsMcb, objective_only: r.objectiveOnly })),
+  remedy_statuses: [...care.SUPPORT_REMEDY_STATUSES],
+  video_capacity_bases: [...care.SUPPORT_VIDEO_CAPACITY_BASES],
+  refund_statuses: [...care.REFUND_REVIEW_STATUSES],
+  refund_types: [...care.REFUND_TYPES],
+  recovery_cooling_days: care.SUPPORT_RECOVERY_COOLING_DAYS,
+  satisfaction_question: care.SUPPORT_SATISFACTION_QUESTION,
+  retention: { ...care.SUPPORT_RETENTION },
+  copy: { ...care.SUPPORT_COPY },
+  templates: care.SUPPORT_TEMPLATES.map((t) => ({ key: t.key, title: t.title, body: t.body })),
+};
+
 const outputs = [
   [TARGETS.catalogue, JSON.stringify(catalogueOut, null, 2) + "\n"],
   [TARGETS.legal, JSON.stringify(legalOut, null, 2) + "\n"],
@@ -586,6 +646,7 @@ const outputs = [
   [TARGETS.creative, JSON.stringify(creativeOut, null, 2) + "\n"],
   [TARGETS.fulfilment, JSON.stringify(fulfilmentOut, null, 2) + "\n"],
   [TARGETS.video, JSON.stringify(videoOut, null, 2) + "\n"],
+  [TARGETS.customerCare, JSON.stringify(customerCareOut, null, 2) + "\n"],
 ];
 
 if (checkOnly) {

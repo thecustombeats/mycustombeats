@@ -31,10 +31,17 @@ export const VIDEO_PLANNING_LIMITS = {
 export const SONG_TARGET_SECONDS = 195;
 export const SONG_MAX_SECONDS = 300;
 
-export const VIDEO_DURATION_STATUSES = ["PENDING_AUDIO_MASTER", "VIDEO_DURATION_ELIGIBLE", "VIDEO_DURATION_REVIEW_REQUIRED"] as const;
+export const VIDEO_DURATION_STATUSES = ["PENDING_AUDIO_MASTER", "VIDEO_DURATION_ELIGIBLE", "VIDEO_DURATION_PROVIDER_VERIFICATION_REQUIRED"] as const;
 
-/** A person's decision on a song longer than the planning maximum. None edits the master. */
-export const VIDEO_DURATION_DECISIONS = ["PROCEED_FULL_SONG", "ESCALATE_TO_FOUNDERS"] as const;
+/**
+ * A song longer than the planning maximum (240 s, pending verification with the
+ * platform) waits in VIDEO_DURATION_PROVIDER_VERIFICATION_REQUIRED. Staff can
+ * only escalate it to the Founders: nothing offers, promises or selects a film
+ * for the full song, and nothing shortens, speeds up or edits the song. When the
+ * platform's real maximum is verified, the planning limit changes here and a
+ * song within it becomes eligible by itself.
+ */
+export const VIDEO_DURATION_DECISIONS = ["ESCALATE_TO_FOUNDERS"] as const;
 
 /**
  * The capacity period. CALENDAR_MONTH is a planning model only: how the

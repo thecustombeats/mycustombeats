@@ -222,8 +222,10 @@ can never poison order confirmations:
 
 The `from` address must be on that verified domain, e.g.
 `My Custom Beats <orders@send.mycustombeats.com>`. The mailbox does not need
-to exist to *send*, but `reply_to` is set to `support@mycustombeats.com`, and
-that one **must** be able to receive.
+to exist to *send*, but `reply_to` is set to the customer care address
+(`mail.support_address`, default `hello@mycustombeats.com`), and that one
+**must** be able to receive. Keep `support@mycustombeats.com` forwarding to it for
+replies to emails sent before 16 September 2026.
 
 ### 8b. Configure
 

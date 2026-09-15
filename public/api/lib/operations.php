@@ -524,18 +524,18 @@ function verify_founder_authorisation(string $founder, mixed $code): bool
  * purchase authorisation, so a refused attempt is audited even though
  * nothing else is written.
  */
-function check_founder_authorisation_request(int $orderId, array $in, string $staff): string
+function check_founder_authorisation_request(int $orderId, array $in, string $staff, string $what = 'a supplier purchase', string $confirmWhat = 'the supplier purchase for this order'): string
 {
     $founder = strtoupper(is_string($in['founder'] ?? null) ? $in['founder'] : '');
     if (!in_array($founder, MCB_FOUNDERS, true)) {
-        throw new OperationsException('founder_required', 'Only Bella or Lewis can authorise a supplier purchase. Choose who is authorising.', 422);
+        throw new OperationsException('founder_required', "Only Bella or Lewis can authorise {$what}. Choose who is authorising.", 422);
     }
     if (($in['confirm'] ?? null) !== true) {
-        throw new OperationsException('authorisation_confirmation_required', 'Tick to confirm you authorise the supplier purchase for this order.', 422);
+        throw new OperationsException('authorisation_confirmation_required', "Tick to confirm you authorise {$confirmWhat}.", 422);
     }
     if (!founder_authorisation_configured($founder)) {
-        error_log("MCB operations: no authorisation code is configured for founder {$founder}; supplier purchase authorisation refused.");
-        throw new OperationsException('founder_authorisation_unavailable', 'Supplier purchase authorisation is not configured on this server.', 503);
+        error_log("MCB operations: no authorisation code is configured for founder {$founder}; authorisation refused.");
+        throw new OperationsException('founder_authorisation_unavailable', 'Founder authorisation is not configured on this server.', 503);
     }
     $pdo = db();
     $recent = $pdo->prepare(
@@ -1262,6 +1262,10 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 if (($in['incentive_offered'] ?? false) !== false) {
                     throw new OperationsException('incentive_refused', 'A review is never requested in exchange for an incentive.', 422);
                 }
+                require_once __DIR__ . '/lifecycle.php';
+                if (($hold = review_request_recovery_hold($pdo, $orderId)) !== null) {
+                    throw new OperationsException('recovery_cooling', $hold, 409);
+                }
                 record_order_event($pdo, $orderId, 'REVIEW.REQUESTED', ['by' => $staff, 'channel' => $channel], 'review-requested');
                 break;
 
@@ -1374,6 +1378,9 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 break;
 
             case 'UPDATE_SERVICE_REQUEST':
+                // The older staff-console action, kept for compatibility. Support cases live in
+                // lib/customer-care.php: IN_REVIEW is REVIEWING, DECLINED closes the case.
+                require_once __DIR__ . '/customer-care.php';
                 $requestId = (int) ($in['request_id'] ?? 0);
                 $status    = (string) ($in['status'] ?? '');
                 $resolution = $in['resolution'] ?? null;
@@ -1386,25 +1393,17 @@ function perform_staff_action(int $orderId, string $action, array $in, string $s
                 if ($status !== 'IN_REVIEW' && $resolution === null) {
                     throw new OperationsException('invalid_resolution', 'Say how the request was resolved.', 422);
                 }
-                $stmt = $pdo->prepare(
-                    "UPDATE order_service_requests
-                        SET status = :status, resolution = :resolution,
-                            resolved_by = IF(:closed1 = 1, :staff, NULL),
-                            resolved_at = IF(:closed2 = 1, UTC_TIMESTAMP(), NULL)
-                      WHERE id = :id AND order_id = :oid"
-                );
-                $closed = $status === 'IN_REVIEW' ? 0 : 1;
-                $stmt->execute([
-                    ':status' => $status, ':resolution' => $resolution, ':closed1' => $closed, ':closed2' => $closed,
-                    ':staff' => $staff, ':id' => $requestId, ':oid' => $orderId,
-                ]);
-                if ($stmt->rowCount() === 0) {
-                    $exists = $pdo->prepare('SELECT COUNT(*) FROM order_service_requests WHERE id = :id AND order_id = :oid');
-                    $exists->execute([':id' => $requestId, ':oid' => $orderId]);
-                    if ((int) $exists->fetchColumn() === 0) {
-                        throw new OperationsException('request_not_found', 'No such request on this order.', 404);
-                    }
+                $case = care_case_row($pdo, $requestId, true);
+                if ($case === null || (int) $case['order_id'] !== $orderId) {
+                    throw new OperationsException('request_not_found', 'No such request on this order.', 404);
+                }
+                $target = ['IN_REVIEW' => 'REVIEWING', 'RESOLVED' => 'RESOLVED', 'DECLINED' => 'CLOSED'][$status];
+                if ($case['status'] === $target && $case['resolution'] === $resolution) {
                     $result['outcome'] = 'unchanged';
+                } else {
+                    $pdo->prepare('UPDATE order_service_requests SET resolution = :r, recovery_outcome = COALESCE(recovery_outcome, :o) WHERE id = :id')
+                        ->execute([':r' => $resolution, ':o' => $status === 'RESOLVED' ? match ($resolution) { 'REPLACEMENT_ARRANGED' => 'REPLACED', 'RESENT_OR_REPAIRED' => 'CORRECTED', 'ANSWERED', 'NO_ACTION_NEEDED' => 'RESOLVED', default => 'OTHER' } : null, ':id' => $requestId]);
+                    care_set_status($pdo, care_case_row($pdo, $requestId), $target, $staff);
                 }
                 record_order_event($pdo, $orderId, 'SERVICE_REQUEST.UPDATED', ['by' => $staff, 'status' => $status, 'resolution' => $resolution]);
                 break;

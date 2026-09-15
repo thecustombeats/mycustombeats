@@ -380,6 +380,7 @@ ROOTQ mva < db/schema.sql 2>/dev/null
 git show e6886a34:db/schema.sql | ROOTQ mvb 2>/dev/null
 ROOTQ mvb < db/migrations/2026-09-15-memory-music-video.sql 2>/dev/null; V1=$?
 ROOTQ mvb < db/migrations/2026-09-15-memory-music-video.sql 2>/dev/null; V2=$?
+ROOTQ mvb < db/migrations/2026-09-16-customer-care.sql 2>/dev/null
 dumpdb() { for tb in $(ROOTQ -N -e "SHOW TABLES" "$1"); do ROOTQ -N -e "SHOW CREATE TABLE \`$tb\`" "$1" | sed 's/AUTO_INCREMENT=[0-9]* //'; done; }
 tc "the video migration applies to the previous schema, twice, and equals a fresh schema" "$([ "$V1" = 0 ] && [ "$V2" = 0 ] && [ "$(dumpdb mva | shasum)" = "$(dumpdb mvb | shasum)" ] && echo 1 || echo 0)"
 ROOTQ -e 'DROP DATABASE mva; DROP DATABASE mvb;' 2>/dev/null
@@ -483,17 +484,18 @@ D5M=$(q "SELECT current_master_id FROM creative_jobs WHERE order_id=$D5")
 q "UPDATE creative_masters SET duration_ms=300000 WHERE id=$D5M" >/dev/null
 D5ROW=$(q "SELECT CONCAT_WS('|',sha256,byte_size,duration_ms,version) FROM creative_masters WHERE id=$D5M")
 vpost "$(vact $D5 $D5JOB CONFIRM_INPUTS)" >/dev/null
-t "a song over 240 seconds needs a person's review — no production, no editing" "READY|VIDEO_DURATION_REVIEW_REQUIRED|DURATION_REVIEW|1" "$(jstat $D5JOB)|$(q "SELECT duration_status FROM video_jobs WHERE id=$D5JOB")|$(q "SELECT waiting_on FROM video_jobs WHERE id=$D5JOB")|$(evcount $D5 VIDEO.DURATION_REVIEW_REQUIRED)"
-t "  → the Command Centre asks for the duration review" "1" "$(ov; ovj 'sum(1 for a in d["attention"] if a["title"]=="Video duration review required" and a["order"]["order_id"]=='"$D5"')')"
-t "a person decides to proceed with the full song: production required, the 300-second master untouched" "200|PRODUCTION_REQUIRED|PROCEED_FULL_SONG|$D5ROW" "$(vpost "$(vact $D5 $D5JOB DURATION_REVIEW '{"decision":"PROCEED_FULL_SONG"}')")|$(jstat $D5JOB)|$(q "SELECT duration_decision FROM video_jobs WHERE id=$D5JOB")|$(q "SELECT CONCAT_WS('|',sha256,byte_size,duration_ms,version) FROM creative_masters WHERE id=$D5M")"
-tc "  → no shortening, speeding up or fading option exists" "$(cj '",".join(d["duration_decisions"])' $VJ | grep -qx 'PROCEED_FULL_SONG,ESCALATE_TO_FOUNDERS' && echo 1 || echo 0)"
+t "a song over 240 seconds waits for platform verification — no production, no promise, no editing" "READY|VIDEO_DURATION_PROVIDER_VERIFICATION_REQUIRED|PROVIDER_VERIFICATION|1" "$(jstat $D5JOB)|$(q "SELECT duration_status FROM video_jobs WHERE id=$D5JOB")|$(q "SELECT waiting_on FROM video_jobs WHERE id=$D5JOB")|$(evcount $D5 VIDEO.DURATION_PROVIDER_VERIFICATION_REQUIRED)"
+t "  → the Command Centre shows the length needs platform verification" "1" "$(ov; ovj 'sum(1 for a in d["attention"] if a["title"]=="Video length needs platform verification" and a["order"]["order_id"]=='"$D5"')')"
+t "staff cannot choose a film for the full song while the 4-minute limit is unverified; nothing changes" "409|provider_verification_required|READY|NULL|$D5ROW" "$(vpost "$(vact $D5 $D5JOB DURATION_REVIEW '{"decision":"PROCEED_FULL_SONG"}')")|$(jget error)|$(jstat $D5JOB)|$(q "SELECT IFNULL(duration_decision,'NULL') FROM video_jobs WHERE id=$D5JOB")|$(q "SELECT CONCAT_WS('|',sha256,byte_size,duration_ms,version) FROM creative_masters WHERE id=$D5M")"
+t "  → the only choice is to escalate to the Founders; the 300-second master is untouched" "200|EXCEPTION|ESCALATE_TO_FOUNDERS|SONG_LONGER_THAN_PLANNING_MAXIMUM|$D5ROW" "$(vpost "$(vact $D5 $D5JOB DURATION_REVIEW '{"decision":"ESCALATE_TO_FOUNDERS"}')")|$(jstat $D5JOB)|$(q "SELECT duration_decision FROM video_jobs WHERE id=$D5JOB")|$(q "SELECT exception_reason FROM video_jobs WHERE id=$D5JOB")|$(q "SELECT CONCAT_WS('|',sha256,byte_size,duration_ms,version) FROM creative_masters WHERE id=$D5M")"
+tc "  → no full-song, shortening, speeding up or fading option exists" "$(cj '",".join(d["duration_decisions"])' $VJ | grep -qx 'ESCALATE_TO_FOUNDERS' && echo 1 || echo 0)"
 
 section "7. CANCELLATION BEFORE PRODUCTION RELEASES THE SPACE; PRODUCED CAPACITY IS NEVER RECYCLED"
 reset_limits
 paid_order '{"sku":"moment","email":"mv-cancel@example.com","video":[1,1]}'; XO=$OID; XJOB=$(job_of $XO)
 t "releasing needs a reason" "422|release_reason_required" "$(vpost "$(vact $XO $XJOB RELEASE_CAPACITY)")|$(jget error)"
 t "released before production: space RELEASED, entitlement CANCELLED, audited, no refund" "200|RELEASED|CANCELLED|1|PAID" "$(vpost "$(vact $XO $XJOB RELEASE_CAPACITY '{"note":"Customer cancelled the video before production"}')")|$(q "SELECT status FROM video_capacity_reservations WHERE order_id=$XO")|$(q "SELECT status FROM video_entitlements WHERE order_id=$XO")|$(evcount $XO VIDEO.CAPACITY_RELEASED)|$(q "SELECT status FROM orders WHERE id=$XO")"
-t "a video in production (or made) cannot release its space" "409|capacity_consumed" "$(vpost "$(vact $D5 $D5JOB START_PRODUCTION)" >/dev/null; vpost "$(vact $D5 $D5JOB RELEASE_CAPACITY '{"note":"try"}')")|$(jget error)"
+t "a video in production (or made) cannot release its space" "409|capacity_consumed" "$(vpost "$(vact $D4 $D4JOB START_PRODUCTION)" >/dev/null; vpost "$(vact $D4 $D4JOB RELEASE_CAPACITY '{"note":"try"}')")|$(jget error)"
 
 section "8. CAPACITY: SLOT 45 ACCEPTED, SLOT 46 REFUSED, CONCURRENCY, HOLDS"
 PERIOD=$(q "SELECT id FROM video_capacity_periods ORDER BY id DESC LIMIT 1")

@@ -52,7 +52,7 @@
 | Song | Result |
 |---|---|
 | ≤ 240 s (planning maximum) | `VIDEO_DURATION_ELIGIBLE` → production required |
-| > 240 s (MCB allows songs up to 300 s) | `VIDEO_DURATION_REVIEW_REQUIRED` → a person chooses `PROCEED_FULL_SONG` or `ESCALATE_TO_FOUNDERS` |
+| > 240 s (MCB allows songs up to 300 s) | `VIDEO_DURATION_PROVIDER_VERIFICATION_REQUIRED` → no film for the full song is promised or started until the platform's maximum is verified; staff can only `ESCALATE_TO_FOUNDERS` (corrected 16 September 2026) |
 
 **Nothing edits the MCB Production Master.** Nothing trims, speeds up, compresses, fades early, removes sections or overwrites it.
 - **Lineage.** The job records the master's id, version, SHA-256 and duration.

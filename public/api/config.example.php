@@ -76,6 +76,14 @@ return [
         // 'api_base' => '',
     ],
 
+    // MCB customer care. Replies to every MCB email go here, and it is the
+    // address customers are shown. Defaults to hello@mycustombeats.com; the
+    // mailbox must receive mail. Keep support@mycustombeats.com forwarding to it
+    // so replies to emails sent before this change still arrive.
+    'mail' => [
+        'support_address' => 'hello@mycustombeats.com',
+    ],
+
     // ---- Customer communication ---------------------------------------
     // Resend (https://resend.com) sends the POST-PAYMENT customer email —
     // the one carrying the MCB reference. Fired by the Stripe webhook only

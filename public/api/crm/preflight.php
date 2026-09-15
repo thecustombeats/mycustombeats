@@ -188,6 +188,20 @@ try {
     error_log('MCB preflight: database check failed: ' . $e->getMessage());
     $add('fulfilment_controller_migration_applied', 'FAIL', 'The database could not be checked.');
 }
+try {
+    $found = (int) db()->query(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()
+            AND table_name IN ('support_case_messages','support_remedies','refund_reviews')"
+    )->fetchColumn();
+    $column = (int) db()->query(
+        "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'order_service_requests' AND column_name = 'privacy_review'"
+    )->fetchColumn();
+    $add('customer_care_migration_applied', $found === 3 && $column === 1 ? 'PASS' : 'FAIL',
+        'db/migrations/2026-09-16-customer-care.sql must be applied (after a backup).');
+} catch (PDOException $e) {
+    error_log('MCB preflight: database check failed: ' . $e->getMessage());
+    $add('customer_care_migration_applied', 'FAIL', 'The database could not be checked.');
+}
 $routes = supplier_routes();
 $verifiedRoutes = array_filter($routes, static fn (array $r): bool => $r['verification_status'] === 'VERIFIED');
 $add('supplier_routes', $routes !== [] && count($verifiedRoutes) === count($routes) ? 'PASS' : 'WARN', $routes === []

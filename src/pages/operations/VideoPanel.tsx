@@ -106,9 +106,9 @@ const VideoPanel = ({ orderId, reference, apiKey, staff }: { orderId: number; re
             <div className="flex flex-wrap gap-2">
               <button type="button" className={ghost} onClick={() => act(j.video_job_id, "SET_VISUAL_DIRECTION", { visual_direction: form[`dir${j.video_job_id}`] ?? j.visual_direction ?? "" })}>Save direction</button>
               {j.status === "INPUT_REQUIRED" && <button type="button" className={ghost} onClick={() => act(j.video_job_id, "CONFIRM_INPUTS")}>Confirm we have what we need</button>}
-              {j.status === "READY" && j.duration_status === "VIDEO_DURATION_REVIEW_REQUIRED" && (
+              {j.status === "READY" && j.duration_status === "VIDEO_DURATION_PROVIDER_VERIFICATION_REQUIRED" && (
                 <>
-                  <button type="button" className={ghost} onClick={() => act(j.video_job_id, "DURATION_REVIEW", { decision: "PROCEED_FULL_SONG" })}>Proceed with the full song</button>
+                  <p className="w-full text-sm">This song is longer than the 4-minute planning maximum, which is not yet verified with the platform. Do not promise a film for the full song; the song is never shortened.</p>
                   <button type="button" className={ghost} onClick={() => act(j.video_job_id, "DURATION_REVIEW", { decision: "ESCALATE_TO_FOUNDERS" })}>Escalate to the Founders</button>
                 </>
               )}

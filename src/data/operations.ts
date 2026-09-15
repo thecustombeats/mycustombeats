@@ -191,6 +191,7 @@ export type LifecycleMessageType =
   | "DELIVERY_UPDATE"
   | "DELIVERED"
   | "VIDEO_READY"
+  | "SUPPORT_RESPONSE"
   | "FOLLOW_UP"
   | "REVIEW_REQUEST";
 
@@ -220,6 +221,7 @@ export const LIFECYCLE_TEMPLATES: readonly LifecycleTemplate[] = [
   { type: "DELIVERY_UPDATE", trigger: "FULFILMENT.EXCEPTION_OPENED", autoSend: false, workflows: ["PHYSICAL"], purpose: "A calm update when a delivery is delayed; sent only when staff choose." },
   { type: "DELIVERED", trigger: "DELIVERED", autoSend: false, workflows: ["PHYSICAL"], purpose: "Your order has arrived, with the damage guidance; sent when staff choose." },
   { type: "VIDEO_READY", trigger: "VIDEO.REVEALED", autoSend: true, workflows: ["DIGITAL", "PHYSICAL"], purpose: "Your MCB Memory Music Video is ready: a private link to the order page where it plays and can be downloaded." },
+  { type: "SUPPORT_RESPONSE", trigger: "SUPPORT.RESPONSE_SENT", autoSend: true, workflows: ["DIGITAL", "PHYSICAL"], purpose: "MCB has replied to the customer's message: a private link to the order page where the reply is. The reply itself is never in the email." },
   { type: "FOLLOW_UP", trigger: "FOLLOW_UP.DUE", autoSend: false, workflows: ["DIGITAL", "PHYSICAL"], purpose: "A personal check-in, sent when staff choose." },
   { type: "REVIEW_REQUEST", trigger: "ORDER.COMPLETED", autoSend: false, workflows: ["DIGITAL", "PHYSICAL"], purpose: "Asks for a review, only for a completed order and only when a review URL is configured." },
 ];
@@ -302,7 +304,7 @@ export const AUTOMATION_EVENTS: readonly string[] = [
   "VIDEO.CAPACITY_EXCEPTION",
   "VIDEO.INPUT_RECEIVED",
   "VIDEO.PRODUCTION_REQUIRED",
-  "VIDEO.DURATION_REVIEW_REQUIRED",
+  "VIDEO.DURATION_PROVIDER_VERIFICATION_REQUIRED",
   "VIDEO.CANDIDATE_READY",
   "VIDEO.QUALITY_CHECK_REQUIRED",
   "VIDEO.REWORK_REQUIRED",
@@ -310,6 +312,10 @@ export const AUTOMATION_EVENTS: readonly string[] = [
   "VIDEO.REVEALED",
   "VIDEO.CAPACITY_RELEASED",
   "VIDEO.EXCEPTION",
+  "SUPPORT.CASE_OPENED",
+  "SUPPORT.RESPONSE_SENT",
+  "SUPPORT.CASE_RESOLVED",
+  "SUPPORT.PRIVACY_REVIEW_REQUIRED",
 ];
 
 /**
