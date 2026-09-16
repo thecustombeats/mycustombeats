@@ -117,7 +117,7 @@ try {
         if (!$isStaff) {
             json_error(403, 'forbidden', 'Only staff can requeue a notification.');
         }
-        $staff = operations_line($body['staff'] ?? null, 160);
+        $staff = crm_staff_name(operations_line($body['staff'] ?? null, 160));
         $id    = is_int($body['id'] ?? null) ? $body['id'] : 0;
         if ($staff === null || $id <= 0) {
             json_error(422, 'invalid_request', 'Give id and staff.');

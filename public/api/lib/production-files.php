@@ -25,6 +25,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/payment-first.php';
+
 require_once __DIR__ . '/operations.php';
 require_once __DIR__ . '/artwork.php';
 require_once __DIR__ . '/creative-factory.php';
@@ -121,6 +123,9 @@ function production_log_access(PDO $pdo, int $orderId, string $staff, string $ac
  */
 function ensure_artwork_creative_jobs(PDO $pdo, int $orderId): array
 {
+    // Payment first. This used to be safe only because every caller happened
+    // to check first, and because an unpaid order has no artwork rows yet.
+    require_payment_before_work($pdo, $orderId, 'ARTWORK');
     $rows = plan_order_artwork($pdo, $orderId);
     if ($rows === []) {
         return [];

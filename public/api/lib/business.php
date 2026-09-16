@@ -32,6 +32,7 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/business-time.php';
 require_once __DIR__ . '/operations.php';
 require_once __DIR__ . '/customer-care.php';
 require_once __DIR__ . '/command-centre.php';
@@ -58,16 +59,14 @@ function biz_data(): array
  * The business reporting timezone. The Founders decided Europe/London; server
  * configuration (business.timezone) may set another valid IANA name. It is
  * never derived from where anyone is, or from the server.
+ *
+ * Delegates to lib/business-time.php, which the Command Centre also uses, so
+ * the two can no longer define a different "today" (they did: Business counted
+ * from midnight London and MCB Today from midnight UTC).
  */
 function biz_timezone(): array
 {
-    $decided = (string) (biz_data()['founder_decisions']['business_timezone'] ?? 'Europe/London');
-    $configured = mcb_setting('business.timezone', null);
-    if (is_string($configured) && $configured !== '' && in_array($configured, DateTimeZone::listIdentifiers(), true)) {
-        return ['timezone' => $configured, 'configured' => true, 'status' => 'CONFIGURED', 'source' => $configured === $decided ? 'FOUNDER_DECISION' : 'SERVER_CONFIGURATION'];
-    }
-    return ['timezone' => $decided, 'configured' => true, 'status' => 'CONFIGURED', 'source' => 'FOUNDER_DECISION',
-        'note' => "Business days, weeks and months use {$decided} (founder decision)."];
+    return mcb_business_timezone();
 }
 
 /** A founder threshold, or null when NOT CONFIGURED. Never a default. */
@@ -97,35 +96,12 @@ function biz_payment_fee_policy(): string
 /** Period boundaries in the business timezone, as UTC timestamps for the database. */
 function biz_periods(?int $now = null): array
 {
-    $tz = new DateTimeZone(biz_timezone()['timezone']);
-    $utc = new DateTimeZone('UTC');
-    $at = (new DateTimeImmutable('@' . ($now ?? time())))->setTimezone($tz);
-    $day = $at->setTime(0, 0);
-    $week = $day->modify('monday this week');
-    if ($week > $day) {
-        $week = $week->modify('-7 days');
-    }
-    $month = $day->modify('first day of this month');
-    $f = static fn (DateTimeImmutable $d): string => $d->setTimezone($utc)->format('Y-m-d H:i:s');
-    return [
-        'timezone' => $tz->getName(),
-        'now' => $f($at),
-        'today' => ['label' => 'Today', 'start' => $f($day), 'end' => $f($day->modify('+1 day')), 'partial' => true],
-        'yesterday' => ['label' => 'Yesterday', 'start' => $f($day->modify('-1 day')), 'end' => $f($day), 'partial' => false],
-        'day_before' => ['label' => 'The day before', 'start' => $f($day->modify('-2 days')), 'end' => $f($day->modify('-1 day')), 'partial' => false],
-        'week' => ['label' => 'This week', 'start' => $f($week), 'end' => $f($week->modify('+7 days')), 'partial' => true],
-        'last_week' => ['label' => 'Last week', 'start' => $f($week->modify('-7 days')), 'end' => $f($week), 'partial' => false],
-        'week_before' => ['label' => 'The week before', 'start' => $f($week->modify('-14 days')), 'end' => $f($week->modify('-7 days')), 'partial' => false],
-        'month' => ['label' => 'This month', 'start' => $f($month), 'end' => $f($month->modify('+1 month')), 'partial' => true],
-        'last_month' => ['label' => 'Last month', 'start' => $f($month->modify('-1 month')), 'end' => $f($month), 'partial' => false],
-        'month_before' => ['label' => 'The month before', 'start' => $f($month->modify('-2 months')), 'end' => $f($month->modify('-1 month')), 'partial' => false],
-        'all' => ['label' => 'All time', 'start' => null, 'end' => null, 'partial' => false],
-    ];
+    return mcb_business_periods($now);
 }
 
 function biz_in(?string $at, array $period): bool
 {
-    return $at !== null && ($period['start'] === null || ($at >= $period['start'] && $at < $period['end']));
+    return mcb_business_in($at, $period);
 }
 
 /* ------------------------------------------------------------------ */

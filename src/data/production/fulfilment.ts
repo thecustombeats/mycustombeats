@@ -41,6 +41,12 @@ export const FULFILMENT_EXCEPTION_TYPES = [
   "PARCEL_DAMAGED", "WRONG_ITEM", "MANUFACTURING_DEFECT", "PARTIAL_DELIVERY", "DESTINATION_PROBLEM", "CUSTOMS_EXCEPTION",
   "SUPPLIER_CANCELLED", "OTHER_FULFILMENT_EXCEPTION",
   "COMMERCIAL_DATA_REQUIRED", "COMMERCIAL_SAFETY_EXCEPTION", "PAID_ORDER_FULFILMENT_EXCEPTION",
+  // The customer has paid and MCB has not finished verifying how it will
+  // fulfil — a route awaiting refreshed evidence, a marketplace to check, costs
+  // or manufacturer data not yet recorded. Uncertainty no longer stops a
+  // customer paying (only a KNOWN impossibility does), so it has to stop the
+  // WORK instead, until a person has verified it.
+  "POST_PAYMENT_VERIFICATION_REQUIRED",
   "SUBSTITUTION_APPROVAL_REQUIRED", "AUTHORISED_CARD_ALTERNATIVE",
 ] as const;
 

@@ -41,7 +41,7 @@ $pdo = db();
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
     $artworkId = ctype_digit((string) ($_GET['artwork_id'] ?? '')) ? (int) $_GET['artwork_id'] : 0;
     if ($artworkId > 0 && ($_GET['download'] ?? '') === '1') {
-        $staff = operations_line($_GET['staff'] ?? null, 160);
+        $staff = crm_staff_name(operations_line($_GET['staff'] ?? null, 160));
         if ($staff === null) {
             json_error(422, 'staff_required', 'Say who is downloading, so access to production files is audited.');
         }
@@ -90,7 +90,7 @@ $field = static fn (string $name): string => is_string($_POST[$name] ?? null) ? 
 $orderId   = ctype_digit($field('order_id')) ? (int) $field('order_id') : 0;
 $artworkId = ctype_digit($field('artwork_id')) ? (int) $field('artwork_id') : 0;
 $artMasterClaim = ctype_digit($field('art_master_id')) ? (int) $field('art_master_id') : null;
-$staff     = operations_line($field('staff'), 160);
+$staff     = crm_staff_name(operations_line($field('staff'), 160));
 $reference = preg_match('/^MCB-\d{4}-\d{6}$/', $field('reference')) === 1 ? $field('reference') : null;
 $claimTpl  = preg_match('/^[A-Z0-9_]{3,40}$/', $field('template_id')) === 1 ? $field('template_id') : null;
 $claimVer  = ctype_digit($field('template_version')) ? (int) $field('template_version') : null;

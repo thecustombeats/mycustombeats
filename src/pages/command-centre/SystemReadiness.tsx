@@ -65,6 +65,7 @@ const SystemReadiness = ({ section, api, staff }: { section: SystemSection; api:
           {section === "failures" && <Failures data={data} onRetry={retry} />}
           {section === "readiness" && <Readiness data={data} />}
           {section === "automation" && <Automation data={data} />}
+          {section === "payment-first" && <PaymentFirst data={data} />}
           {section === "founder-actions" && <FounderActions data={data} />}
         </>
       )}
@@ -171,6 +172,31 @@ const Automation = ({ data }: { data: Json }) => (
             <dt className="font-semibold">If it fails</dt><dd className="m-0">{w.recovery}</dd>
           </dl>
           <details className="mt-2"><summary className="min-h-11 cursor-pointer py-2 text-sm">Advanced / technical</summary><p className="font-mono text-sm">{w.status} · tests: {w.tests}</p></details>
+        </li>
+      ))}
+    </ul>
+  </Panel>
+);
+
+/** The founder rule in plain words: nothing is made until the customer has paid. */
+const PHASE_LABELS: Record<string, string> = {
+  BEFORE_PAYMENT: "Can happen before payment",
+  AFTER_PAYMENT_ONLY: "Only after payment",
+  AFTER_QUALITY_CONTROL: "Only after the quality check",
+  AFTER_FOUNDER_APPROVAL: "Only after Bella or Lewis approve",
+  EXCEPTION_ONLY: "Only when something has gone wrong",
+};
+
+const PaymentFirst = ({ data }: { data: Json }) => (
+  <Panel id="payment-first" title="When work can start">
+    <p className="text-base">{data.rule}</p>
+    <ul className="m-0 list-none space-y-3 p-0">
+      {data.workflows.map((w: Json) => (
+        <li key={w.workflow} className={card}>
+          <p className="text-lg font-semibold text-ink">{w.workflow}</p>
+          <p className="text-base font-semibold text-[#7A5E1F]">{PHASE_LABELS[w.phase] ?? humanise(w.phase)}</p>
+          <p className="mt-1 text-sm text-ink/80">{w.note}</p>
+          <details className="mt-2"><summary className="min-h-11 cursor-pointer py-2 text-sm">Advanced / technical</summary><p className="font-mono text-sm">{w.phase} · {w.guard}</p></details>
         </li>
       ))}
     </ul>

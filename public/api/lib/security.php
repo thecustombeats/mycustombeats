@@ -205,15 +205,124 @@ function crm_key_failure_throttle(): void
     }
 }
 
+/**
+ * INDIVIDUAL STAFF ACCOUNTABILITY.
+ *
+ * Every staff endpoint records who did the thing — but until this sprint that
+ * "who" was a free-text field the caller typed. One shared key opened every
+ * door, so anyone holding it could sign an action with any name, including a
+ * colleague's. The trail reliably recorded WHAT happened and that THE KEY was
+ * used; it could not honestly say WHICH PERSON did it.
+ *
+ * A per-staff key closes that without a login page, a session table or a new
+ * public attack surface. Each person gets their own long random key, stored on
+ * the host as a bcrypt hash exactly like the founders' authorisation codes, and
+ * the name attached to every action comes from the key that opened the door
+ * rather than from the request body.
+ *
+ * Configure in the host config file, never in this repository:
+ *
+ *   'staff_keys' => [
+ *       'bella' => ['name' => 'Bella',  'key_hash' => '$2y$...'],
+ *       'lewis' => ['name' => 'Lewis',  'key_hash' => '$2y$...'],
+ *   ],
+ *
+ * The shared `crm_api_key` still works, so nothing breaks the day this ships
+ * and a host can migrate one person at a time. While it is the only thing
+ * configured, readiness reports SHARED_KEY_ONLY and says the trail cannot
+ * attribute an action to a person.
+ *
+ * FOUNDER FINANCIAL AUTHORITY IS UNCHANGED AND STILL SEPARATE. A staff key —
+ * shared or individual — authorises no spending. Money still needs Bella's or
+ * Lewis's own code (lib/operations.php), which is a different secret checked a
+ * different way.
+ */
+function staff_key_identity(string $given): ?array
+{
+    $configured = mcb_setting('staff_keys', null);
+    if (!is_array($configured)) {
+        return null;
+    }
+    foreach ($configured as $id => $entry) {
+        $hash = is_array($entry) ? (string) ($entry['key_hash'] ?? '') : '';
+        if ($hash === '' || !password_verify($given, $hash)) {
+            continue;
+        }
+        $name = is_array($entry) ? trim((string) ($entry['name'] ?? '')) : '';
+        return ['id' => (string) $id, 'name' => $name !== '' ? $name : (string) $id];
+    }
+    return null;
+}
+
+/** The staff member this request authenticated as, or null on the shared key. */
+function crm_staff_identity(): ?array
+{
+    static $identity = null;
+    if ($identity === null) {
+        $identity = $GLOBALS['mcb_staff_identity'] ?? false;
+    }
+    return is_array($identity) ? $identity : null;
+}
+
+/**
+ * The name to record for this action.
+ *
+ * An authenticated individual key wins over anything the request says, so a
+ * signed-in person cannot file an action under someone else's name. On the
+ * shared key the declared name is all MCB has, and is used as before.
+ */
+function crm_staff_name(?string $declared): ?string
+{
+    $identity = crm_staff_identity();
+    return $identity !== null ? $identity['name'] : $declared;
+}
+
+/** How staff access is configured, for the readiness views. Never a key or a hash. */
+function staff_authentication_readiness(): array
+{
+    $configured = mcb_setting('staff_keys', null);
+    $individual = [];
+    if (is_array($configured)) {
+        foreach ($configured as $id => $entry) {
+            if (is_array($entry) && is_string($entry['key_hash'] ?? null) && $entry['key_hash'] !== '') {
+                $individual[] = (string) $id;
+            }
+        }
+    }
+    $shared = ((string) mcb_setting('crm_api_key', '')) !== '';
+    if ($individual !== []) {
+        return [
+            'state' => 'INDIVIDUAL_KEYS_CONFIGURED',
+            'individual_accounts' => count($individual),
+            'shared_key_still_accepted' => $shared,
+            'attribution' => 'An action records the person whose key opened it.',
+            'required_action' => $shared
+                ? 'Retire the shared staff key once every person has their own, so an action can always be attributed.'
+                : null,
+        ];
+    }
+    return [
+        'state' => $shared ? 'SHARED_KEY_ONLY' : 'NOT_CONFIGURED',
+        'individual_accounts' => 0,
+        'shared_key_still_accepted' => $shared,
+        'attribution' => 'One shared key. The trail records the name a person typed, which MCB cannot verify.',
+        'required_action' => 'Give each person their own staff key (staff_keys in the host config), or put host authentication in front of the Command Centre. Rotate the shared key on any staff change.',
+    ];
+}
+
 function require_crm_key(): void
 {
     $expected = (string) mcb_setting('crm_api_key', '');
     $given    = bearer_token() ?? '';
 
-    if ($expected === '' || $given === '' || !hash_equals($expected, $given)) {
+    $identity = $given === '' ? null : staff_key_identity($given);
+    $sharedOk = $expected !== '' && $given !== '' && hash_equals($expected, $given);
+
+    if ($identity === null && !$sharedOk) {
         crm_key_failure_throttle();
         header('WWW-Authenticate: Bearer');
         json_error(401, 'unauthorized', 'Authentication required.');
     }
+    $GLOBALS['mcb_staff_identity'] = $identity ?? false;
     mcb_event_source('STAFF');
 }

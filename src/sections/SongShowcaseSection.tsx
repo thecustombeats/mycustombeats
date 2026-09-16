@@ -26,6 +26,19 @@ import { trackEvent } from "../lib/analytics";
  */
 
 const EXAMPLE_VIDEO = "/videos/mcb-25-year-anniversary-example.mp4";
+
+/**
+ * CAPTIONS — CONTENT_REQUIRED.
+ *
+ * The player is ready for them: put a WebVTT file at the path below, set this
+ * to it, and the <track> renders with the browser's own caption controls. It is
+ * null because no caption file exists, and MCB does not invent a transcript of
+ * words someone actually sang. Recorded as a founder/content action, not a code
+ * gap — the value of this film is its lyrics, so captions matter here.
+ *
+ *   const EXAMPLE_CAPTIONS = "/videos/mcb-25-year-anniversary-example.en.vtt";
+ */
+const EXAMPLE_CAPTIONS: string | null = null;
 const EXAMPLE_ID = "anniversary-example";
 
 /** "Anniversary Song • Romantic Gift" → "Anniversary Song". */
@@ -119,6 +132,7 @@ const SongShowcaseSection = () => {
               }}
             >
               <source src={EXAMPLE_VIDEO} type="video/mp4" />
+              {EXAMPLE_CAPTIONS && <track kind="captions" srcLang="en" label="English" src={EXAMPLE_CAPTIONS} default />}
               Your browser can't play this video.
             </video>
           </div>

@@ -27,7 +27,7 @@ require_crm_key();
 $body    = read_json_body(16384);
 $orderId = is_int($body['order_id'] ?? null) ? $body['order_id'] : (ctype_digit((string) ($body['order_id'] ?? '')) ? (int) $body['order_id'] : 0);
 $action  = is_string($body['action'] ?? null) ? strtoupper($body['action']) : '';
-$staff   = operations_line($body['staff'] ?? null, 160);
+$staff   = crm_staff_name(operations_line($body['staff'] ?? null, 160));
 
 if ($orderId <= 0) {
     json_error(422, 'invalid_order', 'An order id is required.');

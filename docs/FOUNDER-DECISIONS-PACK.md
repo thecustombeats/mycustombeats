@@ -231,3 +231,31 @@ Register, is `docs/WEBSITE-READINESS-20260916.md`.
 | 85 | Decide whether any genuine customer evidence is cleared for public use. **No testimonial, review count, rating, customer number, award or certification appears anywhere on the site**, and none will be invented. | F |
 | 86 | Decide whether `/artists/apply`, `/affiliate` and `/dashboard` get a rebuild pass of their own or are withdrawn. They are legacy pages off the customer path; `/partners` was rebuilt this sprint because it is footer-linked, indexed and the page a cruise or hotel partner lands on. | F |
 | 87 | Confirm the MCB LIVE line (+44 7340 742009) is for MCB LIVE bookings only. The site now says so everywhere: it is declared to search engines as a sales contact point rather than customer support, and it is withheld from the thank-you page, the private order page and the delivery-confirmation step, where ordinary order help is `hello@`. | Decided (confirm) |
+
+## 17. Final Code Closure & Payment-First Reconciliation (16 September 2026)
+
+The full detail is `docs/CODE-CLOSURE-20260916.md`.
+
+**Founder rule recorded and enforced:** MCB begins no creative or fulfilment
+work until payment is confirmed. A permanent test suite
+(`tests/payment-first-acceptance.sh`) drives an unpaid order at every
+production workflow and requires a refusal.
+
+**Correction applied:** uncertainty no longer stops a customer paying. Only a
+KNOWN impossibility does — an evidenced unsupported destination, or a product
+every route has suspended or run out of (and, under REQUIRED, a sale that is
+provably loss-making). Missing route evidence, an unchecked marketplace, or
+manufacturer data not yet supplied now hold the WORK on the paid order instead,
+through `POST_PAYMENT_VERIFICATION_REQUIRED`. Vinyl that was held before payment
+can be sold again.
+
+| # | Item | Class |
+|---|---|---|
+| 88 | Generate a key per staff member and add `staff_keys` to the host config; retire the shared key once everyone has one. Until then the audit trail records a typed name MCB cannot verify. | EXTERNAL_CONFIGURATION_REQUIRED |
+| 89 | Ask the host whether ClamAV is available; if so set `uploads.malware_scan_command`. Uploads are strongly validated today but not virus-scanned. | EXTERNAL_CONFIGURATION_REQUIRED |
+| 90 | Confirm every mycustombeats.com host serves HTTPS, then `SetEnv MCB_HSTS 1` and set `security.hsts_enabled`. | F (host) |
+| 91 | On the production host, confirm an unknown address returns 404 and real pages return 200. | HOST_VERIFICATION_REQUIRED |
+| 92 | Decide whether captions are produced for the anniversary example film. The player is ready for them. | F (content) |
+| 93 | Confirm the withdrawal of `/artists`, `/artists/apply` and `/affiliate` from the launch surface. The affiliate backend and existing affiliates are untouched. | F (decision) |
+| 94 | Verify `hello@` receives customer email and `support@` forwards to it. | External |
+| 95 | Live-verify the Formspree partner enquiry and the Calendly booking link. | External |

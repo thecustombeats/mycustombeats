@@ -136,6 +136,7 @@ export const SYSTEM_SECTIONS = [
   ["failures", "Failures needing attention"],
   ["readiness", "System readiness"],
   ["automation", "Automation readiness"],
+  ["payment-first", "When work can start"],
   ["founder-actions", "Founder actions"],
 ] as const;
 export type SystemSection = (typeof SYSTEM_SECTIONS)[number][0];

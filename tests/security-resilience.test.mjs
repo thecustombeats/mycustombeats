@@ -46,7 +46,7 @@ test("private customer and staff screens: never framed, no analytics or form ori
   // Site-wide headers stay: nosniff, permissions policy, referrer policy; HSTS is prepared for the deployment host.
   assert.match(ht, /X-Content-Type-Options "nosniff"/);
   assert.match(ht, /Permissions-Policy "camera=\(\), microphone=\(\), geolocation=\(\), payment=\(\)/);
-  assert.match(ht, /# Header always set Strict-Transport-Security "max-age=31536000"/, "HSTS is prepared, enabled only when every host is HTTPS");
+  assert.match(ht, /<If "%\{ENV:MCB_HSTS\} == '1'">/, "HSTS is prepared, enabled only when the host switches it on");
   const api = read("public/api/.htaccess");
   assert.match(api, /RedirectMatch 403 \^\/api\/lib\//);
   assert.match(api, /RedirectMatch 403 \^\/api\/data\//);
@@ -95,7 +95,7 @@ test("readiness is truthful: configuration described never shown, no false all-g
   // Statuses and descriptions only: a setting's value is never placed in the output.
   assert.doesNotMatch(config, /'detail' => \$s\(|\. \$s\('(token_secret|crm_api_key|stripe\.secret_key|stripe\.webhook_secret|resend\.api_key|ip_salt)'\)/);
   for (const cls of ["REQUIRED_FOR_LAUNCH", "OPTIONAL", "EXTERNAL_VERIFICATION", "DEFERRED"]) assert.ok(config.includes(`'${cls}'`) || config.includes(`= '${cls}'`), cls);
-  assert.match(config, /'malware_scanning', 'Malware scanning of uploads', \$ext, 'NOT_PRESENT'/);
+  assert.match(config, /'malware_scanning', 'Malware scanning of uploads', \$ext, match \(\$scanner\['state'\]\)/);
   const failures = phpFunction(resilience, "resilience_failures");
   assert.match(failures, /'NO_FAILURES_FOUND' : 'ATTENTION_NEEDED'/);
   assert.match(failures, /REQUIRED_CONFIGURATION_MISSING/);

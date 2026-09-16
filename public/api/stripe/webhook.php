@@ -472,6 +472,31 @@ if ($outcome === 'recorded' || $outcome === 'already_paid' || $outcome === 'dupl
     }
 }
 
+/**
+ * ---- CAN MCB ACTUALLY FULFIL THIS, AND HAS THAT BEEN VERIFIED? -----------
+ *
+ * Outside the payment transaction, because the payment is already safely
+ * recorded and nothing here may put it at risk.
+ *
+ * New-sale safety stops a customer paying only for a KNOWN impossibility, so
+ * an order that merely lacks finished evidence gets here — and the question
+ * has to be asked again on this side of the payment, where the answer holds
+ * the WORK rather than the customer. Raises a blocking exception and tells the
+ * Founders; it never cancels, reprices, substitutes or refunds anything.
+ *
+ * A failure here must not fail the webhook: the payment stands either way, and
+ * an unchecked order still shows up in the founders' health view as a paid
+ * order with no processing event.
+ */
+if ($outcome === 'recorded' || $outcome === 'already_paid') {
+    try {
+        require_once __DIR__ . '/../lib/fulfilment-controller.php';
+        fulfilment_check_route_verification(db(), $orderId, 'SYSTEM');
+    } catch (Throwable $e) {
+        error_log('MCB fulfilment: could not check route verification for order ' . $orderId . ': ' . $e->getMessage());
+    }
+}
+
 // Close the snapshot, for operators reading the checkout history. Purely a
 // record: the order's own status is what the rest of the system reads, and it
 // was already set inside the transaction above.

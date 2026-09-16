@@ -16,4 +16,9 @@ Disallow: /create
 # Unlinked business preview, not for search.
 Disallow: /luxury
 
+# Withdrawn from the public launch: still reachable by a direct link, but not
+# promoted, not in the sitemap and not for search.
+Disallow: /artists
+Disallow: /affiliate
+
 Sitemap: https://www.mycustombeats.com/sitemap.xml

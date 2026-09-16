@@ -209,3 +209,92 @@ function artwork_photo_is_acceptable(PDO $pdo, int $orderId, array $image): bool
     }
     return abs($w - $h) <= (int) floor(max($w, $h) * 0.01);
 }
+
+/* ------------------------------------------------------------------ */
+/* Malware scanning — a boundary, honestly reported                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * MCB DOES NOT CLAIM MALWARE PROTECTION IT DOES NOT HAVE.
+ *
+ * Uploads already go through real defences: the type is decided by reading the
+ * file's own bytes (never its name or the browser's claim), truncated and
+ * corrupt files are refused, disguised scripts and SVG are refused, size is
+ * capped, the file is stored outside the web root under a random name, and it
+ * is never executed and never served inline. None of that is virus scanning.
+ *
+ * This is the boundary a scanner plugs into, so adding one later is a
+ * configuration change rather than a rewrite. It is provider-neutral: it
+ * shells out to a LOCAL command the host already provides (clamdscan or
+ * clamscan) and sends nothing anywhere. No paid API, no subscription, no
+ * external service, no customer photograph leaving the server.
+ *
+ * Three honest states, and MCB reports whichever is true:
+ *
+ *   SCANNING_ACTIVE               a scanner is configured and answering.
+ *   SCANNER_CONNECTION_REQUIRED   a scanner is configured but not reachable —
+ *                                 a real problem, surfaced, never silent.
+ *   SCANNING_NOT_AVAILABLE        nothing is configured. Uploads continue
+ *                                 through the validation above, and MCB says
+ *                                 so rather than implying protection.
+ */
+function upload_scanner_command(): ?string
+{
+    $configured = mcb_setting('uploads.malware_scan_command', null);
+    return is_string($configured) && trim($configured) !== '' ? trim($configured) : null;
+}
+
+/** Whether the configured scanner actually answers. Cached for the request. */
+function upload_scanner_state(): array
+{
+    static $state = null;
+    if ($state !== null) {
+        return $state;
+    }
+    $command = upload_scanner_command();
+    if ($command === null) {
+        return $state = [
+            'state' => 'SCANNING_NOT_AVAILABLE',
+            'detail' => 'No malware scanner is configured. Uploads are checked by content type, completeness and size, stored outside the web root under random names and never executed — they are not virus-scanned.',
+            'required_action' => 'If the host provides ClamAV (clamdscan), set uploads.malware_scan_command in the host config. Confirm with the host whether a scanner is available.',
+        ];
+    }
+    $binary = strtok($command, ' ');
+    $found = @shell_exec('command -v ' . escapeshellarg((string) $binary) . ' 2>/dev/null');
+    if (!is_string($found) || trim($found) === '') {
+        return $state = [
+            'state' => 'SCANNER_CONNECTION_REQUIRED',
+            'detail' => 'A malware scanner is configured but the command was not found on this host.',
+            'required_action' => 'Install or correct the scanner command, or clear uploads.malware_scan_command so MCB stops claiming it.',
+        ];
+    }
+    return $state = [
+        'state' => 'SCANNING_ACTIVE',
+        'detail' => 'Uploads are scanned locally before they are stored. Nothing is sent off this server.',
+        'required_action' => null,
+    ];
+}
+
+/**
+ * Scans one stored file. Returns null when there is nothing to scan with, so a
+ * caller can tell "clean" apart from "not scanned" and never conflate them.
+ *
+ * A non-zero exit from the scanner means infected or errored: either way the
+ * file does not pass. Fail closed, never open.
+ */
+function upload_scan_result(string $path): ?array
+{
+    $command = upload_scanner_command();
+    if ($command === null || upload_scanner_state()['state'] !== 'SCANNING_ACTIVE' || !is_readable($path)) {
+        return null;
+    }
+    $exit = 1;
+    $output = [];
+    @exec($command . ' ' . escapeshellarg($path) . ' 2>&1', $output, $exit);
+    return [
+        'scanned' => true,
+        'clean' => $exit === 0,
+        // The scanner's own words are kept out of anything customer-facing.
+        'detail' => $exit === 0 ? 'clean' : 'refused by the malware scanner',
+    ];
+}

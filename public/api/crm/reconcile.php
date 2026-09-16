@@ -104,7 +104,7 @@ try {
 
         $pdo->prepare(
             'UPDATE unreconciled_payments
-                SET resolved_order_id = :oid, resolved_at = NOW()
+                SET resolved_order_id = :oid, resolved_at = UTC_TIMESTAMP()
               WHERE id = :id'
         )->execute([':oid' => $orderId, ':id' => (int) $payment['id']]);
 

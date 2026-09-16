@@ -276,6 +276,46 @@ return [
         'url' => '',   // e.g. https://uk.trustpilot.com/evaluate/...
     ],
 
+    // ---- Individual staff accountability -------------------------------
+    //
+    // One shared 'crm_api_key' opens every staff door, and every action records
+    // the name the person TYPED — which MCB cannot verify. Give each person
+    // their own key here and the name on every action comes from the key that
+    // opened the door instead.
+    //
+    // Generate a key:        php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
+    // Hash it for this file: php -r "echo password_hash('<that key>', PASSWORD_DEFAULT), PHP_EOL;"
+    //
+    // Give the person the KEY. Keep only the HASH here. The shared key keeps
+    // working while you migrate, so nobody is locked out mid-change; retire it
+    // once everyone has their own.
+    //
+    // This is staff access only. It authorises no spending — money still needs
+    // Bella's or Lewis's own authorisation code below, which is separate.
+    // 'staff_keys' => [
+    //     'bella' => ['name' => 'Bella', 'key_hash' => '$2y$...'],
+    //     'lewis' => ['name' => 'Lewis', 'key_hash' => '$2y$...'],
+    // ],
+
+    // ---- Uploads --------------------------------------------------------
+    'uploads' => [
+        // A LOCAL malware scanner, if the host provides one. MCB shells out to
+        // this command and sends nothing anywhere — no paid API, no service,
+        // no customer photograph leaving the server. Leave empty and MCB
+        // reports SCANNING_NOT_AVAILABLE rather than implying protection.
+        //
+        //   'malware_scan_command' => 'clamdscan --no-summary --fdpass',
+        'malware_scan_command' => '',
+    ],
+
+    // ---- Transport security ---------------------------------------------
+    'security' => [
+        // Reporting only: set true when HSTS is actually switched on at the
+        // host (SetEnv MCB_HSTS 1 in the web server), so readiness tells the
+        // truth. Setting it here does NOT enable the header.
+        'hsts_enabled' => false,
+    ],
+
     // ---- Behaviour ----------------------------------------------------
     'app' => [
         // Origin allowed to call the write endpoints. Requests whose Origin

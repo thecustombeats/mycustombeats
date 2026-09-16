@@ -53,7 +53,7 @@ function claim_customer_notification(PDO $pdo, int $orderId): bool
 {
     $stmt = $pdo->prepare(
         'UPDATE orders
-            SET customer_notified_at = NOW()
+            SET customer_notified_at = UTC_TIMESTAMP()
           WHERE id = :id
             AND status = :paid
             AND customer_notified_at IS NULL'

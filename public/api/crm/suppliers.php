@@ -29,7 +29,7 @@ $pdo = db();
 
 try {
     if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
-        if (operations_line($_GET['staff'] ?? null, 160) === null) {
+        if (crm_staff_name(operations_line($_GET['staff'] ?? null, 160)) === null) {
             json_error(422, 'staff_required', 'Say who is looking.');
         }
         $view = (string) ($_GET['view'] ?? 'overview');
@@ -45,7 +45,7 @@ try {
 
     require_method('POST');
     $in = read_json_body(8192);
-    $staff = operations_line($in['staff'] ?? null, 160);
+    $staff = crm_staff_name(operations_line($in['staff'] ?? null, 160));
     if ($staff === null) {
         json_error(422, 'staff_required', 'Say who is recording this, for the audit trail.');
     }

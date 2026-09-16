@@ -24,6 +24,9 @@ $songProducts = array_keys(array_filter(catalogue_data()['products'] ?? [], stat
 if (!in_array($event, video_data()['offer_events'], true) || !in_array($product, $songProducts, true)) {
     json_error(422, 'invalid_event', 'That event is not recognised.');
 }
-db()->prepare('INSERT INTO video_offer_counters (day, product_id, event, count) VALUES (UTC_DATE(), :p, :e, 1) ON DUPLICATE KEY UPDATE count = count + 1')
-    ->execute([':p' => $product, ':e' => $event]);
+// The bucket is the MCB BUSINESS day. It was UTC_DATE(), which Business then
+// read with Europe/London bounds — one figure built from two different days.
+require_once __DIR__ . '/lib/business-time.php';
+db()->prepare('INSERT INTO video_offer_counters (day, product_id, event, count) VALUES (:day, :p, :e, 1) ON DUPLICATE KEY UPDATE count = count + 1')
+    ->execute([':day' => mcb_business_date(), ':p' => $product, ':e' => $event]);
 json_response(202, ['counted' => true]);

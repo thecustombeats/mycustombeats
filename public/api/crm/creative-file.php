@@ -27,7 +27,7 @@ require_crm_key();
 $pdo = db();
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
-    $staff = operations_line($_GET['staff'] ?? null, 160);
+    $staff = crm_staff_name(operations_line($_GET['staff'] ?? null, 160));
     if ($staff === null) {
         json_error(422, 'staff_required', 'Say who is downloading, so access is audited.');
     }
@@ -61,7 +61,7 @@ $field = static fn (string $name): ?string => is_string($_POST[$name] ?? null) &
 $action = strtoupper((string) $field('action'));
 $orderId = ctype_digit((string) $field('order_id')) ? (int) $field('order_id') : 0;
 $jobId = ctype_digit((string) $field('job_id')) ? (int) $field('job_id') : 0;
-$staff = operations_line($field('staff'), 160);
+$staff = crm_staff_name(operations_line($field('staff'), 160));
 $reference = $field('reference');
 if ($staff === null) {
     json_error(422, 'staff_required', 'Say who is doing this, so the audit trail can.');

@@ -17,7 +17,10 @@ export default defineConfig({
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-utils': ['gsap', '@gsap/react', 'lucide-react', 'react-helmet-async'],
+          // '@gsap/react' was listed here but imported by nothing; naming it as a
+          // manual chunk kept it installed. Only `gsap` itself is used
+          // (src/lib/scrollReveal.ts).
+          'vendor-utils': ['gsap', 'lucide-react', 'react-helmet-async'],
         }
       }
     },

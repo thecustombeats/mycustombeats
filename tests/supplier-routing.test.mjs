@@ -161,7 +161,12 @@ test("the approval flow: route choice ≠ authorisation; the delivered cost gate
   assert.doesNotMatch(decision, /supplier_purchase_authorised|INSERT INTO supplier_orders/);
   assert.ok(S.PHYSICAL_REGISTRY.find((e) => e.sku === "antique-brass-gramophone").deliveredCostConfirmationRequired);
   // New sales: an unsupported destination always goes to MCB; other flags only when the Founders require it.
-  assert.match(phpFunction(routing, "new_sale_items_needing_confirmation"), /in_array\('DESTINATION_UNSUPPORTED', \$f\['flags'\], true\) \|\| \(\$f\['enforcement'\] === 'REQUIRED'/);
+  // A customer is stopped ONLY by a known impossibility. Incomplete verification
+  // no longer blocks the sale — it blocks the WORK, on the paid order
+  // (fulfilment_check_route_verification). See docs/CODE-CLOSURE-20260916.md.
+  assert.match(phpFunction(routing, "new_sale_items_needing_confirmation"), /\['known_unfulfillable'\] !== \[\]/);
+  assert.doesNotMatch(phpFunction(routing, "new_sale_items_needing_confirmation"), /verification_incomplete/);
+  assert.match(phpFunction(routing, "new_sale_items_needing_verification"), /\['verification_incomplete'\] !== \[\]/);
   assert.match(phpFunction(routing, "new_sale_safety_enforcement"), /'ADVISORY'/);
   // Card alternatives are the only substitution and carry the full record.
   const record = phpFunction(read("public/api/lib/fulfilment-controller.php"), "record_supplier_order");

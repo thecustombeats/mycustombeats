@@ -308,7 +308,12 @@ function App() {
         <Route path="/mcb-live" element={<Layout><MCBLive /></Layout>} />
         <Route path="/priority-replacement" element={<Layout><PriorityReplacement /></Layout>} />
         {/* Pages */}
-        <Route path="/artists" element={<Layout><Artists /></Layout>} />
+        {/* WITHDRAWN FROM THE PUBLIC LAUNCH (see docs/CODE-CLOSURE-20260916.md).
+            The routes stay so an existing link still opens the page, but they
+            are unlinked, out of the sitemap and noindexed. /artists exists only
+            to send people to /artists/apply, whose form posts to a third-party
+            URL that stores nothing on MCB's side and cannot be verified. */}
+        <Route path="/artists" element={<Layout><NoIndex /><Artists /></Layout>} />
         <Route path="/partners" element={<Layout><Partners /></Layout>} />
         <Route path="/press" element={<Layout><Press /></Layout>} />
         
@@ -369,7 +374,7 @@ function App() {
         <Route path="/legal/refund" element={<Layout><Refund /></Layout>} />
 
         {/* Forms */}
-        <Route path="/artists/apply" element={<Layout><ArtistApply /></Layout>} />
+        <Route path="/artists/apply" element={<Layout><NoIndex /><ArtistApply /></Layout>} />
 
         {/* Thank You */}
         <Route path="/thank-you" element={<Layout><ThankYou /></Layout>} />

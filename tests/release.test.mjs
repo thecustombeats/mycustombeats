@@ -300,7 +300,10 @@ test("security headers are configured without inline script and without blind HS
   assert.equal(script.trim(), "'self' https://www.googletagmanager.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/");
   for (const d of ["default-src 'self'", "object-src 'none'", "base-uri 'self'", "frame-ancestors 'self'", "frame-src https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/;"]) assert.ok(csp.includes(d), d);
   for (const header of ['X-Content-Type-Options "nosniff"', 'Referrer-Policy "strict-origin-when-cross-origin"', "Permissions-Policy", 'X-Frame-Options "SAMEORIGIN"']) assert.ok(h.includes(header), header);
-  assert.match(h, /^\s*# Header always set Strict-Transport-Security/m, "HSTS prepared but not enabled");
+  // HSTS is no longer a commented line: it is sent only when the host sets
+  // MCB_HSTS, so it stays off by default and needs no edit to this file.
+  assert.match(h, /<If "%\{ENV:MCB_HSTS\} == '1'">/, "HSTS is enabled by host configuration, not by default");
+  assert.match(h, /Header always set Strict-Transport-Security "max-age=31536000"/);
   assert.match(h, /THE_REQUEST[^\n]*your-order\|approve\|operations\|command-centre\|thank-you[^\n]*\n\s*Header always set X-Robots-Tag "noindex, nofollow"/);
   const api = read("public/api/.htaccess");
   assert.match(api, /Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"/);

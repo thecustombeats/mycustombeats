@@ -38,7 +38,7 @@ $pdo = db();
 
 try {
     if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
-        $staff = operations_line($_GET['staff'] ?? null, 160);
+        $staff = crm_staff_name(operations_line($_GET['staff'] ?? null, 160));
         if ($staff === null) {
             json_error(422, 'staff_required', 'Say who is looking, so the audit trail can.');
         }
@@ -81,7 +81,7 @@ try {
 
     require_method('POST');
     $body = read_json_body(16384);
-    $staff = operations_line($body['staff'] ?? null, 160);
+    $staff = crm_staff_name(operations_line($body['staff'] ?? null, 160));
     $orderId = is_int($body['order_id'] ?? null) ? $body['order_id'] : 0;
     if ($staff === null || $orderId <= 0) {
         json_error(422, 'invalid_request', 'Give the order and say who is deciding.');

@@ -15,13 +15,18 @@
  * AGGREGATED. Each view is a handful of set queries over all active orders —
  * never one query per order.
  *
- * TIME. MCB has no configured business timezone: the server runs in UTC
- * (lib/bootstrap.php), so "today" and "this week" (Monday start) are UTC and
- * say so. Nothing converts to a guessed local time.
+ * TIME. Days, weeks and months are the MCB BUSINESS day — Europe/London by
+ * Founder decision — computed in lib/business-time.php, which Business uses
+ * too. Timestamps are still stored in UTC; only the boundaries are local.
+ * Until this sprint this file cut the day at midnight UTC while Business cut
+ * it at midnight London, so through British Summer Time the same founder saw
+ * two different "todays" on one screen, and an order paid at 00:30 BST was
+ * today in one tile and yesterday in another.
  */
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/business-time.php';
 require_once __DIR__ . '/operations.php';
 require_once __DIR__ . '/operations-queue.php';
 require_once __DIR__ . '/customer-care.php';
@@ -55,15 +60,31 @@ const CC_DECISION_EXCEPTIONS = [
     'SUPPLIER_CANCELLED' => 'Supplier cancelled: founder decision',
 ];
 
-/** The period a view covers. UTC, because that is the only time MCB has configured. */
+/**
+ * The period a view covers, in the MCB business timezone.
+ *
+ * Carries an `end` as well as a `start`. It used to return a start only, so
+ * "today" meant "from midnight onwards" and anything dated in the future was
+ * counted as today.
+ */
 function cc_period(string $key, ?int $now = null): array
 {
-    $now = $now ?? time();
-    $today = gmdate('Y-m-d', $now);
+    $periods = mcb_business_periods($now);
+    $of = static fn (string $k, string $label): array => [
+        'key' => $k === 'today' ? 'today' : $k,
+        'label' => $label,
+        'start' => $periods[$k]['start'],
+        'end' => $periods[$k]['end'],
+        // The LOCAL calendar date the period opens on. The start above is a UTC
+        // timestamp, so through BST its date part is the previous day — reading
+        // that as "the day" is exactly the confusion this sprint removed.
+        'local_date' => $periods[$k]['local_date'],
+        'timezone' => $periods['timezone'],
+    ];
     return match ($key) {
-        'week' => ['key' => 'week', 'label' => 'This week', 'start' => gmdate('Y-m-d', strtotime('monday this week', strtotime($today . ' 12:00:00 UTC'))) . ' 00:00:00', 'timezone' => 'UTC'],
-        'all' => ['key' => 'all', 'label' => 'All active', 'start' => null, 'timezone' => 'UTC'],
-        default => ['key' => 'today', 'label' => 'Today', 'start' => $today . ' 00:00:00', 'timezone' => 'UTC'],
+        'week' => $of('week', 'This week'),
+        'all' => ['key' => 'all', 'label' => 'All active', 'start' => null, 'end' => null, 'local_date' => null, 'timezone' => $periods['timezone']],
+        default => $of('today', 'Today'),
     };
 }
 
@@ -425,7 +446,7 @@ function cc_revenue(PDO $pdo, ?int $now = null): array
     $starts = [
         'today' => cc_period('today', $now)['start'],
         'week' => cc_period('week', $now)['start'],
-        'month' => gmdate('Y-m-01 00:00:00', $now),
+        'month' => mcb_business_periods($now)['month']['start'],
     ];
     $stmt = $pdo->prepare(
         "SELECT o.currency,
@@ -476,7 +497,7 @@ function cc_revenue(PDO $pdo, ?int $now = null): array
             'other_currencies' => array_values(array_map(static fn (array $r): array => ['currency' => $r['currency'], 'gross_paid_minor' => (int) $r['live_minor']], array_filter($rows, static fn (array $r): bool => $r['currency'] !== 'GBP'))),
         ];
     }
-    return $out + ['refunds_note' => 'Refunds are those MCB has recorded in the period, full and partial (each refund is decided by Bella or Lewis and made outside MCB\'s system). A partial refund reduces net paid by its amount and never counts the whole order as refunded. TEST payments are rehearsals, never revenue.', 'timezone' => 'UTC'];
+    return $out + ['refunds_note' => 'Refunds are those MCB has recorded in the period, full and partial (each refund is decided by Bella or Lewis and made outside MCB\'s system). A partial refund reduces net paid by its amount and never counts the whole order as refunded. TEST payments are rehearsals, never revenue.', 'timezone' => mcb_business_timezone()['timezone']];
 }
 
 /**
@@ -536,7 +557,7 @@ function cc_in_period(array $r, array $period): bool
     if ($period['start'] === null) {
         return $r['state'] !== 'COMPLETED';
     }
-    return $r['paid_at'] !== null && $r['paid_at'] >= $period['start'];
+    return mcb_business_in($r['paid_at'], $period);
 }
 
 /** The founder's health view: ALL GOOD or ACTION NEEDED, in plain words. */
@@ -768,7 +789,7 @@ function cc_delivered_in(array $r, array $period): bool
         return $r['state'] !== 'COMPLETED';
     }
     $at = $r['delivered_on'] !== null ? $r['delivered_on'] . ' 00:00:00' : $r['revealed_at'];
-    return $at !== null && $at >= $period['start'];
+    return mcb_business_in($at, $period);
 }
 
 /** Orders in a pipeline stage (a click on the pipeline), safe list fields only. */

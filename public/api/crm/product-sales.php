@@ -30,7 +30,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
 require_method('POST');
 $body    = read_json_body(4096);
 $action  = is_string($body['action'] ?? null) ? strtoupper($body['action']) : '';
-$staff   = operations_line($body['staff'] ?? null, 160);
+$staff   = crm_staff_name(operations_line($body['staff'] ?? null, 160));
 $subject = sales_subject(is_string($body['subject'] ?? null) ? trim($body['subject']) : '');
 
 if ($staff === null) {

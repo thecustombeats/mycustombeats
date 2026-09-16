@@ -23,6 +23,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/business-time.php';
+
 require_once __DIR__ . '/operations.php';
 require_once __DIR__ . '/production-files.php';
 require_once __DIR__ . '/routing.php';
@@ -353,7 +355,104 @@ function fulfilment_check_commercials(PDO $pdo, int $orderId, string $by): array
             }
         }
     }
+    // Same moment, the other half of the question: not "does this pay?" but
+    // "can MCB actually fulfil it, and has that been verified?".
+    $e['route_verification'] = fulfilment_check_route_verification($pdo, $orderId, $by);
     return $e + ['snapshot_id' => $snapshot];
+}
+
+/**
+ * PAYMENT-FIRST ROUTE VERIFICATION, on a paid order.
+ *
+ * New-sale safety now stops a customer paying ONLY for a known impossibility
+ * (see lib/routing.php). Everything MCB has merely not finished verifying lets
+ * the sale through — which means the check has to happen again on this side of
+ * the payment, where it stops the WORK instead of the customer.
+ *
+ * Two outcomes, both surfaced to Bella, Lewis and staff, neither of which
+ * cancels the order, changes its price, substitutes anything or moves money:
+ *
+ *   PAID_ORDER_FULFILMENT_EXCEPTION     MCB now knows it cannot fulfil this as
+ *                                       sold. Blocking. MCB owns the
+ *                                       resolution — an alternative route, an
+ *                                       approved card substitution, a
+ *                                       conversation, or a refund review that
+ *                                       only Bella or Lewis can decide.
+ *
+ *   POST_PAYMENT_VERIFICATION_REQUIRED  MCB has not finished verifying how it
+ *                                       will fulfil. Blocking until a person
+ *                                       has checked, then normal fulfilment.
+ *
+ * Idempotent: the dedupe key carries the SKU and the reasons, so re-running it
+ * re-opens nothing and duplicates no notification.
+ */
+function fulfilment_check_route_verification(PDO $pdo, int $orderId, string $by): array
+{
+    require_once __DIR__ . '/routing.php';
+    require_once __DIR__ . '/payment-first.php';
+
+    // Only ever for an order whose payment is verified.
+    if (!order_payment_verified($pdo, $orderId)) {
+        return ['checked' => false, 'reason' => 'ORDER_NOT_PAID', 'unfulfillable' => [], 'verification_required' => []];
+    }
+
+    $destination = fulfilment_destination($pdo, $orderId);
+    $country = $destination['country_code'] ?? null;
+    $skus = array_values(array_unique(array_map(static fn (array $l): string => (string) $l['sku'], fulfilment_lines($pdo, $orderId))));
+    if ($skus === []) {
+        return ['checked' => true, 'unfulfillable' => [], 'verification_required' => []];
+    }
+
+    $unfulfillable = [];
+    $verification = [];
+    foreach ($skus as $sku) {
+        try {
+            $flags = new_sale_route_flags($sku, $country);
+        } catch (Throwable $e) {
+            // No route evidence at all is a verification gap, never a silent pass.
+            error_log('MCB fulfilment: route evidence unavailable for ' . $sku . ': ' . $e->getMessage());
+            if (new_sale_safety_enforcement() === 'REQUIRED') {
+                $verification[$sku] = ['ROUTE_EVIDENCE_UNAVAILABLE'];
+            }
+            continue;
+        }
+        if ($flags['known_unfulfillable'] !== []) {
+            $unfulfillable[$sku] = $flags['known_unfulfillable'];
+        } elseif ($flags['verification_incomplete'] !== [] && $flags['enforcement'] === 'REQUIRED') {
+            // Holding the work on incomplete evidence is what REQUIRED means.
+            // Under ADVISORY the Founders have chosen not to, and nothing is held.
+            $verification[$sku] = $flags['verification_incomplete'];
+        }
+    }
+
+    foreach ($unfulfillable as $sku => $reasons) {
+        $detail = $sku . ': ' . implode(', ', $reasons);
+        $created = raise_fulfilment_exception($pdo, $orderId, 'PAID_ORDER_FULFILMENT_EXCEPTION', [
+            'blocking' => true,
+            'detail' => $detail,
+            'next_action' => 'MCB owns this. Find an alternative route, offer an approved alternative, or open a refund review — a refund is decided only by Bella or Lewis. The order is never cancelled, repriced or refunded automatically.',
+        ], $by, 'paid-unfulfillable:' . $orderId . ':' . $sku . ':' . implode(',', $reasons), false);
+        if ($created !== null) {
+            notify_founders_about_order($pdo, 'FULFILMENT_EXCEPTION', $orderId, 'paid-unfulfillable:' . $orderId . ':' . $sku, ['reason' => implode(',', $reasons)]);
+        }
+    }
+
+    foreach ($verification as $sku => $reasons) {
+        $created = raise_fulfilment_exception($pdo, $orderId, 'POST_PAYMENT_VERIFICATION_REQUIRED', [
+            'blocking' => true,
+            'detail' => $sku . ': ' . implode(', ', $reasons),
+            'next_action' => 'Verify how MCB will fulfil this item — refresh the route evidence, check the marketplace, or record the missing cost or manufacturer data — then resolve this. Nothing is purchased and no money moves until it is.',
+        ], $by, 'paid-verify:' . $orderId . ':' . $sku . ':' . implode(',', $reasons), false);
+        if ($created !== null) {
+            notify_founders_about_order($pdo, 'FULFILMENT_EXCEPTION', $orderId, 'paid-verify:' . $orderId . ':' . $sku, ['reason' => implode(',', $reasons)]);
+        }
+    }
+
+    // No event of its own: raise_fulfilment_exception() already records
+    // FULFILMENT.EXCEPTION_OPENED, and inventing a second event name here
+    // would put a type in the trail that the declared vocabulary does not hold.
+
+    return ['checked' => true, 'unfulfillable' => $unfulfillable, 'verification_required' => $verification];
 }
 
 /* ------------------------------------------------------------------ */
@@ -784,8 +883,8 @@ function fulfilment_health(PDO $pdo): array
     $add('PAID_ORDER_WITHOUT_PROCESSING_EVENT', $q("SELECT o.id AS order_id, o.mcb_reference, o.updated_at AS since FROM orders o WHERE o.status = 'PAID' AND NOT EXISTS (SELECT 1 FROM order_events e WHERE e.order_id = o.id AND e.dedupe_key = 'ready-for-processing') LIMIT 200"));
     $add('READY_PACKAGE_WITHOUT_FOUNDER_NOTIFICATION', $q("SELECT m.order_id, o.mcb_reference, m.created_at AS since FROM manufacturing_packages m JOIN orders o ON o.id = m.order_id LEFT JOIN order_production p ON p.order_id = o.id WHERE m.status = 'READY' AND p.fulfilment_state = 'READY' AND NOT EXISTS (SELECT 1 FROM founder_notifications n WHERE n.order_id = m.order_id AND n.notification_type = 'FULFILMENT_APPROVAL_REQUIRED') LIMIT 200"));
     $add('AUTHORISED_WITHOUT_SUPPLIER_ORDER', $q("SELECT p.order_id, o.mcb_reference, p.supplier_purchase_authorised_at AS since FROM order_production p JOIN orders o ON o.id = p.order_id WHERE p.supplier_purchase_authorised_at IS NOT NULL AND p.fulfilment_confirmed_at IS NULL AND NOT EXISTS (SELECT 1 FROM supplier_orders s WHERE s.order_id = p.order_id) LIMIT 200"));
-    $add('SUPPLIER_ORDER_WITHOUT_TRACKING_AFTER_EXPECTED_DISPATCH', $q("SELECT s.order_id, o.mcb_reference, s.expected_dispatch_date AS since FROM supplier_orders s JOIN orders o ON o.id = s.order_id WHERE s.status = 'RECORDED' AND s.expected_dispatch_date IS NOT NULL AND s.expected_dispatch_date < UTC_DATE() AND NOT EXISTS (SELECT 1 FROM shipments sh WHERE sh.order_id = s.order_id AND sh.dispatched_on IS NOT NULL) LIMIT 200"));
-    $add('DISPATCHED_PARCEL_OVERDUE', $q("SELECT sh.order_id, o.mcb_reference, sh.estimated_delivery_date AS since FROM shipments sh JOIN orders o ON o.id = sh.order_id WHERE sh.state IN ('DISPATCHED','IN_TRANSIT','DELAYED') AND sh.estimated_delivery_date IS NOT NULL AND sh.estimated_delivery_date < UTC_DATE() LIMIT 200"));
+    $add('SUPPLIER_ORDER_WITHOUT_TRACKING_AFTER_EXPECTED_DISPATCH', $q("SELECT s.order_id, o.mcb_reference, s.expected_dispatch_date AS since FROM supplier_orders s JOIN orders o ON o.id = s.order_id WHERE s.status = 'RECORDED' AND s.expected_dispatch_date IS NOT NULL AND s.expected_dispatch_date < '" . mcb_business_date() . "' AND NOT EXISTS (SELECT 1 FROM shipments sh WHERE sh.order_id = s.order_id AND sh.dispatched_on IS NOT NULL) LIMIT 200"));
+    $add('DISPATCHED_PARCEL_OVERDUE', $q("SELECT sh.order_id, o.mcb_reference, sh.estimated_delivery_date AS since FROM shipments sh JOIN orders o ON o.id = sh.order_id WHERE sh.state IN ('DISPATCHED','IN_TRANSIT','DELAYED') AND sh.estimated_delivery_date IS NOT NULL AND sh.estimated_delivery_date < '" . mcb_business_date() . "' LIMIT 200"));
     $add('DELIVERED_NOT_COMPLETED', $q("SELECT p.order_id, o.mcb_reference, p.delivered_on AS since FROM order_production p JOIN orders o ON o.id = p.order_id WHERE p.fulfilment_state = 'DELIVERED' AND p.stage <> 'COMPLETED' LIMIT 200"));
     $add('COMPLETED_WITHOUT_FOLLOW_UP', $q("SELECT p.order_id, o.mcb_reference, p.completed_at AS since FROM order_production p JOIN orders o ON o.id = p.order_id WHERE p.stage = 'COMPLETED' AND p.follow_up_due_at IS NULL LIMIT 200"));
     $add('ABANDONED_NOTIFICATION', $q("SELECT n.order_id, n.subject_reference AS mcb_reference, n.updated_at AS since FROM founder_notifications n WHERE n.status = 'ABANDONED' AND n.order_id IS NOT NULL LIMIT 200"));
@@ -868,17 +967,45 @@ function fulfilment_command_centre(PDO $pdo): array
         $s = operational_state($row);
         $states[$s] = ($states[$s] ?? 0) + 1;
     }
-    $latest = static fn (string $kind): ?int => ($v = $pdo->query("SELECT SUM(e.contribution_minor) FROM order_economics e JOIN (SELECT order_id, MAX(id) AS id FROM order_economics WHERE kind = '{$kind}' GROUP BY order_id) l ON l.id = e.id JOIN orders o ON o.id = e.order_id WHERE e.contribution_minor IS NOT NULL AND DATE(o.created_at) = UTC_DATE()")->fetchColumn()) === null || $v === false ? null : (int) $v;
+    // The founder's day, not the server's. These used to cut the day at
+    // UTC_DATE(), so through British Summer Time an order paid at 00:30 London
+    // counted as yesterday here while Business counted it as today.
+    $today = mcb_business_periods();
+    $from = $today['today']['start'];
+    $to = $today['today']['end'];
+    $localDate = $today['today']['local_date'];
+    $latest = static function (string $kind) use ($pdo, $from, $to): ?int {
+        $stmt = $pdo->prepare(
+            "SELECT SUM(e.contribution_minor) FROM order_economics e
+               JOIN (SELECT order_id, MAX(id) AS id FROM order_economics WHERE kind = :k GROUP BY order_id) l ON l.id = e.id
+               JOIN orders o ON o.id = e.order_id
+              WHERE e.contribution_minor IS NOT NULL AND o.created_at >= :f AND o.created_at < :t"
+        );
+        $stmt->execute([':k' => $kind, ':f' => $from, ':t' => $to]);
+        $value = $stmt->fetchColumn();
+        return $value === null || $value === false ? null : (int) $value;
+    };
+    $inDay = static function (string $sql) use ($pdo, $from, $to): int {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':f' => $from, ':t' => $to]);
+        return (int) $stmt->fetchColumn();
+    };
+    $onDate = static function (string $sql, string $date) use ($pdo): int {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':d' => $date]);
+        return (int) $stmt->fetchColumn();
+    };
     return [
-        'date' => gmdate('Y-m-d'),
-        'new_paid_orders' => $one("SELECT COUNT(*) FROM orders o JOIN order_events e ON e.order_id = o.id AND e.dedupe_key = 'paid' WHERE DATE(e.created_at) = UTC_DATE()"),
-        'revenue_minor' => $one("SELECT COALESCE(SUM(o.total_minor), 0) FROM orders o JOIN order_events e ON e.order_id = o.id AND e.dedupe_key = 'paid' WHERE DATE(e.created_at) = UTC_DATE()"),
+        'date' => $localDate,
+        'timezone' => $today['timezone'],
+        'new_paid_orders' => $inDay("SELECT COUNT(*) FROM orders o JOIN order_events e ON e.order_id = o.id AND e.dedupe_key = 'paid' WHERE e.created_at >= :f AND e.created_at < :t"),
+        'revenue_minor' => $inDay("SELECT COALESCE(SUM(o.total_minor), 0) FROM orders o JOIN order_events e ON e.order_id = o.id AND e.dedupe_key = 'paid' WHERE e.created_at >= :f AND e.created_at < :t"),
         'orders_creating' => ($states['CREATIVE.PENDING'] ?? 0) + ($states['CREATIVE.IN_PROGRESS'] ?? 0) + ($states['ORDER.PAID'] ?? 0),
         'qc_required' => $states['QUALITY_CHECK'] ?? 0,
         'founder_approvals_required' => $states['FULFILMENT.READY'] ?? 0,
         'supplier_orders_required' => $states['FULFILMENT.AUTHORISED'] ?? 0,
         'dispatched' => $states['DISPATCHED'] ?? 0,
-        'delivered_today' => $one("SELECT COUNT(*) FROM order_production WHERE delivered_on = UTC_DATE()"),
+        'delivered_today' => $onDate("SELECT COUNT(*) FROM order_production WHERE delivered_on = :d", $localDate),
         'open_exceptions' => $one("SELECT COUNT(*) FROM fulfilment_exceptions WHERE status = 'OPEN'"),
         'estimated_gross_contribution_minor' => $latest('EXPECTED'),
         'actual_gross_contribution_minor' => $latest('ACTUAL'),

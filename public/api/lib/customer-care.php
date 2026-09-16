@@ -26,6 +26,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/payment-first.php';
+
 require_once __DIR__ . '/operations.php';
 require_once __DIR__ . '/lifecycle-messages.php';
 require_once __DIR__ . '/command-centre.php';
@@ -937,6 +939,10 @@ function care_move_remedy(PDO $pdo, array $case, string $action, array $in, stri
                 'next' => $decision === 'AUTHORISE' && $r['type'] === 'REPLACEMENT_REQUIRED' ? 'Place the replacement through the fulfilment workflow. Nothing has been purchased.' : null];
 
         case 'START_REMEDY':
+            // Payment first. Starting a remedy is the one care action that
+            // begins production (a replacement, or a video rework). It was
+            // protected only by where it is reachable from, never by a check.
+            require_payment_before_work($pdo, (int) $case['order_id'], $r['type'] === 'VIDEO_REDELIVERY' ? 'VIDEO' : 'REPLACEMENT');
             if (!in_array($r['status'], ['PROPOSED', 'AUTHORISED'], true)) {
                 throw new OperationsException('invalid_transition', $r['status'] === 'FOUNDER_APPROVAL_REQUIRED' ? 'This remedy needs Bella or Lewis first.' : 'This remedy cannot be started.', 409);
             }

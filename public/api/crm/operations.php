@@ -28,7 +28,7 @@ $pdo = db();
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $body   = read_json_body(8192);
     $action = is_string($body['action'] ?? null) ? strtoupper($body['action']) : '';
-    $staff  = operations_line($body['staff'] ?? null, 160);
+    $staff  = crm_staff_name(operations_line($body['staff'] ?? null, 160));
     if ($staff === null) {
         json_error(422, 'staff_required', 'Say who is doing this, so the audit trail can.');
     }

@@ -1,1 +1,40 @@
-/*    /index.html   200
+# Non-Apache hosts (Netlify / Cloudflare Pages) read this file instead of
+# .htaccess. It must agree with the .htaccess rules: the app is served for a
+# real route, and an unknown path gets the same shell with a real 404 status.
+#
+# It previously said `200` for every path, which made every unknown URL a soft
+# 404 on those hosts even after .htaccess was fixed.
+/                         /index.html   200
+/products                 /index.html   200
+/create                   /index.html   200
+/moment                   /index.html   200
+/keepsake                 /index.html   200
+/journey                  /index.html   200
+/bespoke                  /index.html   200
+/cruise                   /index.html   200
+/occasions                /index.html   200
+/anniversary-song         /index.html   200
+/mcb-live                 /index.html   200
+/priority-replacement     /index.html   200
+/about                    /index.html   200
+/faq                      /index.html   200
+/contact                  /index.html   200
+/blog                     /index.html   200
+/blog/*                   /index.html   200
+/legal/*                  /index.html   200
+/press                    /index.html   200
+/artists                  /index.html   200
+/artists/apply            /index.html   200
+/partners                 /index.html   200
+/affiliate                /index.html   200
+/dashboard                /index.html   200
+/thank-you                /index.html   200
+/your-order               /index.html   200
+/approve                  /index.html   200
+/operations               /index.html   200
+/operations/customer-care /index.html   200
+/command-centre           /index.html   200
+/artist-thank-you         /index.html   200
+/partner-thank-you        /index.html   200
+/full-package             /bespoke      301
+/*                        /index.html   404

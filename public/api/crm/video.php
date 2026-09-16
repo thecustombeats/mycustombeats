@@ -42,7 +42,7 @@ $log = static function (int $orderId, string $staff, string $action, ?int $subje
 
 try {
     if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
-        $staff = operations_line($_GET['staff'] ?? null, 160);
+        $staff = crm_staff_name(operations_line($_GET['staff'] ?? null, 160));
         if ($staff === null) {
             json_error(422, 'staff_required', 'Say who is looking, so access to private video material is audited.');
         }
@@ -115,7 +115,7 @@ try {
     require_method('POST');
     $multipart = str_starts_with((string) ($_SERVER['CONTENT_TYPE'] ?? ''), 'multipart/form-data');
     $body = $multipart ? $_POST : read_json_body(16384);
-    $staff = operations_line($body['staff'] ?? null, 160);
+    $staff = crm_staff_name(operations_line($body['staff'] ?? null, 160));
     if ($staff === null) {
         json_error(422, 'staff_required', 'Say who is doing this, so the audit trail can.');
     }

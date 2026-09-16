@@ -31,6 +31,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/payment-first.php';
+
 require_once __DIR__ . '/operations.php';
 
 function video_data(): array
@@ -624,6 +626,10 @@ function video_staff_action(PDO $pdo, int $orderId, int $jobId, string $action, 
     if ($job === null || (int) $job['order_id'] !== $orderId) {
         throw new OperationsException('video_job_not_found', 'No such video job on this order.', 404);
     }
+    // Payment first. A job can only be created for a paid order, but nothing
+    // re-read the order afterwards, so production steps stayed callable if the
+    // order was later refunded or cancelled.
+    require_payment_before_work($pdo, $orderId, 'VIDEO');
     $result = ['messages' => []];
     switch ($action) {
         case 'CONFIRM_INPUTS':

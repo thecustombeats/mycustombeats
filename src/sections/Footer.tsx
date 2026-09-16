@@ -39,9 +39,7 @@ const GROUPS: readonly { title: string; links: readonly FooterLink[] }[] = [
       { to: "/about", label: "Our Story" },
       { to: "/faq", label: "FAQ" },
       { to: "/press", label: "Press" },
-      { to: "/artists", label: "Artists" },
       { to: "/partners", label: "Partners & hospitality" },
-      { to: "/affiliate", label: "Affiliates" },
     ],
   },
 ];

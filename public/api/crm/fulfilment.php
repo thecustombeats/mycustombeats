@@ -24,7 +24,7 @@ require_crm_key();
 $pdo = db();
 
 if (ctype_digit((string) ($_GET['evidence_id'] ?? ''))) {
-    $staff = operations_line($_GET['staff'] ?? null, 160);
+    $staff = crm_staff_name(operations_line($_GET['staff'] ?? null, 160));
     if ($staff === null) {
         json_error(422, 'staff_required', 'Say who is downloading, so access is audited.');
     }

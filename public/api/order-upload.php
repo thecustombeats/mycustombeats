@@ -98,6 +98,14 @@ if ($size > $maxBytes) {
     json_error(413, 'photo_too_large', 'Please choose a photo under 10 MB.');
 }
 
+// Malware scan, when the host provides a scanner (lib/uploads.php). When none
+// is configured this is a no-op and MCB says so in readiness rather than
+// implying a protection it does not have. A scanner that refuses the file
+// fails closed.
+$scan = upload_scan_result($tmp);
+if ($scan !== null && !$scan['clean']) {
+    json_error(415, 'photo_type_not_accepted', "We couldn't accept that file. Please choose a different photo.");
+}
 $image = inspect_uploaded_image($tmp, $size);
 if ($image === null) {
     json_error(415, 'photo_type_not_accepted', 'Please choose a JPEG, PNG, WebP or HEIC photo.');

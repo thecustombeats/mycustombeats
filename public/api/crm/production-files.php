@@ -33,7 +33,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
     if (($_GET['view'] ?? '') === 'limits') {
         json_response(200, ['roles' => array_map('production_role_limit', array_keys(artwork_data()['file_role_limits']))]);
     }
-    $staff = operations_line($_GET['staff'] ?? null, 160);
+    $staff = crm_staff_name(operations_line($_GET['staff'] ?? null, 160));
     if ($staff === null) {
         json_error(422, 'staff_required', 'Say who is looking, so access to production files is audited.');
     }
@@ -106,7 +106,7 @@ if (str_starts_with((string) ($_SERVER['CONTENT_TYPE'] ?? ''), 'multipart/form-d
     $field = static fn (string $n): ?string => is_string($_POST[$n] ?? null) && trim($_POST[$n]) !== '' ? trim($_POST[$n]) : null;
     $orderId = ctype_digit((string) $field('order_id')) ? (int) $field('order_id') : 0;
     $jobId = ctype_digit((string) $field('artwork_job_id')) ? (int) $field('artwork_job_id') : 0;
-    $staff = operations_line($field('staff'), 160);
+    $staff = crm_staff_name(operations_line($field('staff'), 160));
     if ($field('action') !== 'REGISTER_ART_MASTER' || $orderId <= 0 || $jobId <= 0 || $staff === null) {
         json_error(422, 'invalid_request', 'action REGISTER_ART_MASTER, order_id, artwork_job_id and staff are required.');
     }
@@ -150,7 +150,7 @@ if (str_starts_with((string) ($_SERVER['CONTENT_TYPE'] ?? ''), 'multipart/form-d
 // ---- JSON actions -------------------------------------------------------------------
 $body = read_json_body(65536);
 $action = is_string($body['action'] ?? null) ? strtoupper($body['action']) : '';
-$staff = operations_line($body['staff'] ?? null, 160);
+$staff = crm_staff_name(operations_line($body['staff'] ?? null, 160));
 $orderId = is_int($body['order_id'] ?? null) ? $body['order_id'] : 0;
 if ($staff === null || $orderId <= 0) {
     json_error(422, 'invalid_request', 'order_id and staff are required.');

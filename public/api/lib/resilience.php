@@ -30,6 +30,9 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/uploads.php';
+require_once __DIR__ . '/security.php';
+
 require_once __DIR__ . '/command-centre.php';
 require_once __DIR__ . '/routing.php';
 require_once __DIR__ . '/notify.php';
@@ -299,11 +302,73 @@ function resilience_configuration(): array
     $add('telegram_delivery', 'Founder notifications delivered to Telegram', $ext, $bridge['telegram'] === 'CONNECTED' ? 'OK' : 'NOT_VERIFIED', $bridge['detail']);
     $platform = (string) creative_data()['selected_music_platform']['name'];
     $add('music_platform', "{$platform} connection", $ext, 'NOT_VERIFIED', 'FOUNDER SELECTED · ACCOUNT NOT OPENED · INTEGRATION PENDING · CAPABILITIES PENDING EXTERNAL VERIFICATION. The adapter contract is prepared; no call is made.');
-    $add('malware_scanning', 'Malware scanning of uploads', $ext, 'NOT_PRESENT', 'Not implemented. Uploads are type-checked by content, size-limited, stored outside the web root under random names and never executed; they are not virus-scanned.');
+    // The real state, read from the host, never an assumption in either direction.
+    $scanner = upload_scanner_state();
+    $add('malware_scanning', 'Malware scanning of uploads', $ext, match ($scanner['state']) {
+        'SCANNING_ACTIVE' => 'OK',
+        'SCANNER_CONNECTION_REQUIRED' => 'NOT_VERIFIED',
+        default => 'NOT_PRESENT',
+    }, $scanner['state'] . '. ' . $scanner['detail']);
+    $staffAuth = staff_authentication_readiness();
+    $add('staff_authentication', 'Individual staff accountability', $ext, $staffAuth['state'] === 'INDIVIDUAL_KEYS_CONFIGURED' ? 'OK' : 'NOT_VERIFIED', $staffAuth['state'] . '. ' . $staffAuth['attribution']);
+    $hsts = mcb_setting('security.hsts_enabled', null) === true;
+    $add('hsts', 'HTTPS strict transport (HSTS)', $ext, $hsts ? 'OK' : 'NOT_VERIFIED', $hsts
+        ? 'Enabled in the host configuration.'
+        : 'Prepared but deliberately off. Enable only after confirming every mycustombeats.com host MCB uses serves HTTPS.');
+    $add('unknown_path_404', 'Unknown addresses answer 404', $ext, 'NOT_VERIFIED', 'The release candidate returns a real 404 for an unknown path and 200 for every app route (proved against Apache locally). Confirm on the production host, which may use LiteSpeed.');
     $def = 'DEFERRED';
     $add('commercial_thresholds', 'Commercial alert thresholds', $def, is_array(mcb_setting('business.thresholds', null)) ? 'OK' : 'DEFERRED', 'Deliberately not configured (founder decision).');
     $add('minimum_contribution', 'Minimum contribution rule', $def, mcb_setting('fulfilment.commercial_safety.min_contribution_minor', null) === null ? 'DEFERRED' : 'OK', 'Only a negative contribution is flagged until set.');
     return $out;
+}
+
+/* ------------------------------------------------------------------ */
+/* Payment-first sequencing matrix                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * WHEN EACH WORKFLOW MAY HAPPEN, relative to payment.
+ *
+ * Read from the rule the code enforces, not from intention. Every row marked
+ * AFTER_PAYMENT_ONLY has a guard that reads `orders.status` and refuses; the
+ * release test (tests/payment-first.test.mjs and the acceptance suites) drives
+ * an unpaid order at each one and requires a refusal.
+ */
+const MCB_PAYMENT_PHASES = ['BEFORE_PAYMENT', 'AFTER_PAYMENT_ONLY', 'AFTER_QUALITY_CONTROL', 'AFTER_FOUNDER_APPROVAL', 'EXCEPTION_ONLY'];
+
+function resilience_payment_first_matrix(): array
+{
+    $row = static fn (string $workflow, string $phase, string $guard, string $note): array => compact('workflow', 'phase', 'guard', 'note');
+    return [
+        $row('Form validation, pricing, consent, eligibility', 'BEFORE_PAYMENT', 'None needed',
+            'Checking is not producing. Nothing is written that MCB would have to undo.'),
+        $row('Destination and commercial safety checks', 'BEFORE_PAYMENT', 'None needed',
+            'A known impossibility stops the sale here. Incomplete verification does not — it stops the work later instead.'),
+        $row('Checkout session', 'BEFORE_PAYMENT', 'None needed', 'Creates a Stripe session. Takes no money by itself.'),
+        $row('Memory Music Video capacity HOLD', 'BEFORE_PAYMENT', 'Capacity period lock',
+            'A hold only. It creates no video job, reserves nothing permanently and lapses on its own.'),
+        $row('Creative jobs and song candidates', 'AFTER_PAYMENT_ONLY', "orders.status = 'PAID'",
+            'creative_intake() refuses an unpaid order; the staff endpoint answers "no such paid order".'),
+        $row('Artwork planning and art masters', 'AFTER_PAYMENT_ONLY', "orders.status = 'PAID'",
+            'plan_order_artwork() and ensure_artwork_creative_jobs() both require payment.'),
+        $row('Production (print) files', 'AFTER_PAYMENT_ONLY', "orders.status = 'PAID'", 'Registered only for a paid order, and only at the right stage.'),
+        $row('Memory Music Video production', 'AFTER_PAYMENT_ONLY', "orders.status = 'PAID'",
+            'A video job exists only after payment, and every production step re-checks the order.'),
+        $row('Manufacturing package', 'AFTER_QUALITY_CONTROL', "orders.status = 'PAID' + QC passed",
+            'Built only from a paid order whose song and artwork have passed their checks.'),
+        $row('Supplier routing (recommendation)', 'AFTER_PAYMENT_ONLY', 'Read-only',
+            'Recommends and explains. Authorises nothing and places nothing.'),
+        $row('Supplier purchase', 'AFTER_FOUNDER_APPROVAL', "orders.status = 'PAID' + Bella or Lewis",
+            'Money out. Explicit founder authorisation with their own code, every time, and never automatic.'),
+        $row('Shipment and dispatch', 'AFTER_FOUNDER_APPROVAL', 'Fulfilment CONFIRMED', 'A parcel exists only after a supplier order was recorded.'),
+        $row('Customer support', 'AFTER_PAYMENT_ONLY', 'Order access token', 'A case belongs to a paid order. Answering a customer is not production.'),
+        $row('Replacement production', 'AFTER_FOUNDER_APPROVAL', "orders.status = 'PAID' + Bella or Lewis",
+            'Starting a remedy now checks payment itself, as well as the founder authorisation it already required.'),
+        $row('Refund', 'AFTER_FOUNDER_APPROVAL', 'Bella or Lewis, recorded only',
+            'MCB has no refund API. A refund is decided by a founder and made outside MCB, then recorded.'),
+        $row('Paid-order fulfilment exception', 'EXCEPTION_ONLY', 'Raised on a paid order',
+            'Raised when MCB discovers after payment that it cannot fulfil, or has not finished verifying how. Never cancels, reprices, substitutes or refunds by itself.'),
+    ];
 }
 
 /* ------------------------------------------------------------------ */

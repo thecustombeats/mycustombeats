@@ -61,11 +61,39 @@
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^(.+)/$ /$1 [R=301,L]
 
-  # Everything else that is not a real file or directory is a client route.
+  # ---- CLIENT ROUTES, AND ONLY CLIENT ROUTES -------------------------------
+  #
+  # A path the app actually serves is answered with the SPA shell and 200.
+  # Anything else falls through to the ErrorDocument below and is answered with
+  # the same shell but a real 404 — so the React catch-all still renders the
+  # MCB "not found" page, and the status line finally agrees with it.
+  #
+  # Before this, every unknown path ("/nope", "/old-page.html") returned 200
+  # with the 404 UI: a soft 404. Search engines index soft 404s, monitoring
+  # cannot see them, and a mistyped internal link looked healthy.
+  #
+  # THIS LIST MUST MATCH src/App.tsx. tests/website-closure.test.mjs compares
+  # the two in both directions and fails if either gains a route the other does
+  # not have — otherwise a new page would silently 404 in production, which is
+  # a worse failure than the one being fixed.
+  RewriteCond %{REQUEST_URI} "^/$" [OR]
+  RewriteCond %{REQUEST_URI} "^/(products|create|moment|keepsake|journey|bespoke|full-package|cruise|occasions|anniversary-song|mcb-live|priority-replacement|about|faq|contact|blog|press|artists|partners|affiliate|dashboard|thank-you|your-order|approve|operations|command-centre|artist-thank-you|partner-thank-you)/?$" [OR]
+  RewriteCond %{REQUEST_URI} "^/(legal/(terms|privacy|refund)|artists/apply|operations/customer-care)/?$" [OR]
+  RewriteCond %{REQUEST_URI} "^/blog/[a-z0-9-]+/?$"
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
 </IfModule>
+
+# ---------------------------------------------------------------------------
+# GENUINELY UNKNOWN PATHS RETURN 404 — with the app, so the customer still sees
+# MCB's own "not found" page rather than the host's.
+#
+# ErrorDocument with a LOCAL path is an internal subrequest, not a redirect, so
+# there is no HTTP round trip and no possibility of a loop. (A full URL here
+# WOULD become a 302 and could loop; that is why this is a path.)
+# ---------------------------------------------------------------------------
+ErrorDocument 404 /index.html
 
 # ---------------------------------------------------------------------------
 # 1b. Security headers (Sprint 6)
@@ -103,7 +131,7 @@
   # Private and non-content routes are never indexed. robots.txt asks
   # crawlers not to fetch them; this header covers anything that does. Neither
   # is access control — that is the token and CRM-key checks on the server.
-  <If "%{THE_REQUEST} =~ m#^[A-Z]+ /(your-order|approve|operations|command-centre|thank-you|dashboard|artist-thank-you|partner-thank-you|create|api/)#">
+  <If "%{THE_REQUEST} =~ m#^[A-Z]+ /(your-order|approve|operations|command-centre|thank-you|dashboard|artist-thank-you|partner-thank-you|create|artists|affiliate|api/)#">
     Header always set X-Robots-Tag "noindex, nofollow"
   </If>
   # /luxury/ is a separate, unlinked hospitality showcase that uses stock
@@ -124,10 +152,21 @@
     Header always set Cache-Control "no-store"
   </If>
 
-  # HSTS — PREPARED, NOT ENABLED. Turn on only after confirming every
-  # mycustombeats.com host serves HTTPS (see docs/SECURITY-NOTES.md). Start
-  # without includeSubDomains/preload.
-  # Header always set Strict-Transport-Security "max-age=31536000"
+  # HSTS — PREPARED, OFF BY DEFAULT, ENABLED BY CONFIGURATION.
+  #
+  # It is no longer a commented-out line someone has to remember to edit: the
+  # header is sent only when the host sets the environment variable MCB_HSTS,
+  # which can be done from the hosting panel or a SetEnv above without editing
+  # this file. With the variable unset — the state MCB ships in — nothing is
+  # sent, so a host that is not fully HTTPS cannot be locked out by a deploy.
+  #
+  # To enable, once EVERY mycustombeats.com host MCB uses is confirmed HTTPS:
+  #     SetEnv MCB_HSTS 1
+  # Start without includeSubDomains and without preload; both are effectively
+  # irreversible for as long as the max-age lasts. See docs/SECURITY-NOTES.md.
+  <If "%{ENV:MCB_HSTS} == '1'">
+    Header always set Strict-Transport-Security "max-age=31536000"
+  </If>
 </IfModule>
 
 # ---------------------------------------------------------------------------

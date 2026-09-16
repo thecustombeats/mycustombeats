@@ -614,6 +614,63 @@ function new_sale_safety_enforcement(): string
 }
 
 /**
+ * KNOWN IMPOSSIBILITY vs INCOMPLETE VERIFICATION.
+ *
+ * These are not the same thing and must not be treated the same way.
+ *
+ *   KNOWN_UNFULFILLABLE  MCB has positive evidence it cannot fulfil this:
+ *                        a destination the routes prove unsupported, a
+ *                        suspended or unavailable product, a complete costing
+ *                        that shows the sale loses money. These may stop a
+ *                        customer paying.
+ *
+ *   VERIFICATION_INCOMPLETE  MCB simply has not finished recording the
+ *                        evidence: a route awaiting refreshed verification, a
+ *                        marketplace whose shipping needs checking, costs not
+ *                        yet captured, manufacturer data not yet supplied.
+ *                        This is uncertainty, not impossibility, and it must
+ *                        NOT stop a customer paying. The paid order is flagged
+ *                        for MCB to verify before fulfilment proceeds.
+ *
+ * Until this sprint every flag blocked the sale under REQUIRED safety, so a
+ * route whose evidence was a month stale stopped a customer buying exactly as
+ * firmly as a country MCB provably cannot ship to.
+ */
+const MCB_UNFULFILLABLE_FLAGS = [
+    'DESTINATION_UNSUPPORTED',
+    'PRODUCT_UNAVAILABLE',
+    'NEGATIVE_CONTRIBUTION',
+];
+
+/**
+ * Of the known problems, these two are physical impossibility and stop a sale
+ * whatever the enforcement setting: MCB cannot deliver there, or there is
+ * nothing to deliver.
+ *
+ * NEGATIVE_CONTRIBUTION is the third known problem but a COMMERCIAL one — the
+ * sale is possible, it just loses money — so it stays a founder decision:
+ * advisory under ADVISORY, blocking under REQUIRED, exactly as before.
+ */
+const MCB_ALWAYS_BLOCKING_FLAGS = ['DESTINATION_UNSUPPORTED', 'PRODUCT_UNAVAILABLE'];
+
+const MCB_VERIFICATION_FLAGS = [
+    'MISSING_ROUTE',
+    'ROUTE_NOT_VERIFIED',
+    'COMMERCIAL_DATA_MISSING',
+    'UNVERIFIED_HIGH_RISK_MARKETPLACE_ROUTE',
+    'MANUFACTURING_DATA_MISSING',
+];
+
+/** Which class a flag belongs to. An unknown flag is treated as KNOWN, never as safe. */
+function new_sale_flag_certainty(string $flag): string
+{
+    if (in_array($flag, MCB_VERIFICATION_FLAGS, true)) {
+        return 'VERIFICATION_INCOMPLETE';
+    }
+    return 'KNOWN_UNFULFILLABLE';
+}
+
+/**
  * Flags for a NEW physical sale of a SKU to a destination, from recorded data
  * only. Incomplete data is never treated as safe. Paid orders are never read
  * or changed here.
@@ -630,6 +687,14 @@ function new_sale_route_flags(string $sku, ?string $countryCode): array
     if ($cc !== null && $allRoutes !== [] && $options['status'] === 'NO_SAFE_ROUTE'
         && array_filter($allRoutes, static fn (array $o): bool => in_array('DESTINATION_UNSUPPORTED_BY_ROUTE', $o['reasons'], true)) !== []) {
         $flags[] = 'DESTINATION_UNSUPPORTED';
+    }
+    // Every route for this product is suspended or out of stock: a positively
+    // known impossibility, not missing evidence.
+    if ($allRoutes !== [] && array_filter(
+        $allRoutes,
+        static fn (array $o): bool => !in_array('ROUTE_SUSPENDED', $o['reasons'], true) && !in_array('ROUTE_UNAVAILABLE', $o['reasons'], true)
+    ) === []) {
+        $flags[] = 'PRODUCT_UNAVAILABLE';
     }
     $rec = $options['recommendation'];
     $best = null;
@@ -656,13 +721,34 @@ function new_sale_route_flags(string $sku, ?string $countryCode): array
     if (array_filter(manufacturing_data_items(), static fn (array $i): bool => in_array($sku, $i['skus'], true) && $i['blocks_manufacture']) !== []) {
         $flags[] = 'MANUFACTURING_DATA_MISSING';
     }
-    return ['sku' => $sku, 'destination' => $cc, 'status' => $options['status'], 'flags' => $flags, 'enforcement' => new_sale_safety_enforcement()];
+
+    $unfulfillable = array_values(array_filter($flags, static fn (string $f): bool => new_sale_flag_certainty($f) === 'KNOWN_UNFULFILLABLE'));
+    $verification = array_values(array_filter($flags, static fn (string $f): bool => new_sale_flag_certainty($f) === 'VERIFICATION_INCOMPLETE'));
+
+    return [
+        'sku' => $sku,
+        'destination' => $cc,
+        'status' => $options['status'],
+        'flags' => $flags,
+        'known_unfulfillable' => $unfulfillable,
+        'verification_incomplete' => $verification,
+        'certainty' => $unfulfillable !== [] ? 'KNOWN_UNFULFILLABLE' : ($verification !== [] ? 'VERIFICATION_INCOMPLETE' : 'CLEAR'),
+        'enforcement' => new_sale_safety_enforcement(),
+    ];
 }
 
 /**
- * Which items of a new sale must go to MCB to confirm delivery before payment.
- * A destination the routes prove unsupported is never sold as supported (always);
- * other flags do so only when new-sale safety is REQUIRED.
+ * Which items of a new sale MCB must confirm before the customer can pay.
+ *
+ * ONLY known impossibility stops a payment: a destination the routes prove
+ * unsupported, a product every route has suspended or run out of, or a
+ * complete costing that shows the sale loses money. That applies whatever the
+ * enforcement setting, because selling something MCB knows it cannot deliver
+ * is never acceptable.
+ *
+ * Incomplete verification does NOT stop a payment. It is surfaced instead by
+ * `new_sale_items_needing_verification()`, and the paid order is held for MCB
+ * to verify before fulfilment proceeds.
  *
  * @return list<string> the SKUs
  */
@@ -671,8 +757,31 @@ function new_sale_items_needing_confirmation(array $skus, ?string $countryCode):
     $out = [];
     foreach (array_unique($skus) as $sku) {
         $f = new_sale_route_flags($sku, $countryCode);
-        if (in_array('DESTINATION_UNSUPPORTED', $f['flags'], true) || ($f['enforcement'] === 'REQUIRED' && $f['flags'] !== [])) {
+        $impossible = array_intersect($f['known_unfulfillable'], MCB_ALWAYS_BLOCKING_FLAGS) !== [];
+        $unprofitable = $f['enforcement'] === 'REQUIRED' && $f['known_unfulfillable'] !== [];
+        if ($impossible || $unprofitable) {
             $out[] = $sku;
+        }
+    }
+    return $out;
+}
+
+/**
+ * Items MCB may sell now but must verify before fulfilling.
+ *
+ * Under REQUIRED safety these are recorded against the paid order so the work
+ * cannot quietly proceed on unverified evidence; under ADVISORY they are
+ * reported but nothing is held. Either way the customer is not stopped.
+ *
+ * @return array<string, list<string>> SKU => the reasons
+ */
+function new_sale_items_needing_verification(array $skus, ?string $countryCode): array
+{
+    $out = [];
+    foreach (array_unique($skus) as $sku) {
+        $f = new_sale_route_flags($sku, $countryCode);
+        if ($f['known_unfulfillable'] === [] && $f['verification_incomplete'] !== []) {
+            $out[$sku] = $f['verification_incomplete'];
         }
     }
     return $out;

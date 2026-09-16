@@ -33,7 +33,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
     if (($_GET['view'] ?? '') === 'providers') {
         json_response(200, ['route' => creative_generation_route()] + creative_provider_registry());
     }
-    $staff = operations_line($_GET['staff'] ?? null, 160);
+    $staff = crm_staff_name(operations_line($_GET['staff'] ?? null, 160));
     if ($staff === null) {
         json_error(422, 'staff_required', 'Say who is looking, so access to private creative material is audited.');
     }
@@ -152,7 +152,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
 require_method('POST');
 $body = read_json_body(262144);
 $action = is_string($body['action'] ?? null) ? strtoupper($body['action']) : '';
-$staff = operations_line($body['staff'] ?? null, 160);
+$staff = crm_staff_name(operations_line($body['staff'] ?? null, 160));
 $orderId = is_int($body['order_id'] ?? null) ? $body['order_id'] : 0;
 if ($staff === null) {
     json_error(422, 'staff_required', 'Say who is doing this, so the audit trail can.');

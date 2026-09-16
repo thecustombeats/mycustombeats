@@ -637,18 +637,23 @@ quote '[{"sku":"journey-6","quantity":1}]' GB
 t "REQUIRED: a verified, costed, supported route with complete manufacturing data proceeds normally (Journey to GB)" "QUOTED|True" "$(qj 'd["delivery"]["status"]')|$(qj 'str(d["payable"])')"
 quote '[{"sku":"journey-6","quantity":1}]' US
 t "REQUIRED: a destination the routes prove unsupported is held before payment" "UNAVAILABLE|MCB_CONFIRMS_DELIVERY|False" "$(qj 'd["delivery"]["status"]')|$(qj 'd["delivery"]["reason"]')|$(qj 'str(d["payable"])')"
+# UNCERTAINTY IS NOT IMPOSSIBILITY (16 Sept). Evidence MCB has not finished
+# recording no longer stops a customer paying; it stops the WORK on the paid
+# order instead (POST_PAYMENT_VERIFICATION_REQUIRED). Only a known
+# impossibility — an evidenced unsupported destination, or nothing to sell —
+# blocks a payment.
 quote '[{"sku":"keepsake-10-heart-picture-disc","quantity":1}]' GB
-t "REQUIRED: missing essential manufacturing data (Heart dieline) goes to MCB to confirm, not to payment" "UNAVAILABLE|MCB_CONFIRMS_DELIVERY" "$(qj 'd["delivery"]["status"]')|$(qj 'd["delivery"]["reason"]')"
+t "missing manufacturer data is uncertainty, so the customer may still pay" "QUOTED|True" "$(qj 'd["delivery"]["status"]')|$(qj 'str(d["payable"])')"
 quote '[{"sku":"keepsake-7-picture-disc","quantity":1},{"sku":"lyrics-frame-10x15","quantity":1}]' GB
-t "REQUIRED: an unverified marketplace route goes to MCB to confirm (the customer is told which items, nothing more)" "UNAVAILABLE|True" "$(qj 'd["delivery"]["status"]')|$(qj 'str(any("Frame" in i for i in d["delivery"]["review_items"]))')"
-tc "  → the customer sees no partner, route, cost or reason code" "$(! grep -qiE 'S-FRAME-MKT|TEST PARTNER|marketplace|route|expected|unverified|manufactur|dieline|allowance' /tmp/quote.json && echo 1 || echo 0)"
+t "an unverified marketplace route is uncertainty, so the customer may still pay" "QUOTED|True" "$(qj 'd["delivery"]["status"]')|$(qj 'str(d["payable"])')"
+tc "  → and the customer still sees no partner, route, cost or reason code" "$(! grep -qiE 'S-FRAME-MKT|TEST PARTNER|marketplace|expected_purchase|unverified|dieline|allowance' /tmp/quote.json && echo 1 || echo 0)"
 quote '[{"sku":"moment","quantity":1}]' GB
 t "REQUIRED never blocks a digital Moment" "NOT_REQUIRED|True|1500" "$(qj 'd["delivery"]["status"]')|$(qj 'str(d["payable"])')|$(qj 'd["total_minor"]')"
 quote '[{"sku":"moment","quantity":1},{"sku":"memory-music-video","quantity":1}]' GB
 t "REQUIRED never blocks a Memory Music Video (Moment + video £64)" "NOT_REQUIRED|True|6400" "$(qj 'd["delivery"]["status"]')|$(qj 'str(d["payable"])')|$(qj 'd["total_minor"]')"
 rm -f "$ROUTES"; settle
 quote '[{"sku":"journey-6","quantity":1}]' GB
-t "REQUIRED with no route data at all: physical items are held for MCB to confirm (no evidence), digital still sells" "UNAVAILABLE|NOT_REQUIRED" "$(qj 'd["delivery"]["status"]')|$(quote '[{"sku":"moment","quantity":1}]' GB; qj 'd["delivery"]["status"]')"
+t "with no route data at all the customer may still pay; MCB verifies before it makes anything" "QUOTED|NOT_REQUIRED" "$(qj 'd["delivery"]["status"]')|$(quote '[{"sku":"moment","quantity":1}]' GB; qj 'd["delivery"]["status"]')"
 t "  → the paid physical order from earlier is untouched: still paid, same total, not cancelled" "PAID|$(q "SELECT total_minor FROM orders WHERE id=$K")|0" "$(q "SELECT status FROM orders WHERE id=$K")|$(q "SELECT total_minor FROM orders WHERE id=$K")|$(q "SELECT COUNT(*) FROM order_events WHERE order_id=$K AND event_type LIKE '%CANCEL%'")"
 restore_config
 
