@@ -214,3 +214,20 @@ Each line is an exact mismatch between current wording and actual site behaviour
 | 76 | A controlled dependency update (React Router ≥ 7.18.2 and build tooling). | Tech |
 | 77 | An independent penetration test of the production host before or shortly after launch. | External |
 | 78 | Approved images for the 18 pop-up cards. | F |
+
+## 16. Website Excellence, Conversion & Experience Closure (16 September 2026) — items for the Founders
+
+The full register, including the Website Readiness Register and the Asset Gap
+Register, is `docs/WEBSITE-READINESS-20260916.md`.
+
+| # | Item | Class |
+|---|---|---|
+| 79 | Photography for the 18 pop-up cards. They are the only catalogue family with no image at all; today they are presented as named rows grouped by occasion, which is honest but not desirable. | F |
+| 80 | Picture-disc photography for the 12", 10", Heart and 7" Keepsakes. Four products sold largely on how they look are shown as a drawn illustration. | F |
+| 81 | Lyrics Frame photography per size. All five sizes share one room mockup whose poster reads "Imagine Your Song Lyrics Here" — placeholder text baked into the image MCB shows customers. | F |
+| 82 | Replace the three player renders whose baked-in names contradict the catalogue ("Mobile-phone Gramophone", "Vintage Collection", "Portable Gramophones"). | F |
+| 83 | A Personalised Music Plaque photograph, and a still or example frame for the Memory Music Video. | F |
+| 84 | Decide whether captions or a transcript are produced for the 25-year anniversary example film. Its value is sung words, and it has neither; none was invented. | F |
+| 85 | Decide whether any genuine customer evidence is cleared for public use. **No testimonial, review count, rating, customer number, award or certification appears anywhere on the site**, and none will be invented. | F |
+| 86 | Decide whether `/artists/apply`, `/affiliate` and `/dashboard` get a rebuild pass of their own or are withdrawn. They are legacy pages off the customer path; `/partners` was rebuilt this sprint because it is footer-linked, indexed and the page a cruise or hotel partner lands on. | F |
+| 87 | Confirm the MCB LIVE line (+44 7340 742009) is for MCB LIVE bookings only. The site now says so everywhere: it is declared to search engines as a sales contact point rather than customer support, and it is withheld from the thank-you page, the private order page and the delivery-confirmation step, where ordinary order help is `hello@`. | Decided (confirm) |

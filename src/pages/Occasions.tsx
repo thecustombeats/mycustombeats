@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { revealOnScroll } from "../lib/scrollReveal";
 
@@ -66,7 +67,6 @@ export default function Occasions() {
       <Helmet>
         <title>Custom Songs for Every Occasion | Weddings, Birthdays & More</title>
         <meta name="description" content="Celebrate weddings, birthdays, anniversaries and special moments with a personalised song written and produced for you by My Custom Beats." />
-        <meta name="keywords" content="custom song, personalized music gift, wedding song, anniversary song, birthday song, proposal song, bespoke song, music gift for pets, corporate music gift" />
       </Helmet>
 
       <div ref={sectionRef} className="bg-[#FBF9F6] text-black">
@@ -80,13 +80,13 @@ export default function Occasions() {
           <p className="text-black/75 max-w-2xl mx-auto mb-10 text-lg">
             We turn your most meaningful memories into bespoke songs — crafted to be felt, remembered, and treasured forever.
           </p>
-          <a
-  href="/#order"
-  className="inline-flex items-center gap-3 px-10 py-4 bg-gold text-espresso rounded-full font-medium 
-  transition-all duration-300 hover:bg-espresso hover:text-ivory hover:scale-105 shadow-md hover:shadow-xl"
+          <Link
+  to="/create"
+  className="inline-flex min-h-14 items-center gap-3 px-10 py-4 bg-gold text-espresso rounded-full font-medium 
+  transition-all duration-300 hover:bg-espresso hover:text-ivory hover:scale-105 shadow-md hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
 >
   Start My Song →
-</a>
+</Link>
         </section>
 
         {/* STORY */}
@@ -141,23 +141,33 @@ export default function Occasions() {
     "Impress clients with a luxury custom song experience. A unique corporate gift designed to create lasting emotional impact."}
 </p>
 
-                  <a
-  href="/#order"
-  className="inline-flex items-center gap-3 px-10 py-4 bg-gold text-espresso rounded-full font-medium 
-  transition-all duration-300 hover:bg-espresso hover:text-ivory hover:scale-105 shadow-md hover:shadow-xl"
+                  <Link
+  to="/create"
+  className="inline-flex min-h-14 items-center gap-3 px-10 py-4 bg-gold text-espresso rounded-full font-medium 
+  transition-all duration-300 hover:bg-espresso hover:text-ivory hover:scale-105 shadow-md hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
 >
   Start My Song →
-</a>
+</Link>
 
-{/* The voyage funnel has a page of its own; this card is where a guest
-    looking for it actually is. */}
+{/* Pages that exist but that nothing else on the site links to. The
+    cruise funnel, and the anniversary page — which was in the sitemap
+    and indexable while being reachable from no link anywhere. This
+    card is where someone looking for either actually is. */}
 {item.title === "Travel / Cruise Songs" && (
-  <a
-    href="/cruise"
-    className="block mt-4 text-sm text-gold-deep hover:underline"
+  <Link
+    to="/cruise"
+    className="mt-4 inline-flex min-h-11 items-center text-base font-medium text-gold-deep underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep"
   >
     See the cruise &amp; voyage journey →
-  </a>
+  </Link>
+)}
+{item.title === "Anniversary Songs" && (
+  <Link
+    to="/anniversary-song"
+    className="mt-4 inline-flex min-h-11 items-center text-base font-medium text-gold-deep underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep"
+  >
+    More about anniversary songs →
+  </Link>
 )}
                 </div>
               </div>
@@ -184,13 +194,13 @@ export default function Occasions() {
           <h2 className="text-4xl font-light mb-6">Your Story Deserves More Than a Gift</h2>
           <p className="text-black/75 max-w-xl mx-auto mb-10">Let’s turn it into something unforgettable.</p>
           
-          <a
-  href="/#order"
-  className="inline-flex items-center gap-3 px-10 py-4 bg-gold text-espresso rounded-full font-medium 
-  transition-all duration-300 hover:bg-espresso hover:text-ivory hover:scale-105 shadow-md hover:shadow-xl"
+          <Link
+  to="/create"
+  className="inline-flex min-h-14 items-center gap-3 px-10 py-4 bg-gold text-espresso rounded-full font-medium 
+  transition-all duration-300 hover:bg-espresso hover:text-ivory hover:scale-105 shadow-md hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
 >
   Start My Song →
-</a>
+</Link>
 
         </section>
 

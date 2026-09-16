@@ -20,7 +20,7 @@ const HeroSection = () => (
   <section aria-labelledby="hero-heading" className="relative overflow-hidden bg-ivory pt-20">
     <div className="mx-auto grid max-w-[1400px] grid-cols-1 items-center gap-12 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[1fr_1fr] lg:gap-16 lg:px-12 lg:pb-24 lg:pt-16">
       <div className="max-w-2xl">
-        <p className="label-uppercase mb-5 !text-[0.8125rem] text-gold-deep">MCB™ — My Custom Beats</p>
+        <p className="label-uppercase mb-5 text-gold-deep">MCB™ — My Custom Beats</p>
 
         <h1
           id="hero-heading"

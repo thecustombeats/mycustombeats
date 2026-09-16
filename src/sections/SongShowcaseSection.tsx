@@ -123,7 +123,7 @@ const SongShowcaseSection = () => {
             </video>
           </div>
           <div>
-            <p className="label-uppercase !text-[0.8125rem] text-gold">An MCB example</p>
+            <p className="label-uppercase text-gold">An MCB example</p>
             <h3 id="anniversary-example-title" className="mt-3 !text-ivory" style={{ fontSize: "2.25rem" }}>
               25th Anniversary MCB Example
             </h3>
@@ -184,7 +184,7 @@ const SongShowcaseSection = () => {
               </div>
 
               <div className="flex flex-1 flex-col p-5">
-                <p className="label-uppercase !text-[0.8125rem] text-gold-deep">{occasion(song.tag)}</p>
+                <p className="label-uppercase text-gold-deep">{occasion(song.tag)}</p>
                 <h3 className="mt-2 text-ink" style={{ fontSize: "1.6rem" }}>
                   {song.title}
                 </h3>

@@ -50,7 +50,7 @@
     <meta data-static-seo property="og:description" content="Turn a memory into a personalised song, written from your own story and delivered digitally or on vinyl." />
     <meta data-static-seo property="og:image" content="https://www.mycustombeats.com/images/hero-1.jpg" />
     <meta data-static-seo property="og:url" content="https://www.mycustombeats.com/" />
-    <meta property="og:type" content="website" />
+    <meta data-static-seo property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
 
     <!--
@@ -85,7 +85,6 @@
                 "@id": "https://www.mycustombeats.com/#logo"
           },
           "email": "hello@mycustombeats.com",
-          "telephone": "+447340742009",
           "sameAs": [
                 "https://www.youtube.com/@MyCustomBeats"
           ],
@@ -99,13 +98,23 @@
                       "name": "Shobha (Bella) Menezes"
                 }
           ],
-          "contactPoint": {
-                "@type": "ContactPoint",
-                "contactType": "customer support",
-                "email": "hello@mycustombeats.com",
-                "telephone": "+447340742009",
-                "url": "https://www.mycustombeats.com/#contact"
-          }
+          "contactPoint": [
+                {
+                      "@type": "ContactPoint",
+                      "contactType": "customer support",
+                      "email": "hello@mycustombeats.com",
+                      "url": "https://www.mycustombeats.com/#contact",
+                      "availableLanguage": "en-GB"
+                },
+                {
+                      "@type": "ContactPoint",
+                      "contactType": "sales",
+                      "name": "MCB LIVE",
+                      "telephone": "+447340742009",
+                      "url": "https://www.mycustombeats.com/mcb-live",
+                      "availableLanguage": "en-GB"
+                }
+          ]
     }
     </script>
 

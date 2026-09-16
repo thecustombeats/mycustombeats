@@ -1,5 +1,5 @@
 import { Instagram, Youtube, MessageCircle, Mail } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import CurrencySelector from "../components/CurrencySelector";
 import { trackWhatsAppClick, trackEvent } from "../lib/analytics";
 import { BESPOKE, songExperiences } from "../data/catalogue";
@@ -49,9 +49,21 @@ const GROUPS: readonly { title: string; links: readonly FooterLink[] }[] = [
 const linkClass =
   "inline-flex min-h-11 items-center rounded text-base text-ivory/80 transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-ink";
 
+/**
+ * Routes where an EXISTING customer is dealing with an order. MCB's rule is
+ * that ordinary order help is email or the private order page, never the MCB
+ * LIVE WhatsApp line — so the footer's WhatsApp shortcut is withheld here,
+ * exactly as the floating button is (src/components/FloatingCTA.tsx). It was
+ * still rendering on the thank-you and private order pages, which are the two
+ * places a customer with an order question actually looks.
+ */
+const ORDER_SURFACES = ["/thank-you", "/your-order", "/approve", "/create"];
+
 const SOCIALS = [
   {
     label: "WhatsApp",
+    /** Pre-sales only; see ORDER_SURFACES. */
+    preSalesOnly: true,
     icon: MessageCircle,
     href: "https://wa.me/447340742009?text=Hi%20MyCustomBeats%2C%20I%20clicked%20the%20link%20in%20your%20website%20footer%20and%20would%20like%20to%20learn%20more%20about%20your%20custom%20songs.",
     onClick: () => trackWhatsAppClick("footer"),
@@ -70,7 +82,11 @@ const SOCIALS = [
   },
 ] as const;
 
-const Footer = () => (
+const Footer = () => {
+  const { pathname } = useLocation();
+  const onOrderSurface = ORDER_SURFACES.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  const socials = SOCIALS.filter((social) => !("preSalesOnly" in social && social.preSalesOnly && onOrderSurface));
+  return (
   // Midnight Ink. Anything on this ground states its own colour: index.css
   // gives every <p> an espresso colour that would otherwise be invisible here.
   <footer className="w-full bg-ink pb-28 pt-20 text-ivory sm:pb-12">
@@ -100,7 +116,7 @@ const Footer = () => (
           <p className="mt-4 text-base text-ivory/70">MCB™ — My Custom Beats</p>
 
           <ul className="mt-8 flex list-none flex-wrap gap-3 p-0">
-            {SOCIALS.map(({ label, icon: Icon, href, onClick }) => (
+            {socials.map(({ label, icon: Icon, href, onClick }) => (
               <li key={label}>
                 <a
                   href={href}
@@ -130,7 +146,7 @@ const Footer = () => (
         <nav aria-label="Footer" className="grid grid-cols-1 gap-10 min-[480px]:grid-cols-2 md:grid-cols-3">
           {GROUPS.map((group) => (
             <div key={group.title}>
-              <h2 className="label-uppercase !text-[0.8125rem] mb-3 text-gold">{group.title}</h2>
+              <h2 className="label-uppercase mb-3 text-gold">{group.title}</h2>
               <ul className="m-0 list-none p-0">
                 {group.links.map((link) => (
                   <li key={link.to}>
@@ -186,6 +202,7 @@ const Footer = () => (
       </div>
     </div>
   </footer>
-);
+  );
+};
 
 export default Footer;

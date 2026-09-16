@@ -184,6 +184,9 @@ test("legacy approval/refinement language: no active customer-facing creative ap
     /repair, replace, remake or refund/i,
     // Compatibility identifiers for retired links; the private-path rule.
     /\bApprove\b|RetiredApproval|order-approval|your-order\|approve/,
+    // A list of ROUTE PATHS a component withholds itself on. "/approve" there
+    // is the staff reveal route, not an offer of customer approval.
+    /^const (HIDDEN_ON|ORDER_SURFACES) = \[[^\]]*"\/approve"[^\]]*\];$/,
     // Legacy stage values kept for historical records.
     /"(SONG_READY|AWAITING_APPROVAL|REVISION_REQUESTED|APPROVED)"|Legacy/,
     /No further approval from you|decisions for you to approve/,

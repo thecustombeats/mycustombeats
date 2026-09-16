@@ -22,7 +22,7 @@ const CruiseSpecialism = () => (
       </div>
 
       <div>
-        <p className="label-uppercase !text-[0.8125rem] mb-4 text-gold-deep">Cruise memories</p>
+        <p className="label-uppercase mb-4 text-gold-deep">Cruise memories</p>
         <h2 id="cruise-heading" className="text-ink">
           Some of our favourite memories are made at sea
         </h2>

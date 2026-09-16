@@ -158,7 +158,10 @@ test("Review names the items MCB confirms, offers contact and never shows an est
   const review = read("src/pages/create/StepReview.tsx");
   assert.match(review, /MCB_CONFIRMS_DELIVERY/);
   assert.match(review, /Nothing has been charged/);
-  assert.match(review, /wa\.me\/447340742009/);
+  assert.match(review, /mailto:hello@mycustombeats\.com/);
+  // The MCB LIVE booking line is NOT an order-support channel. It used to be
+  // offered here as a second way to ask MCB to confirm delivery.
+  assert.doesNotMatch(review, /wa\.me\/447340742009/);
   assert.match(review, /FULFILMENT_POSITION/);
   const api = read("src/lib/orderApi.ts");
   assert.match(api, /reviewItems/);

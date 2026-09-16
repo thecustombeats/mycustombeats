@@ -71,7 +71,11 @@
   .label-uppercase {
     display: inline-block;
     font-family: 'Manrope', 'Manrope Fallback', system-ui, sans-serif;
-    font-size: 0.8125rem;
+    /* 14px, not 13px. Uppercase letter-spaced type at 13px was the smallest
+       text on the site and appeared on nearly every section of every page;
+       for the 55+ customer MCB expects, an eyebrow that small is the first
+       thing to become unreadable. 14px is the floor for public copy now. */
+    font-size: 0.875rem;
     font-weight: 600;
     line-height: 1.4;
     letter-spacing: 0.18em;

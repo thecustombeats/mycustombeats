@@ -23,7 +23,7 @@ const EveryMemoryKeepsakes = () => (
   <section aria-labelledby="every-memory-heading" className="bg-ink px-5 py-20 sm:px-8 md:py-28">
     <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-14 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
       <div>
-        <p className="label-uppercase !text-[0.8125rem] mb-4 text-gold">{KEEPSAKE.name}</p>
+        <p className="label-uppercase mb-4 text-gold">{KEEPSAKE.name}</p>
         <h2 id="every-memory-heading" className="!text-ivory">
           One journey. As many memories as you want.
         </h2>

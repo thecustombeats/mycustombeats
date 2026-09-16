@@ -11,8 +11,15 @@ import { trackWhatsAppClick } from "../lib/analytics";
  * would sit over form controls and sticky actions. On phones it is a compact
  * 56px icon button in the corner, clear of the safe area, so it does not
  * cover reading content; the footer reserves space beneath its last line.
+ *
+ * Also never on the pages an EXISTING customer uses for order help. This
+ * number is the MCB LIVE booking line, and MCB's rule is that ordinary order
+ * support is email or the private order page, never WhatsApp. Floating a
+ * "WhatsApp us" button over the thank-you page and the private order page was
+ * an open invitation to ask an order question on the one channel that is not
+ * set up to answer it.
  */
-const HIDDEN_ON = ["/create", "/dashboard"];
+const HIDDEN_ON = ["/create", "/dashboard", "/thank-you", "/your-order", "/approve"];
 
 const FloatingCTA = () => {
   const [visible, setVisible] = useState(false);

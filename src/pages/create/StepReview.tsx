@@ -196,16 +196,32 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
               </div>
             </dl>
             {!quote.quote.payable && (
-              <div role="alert" className="mt-4 rounded-xl border border-ink/20 bg-white p-4 text-base leading-relaxed text-ink">
-                <p>
+              /* The REQUIRED commercial-safety stop, written for a customer.
+                 It is a deliberate MCB step, not a failure: the customer never
+                 sees a route, a supplier or an internal status, only what
+                 happens next and who does it. The MCB LIVE WhatsApp number
+                 used to sit here as a second channel; ordinary order help is
+                 email or the private order page, never that line. */
+              <div role="status" className="mt-4 rounded-2xl border border-gold-dark/35 bg-gold/10 p-5 text-base leading-relaxed text-ink">
+                <p className="label-uppercase text-gold-deep">Confirmed by MCB first</p>
+                <p className="mt-2 font-serif text-2xl leading-snug text-ink">
                   {quote.quote.delivery.reason === "MCB_CONFIRMS_DELIVERY" && quote.quote.delivery.reviewItems.length > 0
-                    ? `We confirm availability and delivery for your ${listNames(quote.quote.delivery.reviewItems)} personally before you pay, so this order can't be paid online yet.`
-                    : `We can't confirm a delivery charge to ${country ?? "this address"} online yet, so this order can't be paid online.`}{" "}
-                  Nothing has been charged. Contact MCB and we'll confirm everything with you{draft.plaques.length + draft.frames.length + draft.players.length > 0 ? ", or remove that item to continue" : ""}.
+                    ? `We'll confirm the delivery details for your ${listNames(quote.quote.delivery.reviewItems)} before you pay.`
+                    : `We'll confirm delivery to ${country ?? "this address"} before you pay.`}
                 </p>
-                <p className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
-                  <a href="mailto:hello@mycustombeats.com?subject=Please%20confirm%20delivery%20for%20my%20order" className="min-h-11 font-semibold text-ink underline underline-offset-4">Email hello@mycustombeats.com</a>
-                  <a href="https://wa.me/447340742009?text=Hello%20MCB%2C%20please%20could%20you%20confirm%20delivery%20for%20my%20order%20before%20I%20pay%3F" target="_blank" rel="noopener noreferrer" className="min-h-11 font-semibold text-ink underline underline-offset-4">WhatsApp +44 7340 742009<span className="sr-only"> (opens in a new window)</span></a>
+                <p className="mt-3">
+                  These are made and sent individually, so MCB checks availability and delivery personally rather than
+                  guessing online. Nothing has been charged and nothing is lost — send us one line and we&rsquo;ll come
+                  back to you with everything confirmed
+                  {draft.plaques.length + draft.frames.length + draft.players.length > 0 ? ", or remove that item to carry on now" : ""}.
+                </p>
+                <p className="mt-4">
+                  <a
+                    href="mailto:hello@mycustombeats.com?subject=Please%20confirm%20delivery%20for%20my%20order"
+                    className="inline-flex min-h-12 items-center rounded-full bg-ink px-6 text-base font-semibold text-ivory transition-colors hover:bg-[#1c2d40] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
+                  >
+                    Email hello@mycustombeats.com
+                  </a>
                 </p>
               </div>
             )}

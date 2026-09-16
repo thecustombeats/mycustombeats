@@ -52,7 +52,7 @@ const SeasonalBanner = () => {
                 className="rounded-2xl border border-gold/30 p-7 flex flex-col sm:flex-row sm:items-center gap-6"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="label-uppercase !text-[0.8125rem] text-gold mb-2">
+                  <p className="label-uppercase text-gold mb-2">
                     {edition.positioning}
                   </p>
                   <h3 className="font-serif text-2xl text-ivory mb-2">

@@ -267,7 +267,7 @@ const Navigation = () => {
             Create Your Memory
           </Link>
 
-          <p className="label-uppercase !text-[0.8125rem] mt-10 mb-2 text-gold-deep">Experiences</p>
+          <p className="label-uppercase mt-10 mb-2 text-gold-deep">Experiences</p>
           <ul className="m-0 list-none divide-y divide-ink/10 border-y border-ink/10 p-0">
             {EXPERIENCES.map((item) => (
               <li key={item.id}>

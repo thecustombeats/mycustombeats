@@ -11,5 +11,9 @@ Disallow: /approve
 Disallow: /operations
 Disallow: /command-centre
 Disallow: /api/
+Disallow: /create
+
+# Unlinked business preview, not for search.
+Disallow: /luxury
 
 Sitemap: https://www.mycustombeats.com/sitemap.xml

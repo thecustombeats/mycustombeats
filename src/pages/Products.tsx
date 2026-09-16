@@ -6,6 +6,7 @@ import {
   JOURNEY,
   KEEPSAKE,
   LYRICS_FRAME,
+  MEMORY_MUSIC_VIDEO,
   MOMENT,
   PERSONALISED_MUSIC_PLAQUE,
   POP_UP_CARD,
@@ -14,6 +15,7 @@ import {
   priceSummary,
   publicProducts,
   type Product,
+  groupedCards,
 } from "../data/catalogue";
 import { PACKAGE_IMAGERY, PRODUCT_IMAGERY } from "../data/imagery";
 import ResponsiveImage from "../components/ResponsiveImage";
@@ -22,6 +24,7 @@ import SectionHeading from "../components/mcb/SectionHeading";
 import { McbButtonLink } from "../components/mcb/McbButton";
 import { DELIVERY_NOTE, priorityReplacementLine } from "../lib/productDetail";
 import { PRODUCTS_DESCRIPTION, productsPageStructuredData } from "../lib/seo";
+import { VIDEO_COPY } from "../data/production/video";
 
 /**
  * /products — the collection.
@@ -41,6 +44,7 @@ const PLAQUE = listed(PERSONALISED_MUSIC_PLAQUE) ? PERSONALISED_MUSIC_PLAQUE : n
 const FRAMES = listed(LYRICS_FRAME) ? LYRICS_FRAME : null;
 const PLAYERS = publicProducts().filter((p) => p.category === "PLAYER" && p.onlineCheckout);
 const CARDS = listed(POP_UP_CARD) ? POP_UP_CARD : null;
+const VIDEO = listed(MEMORY_MUSIC_VIDEO) ? MEMORY_MUSIC_VIDEO : null;
 
 /** What a customer provides for the plaque. Matches the order flow's fields. */
 const PLAQUE_FIELDS = ["A photograph", "A song title", "The artist"];
@@ -92,7 +96,7 @@ const Products = () => {
       <Helmet>
         <title>Personalised Songs, Decor & Players | My Custom Beats</title>
         <meta name="description" content={PRODUCTS_DESCRIPTION} />
-        <meta property="og:title" content="Products | My Custom Beats" />
+        <meta property="og:title" content="Personalised Songs, Decor &amp; Players | My Custom Beats" />
         <meta property="og:description" content={PRODUCTS_DESCRIPTION} />
         <script type="application/ld+json">{JSON.stringify(productsPageStructuredData())}</script>
       </Helmet>
@@ -122,6 +126,45 @@ const Products = () => {
             </ul>
           </div>
         </section>
+
+        {/* ---- MCB Memory Music Video ------------------------------------- */}
+        {/* The £49 film had no presence anywhere a customer could browse to:
+            it was described only inside /create, which is noindex, and on the
+            token-gated order page. A real product MCB sells was effectively
+            invisible until checkout. Approved customer copy, catalogue price;
+            the platform, "AI", credits and allowances stay out of it. */}
+        {VIDEO && VIDEO.variants[0] && (
+          <section aria-labelledby="memory-video" className="bg-ink px-5 py-20 sm:px-8 md:py-24">
+            <div className="mx-auto grid max-w-5xl items-center gap-10 md:grid-cols-[1.1fr_1fr]">
+              <div>
+                <p className="label-uppercase text-gold">{VIDEO_COPY.eyebrow}</p>
+                <h2 id="memory-video" className="mt-3 !text-ivory" style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}>
+                  {VIDEO_COPY.title}
+                </h2>
+                <p className="mt-4 font-serif text-2xl italic leading-snug text-gold">{VIDEO_COPY.headline.join(" ")}</p>
+                <p className="mt-5 text-lg leading-relaxed text-ivory/85">{VIDEO_COPY.body}</p>
+                <p className="mt-3 text-base leading-relaxed text-ivory/75">{VIDEO_COPY.ideal}</p>
+              </div>
+              <div className="rounded-3xl border border-gold/30 bg-white/5 p-6 sm:p-8">
+                <p className="font-mono text-2xl text-ivory">{formatMoney(VIDEO.variants[0].price)}</p>
+                <p className="mt-1 text-base text-ivory/75">{VIDEO_COPY.optional}</p>
+                <p className="mt-4 text-base leading-relaxed text-ivory/85">
+                  Added to any song experience when you create your memory. A {MOMENT.name} with a Memory Music Video
+                  comes to{" "}
+                  {formatMoney({
+                    ...VIDEO.variants[0].price,
+                    minor: MOMENT.variants[0].price.minor + VIDEO.variants[0].price.minor,
+                  })}
+                  .
+                </p>
+                <p className="mt-3 text-base leading-relaxed text-ivory/75">{VIDEO_COPY.availability}</p>
+                <McbButtonLink to="/create" tone="gold" className="mt-6 w-full">
+                  Create Your Memory
+                </McbButtonLink>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* ---- Curated additions ------------------------------------------ */}
         <section aria-labelledby="additions" className="bg-[#F1ECE3] px-5 py-20 sm:px-8 md:py-28">
@@ -227,14 +270,26 @@ const Products = () => {
               <div className="mt-16">
                 <h3 className="font-serif text-3xl leading-tight text-ink">{CARDS.name}</h3>
                 <p className="mt-2 max-w-2xl text-base leading-relaxed text-espresso/80">{CARDS.positioning}</p>
-                <ul className="m-0 mt-6 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
-                  {CARDS.variants.map((card) => (
-                    <li key={card.sku} className="flex items-baseline justify-between gap-3 rounded-2xl bg-white px-5 py-4">
-                      <span className="text-base text-ink">{card.label}</span>
-                      <span className="shrink-0 font-mono text-base text-ink">{formatMoney(card.price)}</span>
-                    </li>
+                {/* Grouped by occasion. Eighteen cards in one flat list made a
+                    customer read the whole wall to find a birthday card, and
+                    buried four flower packs among them. Same eighteen products,
+                    same prices, read from the catalogue. */}
+                <div className="mt-8 space-y-8">
+                  {groupedCards().map(({ group, variants }) => (
+                    <div key={group.id}>
+                      <h4 className="font-serif text-2xl leading-tight text-ink">{group.label}</h4>
+                      <p className="mt-1 text-base text-espresso/75">{group.hint}</p>
+                      <ul className="m-0 mt-4 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
+                        {variants.map((card) => (
+                          <li key={card.sku} className="flex items-baseline justify-between gap-3 rounded-2xl bg-white px-5 py-4">
+                            <span className="text-base text-ink">{card.label}</span>
+                            <span className="shrink-0 font-mono text-base text-ink">{formatMoney(card.price)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   ))}
-                </ul>
+                </div>
                 <p className="mt-3 text-base text-espresso/80">{DELIVERY_NOTE}</p>
               </div>
             )}

@@ -143,6 +143,13 @@ test("every internal link points at a route the app defines", () => {
 test("every price shown on the public pages exists in the catalogue", async () => {
   const catalogue = await import(`data:text/javascript;base64,${Buffer.from(buildSync({ entryPoints: [join(root, "src/data/catalogue/index.ts")], bundle: true, write: false, platform: "node", format: "esm" }).outputFiles[0].text).toString("base64")}`);
   const allowed = new Set(catalogue.PRODUCTS.flatMap((p) => p.variants.map((v) => catalogue.formatMoney(v.price))));
+  // Moment + one Memory Music Video is a Founder-decided total (£15 + £49 =
+  // £64) that /products and the FAQ now state plainly, so a customer learns
+  // what the pair costs before checkout. It is a sum of two catalogue prices,
+  // computed here the same way the pages compute it — never typed.
+  const moment = catalogue.MOMENT.variants[0].price;
+  const video = catalogue.MEMORY_MUSIC_VIDEO.variants[0].price;
+  allowed.add(catalogue.formatMoney({ ...moment, minor: moment.minor + video.minor }));
   for (const price of text(everything).match(/£[\d,]+(?:\.\d{2})?/g) ?? []) assert.ok(allowed.has(price), `unexpected price ${price}`);
 });
 

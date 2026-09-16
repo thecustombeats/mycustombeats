@@ -10,6 +10,7 @@ import type { Money, Product, ProductId, Variant } from "./types";
 
 export * from "./types";
 export * from "./products";
+export * from "./cardGroups";
 export { validateCatalogue } from "./validate";
 
 export const getProduct = (id: string): Product | undefined =>

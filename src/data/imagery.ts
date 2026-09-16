@@ -87,8 +87,23 @@ export type ImageFormat = "jpg" | "webp";
 export const imageSrc = (img: McbImage, width: (typeof WIDTHS)[number] = 960, format: ImageFormat = "jpg"): string =>
   `/images/responsive/${img.name}-${width}.${format}`;
 
-export const imageSrcSet = (img: McbImage, format: ImageFormat = "jpg"): string =>
-  WIDTHS.map((w) => `${imageSrc(img, w, format)} ${Math.min(w, img.width)}w`).join(", ");
+/**
+ * Candidates are capped at the image's own width, because the optimiser never
+ * upscales: for a source narrower than 960px the 960 and 1600 derivatives are
+ * byte-identical to each other. Emitting all three produced a srcset with the
+ * same width descriptor twice ("…-480.jpg 480w, …-960.jpg 752w, …-1600.jpg
+ * 752w"), which is invalid and gave the browser two identical candidates to
+ * choose between. One candidate per distinct width now.
+ */
+export const imageSrcSet = (img: McbImage, format: ImageFormat = "jpg"): string => {
+  const seen = new Set<number>();
+  return WIDTHS.flatMap((w) => {
+    const descriptor = Math.min(w, img.width);
+    if (seen.has(descriptor)) return [];
+    seen.add(descriptor);
+    return [`${imageSrc(img, w, format)} ${descriptor}w`];
+  }).join(", ");
+};
 
 /** The visual identity of each primary experience. */
 export const PACKAGE_IMAGERY = {

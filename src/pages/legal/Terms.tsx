@@ -72,15 +72,19 @@ const Terms = () => {
             aria-label="On this page"
             className="mt-12 rounded-2xl border border-espresso/10 bg-white p-6"
           >
-            <h2 className="font-mono text-sm uppercase tracking-[0.16em] text-espresso/75">
+            <h2 className="font-mono text-base uppercase tracking-[0.16em] text-espresso/75">
               On this page
             </h2>
-            <ul className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
+            {/* 26 stacked links, each 14px type in a 19px row, was the densest
+                list a customer meets on the public site — and the one they are
+                most likely to be reading carefully. Full-size type and a 44px
+                row each. */}
+            <ul className="m-0 mt-4 grid list-none gap-x-8 p-0 sm:grid-cols-2">
               {TERMS_CLAUSES.map((clause) => (
                 <li key={clause.id}>
                   <a
                     href={`#${clause.id}`}
-                    className="text-sm leading-snug text-espresso/70 underline decoration-espresso/25 underline-offset-4 hover:text-espresso hover:decoration-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep rounded-sm"
+                    className="flex min-h-11 items-center text-base leading-snug text-espresso/80 underline decoration-espresso/25 underline-offset-4 hover:text-espresso hover:decoration-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep rounded-sm"
                   >
                     {clause.heading}
                   </a>

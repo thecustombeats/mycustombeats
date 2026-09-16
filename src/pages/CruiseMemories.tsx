@@ -132,7 +132,7 @@ const CruiseMemories = () => {
 
             <div className="mt-12 grid gap-6 lg:grid-cols-2">
               <article className="flex flex-col overflow-hidden rounded-3xl bg-white">
-                <ResponsiveImage image={PACKAGE_IMAGERY.keepsake} sizes="(min-width: 1024px) 45vw, 100vw" alt="" className="aspect-[16/10] w-full object-cover" />
+                <ResponsiveImage image={PACKAGE_IMAGERY.keepsake} sizes="(min-width: 1024px) 45vw, 100vw" alt="Personalised MCB record sleeves displayed together, each with its own photograph" className="aspect-[16/10] w-full object-cover" />
                 <div className="flex flex-1 flex-col p-6 md:p-8">
                   <p className="label-uppercase text-gold-deep">{`A ${KEEPSAKE.name} for each day`}</p>
                   <h3 className="mt-3 font-serif text-3xl leading-tight text-ink">One journey. As many memories as you want.</h3>
@@ -158,7 +158,7 @@ const CruiseMemories = () => {
               </article>
 
               <article className="flex flex-col overflow-hidden rounded-3xl bg-white">
-                <ResponsiveImage image={PACKAGE_IMAGERY.journey} sizes="(min-width: 1024px) 45vw, 100vw" alt="" className="aspect-[16/10] w-full object-cover" />
+                <ResponsiveImage image={PACKAGE_IMAGERY.journey} sizes="(min-width: 1024px) 45vw, 100vw" alt="A vinyl album beside its personalised printed sleeve" className="aspect-[16/10] w-full object-cover" />
                 <div className="flex flex-1 flex-col p-6 md:p-8">
                   <p className="label-uppercase text-gold-deep">The whole voyage</p>
                   <h3 className="mt-3 font-serif text-3xl leading-tight text-ink">{JOURNEY.positioning}</h3>

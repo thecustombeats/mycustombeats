@@ -1,159 +1,247 @@
-import { useState, useRef } from "react";
-import { trackFormSubmit } from "../lib/analytics";
+import { useState, useRef, useId } from "react";
+import type { FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { KEEPSAKE, MOMENT } from "../data/catalogue";
+import { Check } from "lucide-react";
+import { trackFormSubmit } from "../lib/analytics";
+import SectionHeading from "../components/mcb/SectionHeading";
+import { McbButton, McbButtonLink } from "../components/mcb/McbButton";
+import { mcbButtonClass } from "../lib/buttonClass";
+import ResponsiveImage from "../components/ResponsiveImage";
+import { IMAGES } from "../data/imagery";
 
-// ─── Inline SVG Icons ───────────────────────────────────────────────────────
-const IconCruise = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-    <path d="M4 18l3-8h14l3 8H4z" stroke="#B8965A" strokeWidth="1.4" fill="none"/>
-    <path d="M10 10V7l4-3 4 3v3" stroke="#B8965A" strokeWidth="1.4" fill="none"/>
-    <path d="M2 22h24" stroke="#B8965A" strokeWidth="1.4"/>
-  </svg>
-);
-const IconWedding = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-    <circle cx="14" cy="10" r="4" stroke="#B8965A" strokeWidth="1.4"/>
-    <path d="M6 24c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="#B8965A" strokeWidth="1.4" fill="none"/>
-    <path d="M11 7l3-3 3 3" stroke="#B8965A" strokeWidth="1.4" fill="none"/>
-  </svg>
-);
-const IconHotel = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-    <rect x="4" y="8" width="20" height="16" stroke="#B8965A" strokeWidth="1.4" fill="none"/>
-    <path d="M4 8l10-5 10 5" stroke="#B8965A" strokeWidth="1.4" fill="none"/>
-    <rect x="11" y="18" width="6" height="6" stroke="#B8965A" strokeWidth="1.2" fill="none"/>
-    <rect x="7" y="12" width="3" height="3" stroke="#B8965A" strokeWidth="1" fill="none"/>
-    <rect x="18" y="12" width="3" height="3" stroke="#B8965A" strokeWidth="1" fill="none"/>
-  </svg>
-);
-const IconTravel = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-    <circle cx="14" cy="14" r="10" stroke="#B8965A" strokeWidth="1.4" fill="none"/>
-    <path d="M14 4c-3 3-5 6-5 10s2 7 5 10" stroke="#B8965A" strokeWidth="1.2" fill="none"/>
-    <path d="M14 4c3 3 5 6 5 10s-2 7-5 10" stroke="#B8965A" strokeWidth="1.2" fill="none"/>
-    <path d="M4 14h20" stroke="#B8965A" strokeWidth="1.2"/>
-  </svg>
-);
-const IconYacht = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-    <path d="M14 4v14" stroke="#B8965A" strokeWidth="1.4"/>
-    <path d="M14 6l8 10H14" stroke="#B8965A" strokeWidth="1.2" fill="none"/>
-    <path d="M6 18h16l-2 4H8l-2-4z" stroke="#B8965A" strokeWidth="1.2" fill="none"/>
-  </svg>
-);
-const IconEvent = () => (
-  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-    <rect x="4" y="6" width="20" height="18" rx="1" stroke="#B8965A" strokeWidth="1.4" fill="none"/>
-    <path d="M4 12h20" stroke="#B8965A" strokeWidth="1.2"/>
-    <path d="M9 4v4M19 4v4" stroke="#B8965A" strokeWidth="1.4"/>
-    <path d="M9 17l2 2 4-4" stroke="#B8965A" strokeWidth="1.4"/>
-  </svg>
-);
-const CheckIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-    <path d="M3 8l3.5 3.5L13 5" stroke="#B8965A" strokeWidth="1.6" strokeLinecap="round"/>
-  </svg>
-);
-const ArrowRight = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-    <path d="M4 9h10M10 5l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-  </svg>
-);
+/**
+ * PARTNERS & HOSPITALITY — the business-facing page.
+ *
+ * Rebuilt this sprint. The page it replaces carried its own 200-line
+ * stylesheet, its own palette (#B8965A / #1a1208 / #faf8f4), its own Google
+ * Fonts import (Jost) and 10–13px type. It failed 29 colour-contrast checks,
+ * shipped four buttons and three selects with no accessible name, skipped a
+ * heading level, and was the only public page on the site with serious axe
+ * violations. It is footer-linked and in the sitemap, so a cruise line or
+ * hotel group evaluating MCB saw the weakest page MCB owns.
+ *
+ * Rebuilt on the approved identity (Ivory / Midnight Ink / Heritage Gold, the
+ * site's own type scale, the shared button and section primitives) with a real
+ * <form>, a visible <label> on every control, an inline error summary in place
+ * of alert(), and 16px-and-up body type.
+ *
+ * Two commercial claims were also removed rather than restyled:
+ *   - "Real Moments. Real Impact." presented four hypothetical scenarios in
+ *     the past tense, reading as case studies MCB cannot evidence.
+ *   - "Join forward-thinking brands who create unforgettable moments with My
+ *     Custom Beats" implied existing brand partners.
+ * Both are now written as what MCB can create, which is true today.
+ *
+ * The enquiry contract is unchanged: the same field names, the same Formspree
+ * endpoint and the same Calendly link, both already declared processors in
+ * docs and in the privacy inventory. No new third party is introduced.
+ */
 
-// ─── Image Placeholder Component ────────────────────────────────────────────
-interface ImgPlaceholderProps {
-  src?: string;
-  alt: string;
-  style?: React.CSSProperties;
-  className?: string;
-  overlay?: string;
-}
+const SECTORS = [
+  {
+    label: "Cruise lines",
+    desc: "A personalised song for a guest's voyage — the ports, the people they met, the celebration they came aboard for.",
+  },
+  {
+    label: "Luxury hotels & resorts",
+    desc: "A honeymoon, an anniversary stay or a milestone birthday, given something the guest keeps long after checkout.",
+  },
+  {
+    label: "Wedding planners",
+    desc: "A song written around one couple's story, ready for the day itself or given to them afterwards.",
+  },
+  {
+    label: "Travel agencies & tour operators",
+    desc: "Turn a trip you arranged into something your client can hear again — and remember who arranged it.",
+  },
+  {
+    label: "Yacht charters",
+    desc: "A small, high-touch gesture for a small, high-expectation guest list.",
+  },
+  {
+    label: "Event companies",
+    desc: "Celebrations, recognition and brand moments, written individually rather than licensed from a library.",
+  },
+] as const;
 
-const ImgPlaceholder: React.FC<ImgPlaceholderProps> = ({ src, alt, style, className, overlay }) => (
-  <div
-    className={className}
-    style={{
-      background: src ? undefined : "linear-gradient(135deg, #c9b99a 0%, #e8ddd0 40%, #b5956c 100%)",
-      position: "relative",
-      overflow: "hidden",
-      ...style,
-    }}
-  >
-    {src && (
-      <img src={src} alt={alt} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-    )}
-    {overlay && (
-      <div style={{
-        position: "absolute", inset: 0,
-        background: overlay,
-      }} />
-    )}
-    {!src && (
-      <div style={{
-        position: "absolute", inset: 0,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        color: "rgba(255,255,255,0.35)", fontSize: "11px", letterSpacing: "0.15em",
-        textTransform: "uppercase", fontFamily: "Georgia, serif",
-      }}>
-        {alt}
-      </div>
-    )}
-  </div>
-);
+const USE_CASES = [
+  {
+    title: "Cruise companies",
+    items: [
+      "Guest entertainment",
+      "Welcome experiences",
+      "Anniversary celebrations onboard",
+      "Birthday surprises",
+      "Proposal packages",
+      "VIP guest engagement",
+      "Loyalty experiences",
+      "Pre-cruise campaigns",
+      "Post-cruise memory retention",
+    ],
+  },
+  {
+    title: "Hospitality groups",
+    items: ["Hotels and resorts", "Luxury stays", "Honeymoon packages", "Concierge services"],
+  },
+  {
+    title: "Corporate & enterprise",
+    items: ["Employee engagement", "Team recognition", "Client gifting", "Event experiences", "Brand activations"],
+  },
+  {
+    title: "Travel & tourism",
+    items: ["Tour operators", "Destination experiences", "Luxury travel agencies"],
+  },
+  {
+    title: "Wedding & event companies",
+    items: ["Personalised event music", "Guest celebrations", "High-end occasions"],
+  },
+] as const;
 
-// ─── Main Component ──────────────────────────────────────────────────────────
-export default function PartnersPage() {
+const STEPS = [
+  {
+    num: "01",
+    title: "You tell us about the guest",
+    desc: "The memory, the milestone, the people in it. A short form, or your team's own notes — whichever suits how you work.",
+  },
+  {
+    num: "02",
+    title: "MCB shapes the brief",
+    desc: "We build the creative brief around that story, in the guest's own words, and choose the musical direction.",
+  },
+  {
+    num: "03",
+    title: "MCB writes and produces it",
+    desc: "An original song, written for that one guest. Every song passes an MCB quality check before anyone hears it.",
+  },
+  {
+    num: "04",
+    title: "Delivered to your guest",
+    desc: "Digitally by private link, or as a personalised keepsake posted to you to present however you choose.",
+  },
+] as const;
+
+/* What MCB can create for a partner. Written as capability, not as a client
+   list: MCB has no published partner references, and none is implied. */
+const EXAMPLES = [
+  {
+    title: "A surprise anniversary song",
+    desc: "A couple's years together, written as one song and revealed to them during the celebration you are already hosting.",
+  },
+  {
+    title: "A honeymoon soundtrack",
+    desc: "The place, the trip and the two people in it, turned into music they play long after they are home.",
+  },
+  {
+    title: "A VIP welcome",
+    desc: "A personalised arrival for a guest you particularly want to look after, prepared before they travel.",
+  },
+  {
+    title: "Recognition that isn't a plaque",
+    desc: "A song for a colleague's long service or a team's achievement, written around what they actually did.",
+  },
+] as const;
+
+const SERVICE_FACTS = [
+  "Every song written from one guest's own story",
+  "Written and produced by My Custom Beats",
+  "Delivered digitally, or as a keepsake posted to you",
+  "One named point of contact for your team",
+  "Scoped and priced with you before anything is agreed",
+] as const;
+
+const MODELS = [
+  "Guest gifting",
+  "Onboard and event experiences",
+  "Milestone celebrations",
+  "Brand activations",
+  "Bespoke commissions",
+  "Something else entirely",
+] as const;
+
+const INDUSTRIES = [
+  "Cruise line",
+  "Luxury hotel / resort",
+  "Weddings & events",
+  "Travel agency",
+  "Yacht charter",
+  "Corporate",
+  "Other",
+] as const;
+
+const INTERESTS = [
+  "Guest gifting",
+  "Onboard or event experiences",
+  "Milestone celebrations",
+  "Brand activation",
+  "Bespoke commission",
+  "Other",
+] as const;
+
+const VOLUMES = ["Under 1,000", "1,000 – 10,000", "10,000 – 50,000", "50,000+"] as const;
+
+const GOALS = [
+  "Guest entertainment",
+  "Hospitality experiences",
+  "Event experiences",
+  "Brand activations",
+  "Guest gifting",
+  "Something else",
+] as const;
+
+const CALENDLY = "https://calendly.com/thecustombeats/demo";
+
+const FIELD_CLASS =
+  "mt-2 block w-full rounded-xl border border-ink/20 bg-white px-4 py-3 text-base text-ink placeholder:text-espresso/45 focus:border-gold-deep focus:outline-none focus:ring-2 focus:ring-gold-deep/40";
+const LABEL_CLASS = "block text-[0.9375rem] font-semibold text-ink";
+
+const emptyForm = {
+  fullName: "",
+  companyName: "",
+  jobTitle: "",
+  businessEmail: "",
+  phone: "",
+  website: "",
+  industryType: "",
+  partnershipInterest: "",
+  estimatedVolume: "",
+  regions: "",
+  goals: [] as string[],
+  message: "",
+};
+
+const PartnersPage = () => {
   const formRef = useRef<HTMLDivElement>(null);
-  const experiencesRef = useRef<HTMLDivElement>(null);
-  const [formData, setFormData] = useState<{
-    fullName: string;
-    companyName: string;
-    jobTitle: string;
-    businessEmail: string;
-    phone: string;
-    website: string;
-    industryType: string;
-    partnershipInterest: string;
-    estimatedVolume: string;
-    regions: string;
-    goals: string[];
-    message: string;
-  }>({
-    fullName: "", companyName: "", jobTitle: "", businessEmail: "",
-    phone: "", website: "", industryType: "", partnershipInterest: "",
-    estimatedVolume: "", regions: "", goals: [], message: "",
-  });
+  const [formData, setFormData] = useState(emptyForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const uid = useId();
+  const fid = (name: string) => `${uid}-${name}`;
 
-  const scrollToForm = () => {
-    formRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleGoalToggle = (goal: string) => {
-    setFormData(prev => ({
+  const handleGoalToggle = (goal: string) =>
+    setFormData((prev) => ({
       ...prev,
-      goals: prev.goals.includes(goal)
-        ? prev.goals.filter(g => g !== goal)
-        : [...prev.goals, goal],
+      goals: prev.goals.includes(goal) ? prev.goals.filter((g) => g !== goal) : [...prev.goals, goal],
     }));
-  };
 
-
-  const handleSubmit = async () => {
-    if (!formData.fullName || !formData.businessEmail) {
-      alert("Please fill in the mandatory fields.");
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!formData.fullName.trim() || !formData.businessEmail.trim()) {
+      setError("Please add your name and a business email so we can reply.");
       return;
     }
-
+    setError(null);
     setIsSubmitting(true);
-
     try {
       const response = await fetch("https://formspree.io/f/mdajgzwp", {
         method: "POST",
@@ -163,770 +251,551 @@ export default function PartnersPage() {
           _subject: `New Partnership Inquiry from ${formData.fullName} (${formData.companyName})`,
         }),
       });
-
       if (response.ok) {
         trackFormSubmit("partner_application");
         setSubmitted(true);
       } else {
-        alert("There was an error submitting the form. Please try again.");
+        setError("We couldn't send that just now. Please try again, or email hello@mycustombeats.com.");
       }
-    } catch (error) {
-      console.error("Submission error:", error);
-      alert("Something went wrong. Please check your connection.");
+    } catch {
+      setError(
+        "We couldn't reach our server — please check your connection and try again, or email hello@mycustombeats.com."
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const partners = [
-    { icon: <IconCruise />, label: "Cruise Lines", desc: "Elevate every voyage with personalized onboard musical experiences crafted for each guest's journey.", src: "/images/hero-cruise-couple.jpg" },
-    { icon: <IconWedding />, label: "Wedding Planners", desc: "Give every couple a bespoke soundtrack — a musical memory as unique as their love story.", src: "/images/moments/wedding.jpg" },
-    { icon: <IconHotel />, label: "Luxury Hotels", desc: "Delight guests with curated musical experiences tailored to their stay, milestones, and moments.", src: "/images/hero-champagne.jpg" },
-    { icon: <IconTravel />, label: "Travel Agencies", desc: "Elevate travel with personalized musical storytelling that turns every trip into a lifelong memory.", src: "/images/occasions/travel.jpg" },
-    { icon: <IconYacht />, label: "Yacht Charters", desc: "Craft high-touch, intimate musical experiences for discerning guests at sea.", src: "/images/order-yacht-deck.jpg" },
-    { icon: <IconEvent />, label: "Event Companies", desc: "Make every occasion extraordinary with songs and emotional stories personalized for each guest.", src: "/images/occasions/corporate.jpg" },
-  ];
-
-  const targetPartners = [
-    {
-      icon: <IconCruise />, title: "Cruise Companies",
-      items: ["Guest entertainment", "Welcome experiences", "Anniversary celebrations onboard", "Birthday surprises", "Proposal packages", "VIP guest engagement", "Loyalty experiences", "Pre-cruise excitement campaigns", "Post-cruise memory retention"],
-    },
-    {
-      icon: <IconHotel />, title: "Hospitality Groups",
-      items: ["Hotels & Resorts", "Luxury stays", "Honeymoon packages", "Concierge services"],
-    },
-    {
-      icon: <IconTravel />, title: "Corporate & Enterprise",
-      items: ["Employee engagement", "Team recognition", "Client gifting", "Event experiences", "Brand activations"],
-    },
-    {
-      icon: <IconYacht />, title: "Travel & Tourism",
-      items: ["Tour operators", "Destination experiences", "Luxury travel agencies"],
-    },
-    {
-      icon: <IconEvent />, title: "Wedding & Event Companies",
-      items: ["Personalized event music", "Guest emotional experiences", "High-end celebrations"],
-    },
-  ];
-
-  const steps = [
-    { num: "01", title: "Guest Stories & Preferences", desc: "We gather the guest's memories, milestones, relationships, and emotional moments." },
-    { num: "02", title: "Bespoke Creative Brief", desc: "Our producers shape a creative brief around the guest's story, in their own words." },
-    { num: "03", title: "Artisan Production", desc: "Skilled creators bring the story to life as a beautifully crafted, original musical experience." },
-    { num: "04", title: "Delivered to Your Guest", desc: "Delivered digitally, or as a personalised record posted to you — presented however you choose to give it to your guest." },
-  ];
-
-  const experiences = [
-    { title: "Surprise Anniversary Song", story: "A couple celebrates 20 years with a song written just for them — delivered on their cruise.", src: "/images/sample-anniversary.jpg" },
-    { title: "Honeymoon Soundtrack", story: "A destination-inspired soundtrack created for a honeymoon couple on their special getaway.", src: "/images/sample-honeymoon.jpg" },
-    { title: "VIP Welcome Experience", story: "A high-value guest receives a personalized musical welcome before their arrival.", src: "/images/hero-flight.jpg" },
-    { title: "Employee Recognition", story: "A company celebrates top performers with a meaningful, personalized appreciation song.", src: "/images/occasions/corporate.jpg" },
-  ];
-
-
   return (
     <>
       <Helmet>
         <title>Hospitality &amp; Cruise Partnerships | My Custom Beats</title>
-        <meta name="description" content="Personalised music as a guest experience for hotels, resorts, cruise lines and event partners." />
-      </Helmet>
-    <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", color: "#2c2418", background: "#faf8f4" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap');
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        .mcb-btn-primary {
-          background: #1a1208;
-          color: #f5f0e8;
-          border: none;
-          padding: 14px 32px;
-          font-family: 'Jost', sans-serif;
-          font-size: 13px;
-          font-weight: 500;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          cursor: pointer;
-          transition: background 0.3s ease;
-        }
-        .mcb-btn-primary:hover { background: #B8965A; }
-
-        .mcb-btn-outline {
-          background: transparent;
-          color: #1a1208;
-          border: 1px solid #1a1208;
-          padding: 13px 30px;
-          font-family: 'Jost', sans-serif;
-          font-size: 13px;
-          font-weight: 500;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-        .mcb-btn-outline:hover { background: #1a1208; color: #f5f0e8; }
-
-        .mcb-btn-white {
-          background: #fff;
-          color: #1a1208;
-          border: none;
-          padding: 14px 32px;
-          font-family: 'Jost', sans-serif;
-          font-size: 13px;
-          font-weight: 500;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          cursor: pointer;
-          transition: background 0.3s ease;
-        }
-        .mcb-btn-white:hover { background: #B8965A; color: #fff; }
-
-        .partner-card {
-          background: #fff;
-          border: 1px solid #e8e0d4;
-          padding: 0 0 24px 0;
-          transition: box-shadow 0.3s ease, transform 0.3s ease;
-          cursor: default;
-        }
-        .partner-card:hover {
-          box-shadow: 0 8px 40px rgba(184,150,90,0.12);
-          transform: translateY(-3px);
-        }
-
-        .step-card {
-          background: #fff;
-          border: 1px solid #e8e0d4;
-          padding: 36px 28px;
-          position: relative;
-          flex: 1;
-        }
-
-        .form-input {
-          width: 100%;
-          border: none;
-          border-bottom: 1px solid #d4c9b8;
-          background: transparent;
-          padding: 10px 0;
-          font-family: 'Jost', sans-serif;
-          font-size: 13px;
-          color: #2c2418;
-          outline: none;
-          letter-spacing: 0.04em;
-          transition: border-color 0.3s;
-        }
-        .form-input:focus { border-bottom-color: #B8965A; }
-        .form-input::placeholder { color: #a89880; }
-
-        .form-select {
-          width: 100%;
-          border: none;
-          border-bottom: 1px solid #d4c9b8;
-          background: transparent;
-          padding: 10px 0;
-          font-family: 'Jost', sans-serif;
-          font-size: 13px;
-          color: #2c2418;
-          outline: none;
-          cursor: pointer;
-          appearance: none;
-          letter-spacing: 0.04em;
-        }
-        .form-select:focus { border-bottom-color: #B8965A; }
-
-        .goal-chip {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-family: 'Jost', sans-serif;
-          font-size: 12px;
-          letter-spacing: 0.04em;
-          color: #5a4a35;
-          cursor: pointer;
-          user-select: none;
-        }
-
-        .goal-checkbox {
-          width: 16px; height: 16px;
-          border: 1px solid #c4b49a;
-          background: transparent;
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
-          transition: border-color 0.2s, background 0.2s;
-        }
-        .goal-checkbox.checked { background: #B8965A; border-color: #B8965A; }
-
-        .section-label {
-          font-family: 'Jost', sans-serif;
-          font-size: 11px;
-          font-weight: 500;
-          letter-spacing: 0.25em;
-          text-transform: uppercase;
-          color: #B8965A;
-          margin-bottom: 14px;
-        }
-
-        .divider-gold {
-          width: 48px;
-          height: 1px;
-          background: #B8965A;
-          margin: 16px auto;
-        }
-
-        @media (max-width: 900px) {
-          .hero-grid { flex-direction: column !important; }
-          .partners-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .steps-row { flex-direction: column !important; }
-          .form-two-col { grid-template-columns: 1fr !important; }
-          .enterprise-grid { flex-direction: column !important; }
-          .experiences-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .bottom-row { flex-direction: column !important; }
-          .target-grid { grid-template-columns: repeat(2, 1fr) !important; }
-        }
-        .goal-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          gap: 10px 16px;
-        }
-        @media (max-width: 760px) { .goal-grid { grid-template-columns: 1fr 1fr; } }
-        @media (max-width: 420px) { .goal-grid { grid-template-columns: 1fr; } }
-
-        @media (max-width: 600px) {
-          .partners-grid { grid-template-columns: 1fr !important; }
-          .experiences-grid { grid-template-columns: 1fr !important; }
-          .target-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-
-      {/* ── HERO ───────────────────────────────────────────────────────────── */}
-      <section style={{ position: "relative", minHeight: "88vh", display: "flex", alignItems: "stretch", overflow: "hidden" }}>
-        {/* Background cinematic image */}
-        <ImgPlaceholder
-          src="/images/hero-cruise.jpg"
-          alt="Couple on luxury cruise at sunset"
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
-          overlay="linear-gradient(to right, rgba(26,18,8,0.72) 0%, rgba(26,18,8,0.45) 50%, rgba(26,18,8,0.15) 100%)"
+        <meta
+          name="description"
+          content="Personalised songs as a guest experience for cruise lines, hotels, resorts, wedding planners and event partners. Written individually for each guest by My Custom Beats."
         />
+      </Helmet>
 
-        <div style={{ position: "relative", zIndex: 1, maxWidth: "1280px", margin: "0 auto", padding: "120px 48px 80px", display: "flex", alignItems: "center", width: "100%", gap: "60px" }} className="hero-grid">
-          {/* Left content */}
-          <div style={{ flex: "0 0 560px", maxWidth: "560px" }}>
-            <p className="section-label" style={{ color: "#d4aa70" }}>Partner With My Custom Beats</p>
-            <h1 style={{
-              fontFamily: "'Cormorant Garamond', Georgia, serif",
-              fontSize: "clamp(44px, 6vw, 76px)",
-              fontWeight: "300",
-              lineHeight: "1.08",
-              color: "#faf7f0",
-              marginBottom: "28px",
-              letterSpacing: "-0.01em",
-            }}>
-              Transform Guest<br />Experiences Into<br /><em style={{ fontStyle: "italic", fontWeight: "300" }}>Lifelong Memories</em>
+      {/* ── HERO ───────────────────────────────────────────────────────── */}
+      <section aria-labelledby="partners-heading" className="bg-ivory px-5 pb-16 pt-28 sm:px-8 lg:px-12 lg:pb-24 lg:pt-32">
+        <div className="mx-auto grid max-w-[1400px] grid-cols-1 items-center gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
+          <div>
+            <p className="label-uppercase mb-5 text-gold-deep">Partner with MCB™</p>
+            <h1 id="partners-heading" className="text-ink" style={{ fontSize: "clamp(2.35rem, 4.8vw, 4rem)", lineHeight: 1.06 }}>
+              Turn your guests&rsquo; moments into music they keep.
             </h1>
-            <p style={{
-              fontFamily: "'Jost', sans-serif",
-              fontSize: "15px",
-              fontWeight: "300",
-              lineHeight: "1.7",
-              color: "rgba(250,247,240,0.8)",
-              marginBottom: "40px",
-              maxWidth: "440px",
-              letterSpacing: "0.02em",
-            }}>
-              We create bespoke songs and emotionally crafted musical experiences that elevate every moment — onboard, at the resort, and beyond. A white-glove solution for modern hospitality, travel, and events.
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-espresso/80 sm:text-xl">
+              MCB writes and produces a personalised song from one guest&rsquo;s own story — the voyage, the
+              celebration, the anniversary, the people. A considered gesture for hospitality, travel and events,
+              handled end to end by us.
             </p>
 
-            {/* Trust badges */}
-            <div style={{ display: "flex", gap: "32px", marginBottom: "44px", flexWrap: "wrap" }}>
+            <ul className="mt-8 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-3">
               {[
-                { label: "White-Glove", sub: "Personalization" },
-                { label: "Every Guest", sub: "Individually Written" },
-                { label: "One Point", sub: "Of Contact" },
-              ].map(b => (
-                <div key={b.label} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                  <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "12px", fontWeight: "500", letterSpacing: "0.1em", color: "#d4aa70", textTransform: "uppercase" }}>{b.label}</span>
-                  <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "11px", color: "rgba(250,247,240,0.6)", letterSpacing: "0.05em" }}>{b.sub}</span>
-                </div>
+                ["Individually written", "never a template"],
+                ["One point of contact", "for your team"],
+                ["Digital or posted", "keepsake"],
+              ].map(([title, sub]) => (
+                <li key={title} className="rounded-xl border border-ink/10 bg-white px-4 py-3">
+                  <p className="text-base font-semibold text-ink">{title}</p>
+                  <p className="text-[0.9375rem] text-espresso/75">{sub}</p>
+                </li>
               ))}
-            </div>
+            </ul>
 
-            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-              <button className="mcb-btn-primary" onClick={scrollToForm} style={{ background: "#B8965A", color: "#fff" }}>Become a Partner</button>
-              <button 
-                className="mcb-btn-outline" 
-                onClick={() => window.open('https://calendly.com/thecustombeats/demo', '_blank')}
-                style={{ color: "#faf7f0", borderColor: "rgba(250,247,240,0.5)" }}
+            <div className="mt-9 flex flex-col gap-3 min-[420px]:flex-row min-[420px]:items-center">
+              <McbButton onClick={scrollToForm} className="min-h-14 px-8 text-lg">
+                Become a partner
+              </McbButton>
+              <a
+                href={CALENDLY}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={mcbButtonClass("secondary", "min-h-14 px-8 text-lg")}
               >
-                Book a Demo
-              </button>
+                Book a call
+              </a>
+            </div>
+
+            <p className="mt-8 border-t border-ink/10 pt-5 text-base text-espresso/80">
+              This page is for businesses buying a guest experience.{" "}
+              <Link
+                to="/create"
+                className="font-semibold text-ink underline decoration-gold decoration-2 underline-offset-4 hover:text-gold-deep"
+              >
+                Creating a memory for yourself? Start here
+              </Link>
+              .
+            </p>
+          </div>
+
+          <div className="relative mx-auto w-full max-w-xl lg:max-w-none">
+            <div className="aspect-[4/3] overflow-hidden rounded-[1.75rem] bg-ink/5 shadow-[0_30px_80px_rgba(13,27,42,0.14)]">
+              <ResponsiveImage
+                image={IMAGES.cruiseDance}
+                alt="Guests celebrating together on board at sea"
+                sizes="(min-width: 1024px) 45vw, 92vw"
+                className="h-full w-full object-cover"
+              />
             </div>
           </div>
-
-          {/* Right — floating card (Temporarily hidden until video is ready) */}
-          {/* 
-          <div style={{ marginLeft: "auto", flexShrink: 0 }}>
-            ... card content ...
-          </div> 
-          */}
         </div>
       </section>
 
-      {/* ── AUDIENCE SIGNPOST ───────────────────────────────────────────────
-           This page sells a guest experience to a business. Someone who
-           arrived here wanting a song for themselves needs one line telling
-           them so, and a way out — otherwise the only path onward is a
-           partnership enquiry form they have no reason to complete. */}
-      <section style={{ background: "#1a1208", padding: "20px 48px" }}>
-        <div style={{
-          maxWidth: "1280px", margin: "0 auto", display: "flex", flexWrap: "wrap",
-          alignItems: "center", justifyContent: "center", gap: "8px 16px", textAlign: "center",
-        }}>
-          <span style={{
-            fontFamily: "'Jost', sans-serif", fontSize: "13px", letterSpacing: "0.02em", color: "#c9bda8",
-          }}>
-            This page is for businesses buying a guest experience.
-          </span>
-          <a
-            href="/#packages"
-            style={{
-              fontFamily: "'Jost', sans-serif", fontSize: "13px", fontWeight: 500,
-              letterSpacing: "0.06em", color: "#d4aa70", textDecoration: "underline",
-            }}
-          >
-            Creating a memory for yourself? Start here →
-          </a>
-        </div>
-      </section>
-
-      {/* ── WHO WE PARTNER WITH ────────────────────────────────────────────── */}
-      <section style={{ background: "#faf8f4", padding: "100px 48px" }}>
-        <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "64px" }}>
-            <p className="section-label">Who We Partner With</p>
-            <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "clamp(32px, 4vw, 50px)", fontWeight: "300", color: "#1a1208", letterSpacing: "-0.01em" }}>
-              Built for Industries That Create<br /><em>Unforgettable Experiences</em>
-            </h2>
-            <div className="divider-gold" />
-          </div>
-
-          <div className="partners-grid" style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "20px" }}>
-            {partners.map((p, i) => (
-              <div key={i} className="partner-card">
-                <ImgPlaceholder
-                  src={p.src}
-                  alt={p.label}
-                  style={{ height: "160px", width: "100%" }}
-                  overlay="linear-gradient(to bottom, transparent 40%, rgba(26,18,8,0.3))"
-                />
-                <div style={{ padding: "20px 20px 0" }}>
-                  <div style={{ marginBottom: "12px" }}>{p.icon}</div>
-                  <h3 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "18px", fontWeight: "500", marginBottom: "8px", color: "#1a1208" }}>{p.label}</h3>
-                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "12px", fontWeight: "300", lineHeight: "1.6", color: "#7a6a54", letterSpacing: "0.02em" }}>{p.desc}</p>
-                </div>
-              </div>
+      {/* ── WHO WE PARTNER WITH ────────────────────────────────────────── */}
+      <section aria-labelledby="sectors-heading" className="bg-white px-5 py-20 sm:px-8 md:py-28">
+        <div className="mx-auto max-w-[1400px]">
+          <SectionHeading
+            id="sectors-heading"
+            eyebrow="Who we partner with"
+            title="Built for the businesses that create the moments"
+            intro={<p>If your guests are already having the experience, MCB gives them something to keep of it.</p>}
+          />
+          <ul className="mt-14 grid list-none grid-cols-1 gap-6 p-0 sm:grid-cols-2 lg:grid-cols-3">
+            {SECTORS.map((sector) => (
+              <li
+                key={sector.label}
+                className="rounded-[1.25rem] border border-ink/10 bg-ivory p-6 shadow-[0_14px_40px_rgba(13,27,42,0.05)]"
+              >
+                <h3 className="text-ink" style={{ fontSize: "1.6rem" }}>
+                  {sector.label}
+                </h3>
+                <p className="mt-3 text-base leading-relaxed text-espresso/80">{sector.desc}</p>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </section>
 
-      {/* ── TARGET PARTNERS ───────────────────────────────────────────────── */}
-      <section style={{ background: "#f4efe8", padding: "100px 48px" }}>
-        <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "64px" }}>
-            <p className="section-label">Target Partners</p>
-            <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "clamp(32px, 4vw, 50px)", fontWeight: "300", color: "#1a1208" }}>
-              Solutions Designed For<br /><em>Every Guest Journey</em>
-            </h2>
-            <div className="divider-gold" />
-          </div>
-
-          <div className="target-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "20px" }}>
-            {targetPartners.map((tp, i) => (
-              <div key={i} style={{ background: "#fff", border: "1px solid #e8e0d4", padding: "32px 28px" }}>
-                <div style={{ marginBottom: "16px" }}>{tp.icon}</div>
-                <h3 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "19px", fontWeight: "500", color: "#1a1208", marginBottom: "18px", lineHeight: "1.3" }}>{tp.title}</h3>
-                <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {tp.items.map((item, j) => (
-                    <li key={j} style={{ display: "flex", alignItems: "flex-start", gap: "8px", fontFamily: "'Jost', sans-serif", fontSize: "12px", fontWeight: "300", color: "#7a6a54", lineHeight: "1.5", letterSpacing: "0.02em" }}>
-                      <span style={{ color: "#B8965A", marginTop: "2px", flexShrink: 0 }}>·</span>
-                      {item}
+      {/* ── USE CASES ──────────────────────────────────────────────────── */}
+      <section aria-labelledby="usecases-heading" className="bg-ivory px-5 py-20 sm:px-8 md:py-28">
+        <div className="mx-auto max-w-[1400px]">
+          <SectionHeading
+            id="usecases-heading"
+            eyebrow="Where it fits"
+            title="Occasions your guests already care about"
+          />
+          <ul className="mt-14 grid list-none grid-cols-1 gap-6 p-0 sm:grid-cols-2 lg:grid-cols-3">
+            {USE_CASES.map((group) => (
+              <li key={group.title} className="rounded-[1.25rem] border border-ink/10 bg-white p-6">
+                <h3 className="text-ink" style={{ fontSize: "1.5rem" }}>
+                  {group.title}
+                </h3>
+                <ul className="mt-4 list-none space-y-2 p-0">
+                  {group.items.map((item) => (
+                    <li key={item} className="flex gap-2.5 text-base leading-snug text-espresso/85">
+                      <Check size={18} className="mt-0.5 shrink-0 text-gold-deep" aria-hidden="true" />
+                      <span>{item}</span>
                     </li>
                   ))}
                 </ul>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ──────────────────────────────────────────────────── */}
-      <section style={{ background: "#faf8f4", padding: "100px 48px" }}>
-        <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "64px" }}>
-            <p className="section-label">How It Works</p>
-            <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "clamp(32px, 4vw, 50px)", fontWeight: "300", color: "#1a1208" }}>
-              A Seamless <em>4-Step Experience</em>
-            </h2>
-            <div className="divider-gold" />
-          </div>
-
-          <div className="steps-row" style={{ display: "flex", gap: "0", alignItems: "stretch" }}>
-            {steps.map((step, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "stretch", flex: 1 }}>
-                <div className="step-card">
-                  <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "42px", fontWeight: "300", color: "#e8ddd0", lineHeight: "1", marginBottom: "20px" }}>{step.num}</div>
-                  <div style={{ marginBottom: "16px" }}>
-                    {i === 0 ? <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="10" r="4" stroke="#B8965A" strokeWidth="1.4"/><path d="M6 24c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="#B8965A" strokeWidth="1.4" fill="none"/></svg>
-                    : i === 1 ? <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M8 14c0-3.3 2.7-6 6-6s6 2.7 6 6-2.7 6-6 6-6-2.7-6-6z" stroke="#B8965A" strokeWidth="1.4" fill="none"/><path d="M14 4v3M14 21v3M4 14h3M21 14h3" stroke="#B8965A" strokeWidth="1.2"/></svg>
-                    : i === 2 ? <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M8 20c0-4.4 2.7-8 6-8s6 3.6 6 8" stroke="#B8965A" strokeWidth="1.4" fill="none"/><path d="M14 12V6l-3 3M14 6l3 3" stroke="#B8965A" strokeWidth="1.2"/></svg>
-                    : <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M6 14l5 5 11-11" stroke="#B8965A" strokeWidth="1.6" strokeLinecap="round"/></svg>}
-                  </div>
-                  <h3 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "19px", fontWeight: "500", color: "#1a1208", marginBottom: "12px", lineHeight: "1.3" }}>{step.title}</h3>
-                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "13px", fontWeight: "300", lineHeight: "1.65", color: "#7a6a54", letterSpacing: "0.02em" }}>{step.desc}</p>
-                </div>
-                {i < steps.length - 1 && (
-                  <div style={{ display: "flex", alignItems: "center", padding: "0 8px", color: "#d4c9b8", flexShrink: 0 }}>
-                    <ArrowRight />
-                  </div>
-                )}
-              </div>
+      {/* ── HOW IT WORKS ───────────────────────────────────────────────── */}
+      <section aria-labelledby="partner-process-heading" className="bg-ink px-5 py-20 sm:px-8 md:py-28">
+        <div className="mx-auto max-w-[1400px]">
+          <SectionHeading
+            id="partner-process-heading"
+            eyebrow="How it works"
+            title="Four steps, and MCB carries the rest"
+            onDark
+            intro={<p>Your team collects the story. Everything after that is ours.</p>}
+          />
+          <ol className="mt-14 grid list-none grid-cols-1 gap-8 p-0 sm:grid-cols-2 lg:grid-cols-4">
+            {STEPS.map((step) => (
+              <li key={step.num} className="border-t border-gold/40 pt-6">
+                <p className="font-serif text-4xl text-gold">{step.num}</p>
+                <h3 className="mt-3 !text-ivory" style={{ fontSize: "1.45rem" }}>
+                  {step.title}
+                </h3>
+                <p className="mt-3 text-base leading-relaxed text-ivory/75">{step.desc}</p>
+              </li>
             ))}
-          </div>
-
-          {/* Delivery channels */}
-          <div style={{ marginTop: "48px", display: "flex", justifyContent: "center", gap: "40px", flexWrap: "wrap" }}>
-            {["Email", "QR Codes", "Posted Keepsakes"].map(ch => (
-              <div key={ch} style={{ fontFamily: "'Jost', sans-serif", fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880", display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#B8965A", display: "inline-block" }} />
-                {ch}
-              </div>
-            ))}
-          </div>
+          </ol>
         </div>
       </section>
 
-      {/* ── ENTERPRISE SECTION ────────────────────────────────────────────── */}
-      <section style={{ background: "#1a1208", overflow: "hidden" }}>
-        <div className="enterprise-grid" style={{ maxWidth: "1280px", margin: "0 auto", display: "flex", alignItems: "stretch", minHeight: "560px" }}>
-          {/* Left text */}
-          <div style={{ flex: "0 0 50%", padding: "90px 64px 90px 48px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <p className="section-label" style={{ color: "#B8965A" }}>A Premium Service Infrastructure</p>
-            <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "clamp(32px, 3.5vw, 50px)", fontWeight: "300", color: "#faf7f0", lineHeight: "1.15", marginBottom: "24px", letterSpacing: "-0.01em" }}>
-              More Than Music.<br /><em>A Scalable Guest Experience</em><br />Infrastructure.
-            </h2>
-            <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "14px", fontWeight: "300", lineHeight: "1.7", color: "rgba(250,247,240,0.65)", marginBottom: "40px", letterSpacing: "0.02em" }}>
-              We combine human artistry with sophisticated workflow design to deliver personalized experiences at scale — without ever compromising the warmth and intimacy of the human touch.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              {[
-                "Every song written from one guest's own story",
-                "Written and produced by My Custom Beats",
-                "Delivered digitally, or as a keepsake posted to you",
-                `${MOMENT.turnaround?.label ?? ""} digitally; for physical keepsakes, ${(KEEPSAKE.turnaround?.label ?? "").toLowerCase()}`,
-                "One point of contact for your team",
-                "Scoped with you before anything is agreed",
-              ].map(item => (
-                <div key={item} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <CheckIcon />
-                  <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "13px", fontWeight: "300", color: "rgba(250,247,240,0.75)", letterSpacing: "0.04em" }}>{item}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Right — image with floating card */}
-          <div style={{ flex: 1, position: "relative" }}>
-            <ImgPlaceholder
-              src="/images/hero-1.jpg"
-              alt="Luxury hotel lobby lounge"
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
-              overlay="linear-gradient(to left, transparent 60%, rgba(26,18,8,0.6))"
+      {/* ── THE SERVICE ────────────────────────────────────────────────── */}
+      <section aria-labelledby="service-heading" className="bg-white px-5 py-20 sm:px-8 md:py-28">
+        <div className="mx-auto grid max-w-[1400px] grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          <div>
+            <SectionHeading
+              id="service-heading"
+              align="left"
+              eyebrow="The service"
+              title="Personal at scale, without becoming a template"
+              intro={
+                <p>
+                  MCB combines people who write music with a production process built to handle volume. The process
+                  scales; the song never stops being about one guest.
+                </p>
+              }
             />
-            {/* Floating dashboard card */}
-            <div style={{
-              position: "absolute", bottom: "48px", right: "48px",
-              background: "rgba(250,247,240,0.95)",
-              backdropFilter: "blur(12px)",
-              padding: "24px 28px",
-              width: "220px",
-              borderTop: "2px solid #B8965A",
-            }}>
-              <p style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "20px", fontWeight: "400", color: "#1a1208", lineHeight: "1.3", marginBottom: "4px" }}>
-                Personalized<br />For Every Guest,<br />At Scale.
-              </p>
-              <div style={{ marginTop: "12px", display: "flex", gap: "4px" }}>
-                {[40, 65, 50, 80, 55, 90, 70].map((h, i) => (
-                  <div key={i} style={{ width: "6px", height: `${h * 0.5}px`, background: "#B8965A", opacity: 0.6 + i * 0.05 }} />
-                ))}
-              </div>
+            <ul className="mt-8 list-none space-y-3 p-0">
+              {SERVICE_FACTS.map((fact) => (
+                <li key={fact} className="flex gap-3 text-base leading-relaxed text-ink">
+                  <Check size={20} className="mt-0.5 shrink-0 text-gold-deep" aria-hidden="true" />
+                  <span>{fact}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-6 rounded-xl bg-ivory px-4 py-3 text-[0.9375rem] leading-relaxed text-ink">
+              Digital work is revealed as soon as it has passed MCB&rsquo;s quality check. For physical keepsakes,
+              allow at least 15 working days for personalised production and delivery.
+            </p>
+          </div>
+          <div className="overflow-hidden rounded-[1.75rem] bg-ink/5 shadow-[0_24px_70px_rgba(13,27,42,0.12)]">
+            <div className="aspect-[4/3]">
+              <ResponsiveImage
+                image={IMAGES.keepsakeSleeveWall}
+                alt="Personalised MCB record sleeves displayed together on a wall"
+                sizes="(min-width: 1024px) 45vw, 92vw"
+                className="h-full w-full object-cover"
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── EXPERIENCE EXAMPLES + PARTNER INQUIRY ─────────────────────────── */}
-      <section style={{ background: "#faf8f4", padding: "100px 48px" }}>
-        <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
-          <div className="bottom-row" style={{ display: "flex", gap: "80px" }}>
+      {/* ── WHAT MCB CAN CREATE ────────────────────────────────────────── */}
+      <section aria-labelledby="examples-heading" className="bg-ivory px-5 py-20 sm:px-8 md:py-28">
+        <div className="mx-auto max-w-[1400px]">
+          <SectionHeading
+            id="examples-heading"
+            eyebrow="What MCB can create"
+            title="Four ways partners use it"
+            intro={<p>Illustrations of the work, not client references.</p>}
+          />
+          <ul className="mt-14 grid list-none grid-cols-1 gap-6 p-0 sm:grid-cols-2 lg:grid-cols-4">
+            {EXAMPLES.map((example) => (
+              <li key={example.title} className="rounded-[1.25rem] border border-ink/10 bg-white p-6">
+                <h3 className="text-ink" style={{ fontSize: "1.4rem" }}>
+                  {example.title}
+                </h3>
+                <p className="mt-3 text-base leading-relaxed text-espresso/80">{example.desc}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
 
-            {/* Experience Examples */}
-            <div style={{ flex: "0 0 520px" }} ref={experiencesRef}>
-              <p className="section-label">Experience Examples</p>
-              <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "clamp(28px, 3.5vw, 44px)", fontWeight: "300", color: "#1a1208", marginBottom: "8px" }}>
-                Real Moments.<br /><em>Real Impact.</em>
-              </h2>
-              <div style={{ width: "48px", height: "1px", background: "#B8965A", marginBottom: "40px" }} />
+      {/* ── ENQUIRY ────────────────────────────────────────────────────── */}
+      <section aria-labelledby="enquiry-heading" className="bg-white px-5 py-20 sm:px-8 md:py-28">
+        <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
+          <div>
+            <SectionHeading
+              id="enquiry-heading"
+              align="left"
+              eyebrow="Partnership enquiry"
+              title="Start the conversation"
+              intro={
+                <p>
+                  Tell us roughly what you have in mind and we&rsquo;ll come back to you. Nothing is costed or
+                  committed at this stage.
+                </p>
+              }
+            />
+            <h3 className="mt-10 text-ink" style={{ fontSize: "1.35rem" }}>
+              Partnership models
+            </h3>
+            <ul className="mt-4 list-none space-y-2 p-0">
+              {MODELS.map((model) => (
+                <li key={model} className="flex gap-2.5 text-base text-espresso/85">
+                  <Check size={18} className="mt-0.5 shrink-0 text-gold-deep" aria-hidden="true" />
+                  <span>{model}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-8 text-base leading-relaxed text-espresso/80">
+              Prefer to talk first?{" "}
+              <a
+                href={CALENDLY}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-ink underline decoration-gold decoration-2 underline-offset-4 hover:text-gold-deep"
+              >
+                Book a partnership call
+              </a>
+              , or email{" "}
+              <a
+                href="mailto:hello@mycustombeats.com"
+                className="font-semibold text-ink underline decoration-gold decoration-2 underline-offset-4 hover:text-gold-deep"
+              >
+                hello@mycustombeats.com
+              </a>
+              .
+            </p>
+          </div>
 
-              <div className="experiences-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "20px" }}>
-                {experiences.map((ex, i) => (
-                  <div key={i} style={{ background: "#fff", border: "1px solid #e8e0d4", overflow: "hidden" }}>
-                    <div style={{ position: "relative" }}>
-                      <ImgPlaceholder src={ex.src} alt={ex.title} style={{ height: "130px", width: "100%" }} overlay="linear-gradient(to bottom, transparent 50%, rgba(26,18,8,0.35))" />
-                      <button 
-                        style={{
-                          position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
-                          width: "36px", height: "36px", borderRadius: "50%",
-                          background: "rgba(250,247,240,0.9)",
-                          border: "none", cursor: "pointer",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                        }}
-                        onClick={() => window.location.href = '/#showcase'}
-                      >
-                        <svg width="10" height="12" viewBox="0 0 10 12" fill="#B8965A">
-                          <path d="M1 1l8 5-8 5V1z"/>
-                        </svg>
-                      </button>
-                    </div>
-                    <div style={{ padding: "16px" }}>
-                      <h4 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "15px", fontWeight: "500", color: "#1a1208", marginBottom: "6px" }}>{ex.title}</h4>
-                      <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "11px", fontWeight: "300", color: "#7a6a54", lineHeight: "1.6", letterSpacing: "0.02em" }}>{ex.story}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Partnership models */}
-              <div style={{ marginTop: "48px", background: "#1a1208", padding: "36px 32px", position: "relative", overflow: "hidden" }}>
-                <ImgPlaceholder
-                  src="/images/hero-yacht.jpg"
-                  alt="Sunset ocean"
-                  style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.25 }}
-                />
-                <div style={{ position: "relative", zIndex: 1 }}>
-                  <p className="section-label" style={{ color: "#d4aa70" }}>Partnership Models</p>
-                  <h3 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "28px", fontWeight: "300", color: "#faf7f0", marginBottom: "24px", lineHeight: "1.3" }}>
-                    Flexible Partnerships.<br /><em>Infinite Possibilities.</em>
-                  </h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 20px", marginBottom: "28px" }}>
-                    {["Guest Gifting", "Onboard & Event Experiences", "Milestone Celebrations", "Brand Activations", "Bespoke Commissions", "Something Else"].map(m => (
-                      <div key={m} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <CheckIcon />
-                        <span style={{ fontFamily: "'Jost', sans-serif", fontSize: "11px", color: "rgba(250,247,240,0.7)", letterSpacing: "0.04em" }}>{m}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{
-                    background: "rgba(250,247,240,0.08)", border: "1px solid rgba(250,247,240,0.1)",
-                    padding: "24px", marginTop: "8px",
-                  }}>
-                    <p style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "20px", fontWeight: "300", color: "#faf7f0", lineHeight: "1.4", marginBottom: "16px" }}>
-                      Let's Redefine Personalized Guest Experiences Together.
-                    </p>
-                    <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "12px", fontWeight: "300", color: "rgba(250,247,240,0.6)", lineHeight: "1.6", letterSpacing: "0.02em", marginBottom: "20px" }}>
-                      Join forward-thinking brands who create unforgettable moments with My Custom Beats.
-                    </p>
-                    <button className="mcb-btn-white" onClick={scrollToForm} style={{ width: "100%", fontSize: "12px" }}>Schedule a Partnership Call</button>
-                  </div>
+          <div ref={formRef} className="scroll-mt-28">
+            {submitted ? (
+              <div className="rounded-[1.5rem] border border-ink/10 bg-ivory p-8 text-center sm:p-12">
+                <div
+                  aria-hidden="true"
+                  className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white text-gold-deep"
+                >
+                  <Check size={32} />
                 </div>
+                <h3 className="mt-6 text-ink" style={{ fontSize: "2rem" }}>
+                  Thank you
+                </h3>
+                <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-espresso/80">
+                  We&rsquo;ve received your enquiry. We&rsquo;ll read it properly and come back to you by email to
+                  talk through what MCB could create for your guests.
+                </p>
+                <a
+                  href={CALENDLY}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={mcbButtonClass("primary", "mt-8")}
+                >
+                  Book a call as well
+                </a>
               </div>
-            </div>
-
-            {/* Partner Inquiry Form */}
-            <div style={{ flex: 1, minWidth: 0 }} ref={formRef}>
-              <p className="section-label">Partner Inquiry</p>
-              <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "clamp(28px, 3.5vw, 44px)", fontWeight: "300", color: "#1a1208", marginBottom: "8px" }}>
-                Start the Conversation
-              </h2>
-              <div style={{ width: "48px", height: "1px", background: "#B8965A", marginBottom: "40px" }} />
-
-              {submitted ? (
-                <div style={{ background: "#fff", border: "1px solid #e8e0d4", padding: "64px 40px", textAlign: "center" }}>
-                  <div style={{ marginBottom: "28px" }}>
-                    <svg width="64" height="64" viewBox="0 0 48 48" fill="none" style={{ margin: "0 auto" }}>
-                      <circle cx="24" cy="24" r="22" stroke="#B8965A" strokeWidth="1"/>
-                      <path d="M15 24l6 6 12-12" stroke="#B8965A" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  </div>
-                  <h3 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "32px", fontWeight: "300", color: "#1a1208", marginBottom: "20px" }}>Thank You</h3>
-                  <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "15px", fontWeight: "300", color: "#7a6a54", lineHeight: "1.7", marginBottom: "32px", maxWidth: "480px", margin: "0 auto 40px" }}>
-                    We’ve received your partnership inquiry.<br /><br />
-                    Our team will carefully review your request and contact you shortly to explore how My Custom Beats can create bespoke guest experiences for your brand.
-                  </p>
-                  
-                  <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "320px", margin: "0 auto" }}>
-                    <button 
-                      className="mcb-btn-primary" 
-                      style={{ background: "#B8965A", color: "#fff", width: "100%" }}
-                      onClick={() => window.open('https://calendly.com/thecustombeats/demo', '_blank')}
-                    >
-                      Schedule a Call
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ background: "#fff", border: "1px solid #e8e0d4", padding: "40px" }}>
-                  {/* ... form fields ... */}
-                  {/* Row 1 */}
-                  <div className="form-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 28px", marginBottom: "24px" }}>
-                    <div>
-                      <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880" }}>Full Name *</label>
-                      <input className="form-input" name="fullName" value={formData.fullName} onChange={handleChange} placeholder="Your full name" required />
-                    </div>
-                    <div>
-                      <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880" }}>Company Name *</label>
-                      <input className="form-input" name="companyName" value={formData.companyName} onChange={handleChange} placeholder="Your company" required />
-                    </div>
-                  </div>
-
-                  {/* Row 2 */}
-                  <div className="form-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 28px", marginBottom: "24px" }}>
-                    <div>
-                      <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880" }}>Job Title *</label>
-                      <input className="form-input" name="jobTitle" value={formData.jobTitle} onChange={handleChange} placeholder="Your role" required />
-                    </div>
-                    <div>
-                      <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880" }}>Business Email *</label>
-                      <input className="form-input" type="email" name="businessEmail" value={formData.businessEmail} onChange={handleChange} placeholder="your@company.com" required />
-                    </div>
-                  </div>
-
-                  {/* Row 3 */}
-                  <div className="form-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 28px", marginBottom: "24px" }}>
-                    <div>
-                      <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880" }}>Phone Number</label>
-                      <input className="form-input" name="phone" value={formData.phone} onChange={handleChange} placeholder="+1 (000) 000-0000" />
-                    </div>
-                    <div>
-                      <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880" }}>Company Website</label>
-                      <input className="form-input" name="website" value={formData.website} onChange={handleChange} placeholder="www.yourcompany.com" />
-                    </div>
-                  </div>
-
-                  {/* Row 4 */}
-                  <div className="form-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 28px", marginBottom: "24px" }}>
-                    <div>
-                      <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880" }}>Industry Type *</label>
-                      <select className="form-select" name="industryType" value={formData.industryType} onChange={handleChange} required>
-                        <option value="">Select industry</option>
-                        <option>Cruise Line</option>
-                        <option>Luxury Hotel / Resort</option>
-                        <option>Wedding & Events</option>
-                        <option>Travel Agency</option>
-                        <option>Yacht Charter</option>
-                        <option>Corporate</option>
-                        <option>Other</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880" }}>Type of Partnership Interest</label>
-                      <select className="form-select" name="partnershipInterest" value={formData.partnershipInterest} onChange={handleChange}>
-                        <option value="">Select type</option>
-                        <option>Guest Gifting</option>
-                        <option>Onboard or Event Experiences</option>
-                        <option>Milestone Celebrations</option>
-                        <option>Brand Activation</option>
-                        <option>Bespoke Commission</option>
-                        <option>Other</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Row 5 */}
-                  <div className="form-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 28px", marginBottom: "28px" }}>
-                    <div>
-                      <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880" }}>Estimated Guest Volume</label>
-                      <select className="form-select" name="estimatedVolume" value={formData.estimatedVolume} onChange={handleChange}>
-                        <option value="">Select volume</option>
-                        <option>Under 1,000</option>
-                        <option>1,000 – 10,000</option>
-                        <option>10,000 – 50,000</option>
-                        <option>50,000+</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880" }}>Countries / Regions Served</label>
-                      <input className="form-input" name="regions" value={formData.regions} onChange={handleChange} placeholder="e.g. North America, Europe" />
-                    </div>
-                  </div>
-
-                  {/* Partnership Goals */}
-                  <div style={{ marginBottom: "28px" }}>
-                    <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880", display: "block", marginBottom: "16px" }}>Partnership Goals</label>
-                    <div className="goal-grid">
-                      {["Guest Entertainment", "Hospitality Experiences", "Event Experiences", "Brand Activations", "Guest Gifting", "Something Else"].map(goal => (
-                        <div key={goal} className="goal-chip" onClick={() => handleGoalToggle(goal)}>
-                          <div className={`goal-checkbox ${formData.goals.includes(goal) ? "checked" : ""}`}>
-                            {formData.goals.includes(goal) && <svg width="10" height="8" viewBox="0 0 10 8" fill="white"><path d="M1 4l3 3 5-6" strokeWidth="1.5" stroke="white" fill="none"/></svg>}
-                          </div>
-                          {goal}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Message */}
-                  <div style={{ marginBottom: "36px" }}>
-                    <label style={{ fontFamily: "'Jost', sans-serif", fontSize: "10px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#a89880", display: "block", marginBottom: "8px" }}>Tell us about your vision or partnership opportunity *</label>
-                    <textarea
-                      className="form-input"
-                      name="message"
-                      value={formData.message}
+            ) : (
+              <form
+                onSubmit={handleSubmit}
+                noValidate
+                className="rounded-[1.5rem] border border-ink/10 bg-ivory p-6 shadow-[0_18px_50px_rgba(13,27,42,0.06)] sm:p-8"
+              >
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor={fid("fullName")} className={LABEL_CLASS}>
+                      Full name <span className="text-gold-deep">*</span>
+                    </label>
+                    <input
+                      id={fid("fullName")}
+                      className={FIELD_CLASS}
+                      name="fullName"
+                      autoComplete="name"
+                      value={formData.fullName}
                       onChange={handleChange}
-                      placeholder="Share your vision..."
-                      rows={4}
-                      style={{ resize: "vertical", borderBottom: "none", border: "1px solid #d4c9b8", padding: "12px", width: "100%", fontFamily: "'Jost', sans-serif", fontSize: "13px", color: "#2c2418", outline: "none", background: "transparent" }}
                       required
                     />
                   </div>
-
-                  <button 
-                    className="mcb-btn-primary" 
-                    onClick={handleSubmit} 
-                    style={{ width: "100%", padding: "18px", fontSize: "13px", opacity: isSubmitting ? 0.7 : 1 }}
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? "Sending..." : "Start Partnership Discussion"}
-                  </button>
+                  <div>
+                    <label htmlFor={fid("companyName")} className={LABEL_CLASS}>
+                      Company name
+                    </label>
+                    <input
+                      id={fid("companyName")}
+                      className={FIELD_CLASS}
+                      name="companyName"
+                      autoComplete="organization"
+                      value={formData.companyName}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={fid("jobTitle")} className={LABEL_CLASS}>
+                      Job title
+                    </label>
+                    <input
+                      id={fid("jobTitle")}
+                      className={FIELD_CLASS}
+                      name="jobTitle"
+                      autoComplete="organization-title"
+                      value={formData.jobTitle}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={fid("businessEmail")} className={LABEL_CLASS}>
+                      Business email <span className="text-gold-deep">*</span>
+                    </label>
+                    <input
+                      id={fid("businessEmail")}
+                      className={FIELD_CLASS}
+                      type="email"
+                      name="businessEmail"
+                      autoComplete="email"
+                      value={formData.businessEmail}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={fid("phone")} className={LABEL_CLASS}>
+                      Phone number
+                    </label>
+                    <input
+                      id={fid("phone")}
+                      className={FIELD_CLASS}
+                      type="tel"
+                      name="phone"
+                      autoComplete="tel"
+                      value={formData.phone}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={fid("website")} className={LABEL_CLASS}>
+                      Company website
+                    </label>
+                    <input
+                      id={fid("website")}
+                      className={FIELD_CLASS}
+                      name="website"
+                      autoComplete="url"
+                      value={formData.website}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor={fid("industryType")} className={LABEL_CLASS}>
+                      Industry
+                    </label>
+                    <select
+                      id={fid("industryType")}
+                      className={FIELD_CLASS}
+                      name="industryType"
+                      value={formData.industryType}
+                      onChange={handleChange}
+                    >
+                      <option value="">Please choose</option>
+                      {INDUSTRIES.map((option) => (
+                        <option key={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor={fid("partnershipInterest")} className={LABEL_CLASS}>
+                      Type of partnership
+                    </label>
+                    <select
+                      id={fid("partnershipInterest")}
+                      className={FIELD_CLASS}
+                      name="partnershipInterest"
+                      value={formData.partnershipInterest}
+                      onChange={handleChange}
+                    >
+                      <option value="">Please choose</option>
+                      {INTERESTS.map((option) => (
+                        <option key={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor={fid("estimatedVolume")} className={LABEL_CLASS}>
+                      Estimated guest volume
+                    </label>
+                    <select
+                      id={fid("estimatedVolume")}
+                      className={FIELD_CLASS}
+                      name="estimatedVolume"
+                      value={formData.estimatedVolume}
+                      onChange={handleChange}
+                    >
+                      <option value="">Please choose</option>
+                      {VOLUMES.map((option) => (
+                        <option key={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor={fid("regions")} className={LABEL_CLASS}>
+                      Countries or regions served
+                    </label>
+                    <input
+                      id={fid("regions")}
+                      className={FIELD_CLASS}
+                      name="regions"
+                      value={formData.regions}
+                      onChange={handleChange}
+                      placeholder="For example: UK, Europe, North America"
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
+
+                <fieldset className="mt-7 border-0 p-0">
+                  <legend className={`${LABEL_CLASS} p-0`}>What are you hoping to do? (optional)</legend>
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {GOALS.map((goal) => (
+                      <label
+                        key={goal}
+                        className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-ink/15 bg-white px-4 py-2.5 text-base text-ink has-[:checked]:border-gold-deep has-[:checked]:bg-gold/10"
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-5 w-5 accent-[#78601F]"
+                          checked={formData.goals.includes(goal)}
+                          onChange={() => handleGoalToggle(goal)}
+                        />
+                        <span>{goal}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+
+                <div className="mt-7">
+                  <label htmlFor={fid("message")} className={LABEL_CLASS}>
+                    Tell us what you have in mind
+                  </label>
+                  <textarea
+                    id={fid("message")}
+                    className={`${FIELD_CLASS} min-h-32 resize-y`}
+                    name="message"
+                    rows={5}
+                    value={formData.message}
+                    onChange={handleChange}
+                    placeholder="The guests, the occasion, roughly how many and when."
+                  />
+                </div>
+
+                {error && (
+                  <p
+                    role="alert"
+                    className="mt-6 rounded-xl border border-gold-dark/40 bg-gold/10 px-4 py-3 text-base font-medium text-ink"
+                  >
+                    {error}
+                  </p>
+                )}
+
+                <McbButton type="submit" disabled={isSubmitting} className="mt-7 min-h-14 w-full text-lg">
+                  {isSubmitting ? "Sending…" : "Send partnership enquiry"}
+                </McbButton>
+
+                <p className="mt-4 text-[0.9375rem] leading-relaxed text-espresso/75">
+                  We use what you send here only to reply to this enquiry. See our{" "}
+                  <Link
+                    to="/legal/privacy"
+                    className="font-medium text-ink underline decoration-gold underline-offset-4 hover:text-gold-deep"
+                  >
+                    privacy policy
+                  </Link>
+                  .
+                </p>
+              </form>
+            )}
           </div>
         </div>
       </section>
 
-      {/* ── FOOTER BADGES ─────────────────────────────────────────────────── */}
-      <section style={{ background: "#f4efe8", borderTop: "1px solid #e8e0d4", padding: "40px 48px" }}>
-        <div style={{ maxWidth: "1280px", margin: "0 auto", display: "flex", justifyContent: "center", gap: "60px", flexWrap: "wrap" }}>
-          {[
-            { title: "Written and produced", sub: "by My Custom Beats" },
-            { title: "Every Guest", sub: "Individually" },
-            { title: "Digital or", sub: "Physical Keepsakes" },
-            { title: "Designed for Modern", sub: "Guest Engagement" },
-          ].map(b => (
-            <div key={b.title} style={{ textAlign: "center" }}>
-              <div style={{ marginBottom: "8px", display: "flex", justifyContent: "center" }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="10" stroke="#B8965A" strokeWidth="1.2"/>
-                  <path d="M8 12l3 3 5-5" stroke="#B8965A" strokeWidth="1.2"/>
-                </svg>
-              </div>
-              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "11px", fontWeight: "500", letterSpacing: "0.1em", textTransform: "uppercase", color: "#5a4a35" }}>{b.title}</p>
-              <p style={{ fontFamily: "'Jost', sans-serif", fontSize: "10px", color: "#a89880", letterSpacing: "0.06em" }}>{b.sub}</p>
-            </div>
-          ))}
+      {/* ── CLOSE ──────────────────────────────────────────────────────── */}
+      <section aria-labelledby="partners-close-heading" className="bg-ink px-5 py-20 sm:px-8 md:py-24">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 id="partners-close-heading" className="!text-ivory" style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}>
+            Give your guests something they keep.
+          </h2>
+          <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-ivory/80">
+            Tell us about your guests and we&rsquo;ll tell you honestly what MCB can create for them.
+          </p>
+          <div className="mt-9 flex flex-col items-center gap-3 min-[420px]:flex-row min-[420px]:justify-center">
+            <McbButton tone="gold" onClick={scrollToForm} className="min-h-14 px-8 text-lg">
+              Send an enquiry
+            </McbButton>
+            <McbButtonLink to="/products" tone="ghostLight" className="min-h-14 px-8 text-lg">
+              See what MCB makes
+            </McbButtonLink>
+          </div>
         </div>
       </section>
-    </div>
     </>
   );
-}
+};
+
+export default PartnersPage;

@@ -137,9 +137,16 @@ test("pop-up cards appear where intended, at their prices, as MCB products", () 
   assert.ok(C.addOnProducts().some((p) => p.id === "pop-up-card"), "an add-on alongside a song experience");
   assert.equal(C.previewOrder([{ sku: "moment", quantity: 1 }, { sku: "pop-up-card-wedding", quantity: 2 }, { sku: "pop-up-card-paper-flower-pack-8", quantity: 1 }]).totalMinor, 1500 + 2 * 4999 + 12999);
   const extras = read("src/pages/create/StepExtras.tsx");
-  assert.match(extras, /POP_UP_CARD\.variants\.map/);
+  // Presented by occasion on both surfaces rather than as a flat wall of 18.
+  assert.match(extras, /groupedCards\(\)\.map/);
   assert.match(extras, /DELIVERY_CONFIRMED_FIRST_NOTE/, "MCB confirms card delivery before payment");
-  assert.match(read("src/pages/Products.tsx"), /CARDS\.variants\.map/);
+  assert.match(read("src/pages/Products.tsx"), /groupedCards\(\)\.map/);
+  // Grouping shows every card exactly once and names none that does not exist.
+  assert.deepEqual(C.validateCardGroups(), []);
+  assert.deepEqual(
+    C.groupedCards().flatMap((g) => g.variants.map((v) => v.sku)).sort(),
+    cards.variants.map((v) => v.sku).sort()
+  );
   assert.match(read("public/api/lib/personalisation.php"), /\$line\['category'\] === 'PLAYER', \$line\['category'\] === 'CARD' => true/);
   const feed = read("public/catalogue.json");
   assert.match(feed, /pop-up-card-wedding/);

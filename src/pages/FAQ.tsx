@@ -12,7 +12,9 @@ import {
   JOURNEY,
   KEEPSAKE,
   LYRICS_FRAME,
+  MEMORY_MUSIC_VIDEO,
   MOMENT,
+  POP_UP_CARD,
   PERSONALISED_MUSIC_PLAQUE,
   PRIORITY_REPLACEMENT,
   PRIORITY_REPLACEMENT_CLAIM_WINDOW_DAYS,
@@ -21,8 +23,11 @@ import {
   publicProducts,
   type Product,
   type Variant,
+  groupedCards,
 } from '../data/catalogue';
 import { faqPageStructuredData } from '../lib/seo';
+import { groupedFaqs } from '../lib/faqTopics';
+import { VIDEO_COPY } from '../data/production/video';
 import { AFTER_YOU_ORDER, HOW_MCB_CREATES, IF_IT_ARRIVES_DAMAGED, IF_MCB_GETS_A_DETAIL_WRONG, IF_I_WOULD_HAVE_CHOSEN_DIFFERENTLY, THE_REVEAL, WHAT_PHOTOGRAPH, WILL_I_RECEIVE_A_DRAFT, JOURNEY_NOT_PICTURE_DISC, KEEPSAKE_SONG_CAPACITY, PLAQUE_PLAYS_MUSIC, WHAT_IS_A_PICTURE_DISC_KEEPSAKE, WHO_MAKES_AND_DELIVERS } from '../lib/productAnswers';
 
 /* ------------------------------------------------------------------ */
@@ -86,6 +91,7 @@ const turnaround = (product: Product) => product.turnaround?.label ?? '';
 
 const MOMENT_VARIANT = MOMENT.variants[0];
 const PLAQUE_VARIANT = PERSONALISED_MUSIC_PLAQUE.variants[0];
+const VIDEO_VARIANT = MEMORY_MUSIC_VIDEO.variants[0];
 const PRIORITY_VARIANT = PRIORITY_REPLACEMENT.variants[0];
 const PLAYERS = publicProducts().filter((p) => p.category === 'PLAYER');
 
@@ -172,6 +178,24 @@ const faqs: { question: string; answer: string }[] = [
     question: 'Can you make an album from a holiday?',
     answer: `Yes. ${JOURNEY.name} is a personalised album on standard vinyl: ${variantList(JOURNEY)}. For something larger or shaped around more than a trip, ${BESPOKE.name} is individually quoted.`,
   },
+  /**
+   * THE MEMORY MUSIC VIDEO AND THE POP-UP CARDS WERE INVISIBLE TO THE PUBLIC
+   * SITE. Both are real, sold products. The video was described only inside
+   * /create — which is noindex — and on the token-gated order page, so no
+   * customer browsing the site and no answer engine could find out what it is
+   * or that it costs £49. The cards appeared as a price list and nowhere else.
+   * Both answers are built from the catalogue and the approved video copy;
+   * neither invents a capability. "AI", the platform name, credits and
+   * generation allowances stay out of customer language.
+   */
+  {
+    question: `What is an ${MEMORY_MUSIC_VIDEO.name}?`,
+    answer: `${VIDEO_COPY.headline.join(' ')} ${VIDEO_COPY.body} ${VIDEO_COPY.ideal} It is an optional enhancement at ${VIDEO_VARIANT ? formatMoney(VIDEO_VARIANT.price) : ''}, added when you create your memory — so a ${MOMENT.name} with a Memory Music Video is ${MOMENT_VARIANT && VIDEO_VARIANT ? formatMoney({ ...VIDEO_VARIANT.price, minor: MOMENT_VARIANT.price.minor + VIDEO_VARIANT.price.minor }) : ''} in total. Availability is limited each production month, and the order form tells you honestly whether a space is open before you pay.`,
+  },
+  {
+    question: `Can I add a card to give with my song?`,
+    answer: `Yes. ${POP_UP_CARD.shortDescription} There are ${POP_UP_CARD.variants.length} designs grouped by occasion — ${listOf(groupedCards().map((g) => lower(g.group.label)))} — from ${formatMoney(POP_UP_CARD.variants.reduce((low, v) => (v.price.minor < low.price.minor ? v : low)).price)}. You add them when you create your memory. ${DELIVERY_CONFIRMED_FIRST_NOTE}`,
+  },
   {
     question: 'What else can I add to my song?',
     answer: `${PERSONALISED_MUSIC_PLAQUE.name}${PLAQUE_VARIANT ? `, ${formatMoney(PLAQUE_VARIANT.price)}` : ''}: ${lower(PERSONALISED_MUSIC_PLAQUE.shortDescription)} ${PERSONALISED_MUSIC_PLAQUE.disclosures.join(' ')} ${LYRICS_FRAME.name} — ${lower(withoutFullStop(LYRICS_FRAME.shortDescription))} — in ${LYRICS_FRAME.variants.length} sizes: ${variantList(LYRICS_FRAME)}. Players: ${listOf(PLAYERS.map((p) => `${p.name} (${p.variants[0] ? formatMoney(p.variants[0].price) : ''})`))}. Every personalised piece is made to order.`,
@@ -257,23 +281,65 @@ const FAQSection = () => (
           </p>
         </div>
 
-        <h2 className="sr-only">Frequently asked questions</h2>
-        <Accordion type="single" collapsible className="mt-12 space-y-3">
-          {faqs.map((faq, index) => (
-            <AccordionItem
-              key={faq.question}
-              value={`item-${index}`}
-              className="overflow-hidden rounded-2xl border border-ink/10 bg-white"
-            >
-              <AccordionTrigger className="min-h-12 px-5 py-5 text-left font-serif text-xl leading-snug text-ink hover:no-underline focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2 md:px-6 [&[data-state=open]]:text-gold-deep">
-                {faq.question}
-              </AccordionTrigger>
-              <AccordionContent className="px-5 pb-6 text-base leading-relaxed text-espresso/85 md:px-6 md:text-lg">
-                {faq.answer}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+        {/* Jump list: thirty-nine rows is a long scroll on a phone. */}
+        <nav aria-label="Question topics" className="mt-12 rounded-2xl border border-ink/10 bg-white p-5 sm:p-6">
+          <h2 className="font-serif text-2xl leading-tight text-ink">What would you like to know?</h2>
+          <ul className="m-0 mt-4 grid list-none gap-x-6 p-0 sm:grid-cols-2">
+            {groupedFaqs(faqs).map((group) => (
+              <li key={group.id}>
+                <a
+                  href={`#faq-${group.id}`}
+                  className="flex min-h-11 items-center text-base text-ink underline decoration-gold decoration-1 underline-offset-4 hover:text-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep"
+                >
+                  {group.title}
+                  <span className="ml-2 text-espresso/65">({group.items.length})</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        {groupedFaqs(faqs).map((group) => (
+          <section key={group.id} id={`faq-${group.id}`} aria-labelledby={`faq-${group.id}-title`} className="mt-12 scroll-mt-28">
+            <h2 id={`faq-${group.id}-title`} className="font-serif text-3xl leading-tight text-ink">
+              {group.title}
+            </h2>
+            {/* "multiple", so opening one answer no longer closes the last. */}
+            <Accordion type="multiple" className="mt-5 space-y-3">
+              {group.items.map((faq) => (
+                <AccordionItem
+                  key={faq.question}
+                  value={faq.question}
+                  className="overflow-hidden rounded-2xl border border-ink/10 bg-white"
+                >
+                  <AccordionTrigger className="min-h-12 px-5 py-5 text-left font-serif text-xl leading-snug text-ink hover:no-underline focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2 md:px-6 [&[data-state=open]]:text-gold-deep">
+                    {faq.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="px-5 pb-6 text-base leading-relaxed text-espresso/85 md:px-6 md:text-lg">
+                    {faq.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </section>
+        ))}
+
+        {/* Where to get a person, on the page itself rather than only in the
+            footer. hello@ is MCB's support identity; the MCB LIVE WhatsApp
+            line is deliberately not offered here. */}
+        <aside className="mt-14 rounded-2xl border border-ink/10 bg-white p-6 text-center sm:p-8">
+          <h2 className="font-serif text-2xl leading-tight text-ink">Still need a person?</h2>
+          <p className="mx-auto mt-3 max-w-xl text-base leading-relaxed text-espresso/80">
+            Email us and a real person will read it. If you already have an order, your own order page has a
+            message box that keeps everything in one place.
+          </p>
+          <a
+            href="mailto:hello@mycustombeats.com"
+            className="mt-6 inline-flex min-h-12 items-center rounded-full bg-ink px-7 text-base font-semibold text-ivory transition-colors hover:bg-[#1c2d40] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
+          >
+            hello@mycustombeats.com
+          </a>
+        </aside>
 
         <p className="mt-12 text-center text-base leading-relaxed text-espresso/80">
           Still deciding?{' '}

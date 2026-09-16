@@ -11,6 +11,7 @@ import {
   formatMoney,
   getProduct,
   publicProducts,
+  groupedCards,
 } from "../../data/catalogue";
 import { PRODUCT_IMAGERY } from "../../data/imagery";
 import { DELIVERY_CONFIRMED_FIRST_NOTE } from "../../data/legal/delivery";
@@ -235,20 +236,50 @@ const StepExtras = ({ draft, setDraft, photos, setPhoto, showErrors, onAdd }: St
         <section aria-labelledby={`${uid}-cards`} className="rounded-2xl bg-white p-5 sm:p-7">
           <h2 id={`${uid}-cards`} className="!text-3xl text-ink">{POP_UP_CARD.name}</h2>
           <p className="mt-3 text-base leading-relaxed text-espresso/80">{POP_UP_CARD.shortDescription} {DELIVERY_CONFIRMED_FIRST_NOTE}</p>
-          <ul className="mt-6 grid list-none gap-4 p-0 sm:grid-cols-2">
-            {POP_UP_CARD.variants.map((card) => {
-              const quantity = draft.players.find((p) => p.sku === card.sku)?.quantity ?? 0;
+          {/* Grouped by occasion, and every group but the first is collapsed.
+              Eighteen steppers opened flat was the single densest thing in the
+              order form; most customers want one occasion. Nothing is hidden —
+              each group says how many it holds and opens on one tap. */}
+          <div className="mt-6 space-y-3">
+            {groupedCards().map(({ group, variants }, index) => {
+              const chosen = variants.reduce(
+                (total, card) => total + (draft.players.find((p) => p.sku === card.sku)?.quantity ?? 0),
+                0
+              );
               return (
-                <li key={card.sku} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-espresso/12 p-4">
-                  <div className="min-w-0">
-                    <p className="text-lg text-ink">{card.label}</p>
-                    <p className="mt-1 font-mono text-base text-ink">{formatMoney(card.price)}</p>
+                <details key={group.id} open={index === 0 || chosen > 0} className="rounded-2xl border border-espresso/12 bg-ivory/60">
+                  <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-lg text-ink [&::-webkit-details-marker]:hidden">
+                    <span>
+                      {group.label}
+                      <span className="ml-2 text-base text-espresso/70">
+                        ({variants.length} {variants.length === 1 ? "design" : "designs"})
+                      </span>
+                    </span>
+                    {chosen > 0 && (
+                      <span className="shrink-0 rounded-full bg-ink px-3 py-1 text-sm font-semibold text-ivory">{chosen} added</span>
+                    )}
+                  </summary>
+                  <div className="px-4 pb-4">
+                    <p className="text-base text-espresso/75">{group.hint}</p>
+                    <ul className="mt-4 grid list-none gap-4 p-0 sm:grid-cols-2">
+                      {variants.map((card) => {
+                        const quantity = draft.players.find((p) => p.sku === card.sku)?.quantity ?? 0;
+                        return (
+                          <li key={card.sku} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-espresso/12 bg-white p-4">
+                            <div className="min-w-0">
+                              <p className="text-lg text-ink">{card.label}</p>
+                              <p className="mt-1 font-mono text-base text-ink">{formatMoney(card.price)}</p>
+                            </div>
+                            <Stepper label={card.name} value={quantity} min={0} max={50} onChange={(n) => { setDraft((d) => setPlayer(d, card.sku, n)); if (n > quantity) onAdd(card.sku, 1); }} />
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </div>
-                  <Stepper label={card.name} value={quantity} min={0} max={50} onChange={(n) => { setDraft((d) => setPlayer(d, card.sku, n)); if (n > quantity) onAdd(card.sku, 1); }} />
-                </li>
+                </details>
               );
             })}
-          </ul>
+          </div>
         </section>
       )}
 

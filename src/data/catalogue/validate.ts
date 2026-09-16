@@ -4,6 +4,7 @@
  */
 
 import type { Product } from "./types";
+import { validateCardGroups } from "./cardGroups";
 
 export const validateCatalogue = (products: readonly Product[]): string[] => {
   const errors: string[] = [];
@@ -87,6 +88,8 @@ export const validateCatalogue = (products: readonly Product[]): string[] => {
   if (!products.some((p) => p.variants.some((v) => v.priorityReplacementEligible))) {
     errors.push("no variant is eligible for Priority Replacement");
   }
+
+  errors.push(...validateCardGroups());
 
   return errors;
 };

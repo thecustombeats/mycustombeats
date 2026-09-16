@@ -55,7 +55,7 @@ import {
   type Variant,
 } from "../data/catalogue";
 import { SAMPLE_SONGS, sampleAudioPath } from "../data/sampleSongs";
-import { PRODUCT_IMAGERY, imageSrc } from "../data/imagery";
+import { IMAGES, PRODUCT_IMAGERY, imageSrc } from "../data/imagery";
 
 /**
  * One canonical host for the whole site. `www` is what the site actually
@@ -180,7 +180,20 @@ const ref = (id: string) => ({ "@id": id });
  * emitted: the site states none.
  */
 const CONTACT_EMAIL = "hello@mycustombeats.com";
-const CONTACT_PHONE = "+447340742009";
+
+/**
+ * The MCB LIVE booking line — NOT general order support.
+ *
+ * It was previously emitted as the organisation's top-level `telephone` and as
+ * the telephone of a `contactType: "customer support"` contact point, which
+ * told every crawler and answer engine that a customer with an order question
+ * should ring it. MCB's own rule is the opposite: ordinary order help is by
+ * email or the private order page, and this number belongs to MCB LIVE alone
+ * (see src/data/production/customer-care.ts). It is now declared for what it
+ * is — a separate MCB LIVE contact point — and the support contact point
+ * carries the email only.
+ */
+const MCB_LIVE_PHONE = "+447340742009";
 
 /**
  * `sameAs` asserts "this URL is the same entity". Only the YouTube channel is
@@ -218,20 +231,29 @@ export const organizationEntity = (): Node => ({
   },
   image: ref(`${SITE_URL}/#logo`),
   email: CONTACT_EMAIL,
-  telephone: CONTACT_PHONE,
   sameAs: SAME_AS,
   // Both founders are named on the About page. Names pending founder confirmation.
   founder: [
     { "@type": "Person", name: "Rinaldi" },
     { "@type": "Person", name: "Shobha (Bella) Menezes" },
   ],
-  contactPoint: {
-    "@type": "ContactPoint",
-    contactType: "customer support",
-    email: CONTACT_EMAIL,
-    telephone: CONTACT_PHONE,
-    url: canonical("/#contact"),
-  },
+  contactPoint: [
+    {
+      "@type": "ContactPoint",
+      contactType: "customer support",
+      email: CONTACT_EMAIL,
+      url: canonical("/#contact"),
+      availableLanguage: "en-GB",
+    },
+    {
+      "@type": "ContactPoint",
+      contactType: "sales",
+      name: "MCB LIVE",
+      telephone: MCB_LIVE_PHONE,
+      url: canonical("/mcb-live"),
+      availableLanguage: "en-GB",
+    },
+  ],
 });
 
 /* ------------------------------------------------------------------ */
@@ -742,6 +764,30 @@ export const sampleRecordingEntities = (): Node[] =>
     },
   ]);
 
+/**
+ * The Memory Music Video example the homepage plays.
+ *
+ * The graph described every audio sample and said nothing about the one video
+ * on the site, so the richest thing MCB shows a visitor was invisible to
+ * crawlers. Only facts the page itself carries are emitted: the file, its
+ * poster, its type and who published it. No duration, no upload date, no view
+ * count and no claim about whose anniversary it was — the section itself makes
+ * none of those claims.
+ */
+export const exampleVideoEntity = (): Node => ({
+  "@type": "VideoObject",
+  "@id": `${SITE_URL}/#anniversary-example-video`,
+  name: "An MCB example: a 25-year anniversary Memory Music Video",
+  description:
+    "An example of an MCB Memory Music Video — a personalised song set to the photographs and moments behind it.",
+  contentUrl: `${SITE_URL}/videos/mcb-25-year-anniversary-example.mp4`,
+  thumbnailUrl: `${SITE_URL}${imageSrc(IMAGES.anniversaryExamplePoster, 960, "jpg")}`,
+  encodingFormat: "video/mp4",
+  url: canonical("/#samples"),
+  publisher: ref(ENTITY.organization),
+  isFamilyFriendly: true,
+});
+
 export const sampleListEntity = (): Node => ({
   "@type": "ItemList",
   "@id": ENTITY.sampleList,
@@ -791,6 +837,7 @@ export const homepageStructuredData = () =>
     ...productNodes(experienceProducts()),
     sampleListEntity(),
     ...sampleRecordingEntities(),
+    exampleVideoEntity(),
   ]);
 
 /**

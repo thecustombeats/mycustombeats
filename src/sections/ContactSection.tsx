@@ -28,7 +28,7 @@ const ContactSection = () => (
   <section id="contact" aria-labelledby="contact-heading" className="scroll-mt-24 bg-ivory px-5 py-20 sm:px-8 md:py-28">
     <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 lg:grid-cols-[1.2fr_1fr] lg:gap-20">
       <div className="min-w-0 text-center lg:text-left">
-        <p className="label-uppercase !text-[0.8125rem] mb-4 text-gold-deep">Begin</p>
+        <p className="label-uppercase mb-4 text-gold-deep">Begin</p>
         <h2 id="contact-heading" className="text-ink">
           Which moment would you like to keep?
         </h2>
