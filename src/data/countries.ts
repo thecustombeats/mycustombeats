@@ -272,3 +272,20 @@ export const COUNTRIES: readonly Country[] = [
 ];
 
 export const getCountry = (code: string): Country | undefined => COUNTRIES.find((country) => country.code === code);
+
+/**
+ * The two destinations MCB is asked for most, first — then everywhere else,
+ * unchanged and in full (Founder decision, 16 September 2026).
+ *
+ * This is presentation ONLY. The ISO codes are untouched, no country is
+ * removed, and nothing here decides where MCB delivers or what it costs —
+ * that is the server's answer, from the customer's chosen destination. It is
+ * never derived from where a founder happens to be.
+ */
+export const COUNTRY_PRIORITY: readonly string[] = ["US", "GB"];
+
+/** COUNTRIES with the priority destinations lifted to the top, in that order. */
+export const COUNTRIES_FOR_DELIVERY: readonly Country[] = [
+  ...COUNTRY_PRIORITY.flatMap((code) => COUNTRIES.filter((country) => country.code === code)),
+  ...COUNTRIES.filter((country) => !COUNTRY_PRIORITY.includes(country.code)),
+];

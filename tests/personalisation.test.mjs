@@ -116,20 +116,21 @@ test("Priority Replacement is chosen per Keepsake, never preselected, and only f
 test("lines are built from the draft and priced by the catalogue", () => {
   let draft = draftFor("keepsake-12-picture-disc", 2);
   draft = P.addPlaque(draft);
-  draft = P.addFrame(draft, "lyrics-frame-12x18");
-  draft = P.addFrame(draft, "lyrics-frame-12x18");
+  // Lyrics Frames were withdrawn from the customer surface (Founder decision,
+  // 16 September 2026); a pop-up card is the physical add-on now.
+  draft = P.setPlayer(draft, "pop-up-card-wedding", 2);
   draft = P.setPlayer(draft, "portable-suitcase-record-player", 1);
   draft = P.setPriorityReplacement(P.setPriorityReplacement(draft, 0, true), 1, true);
   assert.deepEqual(P.draftLines(draft), [
     { sku: "keepsake-12-picture-disc", quantity: 2 },
     { sku: "personalised-music-plaque", quantity: 1 },
-    { sku: "lyrics-frame-12x18", quantity: 2 },
+    { sku: "pop-up-card-wedding", quantity: 2 },
     { sku: "portable-suitcase-record-player", quantity: 1 },
     { sku: "priority-replacement", quantity: 2 },
   ]);
   const preview = P.previewDraft(draft);
   assert.equal(preview.ok, true);
-  assert.equal(preview.totalMinor, 2 * 14999 + 4999 + 2 * 6999 + 20000 + 2 * 1999);
+  assert.equal(preview.totalMinor, 2 * 14999 + 4999 + 2 * 4999 + 20000 + 2 * 1999);
   assert.equal(preview.requiresShipping, true);
   assert.equal(P.previewDraft(draftFor("moment")).requiresShipping, false);
 });

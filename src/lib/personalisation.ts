@@ -586,3 +586,47 @@ export const draftHasContent = (draft: OrderDraft): boolean =>
   draft.units.some((unit) => unit.memories.some((memory) => memory.story.trim() || memory.about.trim() || memory.style)) ||
   draft.plaques.some((plaque) => plaque.songTitle || plaque.artist) ||
   draft.frames.length > 0;
+
+/* ------------------------------------------------------------------ */
+/* Finishing touches: what may be offered with what                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * FOUNDER RULE (16 September 2026), in one place.
+ *
+ * Finishing Touches had no product rules at all: every order — a £15 digital
+ * Moment or a £349 Journey — was offered the plaque, the frames, all three
+ * players, the cards and the Memory Music Video. The founders' decision is
+ * much narrower.
+ *
+ *   MOMENT              the Memory Music Video (£49), and pop-up cards.
+ *   KEEPSAKE / JOURNEY  pop-up cards. The Memory Music Video is a MOMENT
+ *                       enhancement and must not be offered here.
+ *
+ * NOT offered as a finishing touch to anything: the Lyrics Frames (retired
+ * from the launch surface) and the Personalised Music Plaque, which remains an
+ * active product but is not an upsell.
+ *
+ * Priority Replacement is not in this matrix: it is protection for the
+ * Keepsake being bought rather than another product, and its own eligibility
+ * rule already limits it to Keepsakes.
+ *
+ * A VINYL FRAME — a frame that holds a record — is what the founders asked be
+ * offered with a physical order. No such product exists in the catalogue: the
+ * five SKUs in the FRAME family are Lyrics Frames, typography prints of song
+ * lyrics. Nothing was invented to fill the gap; it is reported instead.
+ */
+export type FinishingTouch = "memoryVideo" | "popUpCards" | "plaque" | "lyricsFrames" | "players";
+
+const FINISHING_TOUCHES: Readonly<Record<string, readonly FinishingTouch[]>> = {
+  moment: ["memoryVideo", "popUpCards"],
+  keepsake: ["popUpCards"],
+  journey: ["popUpCards"],
+};
+
+/** What this order may be offered. An unknown product is offered nothing. */
+export const finishingTouchesFor = (productId: string): readonly FinishingTouch[] =>
+  FINISHING_TOUCHES[productId] ?? [];
+
+export const offersFinishingTouch = (productId: string, touch: FinishingTouch): boolean =>
+  finishingTouchesFor(productId).includes(touch);

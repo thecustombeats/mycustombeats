@@ -395,8 +395,12 @@ tc "  → the plaque keeps its song title and artist" "$([ "$(q "SELECT CONCAT(p
 tc "  → the frame points at song 2 of Keepsake 1, with its heading" "$([ "$(q "SELECT CONCAT(m.sequence,'|',f.frame_heading) FROM order_units f JOIN order_memories m ON m.id=f.frame_memory_id WHERE f.order_id=$AOID AND f.kind='FRAME'")" = "2|Our Song" ] && echo 1 || echo 0)"
 tc "  → the plaque photo is required before payment" "$([ "$(jget missing_uploads /tmp/order.json)" = '["plaque:1"]' ] && [ "$(session $AOID $ATOK)" = "409" ] && echo 1 || echo 0)"
 t "  → plaque photo uploaded" 201 "$(upload $AOID $ATOK plaque:1 $FIX/photo-8x8.png photo.png)"
-tc "  → the photo is in, but MCB confirms plaque and gramophone delivery before payment" "$([ "$(jget checkout_blocker)" = "delivery_unavailable" ] && [ "$(q "SELECT delivery_status FROM orders WHERE id=$AOID")" = "UNAVAILABLE" ] && echo 1 || echo 0)"
-t "  → so checkout refuses it" 409 "$(session $AOID $ATOK)"
+# PAYMENT FIRST (Founder correction, 16 Sept). A plaque and a gramophone are
+# pieces MCB arranges itself rather than prices from a table. That is
+# uncertainty, not impossibility, so it no longer stops the customer paying:
+# no delivery charge is added for them and MCB verifies after payment.
+tc "  → the photo is in, and MCB arranges the plaque and gramophone rather than blocking payment" "$([ "$(jget checkout_blocker)" = "null" ] && [ "$(q "SELECT delivery_status FROM orders WHERE id=$AOID")" = "QUOTED" ] && echo 1 || echo 0)"
+t "  → so checkout accepts it" 200 "$(session $AOID $ATOK)"
 order '{"sku":"keepsake-12-picture-disc","email":"addons-frame@example.com","frames":[["lyrics-frame-12x18",1,2,"Our Song"]]}'
 FOID=$OID; FTOK=$TOK
 tc "a Keepsake with a frame is quoted with a separate TEST frame rate and is ready" "$([ "$CODE" = "201" ] && [ "$(jget checkout_blocker /tmp/order.json)" = "null" ] && [ "$(q "SELECT delivery_rate_id FROM orders WHERE id=$FOID")" = "TEST_ONLY_UK+TEST_ONLY_FRAME" ] && [ "$(q "SELECT delivery_minor FROM orders WHERE id=$FOID")" = "1190" ] && echo 1 || echo 0)"

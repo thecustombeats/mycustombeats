@@ -174,6 +174,11 @@ export const previewOrder = (requests: readonly OrderLineRequest[]): OrderPrevie
   if (seen.has(ARTWORK_PREPARATION_SKU) && !hasPhotoArtwork) return { ok: false, reason: "artwork_preparation_ineligible" };
   const videos = requests.find((r) => r.sku === MEMORY_MUSIC_VIDEO_SKU)?.quantity ?? 0;
   if (videos > MEMORY_MUSIC_VIDEO_MAX_PER_ORDER || videos > songs) return { ok: false, reason: "memory_video_ineligible" };
+  // The Memory Music Video is a MOMENT enhancement (Founder decision, 16 Sept
+  // 2026). The server refuses it on anything else; this mirror keeps the order
+  // form's own preview honest rather than letting it promise what checkout
+  // will reject.
+  if (videos > 0 && !lines.some((line) => line.productId === "moment")) return { ok: false, reason: "memory_video_ineligible" };
 
   return {
     ok: true,

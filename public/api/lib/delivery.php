@@ -127,7 +127,13 @@ const TEST_ONLY_DELIVERY_RATES = [
 
 final class DeliveryQuote
 {
-    /** @param list<string> $reviewItems product names MCB must confirm delivery for */
+    /**
+     * @param list<string> $reviewItems product names MCB must confirm delivery for
+     *                                  BEFORE payment — only a known impossibility
+     * @param list<string> $arrangedItems product names whose delivery MCB arranges
+     *                                    and verifies AFTER payment, at no extra
+     *                                    charge to the customer
+     */
     private function __construct(
         public readonly string $status,
         public readonly int $minor,
@@ -135,7 +141,8 @@ final class DeliveryQuote
         public readonly ?string $rateId,
         public readonly ?string $label,
         public readonly ?string $reason = null,
-        public readonly array $reviewItems = []
+        public readonly array $reviewItems = [],
+        public readonly array $arrangedItems = []
     ) {
     }
 
@@ -150,9 +157,22 @@ final class DeliveryQuote
         return new self('UNAVAILABLE', 0, null, null, null, $reason, $reviewItems);
     }
 
-    public static function quoted(int $minor, string $source, string $rateId, string $label): self
+    /** @param list<string> $arrangedItems */
+    public static function quoted(int $minor, string $source, string $rateId, string $label, array $arrangedItems = []): self
     {
-        return new self('QUOTED', $minor, $source, $rateId, $label);
+        return new self('QUOTED', $minor, $source, $rateId, $label, null, [], $arrangedItems);
+    }
+
+    /**
+     * Nothing to charge for delivery here, because every physical item in the
+     * order is one MCB arranges itself. The customer pays the product price and
+     * MCB carries the delivery: payment first, verification after.
+     *
+     * @param list<string> $arrangedItems
+     */
+    public static function arranged(array $arrangedItems): self
+    {
+        return new self('QUOTED', 0, 'MCB_ARRANGED', 'MCB_ARRANGED', 'Delivery arranged by MCB', null, [], $arrangedItems);
     }
 
     public function isTestOnly(): bool
@@ -170,6 +190,7 @@ final class DeliveryQuote
             'test_only'    => $this->isTestOnly(),
             'reason'       => $this->reason,
             'review_items' => $this->reviewItems,
+            'arranged_items' => $this->arrangedItems,
         ];
     }
 }
@@ -290,16 +311,36 @@ function quote_delivery(OrderPricing $pricing, ?string $countryCode): DeliveryQu
         $namesByClass[$class][] = (string) (catalogue_product((string) $line['product_id'])['name'] ?? $line['name']);
     }
 
-    // Anything MCB must confirm first: say which items, before asking where.
-    $review = [];
-    foreach ($byClass as $class => $_) {
-        if (delivery_class_profile($class)['pricing'] !== 'DESTINATION_CALCULATED') {
-            array_push($review, ...$namesByClass[$class]);
+    // PAYMENT FIRST (Founder correction, 16 September 2026).
+    //
+    // Classes MCB cannot price online — a pop-up card, a player, a plaque —
+    // used to make the whole order unpayable: "we'll confirm the delivery
+    // details before you pay". That is verification uncertainty, not a known
+    // impossibility, and MCB's rule is that uncertainty must never stop a
+    // customer paying. MCB may also have more than one route for the same
+    // product, so "this route has no rate" is not "this cannot be delivered".
+    //
+    // These items are now ARRANGED by MCB instead: no delivery charge is added
+    // for them, the customer pays the product price, and the order is verified
+    // after payment through the ordinary fulfilment controls
+    // (`confirm_availability` on the class profile, plus
+    // fulfilment_check_route_verification, which raises
+    // POST_PAYMENT_VERIFICATION_REQUIRED). If it then turns out MCB genuinely
+    // cannot fulfil, that is a PAID_ORDER_FULFILMENT_EXCEPTION for Bella or
+    // Lewis — never an automatic cancellation, reprice or refund.
+    //
+    // A KNOWN impossibility still stops the sale, below, from route evidence.
+    $arranged = [];
+    $rateable = [];
+    foreach ($byClass as $class => $items) {
+        if (delivery_class_profile($class)['pricing'] === 'DESTINATION_CALCULATED') {
+            $rateable[$class] = $items;
+        } else {
+            array_push($arranged, ...$namesByClass[$class]);
         }
     }
-    if ($review !== []) {
-        return DeliveryQuote::unavailable('MCB_CONFIRMS_DELIVERY', array_values(array_unique($review)));
-    }
+    $arranged = array_values(array_unique($arranged));
+
     if ($countryCode === null) {
         return DeliveryQuote::unavailable();
     }
@@ -329,11 +370,17 @@ function quote_delivery(OrderPricing $pricing, ?string $countryCode): DeliveryQu
         return DeliveryQuote::unavailable();
     }
 
+    // Everything MCB arranges itself and nothing to price: the customer pays
+    // the product price and MCB carries the delivery.
+    if ($rateable === []) {
+        return DeliveryQuote::arranged($arranged);
+    }
+
     $general = 0;
     $used = [];
     $minor = 0;
     $unrated = [];
-    foreach ($byClass as $class => $items) {
+    foreach ($rateable as $class => $items) {
         $found = delivery_rate_for($rates, $countryCode, $items, $class);
         if ($found !== null) {
             $used[] = $found['rate'];
@@ -362,7 +409,8 @@ function quote_delivery(OrderPricing $pricing, ?string $countryCode): DeliveryQu
         $minor,
         $source,
         mb_substr($ids, 0, 64),
-        mb_substr($labels, 0, 120)
+        mb_substr($labels, 0, 120),
+        $arranged
     );
 }
 

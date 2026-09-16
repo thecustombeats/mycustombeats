@@ -598,10 +598,13 @@ section "12. LAUNCH CLOSURE — DELIVERY CLASSES, MCB CONFIRMS, HUMAN FULFILMENT
 RATES=public/api/data/delivery-rates.json
 trap 'restore_config; rm -f public/api/_test-config-base.php "$RATES"' EXIT
 quote() { release_limits; post_json order-quote "{\"lines\":$1${2:+,\"shippingCountryCode\":\"$2\"}}" >/dev/null; }
-# Fixtures (no rate table): plaques and players are confirmed by MCB, never estimated.
+# Fixtures (no rate table): a plaque or a player is ARRANGED by MCB. Payment
+# first (Founder correction, 16 Sept) — MCB cannot price their delivery from a
+# table, which is uncertainty, not impossibility, so nothing is charged for it
+# and the customer is not stopped. Verification happens after payment.
 quote '[{"sku":"keepsake-7-picture-disc","quantity":1},{"sku":"personalised-music-plaque","quantity":1},{"sku":"antique-brass-gramophone","quantity":1}]' GB
-tc "a plaque or player is not priced: UNAVAILABLE, MCB_CONFIRMS_DELIVERY, not payable, £0 delivery" "$([ "$(jget delivery.status)" = UNAVAILABLE ] && [ "$(jget delivery.reason)" = MCB_CONFIRMS_DELIVERY ] && [ "$(jget payable)" = false ] && [ "$(jget delivery.minor)" = 0 ] && echo 1 || echo 0)"
-tc "  → the customer is told which items, by product name only" "$([ "$(jget delivery.review_items)" = '["Personalised Music Plaque","Antique Brass Gramophone"]' ] && echo 1 || echo 0)"
+tc "a plaque or player is arranged by MCB, and the order stays payable" "$([ "$(jget delivery.status)" = QUOTED ] && [ "$(jget payable)" = true ] && echo 1 || echo 0)"
+tc "  → the customer is told which items, by product name only" "$([ "$(jget delivery.arranged_items)" = '["Personalised Music Plaque","Antique Brass Gramophone"]' ] && echo 1 || echo 0)"
 tc "  → the response carries no pricing state, class, partner or rate internals" "$(grep -qE 'LISTING_DEPENDENT|MANUAL_REVIEW|DESTINATION_CALCULATED|PLAYER|PLAQUE|classes|first_item' /tmp/tx.json && echo 0 || echo 1)"
 quote '[{"sku":"moment","quantity":1}]'
 tc "a Moment needs no delivery, no country, and stays payable" "$([ "$(jget delivery.status)" = NOT_REQUIRED ] && [ "$(jget payable)" = true ] && [ "$(jget total_minor)" = "$(price moment)" ] && echo 1 || echo 0)"
@@ -613,7 +616,7 @@ printf '%s' '{"currency":"GBP","pricing":{"PLAYER":"DESTINATION_CALCULATED","PLA
 quote '[{"sku":"keepsake-7-picture-disc","quantity":1},{"sku":"vintage-smartphone-gramophone","quantity":1}]' GB
 tc "a general rate never prices a gramophone, even when players are promoted" "$([ "$(jget delivery.status)" = UNAVAILABLE ] && [ "$(jget delivery.reason)" = NO_DELIVERY_RATE ] && [ "$(jget delivery.review_items)" = '["Vintage Smartphone Gramophone"]' ] && echo 1 || echo 0)"
 quote '[{"sku":"keepsake-7-picture-disc","quantity":1},{"sku":"personalised-music-plaque","quantity":1}]' GB
-tc "an unknown pricing value is ignored: the plaque is still confirmed by MCB" "$([ "$(jget delivery.reason)" = MCB_CONFIRMS_DELIVERY ] && echo 1 || echo 0)"
+tc "an unknown pricing value is ignored: the plaque is still arranged by MCB" "$([ "$(jget delivery.arranged_items)" = '["Personalised Music Plaque"]' ] && echo 1 || echo 0)"
 quote '[{"sku":"keepsake-7-picture-disc","quantity":1},{"sku":"lyrics-frame-10x15","quantity":1}]' GB
 tc "a frame needs a rate naming FRAME; with a table present, TEST fixtures are not used" "$([ "$(jget delivery.status)" = UNAVAILABLE ] && [ "$(jget delivery.test_only)" = false ] && echo 1 || echo 0)"
 

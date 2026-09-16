@@ -139,7 +139,7 @@ test("pop-up cards appear where intended, at their prices, as MCB products", () 
   const extras = read("src/pages/create/StepExtras.tsx");
   // Presented by occasion on both surfaces rather than as a flat wall of 18.
   assert.match(extras, /groupedCards\(\)\.map/);
-  assert.match(extras, /DELIVERY_CONFIRMED_FIRST_NOTE/, "MCB confirms card delivery before payment");
+  assert.match(extras, /DELIVERY_ARRANGED_BY_MCB_NOTE/, "MCB arranges card delivery after payment, at no extra charge");
   assert.match(read("src/pages/Products.tsx"), /groupedCards\(\)\.map/);
   // Grouping shows every card exactly once and names none that does not exist.
   assert.deepEqual(C.validateCardGroups(), []);

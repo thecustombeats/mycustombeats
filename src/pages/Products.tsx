@@ -90,6 +90,7 @@ const Disclosures = ({ product }: { product: Product }) =>
 const Products = () => {
   const priority = priorityReplacementLine();
   const frameImage = PRODUCT_IMAGERY["lyrics-frame"];
+  const cardImage = PRODUCT_IMAGERY["pop-up-card"];
 
   return (
     <>
@@ -270,6 +271,18 @@ const Products = () => {
               <div className="mt-16">
                 <h3 className="font-serif text-3xl leading-tight text-ink">{CARDS.name}</h3>
                 <p className="mt-2 max-w-2xl text-base leading-relaxed text-espresso/80">{CARDS.positioning}</p>
+                {cardImage && (
+                  <div className="mt-6 grid gap-6 sm:grid-cols-[13rem_1fr] sm:items-start">
+                    <div className="mx-auto w-52 overflow-hidden rounded-2xl bg-white sm:mx-0">
+                      <ResponsiveImage image={cardImage} sizes="208px" className="aspect-square w-full object-contain p-3" />
+                    </div>
+                    <div>
+                      {CARDS.disclosures.map((d) => (
+                        <p key={d} className="text-base leading-relaxed text-espresso/80">{d}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {/* Grouped by occasion. Eighteen cards in one flat list made a
                     customer read the whole wall to find a birthday card, and
                     buried four flower packs among them. Same eighteen products,

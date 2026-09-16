@@ -397,9 +397,13 @@ t "an order without the choice has no video (never preselected)" "201|0|0" "$COD
 reset_limits
 t "a video line without choosing the song is refused" "422" "$(release_limits; post_json order "$(build_order '{"sku":"moment","email":"mv-bad1@example.com","video_line_only":1}')")"
 t "choosing a song without the video line is refused" "422" "$(release_limits; post_json order "$(build_order '{"sku":"moment","email":"mv-bad2@example.com","video_flag_only":[1,1]}')")"
-order '{"sku":"journey-6","email":"mv-journey@example.com","video":[1,3]}'; JO=$OID
-t "a multi-song order: one video for the chosen song (chapter 3), £49 once" "201|1|3|4900|AWAITING_PAYMENT" "$CODE|$(q "SELECT COUNT(*) FROM video_entitlements WHERE order_id=$JO")|$(q "SELECT m.sequence FROM video_entitlements e JOIN order_memories m ON m.id=e.memory_id WHERE e.order_id=$JO")|$(q "SELECT line_minor FROM order_items WHERE order_id=$JO AND item_id='$VSKU'")|$(q "SELECT status FROM video_entitlements WHERE order_id=$JO")"
-t "  → six songs never become six videos" "1" "$(q "SELECT quantity FROM order_items WHERE order_id=$JO AND item_id='$VSKU'")"
+# FOUNDER RULE (16 Sept): the Memory Music Video is a MOMENT enhancement. It
+# used to be sellable on any product with a song, including a £349 Journey.
+t "a Journey cannot buy a Memory Music Video" "422" "$(release_limits; post_json order "$(build_order '{"sku":"journey-6","email":"mv-journey@example.com","video":[1,3]}')")"
+t "  → refused as ineligible" "memory_video_ineligible" "$(jget error)"
+order '{"sku":"moment","email":"mv-moment-one@example.com","video":[1,1]}'; JO=$OID
+t "a Moment carries exactly one video at £49" "201|1|4900|AWAITING_PAYMENT" "$CODE|$(q "SELECT COUNT(*) FROM video_entitlements WHERE order_id=$JO")|$(q "SELECT line_minor FROM order_items WHERE order_id=$JO AND item_id='$VSKU'")|$(q "SELECT status FROM video_entitlements WHERE order_id=$JO")"
+t "  → one song never becomes two videos" "1" "$(q "SELECT quantity FROM order_items WHERE order_id=$JO AND item_id='$VSKU'")"
 reset_limits
 avail
 t "availability is truthful: limited monthly availability, no invented count while plenty remain" "True|Limited monthly availability.|None" "$(cj 'str(d["available"])' /tmp/va.json)|$(cj 'd["message"]' /tmp/va.json)|$(cj 'str(d["remaining"])' /tmp/va.json)"
@@ -465,7 +469,7 @@ post_json order-video "$(tokjob $MLINK $MJOB)" >/dev/null; VURL=$(jget url)
 tc "  → a short-lived signed link, never a permanent file path" "$(printf '%s' "$VURL" | grep -qE '^/api/order-video\?o=[0-9]+&m=[0-9]+&e=[0-9]+&d=0&s=[a-f0-9]{64}$' && ! printf '%s' "$VURL" | grep -q "$MLINK" && echo 1 || echo 0)"
 t "the film plays privately (video/mp4, the master's exact bytes, no-store)" "200|video/mp4|$C2SHA|1" "$(curl -s -o $TMPV/got.mp4 -D $TMPV/h.txt -w '%{http_code}' "http://localhost:8080$VURL")|$(awk -F': ' 'tolower($1)=="content-type"{print $2}' $TMPV/h.txt | tr -d '\r')|$(shasum -a 256 $TMPV/got.mp4 | cut -d' ' -f1)|$(awk -F': ' 'tolower($1)=="cache-control"{print $2}' $TMPV/h.txt | grep -c no-store | awk '{print ($1>=1)?1:0}')"
 t "  → seeking works (Range → 206)" "206|bytes 0-99/" "$(curl -s -o /dev/null -D $TMPV/r.txt -w '%{http_code}' -H 'Range: bytes=0-99' "http://localhost:8080$VURL")|$(awk -F': ' 'tolower($1)=="content-range"{print $2}' $TMPV/r.txt | tr -d '\r' | sed 's/[0-9]*$//')"
-t "  → a tampered or expired link is refused" "403|403" "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8080$(printf '%s' "$VURL" | sed 's/&s=./\&s=0/')")|$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8080$(printf '%s' "$VURL" | sed -E 's/e=[0-9]+/e=1000000000/')")"
+t "  → a tampered or expired link is refused" "403|403" "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8080$(printf '%s' "$VURL" | sed -E 's/s=[a-f0-9]{64}/s=00000000000000000000000000000000000000000000000000000000000000ff/')")|$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8080$(printf '%s' "$VURL" | sed -E 's/e=[0-9]+/e=1000000000/')")"
 t "  → a download link, and access is recorded (view, download, version)" "attachment|1" "$(post_json order-video "$(tokjob $MLINK $MJOB '{"download":true}')" >/dev/null; curl -s -o /dev/null -D $TMPV/d.txt "http://localhost:8080$(jget url)"; awk -F': ' 'tolower($1)=="content-disposition"{print $2}' $TMPV/d.txt | cut -d';' -f1)|$(q "SELECT COUNT(DISTINCT action) >= 2 AND MIN(version)=1 FROM video_access_log WHERE order_id=$MO AND actor='CUSTOMER'")"
 act $JO ISSUE_STATUS_LINK >/dev/null 2>&1
 paid_order '{"sku":"moment","email":"mv-other@example.com"}'; OO=$OID

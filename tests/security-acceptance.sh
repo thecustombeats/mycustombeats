@@ -661,8 +661,12 @@ section "10. POP-UP CARDS: THE FOUNDERS' 18, PRICED, NOTHING INVENTED"
 t "18 catalogued cards at the authoritative prices" "18|4999:12,6999:1,1999:1,7999:3,12999:1" "$(cj 'len([s for s in d["skus"] if s.startswith("pop-up-card-")])' $CATALOGUE)|$(python3 -c 'import json,collections;c=json.load(open("'"$CATALOGUE"'"))["skus"];n=collections.Counter(v["price_minor"] for k,v in c.items() if k.startswith("pop-up-card-"));print(",".join(f"{p}:{n[p]}" for p in (4999,6999,1999,7999,12999)))')"
 t "the public feed lists them as MCB products with no partner or route detail" "18|False" "$(python3 -c 'import json;f=json.load(open("public/catalogue.json"));print(sum(1 for p in f.get("products",[]) for v in p.get("variants",p.get("offers",[])) if str(v.get("sku","")).startswith("pop-up-card-")))' 2>/dev/null)|$(grep -qiE 'route_id|supplier|partner_group|verification' public/catalogue.json && echo True || echo False)"
 quote '[{"sku":"moment","quantity":1},{"sku":"pop-up-card-wedding","quantity":2},{"sku":"pop-up-card-paper-flower-pack-8","quantity":1}]' GB
-t "a card order totals correctly (£15 + 2 × £49.99 + £129.99) and MCB confirms card delivery before payment" "24497|UNAVAILABLE|MCB_CONFIRMS_DELIVERY" "$(qj 'd["subtotal_minor"]')|$(qj 'd["delivery"]["status"]')|$(qj 'd["delivery"]["reason"]')"
-tc "  → the customer is told the card names, never a partner or listing" "$(qj '" ".join(d["delivery"]["review_items"])' | grep -q 'Pop-Up' && ! grep -qiE 'listing|marketplace|supplier|partner' /tmp/quote.json && echo 1 || echo 0)"
+# PAYMENT FIRST (Founder correction, 16 Sept): MCB arranges card delivery
+# itself and verifies after payment. Incomplete route evidence no longer stops
+# the customer paying; nothing extra is charged for those pieces.
+t "a card order totals correctly (£15 + 2 × £49.99 + £129.99) and can be paid" "24497|QUOTED|True" "$(qj 'd["subtotal_minor"]')|$(qj 'd["delivery"]["status"]')|$(qj 'str(d["payable"])')"
+t "  → the cards are named as arranged by MCB, at no extra charge" "True|24497" "$(qj 'str(any("Pop-Up" in i for i in d["delivery"]["arranged_items"]))')|$(qj 'd["total_minor"]')"
+tc "  → and the customer is still told no partner, listing or route" "$(! grep -qiE 'listing|marketplace|supplier|partner|route_id' /tmp/quote.json && echo 1 || echo 0)"
 t "card product data is known; no card route is claimed verified" "MAPPED|0" "$(crm "$SUP?view=overview&staff=x" >/dev/null; cj 'd["catalogue"]["cards"]["status"]')|$(cj 'sum(1 for t in d["tiles"] if t["key"]=="routes_ready" for i in t["items"] if any("Pop-Up" in p or "—" in p for p in i["products"]))')"
 
 section "11. THE £1,000 GRAMOPHONE: EVERY PIECE OF EVIDENCE BEFORE AUTHORISATION"

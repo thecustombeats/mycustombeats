@@ -74,6 +74,12 @@ export const IMAGES = {
     "DJ Rinaldi holding an MCB vinyl record on a ship's deck at sunset"
   ),
   lyricsFrame: image("lyrics-frame", 1024, 1024, "A framed lyrics print on a sideboard"),
+  /**
+   * The approved Pop-Up Card photograph. ONE example for all eighteen designs,
+   * deliberately: the card a customer receives is part of the surprise, so MCB
+   * does not photograph every design. The wording beside it says so.
+   */
+  popUpCard: image("pop-up-card", 755, 792, "An MCB pop-up card opened to reveal a paper bouquet"),
   phoneGramophone: image("phone-gramophone", 752, 520, "A vintage-style acoustic gramophone built around a mobile phone"),
   brassGramophone: image("brass-gramophone", 768, 522, "A classic gramophone with a large decorated horn on an ornate case"),
   suitcasePlayer: image("suitcase-player", 767, 491, "A brass-cornered suitcase record player open on a terrace above the sea"),
@@ -117,6 +123,7 @@ export const PACKAGE_IMAGERY = {
 export const PRODUCT_IMAGERY: Readonly<Record<string, McbImage>> = {
   ...PACKAGE_IMAGERY,
   "lyrics-frame": IMAGES.lyricsFrame,
+  "pop-up-card": IMAGES.popUpCard,
   "vintage-smartphone-gramophone": IMAGES.phoneGramophone,
   "antique-brass-gramophone": IMAGES.brassGramophone,
   "portable-suitcase-record-player": IMAGES.suitcasePlayer,

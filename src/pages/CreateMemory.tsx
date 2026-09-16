@@ -381,7 +381,7 @@ const CreateMemory = () => {
       }
       if (quote.state !== "ready") return;
       if (!quote.quote.payable) {
-        setPay({ phase: "problem", message: "We need to confirm delivery for this order before you pay, so it can't be paid online yet. Please contact MCB and we'll help." });
+        setPay({ phase: "problem", message: "We can't deliver this order to that address, so we'd rather sort it out with you than charge you. Please contact MCB and we'll find a way." });
         return;
       }
       void startPayment();

@@ -14,7 +14,7 @@ import {
   groupedCards,
 } from "../../data/catalogue";
 import { PRODUCT_IMAGERY } from "../../data/imagery";
-import { DELIVERY_CONFIRMED_FIRST_NOTE } from "../../data/legal/delivery";
+import { DELIVERY_ARRANGED_BY_MCB_NOTE } from "../../data/legal/delivery";
 import {
   ARTIST_MAX,
   FRAME_HEADING_MAX,
@@ -23,6 +23,7 @@ import {
   addOnIssues,
   addPlaque,
   memoryLabel,
+  offersFinishingTouch,
   priorityReplacementLimit,
   setPlayer,
   setPriorityReplacement,
@@ -42,6 +43,8 @@ interface StepExtrasProps {
 }
 
 const PLAYERS = publicProducts().filter((product) => product.category === "PLAYER" && product.onlineCheckout);
+/** One approved EXAMPLE photograph for all eighteen designs; the card is part of the surprise. */
+const cardImage = PRODUCT_IMAGERY["pop-up-card"];
 
 const fieldClass = (error?: string) =>
   `mt-2 min-h-12 w-full rounded-xl border bg-white px-4 text-base text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep ${error ? "border-red-600" : "border-espresso/15"}`;
@@ -73,17 +76,22 @@ const StepExtras = ({ draft, setDraft, photos, setPhoto, showErrors, onAdd }: St
         Everything here is optional. Add a piece to display, a way to play your record, or peace of mind for your Keepsake.
       </p>
 
-      {/* ---- MCB Memory Music Video: optional, never preselected ---- */}
-      <VideoOffer draft={draft} setDraft={setDraft} />
+      {/* ---- MCB Memory Music Video: a MOMENT enhancement, never preselected.
+              It used to be offered on every product, including a £349 Journey. ---- */}
+      {offersFinishingTouch(draft.productId, "memoryVideo") && <VideoOffer draft={draft} setDraft={setDraft} />}
 
-      {/* ---- Personalised Music Plaque ---- */}
+      {/* ---- Personalised Music Plaque ----
+              Still an active product; the founders' decision is that it is not
+              a Finishing Touches upsell, so it is offered by no order type
+              here. ---- */}
+      {offersFinishingTouch(draft.productId, "plaque") && (
       <section aria-labelledby={`${uid}-plaque`} className="rounded-2xl bg-white p-5 sm:p-7">
         <h2 id={`${uid}-plaque`} className="!text-3xl text-ink">{PERSONALISED_MUSIC_PLAQUE.name}</h2>
         <p className="mt-1 font-mono text-base text-ink">{plaquePrice} each</p>
         <p className="mt-3 text-base leading-relaxed text-espresso/80">{PERSONALISED_MUSIC_PLAQUE.shortDescription}</p>
         <ul className="mt-3 space-y-1 text-base text-espresso/80">
           {PERSONALISED_MUSIC_PLAQUE.disclosures.map((d) => <li key={d}>{d}</li>)}
-          <li>{DELIVERY_CONFIRMED_FIRST_NOTE}</li>
+          <li>{DELIVERY_ARRANGED_BY_MCB_NOTE}</li>
         </ul>
 
         {draft.plaques.map((plaque, i) => (
@@ -138,8 +146,13 @@ const StepExtras = ({ draft, setDraft, photos, setPhoto, showErrors, onAdd }: St
           <Plus className="h-5 w-5" aria-hidden="true" /> {draft.plaques.length ? "Add another plaque" : "Add a plaque"}
         </button>
       </section>
+      )}
 
-      {/* ---- Lyrics Frames ---- */}
+      {/* ---- Lyrics Frames ----
+              Withdrawn from the launch surface. Kept behind the matrix rather
+              than deleted, so the catalogue entry and its supplier routes stay
+              intact while the founders decide what the FRAME family is. ---- */}
+      {offersFinishingTouch(draft.productId, "lyricsFrames") && (
       <section aria-labelledby={`${uid}-frames`} className="rounded-2xl bg-white p-5 sm:p-7">
         <div className="grid gap-6 sm:grid-cols-[1fr_10rem]">
           <div>
@@ -206,11 +219,13 @@ const StepExtras = ({ draft, setDraft, photos, setPhoto, showErrors, onAdd }: St
           <Plus className="h-5 w-5" aria-hidden="true" /> {draft.frames.length ? "Add another frame" : "Add a lyrics frame"}
         </button>
       </section>
+      )}
 
       {/* ---- Players ---- */}
+      {offersFinishingTouch(draft.productId, "players") && (<>
       <section aria-labelledby={`${uid}-players`} className="rounded-2xl bg-white p-5 sm:p-7">
         <h2 id={`${uid}-players`} className="!text-3xl text-ink">Play it at home</h2>
-        <p className="mt-3 text-base leading-relaxed text-espresso/80">{DELIVERY_CONFIRMED_FIRST_NOTE} You'll see which at Review, before anything is charged.</p>
+        <p className="mt-3 text-base leading-relaxed text-espresso/80">{DELIVERY_ARRANGED_BY_MCB_NOTE}</p>
         <ul className="mt-6 grid list-none gap-5 p-0 sm:grid-cols-3">
           {PLAYERS.map((player) => {
             const sku = player.variants[0].sku;
@@ -230,12 +245,26 @@ const StepExtras = ({ draft, setDraft, photos, setPhoto, showErrors, onAdd }: St
           })}
         </ul>
       </section>
+      </>)}
 
       {/* ---- Pop-up cards ---- */}
-      {POP_UP_CARD.active && POP_UP_CARD.public && POP_UP_CARD.onlineCheckout && (
+      {offersFinishingTouch(draft.productId, "popUpCards") && POP_UP_CARD.active && POP_UP_CARD.public && POP_UP_CARD.onlineCheckout && (
         <section aria-labelledby={`${uid}-cards`} className="rounded-2xl bg-white p-5 sm:p-7">
           <h2 id={`${uid}-cards`} className="!text-3xl text-ink">{POP_UP_CARD.name}</h2>
-          <p className="mt-3 text-base leading-relaxed text-espresso/80">{POP_UP_CARD.shortDescription} {DELIVERY_CONFIRMED_FIRST_NOTE}</p>
+          <div className="mt-4 grid gap-5 sm:grid-cols-[11rem_1fr] sm:items-start">
+            {cardImage && (
+              <div className="mx-auto w-44 overflow-hidden rounded-2xl bg-ivory sm:mx-0">
+                <ResponsiveImage image={cardImage} sizes="176px" className="aspect-square w-full object-contain p-2" />
+              </div>
+            )}
+            <div>
+              <p className="text-base leading-relaxed text-espresso/80">{POP_UP_CARD.shortDescription}</p>
+              {POP_UP_CARD.disclosures.map((d) => (
+                <p key={d} className="mt-3 text-base leading-relaxed text-espresso/80">{d}</p>
+              ))}
+              <p className="mt-3 text-base leading-relaxed text-espresso/80">{DELIVERY_ARRANGED_BY_MCB_NOTE}</p>
+            </div>
+          </div>
           {/* Grouped by occasion, and every group but the first is collapsed.
               Eighteen steppers opened flat was the single densest thing in the
               order form; most customers want one occasion. Nothing is hidden —

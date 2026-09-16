@@ -194,3 +194,140 @@ introduced.
   application. Unchanged this sprint.
 - "MCB Today" day boundaries still use UTC while Business uses Europe/London —
   carried forward from the hardening sprint, unrelated to the public site.
+
+---
+
+# FOUNDER VISUAL REVIEW — CORRECTIONS 01 (16 September 2026)
+
+Bella and Lewis reviewed the release candidate and returned corrections. What
+changed, and the three things that could not be done as asked.
+
+## Payment first, on the customer's side
+
+The order summary said **"CONFIRMED BY MCB FIRST — We'll confirm the delivery
+details for your Pop-Up Cards before you pay."** and would not let the order be
+paid. The cause was not route evidence: any delivery class MCB cannot price
+online (cards, players, plaques) made the whole order unpayable, always.
+
+That is verification uncertainty, and MCB's rule is that uncertainty never stops
+a customer paying. Those pieces are now **arranged by MCB**: no delivery charge
+is added, the customer pays the product price, and verification happens after
+payment through the controls that already exist. A **known** impossibility — an
+evidenced unsupported destination, or nothing available to send — still stops
+the sale, and now says so in plain words rather than as a process message.
+
+## One artwork photograph per record
+
+The real defect the founders spotted. The form attached the artwork photograph
+to each **song**: a 12-song Journey showed **twelve** photo upload fields, every
+one marked required. Only one was ever enforced, and only one is ever used.
+
+There is now **one** artwork photograph per physical keepsake, asked for once,
+above the songs. Stories stay per song. The £15 Artwork Preparation Service was
+already once per order and still is — it was never multiplied by song count.
+
+## Finishing Touches
+
+There were no product rules at all: a £15 digital Moment and a £349 Journey were
+both offered the plaque, the frames, three players, the cards and the £49 video.
+Now:
+
+| Product | May be offered |
+|---|---|
+| Moment | Memory Music Video (£49), pop-up cards |
+| Keepsake, Journey | Pop-up cards |
+
+The Memory Music Video is a **Moment** enhancement, enforced on the server as
+well as in the form. The plaque stays an active product but is an upsell to
+nothing. Players are not offered as a finishing touch — see the open questions.
+
+## Three things that could not be done as asked
+
+**1. There is no vinyl frame.** The correction asks that a physical order be
+offered "a compatible Vinyl Frame". No product in the catalogue frames a vinyl
+record. The five SKUs in the FRAME family — the "5 vinyl frames / wall-art
+products" in the 33 — **are the Lyrics Frames**, typography prints of song
+lyrics, the same product the same message lists as retired. Nothing was
+invented. So Finishing Touches for a physical order currently offers pop-up
+cards only.
+
+**2. `MUSIC_PLAQUE_IMAGE_REQUIRED`.** The only plaque image in either repository
+is `public/images/products/plaque.jpg` — a **crystal award trophy** with a QR
+code and the words "Scan to hear your custom song". It is the wrong product
+(square, not 8 × 12), has no photograph area, shows placeholder text, and would
+imply the plaque plays music, which the product's own disclosure denies. It is
+not used. The plaque keeps its typographic presentation.
+
+**3. `TESTIMONIAL_PERMISSION_REQUIRED`.** Seven written testimonials and three
+YouTube video testimonials exist on the current live site. In the entire
+repository and its history there is **no record of any customer agreeing to
+their words being published**, and the release review of 12 September is
+explicit: *"They have not been proved false; they must remain unpublished until
+verified."* Founder decision 85 has never been answered. Following the
+correction's own rule, none is published. `src/data/testimonials.ts` is the
+door: add one with its permission recorded and the section appears.
+
+The ten items awaiting permission:
+
+| # | Words | Attributed to |
+|---|---|---|
+| 1 | "Our girls trip deserved more than photos. This became our anthem." | Sarah M. |
+| 2 | "I gave it as a birthday gift. She cried within ten seconds." | James T. |
+| 3 | "A keepsake I will replay every time I miss that sunset." | Emma L. |
+| 4 | "The perfect soundtrack for our yacht charter in the Amalfi Coast. Pure magic." | Alexandra R. |
+| 5 | "We played our song as we sailed into Monaco. It was the highlight of our trip." | Michael & Diana K. |
+| 6 | "From private jet to paradise, our song captured every moment of luxury." | Victoria S. |
+| 7 | "A song that reminds us of the moment we said yes to forever, 30,000 feet in the air." | Thomas & Olivia H. |
+| 8–10 | Three video testimonials on the live /about page | not named |
+
+## What was restored
+
+**Used by guests on board.** The cruise strip is back at the bottom of the
+homepage, above the founder note. The eighteen lines are the approved list,
+unchanged, set as **type** — no logo is used, because MCB holds no licensed
+artwork and will not redraw or generate one. The approved heading is "Used by
+guests on board" (the founders wrote "customers onboard"; the recorded approved
+string says guests, which is also the more accurate claim).
+
+A **visible** non-affiliation notice now sits beneath it, which never existed
+before — the only such wording in either repository was a source comment:
+
+> Guests sailing with these lines have had MCB create their memories. MCB is an
+> independent service and is not affiliated with, endorsed by or a partner of the
+> cruise lines shown.
+
+**The pop-up card photograph.** The approved image (added September 2026 with
+the note "a genuine pop-up opening to a paper bouquet, not an NFC tap-card") is
+now the example for all eighteen designs, with wording that says it is an
+example and why: the card is part of the surprise. No size is claimed and no
+design is implied to be identical.
+
+**The example film.** Bella reported "there was no video". It was on the
+homepage, but its poster loaded only when scrolled near, so at rest it was a
+black rectangle on a dark background — indistinguishable from nothing. The
+poster is now always shown, `preload="none"` still means no video downloads
+before a click, there is still no autoplay, and the hero now carries a "Watch an
+example" link straight to it.
+
+## Retired-product sweep
+
+`Heirloom`, `USB`, `Memory Box`, `7-song` — absent from all customer-facing
+source, the public feed and the page HTML. **Lyrics Frames are now withdrawn
+too**: `public: false`, `onlineCheckout: false`, so they cannot appear as a
+product, upsell, checkout line, structured-data item or navigation destination,
+and cannot be ordered. The entry is **not deleted**, because those five SKUs are
+the FRAME family of the 33-SKU physical registry and deleting them would
+silently break it.
+
+Withdrawing them also removes from the site the mockup whose poster reads
+**"Imagine Your Song Lyrics Here"** — placeholder text baked into the pixels.
+
+## Open questions for Bella and Lewis
+
+| # | Question |
+|---|---|
+| 96 | The FRAME family: are the five Lyrics Frames retired, or are they the "5 vinyl frames / wall-art" in the 33? They are the same five SKUs and cannot be both. If a frame for a vinyl record is wanted, it does not exist and must be sourced. |
+| 97 | Players (the two gramophones and the record player, £100–£1,000) are no longer offered in Finishing Touches, because the correction says physical orders may be offered *only* a vinyl frame and cards. Confirm — this withdraws a £1,000 product from the only place it was sold. |
+| 98 | The plaque remains an active product but is offered nowhere, since every order needs a song experience and it is no longer a finishing touch. Where should it be sold? |
+| 99 | Clear one or more testimonials for public use, with evidence, or confirm the site ships without them. |
+| 100 | A plaque photograph that shows the actual 8 × 12 plaque. |

@@ -2,7 +2,7 @@ import { Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ARTWORK_PREPARATION, PRIORITY_REPLACEMENT, formatMinor, getProduct, getVariant, type OrderPreview } from "../../data/catalogue";
 import { getCountry } from "../../data/countries";
-import { CHECK_YOUR_DETAILS, CONSENTS, CREATIVE_PROMISE, DELIVERY_CONFIRMED_FIRST_NOTE, FULFILMENT_POSITION, SEPARATE_PARCELS_NOTE, TERMS_VERSION, getConsent, requiredConsents, type ConsentId } from "../../data/legal";
+import { CHECK_YOUR_DETAILS, CONSENTS, CREATIVE_PROMISE, DELIVERY_ARRANGED_BY_MCB_NOTE, FULFILMENT_POSITION, SEPARATE_PARCELS_NOTE, TERMS_VERSION, getConsent, requiredConsents, type ConsentId } from "../../data/legal";
 import { OCCASIONS, type OccasionId } from "../../data/occasions";
 import { hasDigitalDelivery, type ContactDetails, type StepId } from "../../lib/createFlow";
 import type { Quote } from "../../lib/orderApi";
@@ -147,7 +147,7 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
         {preview.requiresShipping && (
           <div className="mt-4 space-y-2 rounded-xl bg-ivory p-4 text-sm leading-relaxed text-espresso/80">
             {FULFILMENT_POSITION.map((line) => <p key={line}>{line}</p>)}
-            <p>{DELIVERY_CONFIRMED_FIRST_NOTE}</p>
+            <p>{DELIVERY_ARRANGED_BY_MCB_NOTE}</p>
           </div>
         )}
       </section>
@@ -196,34 +196,45 @@ const StepReview = ({ draft, preview, photos, contact, consents, setConsent, sho
               </div>
             </dl>
             {!quote.quote.payable && (
-              /* The REQUIRED commercial-safety stop, written for a customer.
-                 It is a deliberate MCB step, not a failure: the customer never
-                 sees a route, a supplier or an internal status, only what
-                 happens next and who does it. The MCB LIVE WhatsApp number
-                 used to sit here as a second channel; ordinary order help is
-                 email or the private order page, never that line. */
+              /* A KNOWN impossibility only.
+                 MCB takes payment before it starts work, so incomplete
+                 verification never stops a customer paying — it holds the work
+                 afterwards instead. This panel appears only when MCB has
+                 positive evidence it cannot deliver what was asked: a
+                 destination the routes prove unsupported, or a product with
+                 nothing available to send. The customer never sees a route, a
+                 supplier or an internal status. */
               <div role="status" className="mt-4 rounded-2xl border border-gold-dark/35 bg-gold/10 p-5 text-base leading-relaxed text-ink">
-                <p className="label-uppercase text-gold-deep">Confirmed by MCB first</p>
+                <p className="label-uppercase text-gold-deep">One thing to sort out first</p>
                 <p className="mt-2 font-serif text-2xl leading-snug text-ink">
-                  {quote.quote.delivery.reason === "MCB_CONFIRMS_DELIVERY" && quote.quote.delivery.reviewItems.length > 0
-                    ? `We'll confirm the delivery details for your ${listNames(quote.quote.delivery.reviewItems)} before you pay.`
-                    : `We'll confirm delivery to ${country ?? "this address"} before you pay.`}
+                  {quote.quote.delivery.reviewItems.length > 0
+                    ? `We can't send your ${listNames(quote.quote.delivery.reviewItems)} to this address.`
+                    : `We can't deliver to ${country ?? "this address"} just yet.`}
                 </p>
                 <p className="mt-3">
-                  These are made and sent individually, so MCB checks availability and delivery personally rather than
-                  guessing online. Nothing has been charged and nothing is lost — send us one line and we&rsquo;ll come
-                  back to you with everything confirmed
-                  {draft.plaques.length + draft.frames.length + draft.players.length > 0 ? ", or remove that item to carry on now" : ""}.
+                  Rather than take your money and disappoint you, we&rsquo;d like to sort it out with you first. Nothing has
+                  been charged. Send us one line and we&rsquo;ll find a way — another address, another piece, or an
+                  alternative we can get to you
+                  {draft.plaques.length + draft.frames.length + draft.players.length > 0 ? ". You can also remove that item and carry on now" : ""}.
                 </p>
                 <p className="mt-4">
                   <a
-                    href="mailto:hello@mycustombeats.com?subject=Please%20confirm%20delivery%20for%20my%20order"
+                    href="mailto:hello@mycustombeats.com?subject=Delivery%20for%20my%20MCB%20order"
                     className="inline-flex min-h-12 items-center rounded-full bg-ink px-6 text-base font-semibold text-ivory transition-colors hover:bg-[#1c2d40] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2"
                   >
                     Email hello@mycustombeats.com
                   </a>
                 </p>
               </div>
+            )}
+            {quote.quote.payable && quote.quote.delivery.arrangedItems.length > 0 && (
+              /* Pieces MCB arranges itself. Nothing more to pay, and no reason
+                 to stop the customer: the verification happens after payment,
+                 internally, and never as a charge. */
+              <p className="mt-3 rounded-xl bg-ivory p-4 text-base leading-relaxed text-espresso/80">
+                Delivery for your {listNames(quote.quote.delivery.arrangedItems)} is arranged personally by MCB with our
+                partners. There is nothing more to pay — the total above is what you pay.
+              </p>
             )}
             {preview.requiresShipping && quote.quote.payable && (
               <p className="mt-3 text-sm leading-relaxed text-espresso/70">{SEPARATE_PARCELS_NOTE}</p>

@@ -224,6 +224,13 @@ function price_order_lines(mixed $requested): OrderPricing
             if ($l['quantity'] > (int) ($rules['memory_video_max_per_order'] ?? 1) || $l['quantity'] > $songs) {
                 return OrderPricing::refused('memory_video_ineligible', 'One MCB Memory Music Video can be added for a song in your order.');
             }
+            // FOUNDER RULE (16 September 2026): the Memory Music Video is a
+            // MOMENT enhancement. It used to be offered on, and accepted for,
+            // any product with a song — including a £349 Journey. Enforced here
+            // as well as in the order form, so hiding it is not the control.
+            if (array_filter($lines, static fn (array $o): bool => ($o['product_id'] ?? '') === 'moment') === []) {
+                return OrderPricing::refused('memory_video_ineligible', 'The MCB Memory Music Video is an enhancement for a Moment.');
+            }
         }
     }
     if ($priorityUnits > $eligibleUnits) {

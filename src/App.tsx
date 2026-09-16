@@ -71,6 +71,7 @@ const SongShowcaseSection = lazy(() => import("./sections/SongShowcaseSection"))
 const HelpMeChoose = lazy(() => import("./sections/home/HelpMeChoose"));
 const CruiseSpecialism = lazy(() => import("./sections/home/CruiseSpecialism"));
 const CuratedAdditions = lazy(() => import("./sections/home/CuratedAdditions"));
+const TrustEvidence = lazy(() => import("./sections/home/TrustEvidence"));
 const FounderNote = lazy(() => import("./sections/home/FounderNote"));
 const ContactSection = lazy(() => import("./sections/ContactSection"));
 
@@ -201,6 +202,9 @@ function MainSite() {
           <HelpMeChoose />
           <CruiseSpecialism />
           <CuratedAdditions />
+          {/* Trust before the founders speak: the customers' own words (when
+              their permission is recorded) and the ships their guests sailed. */}
+          <TrustEvidence />
           <FounderNote />
           <ContactSection />
         </Suspense>

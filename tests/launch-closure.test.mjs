@@ -154,10 +154,14 @@ test("MCB holds no stock: sourced physical products claim no availability", asyn
   assert.ok(!/LimitedAvailability|InStoreOnly|inventoryLevel/.test(seo));
 });
 
-test("Review names the items MCB confirms, offers contact and never shows an estimated charge", () => {
+test("Review stops a customer only for a known impossibility, and never for uncertainty", () => {
   const review = read("src/pages/create/StepReview.tsx");
-  assert.match(review, /MCB_CONFIRMS_DELIVERY/);
-  assert.match(review, /Nothing has been charged/);
+  // Payment first: incomplete verification does not block payment, so the panel
+  // is about what MCB positively cannot deliver.
+  assert.match(review, /One thing to sort out first/);
+  assert.match(review, /Nothing has\s*\n?\s*been charged/);
+  // Pieces MCB arranges itself are named, at no extra charge.
+  assert.match(review, /arrangedItems/);
   assert.match(review, /mailto:hello@mycustombeats\.com/);
   // The MCB LIVE booking line is NOT an order-support channel. It used to be
   // offered here as a second way to ask MCB to confirm delivery.

@@ -39,6 +39,16 @@ const HeroSection = () => (
           <McbButtonLink to="/create" className="min-h-14 px-9 text-lg">
             Create Your Memory
           </McbButtonLink>
+          {/* The example film was on the page but nobody found it: it sat far
+              down, and its player showed a black rectangle until scrolled to.
+              The poster is now always visible, and this is a way in from the
+              first screen. */}
+          <Link
+            to={{ hash: "#samples" }}
+            className="inline-flex min-h-14 items-center justify-center rounded-full px-6 text-lg font-semibold text-ink underline decoration-gold decoration-2 underline-offset-[6px] transition-colors hover:text-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2 focus-visible:ring-offset-ivory"
+          >
+            Watch an example
+          </Link>
           <Link
             to={{ hash: "#help-me-choose" }}
             className="inline-flex min-h-14 items-center justify-center rounded-full px-6 text-lg font-semibold text-ink underline decoration-gold decoration-2 underline-offset-[6px] transition-colors hover:text-gold-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep focus-visible:ring-offset-2 focus-visible:ring-offset-ivory"

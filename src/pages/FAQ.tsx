@@ -6,12 +6,11 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Helmet } from "react-helmet-async";
-import { DELIVERY_CONFIRMED_FIRST_NOTE, RECOMMENDED_PLANNING_DAYS } from '../data/legal';
+import { DELIVERY_ARRANGED_BY_MCB_NOTE, RECOMMENDED_PLANNING_DAYS } from '../data/legal';
 import {
   BESPOKE,
   JOURNEY,
   KEEPSAKE,
-  LYRICS_FRAME,
   MEMORY_MUSIC_VIDEO,
   MOMENT,
   POP_UP_CARD,
@@ -59,8 +58,6 @@ const songRange = (product: Product): string => {
 /** Lower-cases a sentence's first letter, leaving "MP4"-style words alone. */
 const lower = (text: string) =>
   /^[A-Z][a-z]/.test(text) ? text.charAt(0).toLowerCase() + text.slice(1) : text;
-
-const withoutFullStop = (text: string) => text.replace(/\.$/, '');
 
 /** "12-inch Picture Disc (4 songs, £149.99)"; "6 Songs (£199)" where the label already counts. */
 const variantLine = (variant: Variant): string =>
@@ -194,11 +191,11 @@ const faqs: { question: string; answer: string }[] = [
   },
   {
     question: `Can I add a card to give with my song?`,
-    answer: `Yes. ${POP_UP_CARD.shortDescription} There are ${POP_UP_CARD.variants.length} designs grouped by occasion — ${listOf(groupedCards().map((g) => lower(g.group.label)))} — from ${formatMoney(POP_UP_CARD.variants.reduce((low, v) => (v.price.minor < low.price.minor ? v : low)).price)}. You add them when you create your memory. ${DELIVERY_CONFIRMED_FIRST_NOTE}`,
+    answer: `Yes. ${POP_UP_CARD.shortDescription} There are ${POP_UP_CARD.variants.length} designs grouped by occasion — ${listOf(groupedCards().map((g) => lower(g.group.label)))} — from ${formatMoney(POP_UP_CARD.variants.reduce((low, v) => (v.price.minor < low.price.minor ? v : low)).price)}. You add them when you create your memory. ${DELIVERY_ARRANGED_BY_MCB_NOTE}`,
   },
   {
     question: 'What else can I add to my song?',
-    answer: `${PERSONALISED_MUSIC_PLAQUE.name}${PLAQUE_VARIANT ? `, ${formatMoney(PLAQUE_VARIANT.price)}` : ''}: ${lower(PERSONALISED_MUSIC_PLAQUE.shortDescription)} ${PERSONALISED_MUSIC_PLAQUE.disclosures.join(' ')} ${LYRICS_FRAME.name} — ${lower(withoutFullStop(LYRICS_FRAME.shortDescription))} — in ${LYRICS_FRAME.variants.length} sizes: ${variantList(LYRICS_FRAME)}. Players: ${listOf(PLAYERS.map((p) => `${p.name} (${p.variants[0] ? formatMoney(p.variants[0].price) : ''})`))}. Every personalised piece is made to order.`,
+    answer: `${PERSONALISED_MUSIC_PLAQUE.name}${PLAQUE_VARIANT ? `, ${formatMoney(PLAQUE_VARIANT.price)}` : ''}: ${lower(PERSONALISED_MUSIC_PLAQUE.shortDescription)} ${PERSONALISED_MUSIC_PLAQUE.disclosures.join(' ')} Pop-up cards to give alongside your song. Players: ${listOf(PLAYERS.map((p) => `${p.name} (${p.variants[0] ? formatMoney(p.variants[0].price) : ''})`))}. Every personalised piece is made to order.`,
   },
   {
     question: `What is ${PRIORITY_REPLACEMENT.name}?`,
@@ -223,7 +220,7 @@ const faqs: { question: string; answer: string }[] = [
   },
   {
     question: 'Is delivery included?',
-    answer: `Delivery is calculated separately and confirmed before payment, so you see it before you pay. That applies to physical items: ${KEEPSAKE.name}, ${JOURNEY.name}, frames, plaques and players. ${DELIVERY_CONFIRMED_FIRST_NOTE} ${MOMENT.name} is delivered digitally, with nothing to post.`,
+    answer: `Delivery is shown separately on your review page, so you see the full total before you pay. That applies to physical items: ${KEEPSAKE.name} and ${JOURNEY.name} records, frames, plaques, players and cards. ${DELIVERY_ARRANGED_BY_MCB_NOTE} ${MOMENT.name} is delivered digitally, with nothing to post.`,
   },
   WHO_MAKES_AND_DELIVERS,
   IF_IT_ARRIVES_DAMAGED,

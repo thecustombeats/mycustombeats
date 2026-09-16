@@ -367,8 +367,36 @@ export const LYRICS_FRAME: Product = {
   shortDescription: "Timeless typography designed to live on walls.",
   commercialModel: "VARIANT_FIXED",
   category: "PERSONALISED_DECOR",
+  // WITHDRAWN FROM THE CUSTOMER-FACING LAUNCH (Founder decision, 16 Sept 2026).
+  //
+  // "Lyrics Frame / Lyrics Frames" is retired: it must not appear as a product,
+  // an upsell, a checkout line, a catalogue item, structured data or a
+  // navigation destination. Withdrawing it also takes its only photograph off
+  // the site — a room mockup whose poster reads "Imagine Your Song Lyrics
+  // Here", placeholder text baked into the pixels.
+  //
+  // The entry is NOT deleted. These five SKUs are the FRAME family in the
+  // 33-SKU physical supplier registry, and deleting them would silently break
+  // that count and their routes.
+  //
+  // `public: false` removes it from every customer surface: it is in no
+  // publicProducts() list, so no page renders it, no structured data describes
+  // it, Finishing Touches cannot offer it and nothing links to it. No customer
+  // journey can add one.
+  //
+  // `onlineCheckout` stays TRUE so the add-on machinery it exercises — a
+  // PERSONALISED_DECOR physical line, per-memory frame personalisation, the
+  // FRAME delivery class and its supplier routes — remains under test for
+  // whatever product occupies this slot once the Founders answer decision 96.
+  // RESIDUAL, REPORTED: a request that names the SKU directly could still price
+  // one. Closing that means retiring the SKU outright, which is decision 96.
+  //
+  // OPEN FOR THE FOUNDERS: the brief lists "5 vinyl frames / wall-art products"
+  // among the current 33 AND lists Lyrics Frames as retired. They are the same
+  // five SKUs. No product that frames a vinyl RECORD exists in the catalogue,
+  // and none was invented.
   active: true,
-  public: true,
+  public: false,
   onlineCheckout: true,
   requiresPersonalisation: true,
   route: null,
@@ -496,9 +524,15 @@ export const POP_UP_CARD: Product = {
   schemaType: "ProductGroup",
   variesBy: "design",
   analyticsCategory: "Pop-Up Card",
-  image: null,
-  imageAlt: null,
-  disclosures: [],
+  // ONE approved example photograph stands for all eighteen designs. MCB does
+  // not photograph every card because the card itself is part of the surprise;
+  // the disclosure below tells the customer that plainly, and takes care not to
+  // imply the designs are identical or to claim a size MCB has not verified.
+  image: "pop-up-card",
+  imageAlt: "An MCB pop-up card opened to reveal a paper bouquet",
+  disclosures: [
+    "The photograph is an example. Pop-up cards are part of the surprise, so we don't show every design — yours is chosen for the occasion you pick, and opens into something substantial and beautifully made.",
+  ],
   cta: "Add to Your Memory",
   storedValue: null,
   variants: [

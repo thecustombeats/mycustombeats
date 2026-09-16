@@ -259,3 +259,22 @@ can be sold again.
 | 93 | Confirm the withdrawal of `/artists`, `/artists/apply` and `/affiliate` from the launch surface. The affiliate backend and existing affiliates are untouched. | F (decision) |
 | 94 | Verify `hello@` receives customer email and `support@` forwards to it. | External |
 | 95 | Live-verify the Formspree partner enquiry and the Calendly booking link. | External |
+
+## 18. Founder Visual Review — Corrections 01 (16 September 2026)
+
+Detail in `docs/WEBSITE-READINESS-20260916.md`. Corrections applied: payment is
+no longer blocked by verification uncertainty; one artwork photograph per
+physical keepsake (a 12-song Journey asked for twelve); Finishing Touches
+restricted by product; the approved pop-up card photograph added as an example
+with surprise wording; the example film made discoverable; the "Used by guests
+on board" strip restored with a visible non-affiliation notice; US and UK first
+in the delivery country list; Lyrics Frames withdrawn from every customer
+surface.
+
+| # | Item | Class |
+|---|---|---|
+| 96 | **The FRAME family.** The "5 vinyl frames / wall-art products" in the 33 and the retired "Lyrics Frames" are the SAME five SKUs. They cannot be both. No product that frames a vinyl RECORD exists in the catalogue, and none was invented. Decide: retire them, or source a real vinyl frame. | F (decision) |
+| 97 | **Players.** The gramophones and record player (£100–£1,000) are no longer offered in Finishing Touches, because the correction says a physical order may be offered only a vinyl frame and pop-up cards. Confirm — this withdraws a £1,000 product from the only place it was sold. | F (confirm) |
+| 98 | **The plaque's route to market.** It remains an active product but is now offered nowhere: every order needs a song experience, and it is no longer a finishing touch. Where should it be sold? | F (decision) |
+| 99 | **`TESTIMONIAL_PERMISSION_REQUIRED`.** Ten testimonials exist on the live site (seven written, three video). Nothing in the repository or its history records a customer agreeing to publication. None is published. Clear one or more with evidence, or confirm the site ships without them. | F (evidence) |
+| 100 | **`MUSIC_PLAQUE_IMAGE_REQUIRED`.** The only plaque image available is a crystal award trophy with a QR code reading "Scan to hear your custom song" — the wrong product, and it would imply the plaque plays music. A photograph of the actual 8 × 12 plaque is needed. | F (asset) |

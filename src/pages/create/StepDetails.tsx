@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { COUNTRIES } from "../../data/countries";
+import { COUNTRIES_FOR_DELIVERY } from "../../data/countries";
 import { contactIssues, type ContactDetails, type ContactField } from "../../lib/createFlow";
 
 interface StepDetailsProps {
@@ -65,7 +65,9 @@ const StepDetails = ({ contact, setContact, requiresShipping, showErrors }: Step
             className={`mt-2 min-h-12 w-full rounded-xl border bg-white px-3 text-base text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-deep ${error ? "border-red-600" : "border-espresso/15"}`}
           >
             <option value="">Choose the country</option>
-            {COUNTRIES.map((country) => (
+            {/* The two most-asked-for destinations first, then every other
+                country in full. Presentation only: the ISO value is unchanged. */}
+            {COUNTRIES_FOR_DELIVERY.map((country) => (
               <option key={country.code} value={country.code}>
                 {country.name}
               </option>

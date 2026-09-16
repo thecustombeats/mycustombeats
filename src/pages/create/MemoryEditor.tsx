@@ -14,6 +14,16 @@ interface MemoryEditorProps {
   photo: File | undefined;
   /** The product's artwork is created from the customer's photograph. */
   photoRequired?: boolean;
+  /**
+   * Whether this editor shows a photo field at all.
+   *
+   * ONE PHYSICAL KEEPSAKE = ONE ARTWORK PHOTO. For a record, the artwork
+   * belongs to the object, not to each song, so the photograph is asked for
+   * once for the whole record — above this editor — and not here. A 12-song
+   * Journey used to show twelve photo fields, every one of them marked
+   * required, when MCB only ever needed one.
+   */
+  showPhoto?: boolean;
   /** Whether the chosen photograph is artwork-ready, in words. */
   photoNote?: string;
   onPhoto: (file: File | undefined) => void;
@@ -23,7 +33,7 @@ interface MemoryEditorProps {
 }
 
 /** Everything we need for one song: the memory, who it's for, a photo and a style. */
-const MemoryEditor = ({ memory, label, storyPrompt, photoHint, photo, photoRequired = false, photoNote, onPhoto, onChange, errors, onStyleEvent }: MemoryEditorProps) => {
+const MemoryEditor = ({ memory, label, storyPrompt, photoHint, photo, photoRequired = false, showPhoto = true, photoNote, onPhoto, onChange, errors, onStyleEvent }: MemoryEditorProps) => {
   const uid = useId();
   const storyId = `${uid}-story`;
   const counterId = `${uid}-counter`;
@@ -104,10 +114,12 @@ const MemoryEditor = ({ memory, label, storyPrompt, photoHint, photo, photoRequi
         </div>
       </div>
 
-      <div>
-        <PhotoField label={photoRequired ? "A photograph for your artwork" : "A photo for this memory"} hint={photoHint} file={photo} onChange={onPhoto} required={photoRequired} />
-        {photoNote && <p className="mt-2 text-sm text-espresso/80" aria-live="polite">{photoNote}</p>}
-      </div>
+      {showPhoto && (
+        <div>
+          <PhotoField label={photoRequired ? "A photograph for your artwork" : "A photo for this memory"} hint={photoHint} file={photo} onChange={onPhoto} required={photoRequired} />
+          {photoNote && <p className="mt-2 text-sm text-espresso/80" aria-live="polite">{photoNote}</p>}
+        </div>
+      )}
 
       <MusicStyleSelector
         heading={`Music style — ${label}`}

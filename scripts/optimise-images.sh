@@ -22,6 +22,10 @@ mkdir -p "$OUT"
 
 # name:source — names are what src/data/imagery.ts references.
 SOURCES=(
+  # The approved Pop-Up Card photograph (commit 51478af8: "a genuine pop-up
+  # opening to a paper bouquet, not an NFC tap-card"). One EXAMPLE image
+  # represents all eighteen designs — the card itself is part of the surprise.
+  "pop-up-card:brand/Pop-Up-Card.png"
   "celebration-deck:hero-1.jpg"
   "friends-toast:hero-2.jpg"
   "sea-toast:hero-3.jpg"

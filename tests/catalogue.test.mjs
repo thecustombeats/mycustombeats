@@ -212,13 +212,15 @@ test("validation refuses broken catalogues", () => {
 /* ------------------------------------------------------------------ */
 
 test("order preview totals in integer pence and enforces the order rules", () => {
+  // The Lyrics Frame was withdrawn from the customer surface (Founder decision,
+  // 16 September 2026), so a pop-up card stands in as the physical add-on here.
   const ok = previewOrder([
     { sku: "keepsake-7-picture-disc", quantity: 3 },
-    { sku: "lyrics-frame-12x18", quantity: 1 },
+    { sku: "pop-up-card-wedding", quantity: 1 },
     { sku: "priority-replacement", quantity: 3 },
   ]);
   assert.equal(ok.ok, true);
-  assert.equal(ok.totalMinor, 3 * 9900 + 6999 + 3 * 1999);
+  assert.equal(ok.totalMinor, 3 * 9900 + 4999 + 3 * 1999);
   assert.equal(ok.requiresShipping, true);
 
   assert.equal(previewOrder([{ sku: "moment", quantity: 1 }]).requiresShipping, false);

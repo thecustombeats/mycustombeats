@@ -3,7 +3,6 @@ import ResponsiveImage from "../../components/ResponsiveImage";
 import { McbButtonLink } from "../../components/mcb/McbButton";
 import SectionHeading from "../../components/mcb/SectionHeading";
 import {
-  LYRICS_FRAME,
   PERSONALISED_MUSIC_PLAQUE,
   priceSummary,
   publicProducts,
@@ -32,15 +31,7 @@ interface Tile {
 }
 
 const TILES: readonly Tile[] = ([
-  {
-    key: LYRICS_FRAME.id,
-    name: LYRICS_FRAME.name,
-    line: LYRICS_FRAME.positioning,
-    price: priceSummary(LYRICS_FRAME),
-    image: IMAGES.lyricsFrame,
-    imageAlt: "A framed lyrics print standing on a sideboard",
-    disclosures: LYRICS_FRAME.disclosures,
-  },
+  /* Lyrics Frames withdrawn from the launch surface (Founder decision). */
   {
     key: "players",
     name: "Gramophones & record players",

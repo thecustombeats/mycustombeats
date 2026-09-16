@@ -205,8 +205,16 @@ export const MADE_TO_ORDER_NOTE =
   "Personalised keepsakes are made to order. Personalised production begins when your payment is confirmed; once your music and artwork have passed our quality check we place your keepsake into production, and it arrives as the reveal. This does not affect your rights if anything arrives damaged, faulty or not as described.";
 
 /**
- * Where MCB must confirm delivery before payment (availability-sensitive
- * items, or a destination without an authorised rate).
+ * Items MCB arranges itself, AFTER payment.
+ *
+ * This used to say MCB confirmed availability and the delivery cost "before
+ * you pay", and the order could not be paid until it had. That stopped a
+ * customer buying a pop-up card because MCB had not finished recording a
+ * delivery rate — uncertainty, not impossibility. MCB takes payment first and
+ * does its verification afterwards, and may hold more than one route for the
+ * same product, so a missing rate on one of them proves nothing.
+ *
+ * Nothing extra is charged for these later: the price shown is the price paid.
  */
-export const DELIVERY_CONFIRMED_FIRST_NOTE =
-  "For some items and destinations we confirm availability and the delivery cost with you personally before you pay, rather than guess at a charge.";
+export const DELIVERY_ARRANGED_BY_MCB_NOTE =
+  "Some pieces are arranged personally by MCB rather than priced by a delivery table. There is nothing more to pay for them — we confirm the details with our partners once your order is placed, and keep you posted.";

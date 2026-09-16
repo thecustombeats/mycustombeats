@@ -60,7 +60,10 @@ test("the physical registry: 33 SKUs by family, every catalogue physical SKU map
     ["Single Colour Flower Pop-Up Card — Pack of 4", 7999], ["Four Colour Flower Pop-Up Card — Pack of 4", 7999], ["Paper Flower Pop-Up Cards — Pack of 8", 12999],
   ]);
   assert.ok(C.POP_UP_CARD.variants.every((v) => v.fulfilment === "PHYSICAL") && C.POP_UP_CARD.deliveryClass === "CARD");
-  assert.equal(C.POP_UP_CARD.image, null, "no image is invented");
+  // One APPROVED example photograph now represents all eighteen designs; the
+  // card itself is part of the surprise, and the disclosure says so.
+  assert.equal(C.POP_UP_CARD.image, "pop-up-card", "the approved example photograph");
+  assert.match(C.POP_UP_CARD.disclosures.join(" "), /example/i);
   assert.deepEqual(S.CARD_PRICE_POINTS.map((p) => [p.tier, p.priceMinor]), [["SINGLE", 4999], ["LARGE_ANNIVERSARY", 6999], ["BIRTHDAY_AUTO_PLAY", 1999], ["FOUR_PACK", 7999], ["EIGHT_PACK", 12999]]);
   const json = JSON.parse(read("public/api/data/suppliers.json"));
   assert.equal(json.families.find((f) => f.family === "CARD").mapped, 18);

@@ -132,14 +132,16 @@ test("a Keepsake or Journey needs a photograph; an unready photo offers another 
   assert.match(t, /Not every photograph can be prepared to print quality/);
 });
 
-test("the plaque asks for a photo, song title and artist, and says it does not play music", () => {
-  const draft = P.addPlaque(draftFor("moment"));
-  const t = text(render(UI.StepExtras, { draft, setDraft: noop, photos: new Map(), setPhoto: noop, showErrors: false, onAdd: noop }));
-  assert.match(t, /Your photograph/);
-  assert.match(t, /Song title/);
-  assert.match(t, /Artist/);
-  assert.match(t, /This plaque does not play music\./);
-  assert.ok(!/8 × 12|8 x 12/.test(t), "unverified plaque size is not published");
+test("the plaque is no longer a Finishing Touches upsell, and still never claims to play music", () => {
+  // Founder decision, 16 September 2026: the plaque stays an active product but
+  // is offered as a finishing touch to nothing.
+  for (const sku of ["moment", "keepsake-12-picture-disc", "journey-6"]) {
+    const t = text(render(UI.StepExtras, { draft: P.addPlaque(draftFor(sku)), setDraft: noop, photos: new Map(), setPhoto: noop, showErrors: false, onAdd: noop }));
+    assert.ok(!/Personalised Music Plaque/.test(t), `${sku} must not be offered the plaque`);
+  }
+  // Its own facts are unchanged wherever it IS shown.
+  assert.match(C.PERSONALISED_MUSIC_PLAQUE.disclosures.join(" "), /does not play music/i);
+  assert.equal(C.PERSONALISED_MUSIC_PLAQUE.variants[0].price.minor, 4999);
 });
 
 test("Priority Replacement appears only for Keepsakes and is never preselected", () => {

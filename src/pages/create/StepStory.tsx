@@ -15,6 +15,7 @@ import {
   type OrderDraft,
 } from "../../lib/personalisation";
 import MemoryEditor from "./MemoryEditor";
+import PhotoField from "./PhotoField";
 
 interface StepStoryProps {
   draft: OrderDraft;
@@ -176,7 +177,46 @@ const StepStory = ({ draft, setDraft, photos, photoChecks = NO_CHECKS, setPhoto,
         </div>
       )}
 
-      <ol className="m-0 list-none space-y-3 p-0">
+      {/* ---- ONE ARTWORK PHOTOGRAPH FOR THE WHOLE RECORD ----
+          The artwork belongs to the physical keepsake, not to each song. This
+          used to be a photo field inside every memory, marked required — twelve
+          of them on a Journey — when MCB needs exactly one. The photograph is
+          still stored against the record's first memory, which is what the
+          server reads, so nothing about the order contract changed. */}
+      {photoArtwork && unit.memories[0] && (
+        <div className="mt-6 rounded-2xl border border-gold-dark/40 bg-white p-4 sm:p-6">
+          <p className="label-uppercase text-gold-deep">Your artwork photograph</p>
+          <h2 className="mt-2 font-serif text-2xl leading-snug text-ink">
+            One photograph for {draft.units.length > 1 ? `this ${product?.name ?? "record"}` : `your ${product?.name ?? "record"}`}
+          </h2>
+          <p className="mt-2 text-base leading-relaxed text-espresso/80">
+            MCB creates the artwork for the whole {product?.name ?? "record"} from this one photograph — whichever songs are on
+            it. Square and at least 2500 × 2500 pixels gives the best result.
+          </p>
+          <div className="mt-4">
+            <PhotoField
+              label="A photograph for your artwork"
+              hint={copy.photo}
+              file={photos.get(unit.memories[0].id)}
+              onChange={(file) => setPhoto(unit.memories[0].id, file)}
+              required
+            />
+            {photos.has(unit.memories[0].id) && (
+              <p className="mt-2 text-sm text-espresso/80" aria-live="polite">
+                {!photoChecks.has(unit.memories[0].id)
+                  ? "Checking your photograph…"
+                  : isArtworkReady(photoChecks.get(unit.memories[0].id))
+                    ? "Artwork-ready."
+                    : draft.artworkPreparation
+                      ? `Not artwork-ready — ${ARTWORK_PREPARATION.name} will prepare it.`
+                      : "Not artwork-ready: square, at least 2500 × 2500 pixels is needed. Choose another photo, or add Artwork Preparation above."}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <ol className="m-0 mt-6 list-none space-y-3 p-0">
         {unit.memories.map((memory, memoryIndex) => {
           const label = memoryLabel(draft, draft.units.indexOf(unit), memoryIndex);
           const complete = isMemoryComplete(memory);
@@ -231,7 +271,8 @@ const StepStory = ({ draft, setDraft, photos, photoChecks = NO_CHECKS, setPhoto,
                     storyPrompt={copy.prompt}
                     photoHint={copy.photo}
                     photo={photos.get(memory.id)}
-                    photoRequired={photoArtwork}
+                    photoRequired={false}
+                    showPhoto={!photoArtwork}
                     photoNote={
                       photoArtwork && photos.has(memory.id)
                         ? !photoChecks.has(memory.id)

@@ -50,25 +50,6 @@ const SongShowcaseSection = () => {
   const [progress, setProgress] = useState<Record<string, number>>({});
   const videoRef = useRef<HTMLVideoElement>(null);
   const exampleRef = useRef<HTMLDivElement>(null);
-  // Without IntersectionObserver the poster simply loads with the section.
-  const [nearViewport, setNearViewport] = useState(() => typeof IntersectionObserver === "undefined");
-
-  // Load the poster only as the example approaches the screen.
-  useEffect(() => {
-    const el = exampleRef.current;
-    if (!el || nearViewport) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setNearViewport(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "600px 0px" }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [nearViewport]);
 
   // Stop playback if the visitor leaves the homepage mid-song.
   useEffect(() => {
@@ -102,9 +83,9 @@ const SongShowcaseSection = () => {
       <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
         <SectionHeading
           id="samples-heading"
-          eyebrow="See & hear"
-          title="Hear what a memory can become"
-          intro={<p>Examples of what MCB creates. Every song is written for its own story, so yours will sound like yours.</p>}
+          eyebrow="Watch & listen"
+          title="See what a memory can become"
+          intro={<p>A real MCB film, and songs you can play. Every one is written for its own story, so yours will sound like yours.</p>}
         />
 
         {/* ---- The featured example -------------------------------------- */}
@@ -117,11 +98,13 @@ const SongShowcaseSection = () => {
               playsInline
               width={940}
               height={1672}
-              poster={
-                nearViewport
-                  ? imageSrc(IMAGES.anniversaryExamplePoster, typeof window !== "undefined" && window.devicePixelRatio > 1 ? 960 : 480, "webp")
-                  : undefined
-              }
+              /* ALWAYS set. It used to load only once an IntersectionObserver
+                 said the section was near, so until then the player was a black
+                 rectangle on a dark background — indistinguishable from nothing
+                 at all, which is exactly how it was reported. The poster is a
+                 few tens of kilobytes; `preload="none"` still means not one
+                 byte of video downloads until someone presses play. */
+              poster={imageSrc(IMAGES.anniversaryExamplePoster, typeof window !== "undefined" && window.devicePixelRatio > 1 ? 960 : 480, "webp")}
               aria-labelledby="anniversary-example-title"
               aria-describedby="anniversary-example-description"
               className="block aspect-[940/1672] h-auto w-full bg-black"
